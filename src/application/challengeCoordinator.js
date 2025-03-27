@@ -15,10 +15,8 @@ const challengeThreadService = require('../core/challenge/services/challengeThre
 // Import domain model
 const Challenge = require('../core/challenge/models/Challenge');
 
-// Import repositories via DI container
+// Import container but don't resolve dependencies at module load time
 const container = require('../config/container');
-const challengeRepository = container.get('challengeRepository');
-const userRepository = container.get('userRepository');
 
 /**
  * Generate a challenge for a user
@@ -33,6 +31,10 @@ const userRepository = container.get('userRepository');
  * @returns {Promise<Object>} - The generated challenge
  */
 const generateAndPersistChallenge = async (params) => {
+  // Get repositories at runtime
+  const challengeRepository = container.get('challengeRepository');
+  const userRepository = container.get('userRepository');
+
   try {
     const { email, focusArea, challengeType, formatType, difficulty, config, difficultyManager } = params;
     
@@ -159,6 +161,10 @@ const generateAndPersistChallenge = async (params) => {
  * @returns {Promise<Object>} - Evaluation results and updated challenge
  */
 const submitChallengeResponse = async (params) => {
+  // Get repositories at runtime
+  const challengeRepository = container.get('challengeRepository');
+  const userRepository = container.get('userRepository');
+
   try {
     const { challengeId, responses, progressTrackingService, userJourneyService } = params;
     
@@ -302,6 +308,10 @@ const submitChallengeResponse = async (params) => {
  * @returns {Promise<Object>} - Evaluation results and updated challenge
  */
 const submitChallengeResponseStream = async (params) => {
+  // Get repositories at runtime
+  const challengeRepository = container.get('challengeRepository');
+  const userRepository = container.get('userRepository');
+
   try {
     const { challengeId, responses, progressTrackingService, userJourneyService, onEvaluationProgress } = params;
     

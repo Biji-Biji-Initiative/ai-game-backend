@@ -4,12 +4,18 @@
  * Handles HTTP requests related to adaptive learning operations.
  */
 
-const { container } = require('../../../config/container');
-const logger = container.get('logger');
-
 class AdaptiveController {
-  constructor() {
-    this.adaptiveService = container.get('adaptiveService');
+  /**
+   * Create a new AdaptiveController
+   * @param {Object} dependencies - Dependencies
+   * @param {Object} dependencies.logger - Logger instance
+   * @param {Object} dependencies.adaptiveService - Adaptive service
+   */
+  constructor(dependencies = {}) {
+    const { logger, adaptiveService } = dependencies;
+    
+    this.logger = logger;
+    this.adaptiveService = adaptiveService;
   }
 
   /**
@@ -39,7 +45,7 @@ class AdaptiveController {
         }
       });
     } catch (error) {
-      logger.error('Error getting recommendations', { 
+      this.logger.error('Error getting recommendations', { 
         error: error.message, 
         userId: req.user?.id 
       });
@@ -77,7 +83,7 @@ class AdaptiveController {
         data: challengeParams
       });
     } catch (error) {
-      logger.error('Error generating challenge', { 
+      this.logger.error('Error generating challenge', { 
         error: error.message, 
         userId: req.user?.id 
       });
@@ -133,7 +139,7 @@ class AdaptiveController {
         }
       });
     } catch (error) {
-      logger.error('Error adjusting difficulty', { 
+      this.logger.error('Error adjusting difficulty', { 
         error: error.message, 
         userId: req.user?.id 
       });
@@ -173,7 +179,7 @@ class AdaptiveController {
         }
       });
     } catch (error) {
-      logger.error('Error calculating difficulty', { 
+      this.logger.error('Error calculating difficulty', { 
         error: error.message, 
         userId: req.user?.id 
       });

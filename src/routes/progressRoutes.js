@@ -6,9 +6,13 @@ const express = require('express');
 const router = express.Router();
 const ProgressController = require('../core/progress/controllers/ProgressController');
 const { authenticateUser } = require('../core/infra/http/middleware/auth');
+const container = require('../config/container');
 
-// Create controller instance
-const progressController = new ProgressController();
+// Create controller instance with dependencies
+const progressController = new ProgressController({
+  logger: container.get('logger'),
+  progressService: container.get('progressService')
+});
 
 // Get current user's overall progress
 router.get('/', authenticateUser, (req, res) => progressController.getUserProgress(req, res));

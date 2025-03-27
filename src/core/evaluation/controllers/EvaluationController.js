@@ -4,14 +4,27 @@
  * Handles HTTP requests related to evaluation operations.
  */
 
-const { container } = require('../../../config/container');
-const logger = container.get('logger');
-
 class EvaluationController {
-  constructor() {
-    this.evaluationService = container.get('evaluationService');
-    this.evaluationThreadService = require('../services/evaluationThreadService');
-    this.challengeRepository = container.get('challengeRepository');
+  /**
+   * Create a new EvaluationController
+   * @param {Object} dependencies - Dependencies
+   * @param {Object} dependencies.logger - Logger instance
+   * @param {Object} dependencies.evaluationService - Evaluation service
+   * @param {Object} dependencies.evaluationThreadService - Evaluation thread service
+   * @param {Object} dependencies.challengeRepository - Challenge repository
+   */
+  constructor(dependencies = {}) {
+    const { 
+      logger, 
+      evaluationService, 
+      evaluationThreadService,
+      challengeRepository 
+    } = dependencies;
+    
+    this.logger = logger;
+    this.evaluationService = evaluationService;
+    this.evaluationThreadService = evaluationThreadService;
+    this.challengeRepository = challengeRepository;
   }
 
   /**
@@ -63,7 +76,7 @@ class EvaluationController {
         data: evaluation
       });
     } catch (error) {
-      logger.error('Error creating evaluation', { error: error.message });
+      this.logger.error('Error creating evaluation', { error: error.message });
       
       return res.status(500).json({
         status: 'error',
@@ -105,7 +118,7 @@ class EvaluationController {
         data: evaluation
       });
     } catch (error) {
-      logger.error('Error fetching evaluation', { error: error.message });
+      this.logger.error('Error fetching evaluation', { error: error.message });
       
       return res.status(500).json({
         status: 'error',
@@ -139,7 +152,7 @@ class EvaluationController {
         data: evaluations
       });
     } catch (error) {
-      logger.error('Error fetching user evaluations', { error: error.message });
+      this.logger.error('Error fetching user evaluations', { error: error.message });
       
       return res.status(500).json({
         status: 'error',
@@ -166,7 +179,7 @@ class EvaluationController {
         data: evaluations
       });
     } catch (error) {
-      logger.error('Error fetching challenge evaluations', { error: error.message });
+      this.logger.error('Error fetching challenge evaluations', { error: error.message });
       
       return res.status(500).json({
         status: 'error',
@@ -262,7 +275,7 @@ class EvaluationController {
         }
       }
     } catch (error) {
-      logger.error('Error streaming evaluation', { error: error.message });
+      this.logger.error('Error streaming evaluation', { error: error.message });
       
       return res.status(500).json({
         status: 'error',

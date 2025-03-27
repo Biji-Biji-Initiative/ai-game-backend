@@ -4,13 +4,19 @@
  * Handles HTTP requests related to personality operations.
  */
 
-const { container } = require('../../../config/container');
-const logger = container.get('logger');
-const { AppError } = container.get('errorHandler');
-
 class PersonalityController {
-  constructor() {
-    this.personalityService = container.get('personalityService');
+  /**
+   * Create a new PersonalityController
+   * @param {Object} dependencies - Dependencies
+   * @param {Object} dependencies.logger - Logger instance
+   * @param {Object} dependencies.personalityService - Personality service
+   */
+  constructor(dependencies = {}) {
+    const { logger, personalityService, errorHandler } = dependencies;
+    
+    this.logger = logger;
+    this.personalityService = personalityService;
+    this.AppError = errorHandler?.AppError;
   }
 
   /**
@@ -34,7 +40,7 @@ class PersonalityController {
         data: { insights }
       });
     } catch (error) {
-      logger.error('Error generating insights', { error: error.message, userId: req.user?.id });
+      this.logger.error('Error generating insights', { error: error.message, userId: req.user?.id });
       
       if (error.message.includes('No personality traits available')) {
         return res.status(400).json({ 
@@ -90,7 +96,7 @@ class PersonalityController {
         }
       });
     } catch (error) {
-      logger.error('Error updating personality traits', { 
+      this.logger.error('Error updating personality traits', { 
         error: error.message, 
         userId: req.user?.id 
       });
@@ -107,6 +113,7 @@ class PersonalityController {
         message: 'Failed to update personality traits'
       });
     }
+  }
 
   /**
    * Update AI attitudes for a user
@@ -147,7 +154,7 @@ class PersonalityController {
         }
       });
     } catch (error) {
-      logger.error('Error updating AI attitudes', { 
+      this.logger.error('Error updating AI attitudes', { 
         error: error.message, 
         userId: req.user?.id 
       });
@@ -164,6 +171,7 @@ class PersonalityController {
         message: 'Failed to update AI attitudes'
       });
     }
+  }
 
   /**
    * Get personality profile for a user
@@ -193,7 +201,7 @@ class PersonalityController {
         data: profile
       });
     } catch (error) {
-      logger.error('Error getting personality profile', { 
+      this.logger.error('Error getting personality profile', { 
         error: error.message, 
         userId: req.user?.id 
       });
@@ -206,4 +214,4 @@ class PersonalityController {
   }
 }
 
-module.exports = PersonalityController; 
+module.exports = PersonalityController;

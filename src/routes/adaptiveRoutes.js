@@ -6,9 +6,13 @@ const express = require('express');
 const router = express.Router();
 const AdaptiveController = require('../core/adaptive/controllers/AdaptiveController');
 const { authenticateUser } = require('../core/infra/http/middleware/auth');
+const container = require('../config/container');
 
-// Create controller instance
-const adaptiveController = new AdaptiveController();
+// Create controller instance with dependencies
+const adaptiveController = new AdaptiveController({
+  logger: container.get('logger'),
+  adaptiveService: container.get('adaptiveService')
+});
 
 // Get personalized recommendations
 router.get('/recommendations', authenticateUser, (req, res) => adaptiveController.getRecommendations(req, res));

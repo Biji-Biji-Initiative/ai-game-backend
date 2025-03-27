@@ -4,13 +4,18 @@
  * Handles HTTP requests related to user progress operations.
  */
 
-const ProgressService = require('../services/ProgressService');
-const { container } = require('../../../config/container');
-const logger = container.get('logger');
-
 class ProgressController {
-  constructor() {
-    this.progressService = container.get('progressService');
+  /**
+   * Create a new ProgressController
+   * @param {Object} dependencies - Dependencies
+   * @param {Object} dependencies.logger - Logger instance
+   * @param {Object} dependencies.progressService - Progress service
+   */
+  constructor(dependencies = {}) {
+    const { logger, progressService } = dependencies;
+    
+    this.logger = logger;
+    this.progressService = progressService;
   }
 
   /**
@@ -34,7 +39,7 @@ class ProgressController {
         data: { progress }
       });
     } catch (error) {
-      logger.error('Error getting user progress', { 
+      this.logger.error('Error getting user progress', { 
         error: error.message, 
         userId: req.user?.id 
       });
@@ -103,7 +108,7 @@ class ProgressController {
         }
       });
     } catch (error) {
-      logger.error('Error recording challenge completion', { 
+      this.logger.error('Error recording challenge completion', { 
         error: error.message, 
         userId: req.user?.id 
       });
@@ -163,7 +168,7 @@ class ProgressController {
         }
       });
     } catch (error) {
-      logger.error('Error getting challenge progress', { 
+      this.logger.error('Error getting challenge progress', { 
         error: error.message, 
         userId: req.user?.id 
       });
@@ -211,7 +216,7 @@ class ProgressController {
         }
       });
     } catch (error) {
-      logger.error('Error updating skill levels', { 
+      this.logger.error('Error updating skill levels', { 
         error: error.message, 
         userId: req.user?.id 
       });
@@ -266,7 +271,7 @@ class ProgressController {
         }
       });
     } catch (error) {
-      logger.error('Error setting focus area', { 
+      this.logger.error('Error setting focus area', { 
         error: error.message, 
         userId: req.user?.id 
       });
@@ -309,7 +314,7 @@ class ProgressController {
         }
       });
     } catch (error) {
-      logger.error('Error getting all user progress', { 
+      this.logger.error('Error getting all user progress', { 
         error: error.message, 
         userId: req.user?.id 
       });

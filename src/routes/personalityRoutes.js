@@ -8,8 +8,12 @@ const PersonalityController = require('../core/personality/controllers/Personali
 const { authenticateUser } = require('../core/infra/http/middleware/auth');
 const container = require('../config/container');
 
-// Create controller instance
-const personalityController = new PersonalityController();
+// Create controller instance with dependencies
+const personalityController = new PersonalityController({
+  logger: container.get('logger'),
+  personalityService: container.get('personalityService'),
+  errorHandler: container.get('errorHandler')
+});
 
 // Get personality profile
 router.get('/profile', authenticateUser, (req, res) => personalityController.getPersonalityProfile(req, res));

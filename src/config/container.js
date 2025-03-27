@@ -67,8 +67,8 @@ container.register('adaptiveRepository', (c) => {
 }, true);
 
 container.register('challengeRepository', (c) => {
-  const ChallengeRepository = require('../core/challenge/repositories/challengeRepository');
-  return new ChallengeRepository();
+  const challengeRepository = require('../core/challenge/repositories/challengeRepository');
+  return challengeRepository;
 }, true);
 
 container.register('focusAreaRepository', (c) => {
@@ -153,11 +153,8 @@ container.register('focusAreaGenerationService', (c) => {
 }, true);
 
 container.register('evaluationService', (c) => {
-  const EvaluationService = require('../core/evaluation/services/evaluationService');
-  const evaluationRepository = c.get('evaluationRepository');
-  const challengeRepository = c.get('challengeRepository');
-  const openaiClient = c.get('openaiClient');
-  return new EvaluationService(evaluationRepository, challengeRepository, openaiClient);
+  const evaluationService = require('../core/evaluation/services/evaluationService');
+  return evaluationService;
 }, true);
 
 // Application-level coordinators (renamed from services)

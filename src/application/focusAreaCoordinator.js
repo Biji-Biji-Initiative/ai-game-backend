@@ -18,11 +18,8 @@ const { container } = require('../config/container');
 const focusAreaGenerationService = require('../core/focusArea/services/focusAreaGenerationService');
 const focusAreaThreadService = require('../core/focusArea/services/focusAreaThreadService');
 
-// Get repositories from DI container
-const userRepository = container.get('userRepository');
-const challengeRepository = container.get('challengeRepository');
-const progressRepository = container.get('progressRepository');
-const focusAreaRepository = container.get('focusAreaRepository');
+// No longer getting repositories at module load time
+// This fixes the circular dependency issue
 
 /**
  * Generate personalized focus areas based on user data
@@ -36,6 +33,9 @@ const focusAreaRepository = container.get('focusAreaRepository');
  * @returns {Promise<Array>} List of personalized focus areas
  */
 const generateFocusAreasFromUserData = async (userData, challengeHistory = [], progressData = {}, options = {}) => {
+  // Get userRepository at runtime instead of module load time
+  const userRepository = container.get('userRepository');
+  
   try {
     // Extract key data points from user profile
     const { 
@@ -112,6 +112,9 @@ const generateFocusAreasFromUserData = async (userData, challengeHistory = [], p
  * @returns {Promise<string>} Thread ID for focus area generation
  */
 const createFocusAreaThread = async (userId) => {
+  // Get userRepository at runtime
+  const userRepository = container.get('userRepository');
+  
   try {
     logger.info('Creating new thread for focus area generation', { userId });
     
@@ -160,6 +163,12 @@ const createFocusAreaThread = async (userId) => {
  * @returns {Promise<Array>} List of personalized focus areas
  */
 const getFocusAreas = async (userId, options = {}) => {
+  // Get repositories at runtime
+  const userRepository = container.get('userRepository');
+  const challengeRepository = container.get('challengeRepository');
+  const progressRepository = container.get('progressRepository');
+  const focusAreaRepository = container.get('focusAreaRepository');
+  
   try {
     // First check if the user has existing focus areas in the database
     let existingFocusAreas;
@@ -285,6 +294,12 @@ const getFocusAreas = async (userId, options = {}) => {
  * @returns {Promise<Array>} Newly generated focus areas
  */
 const regenerateFocusAreas = async (userId) => {
+  // Get repositories at runtime
+  const userRepository = container.get('userRepository');
+  const challengeRepository = container.get('challengeRepository');
+  const progressRepository = container.get('progressRepository');
+  const focusAreaRepository = container.get('focusAreaRepository');
+  
   try {
     logger.info('Regenerating focus areas for user', { userId });
     
@@ -359,6 +374,9 @@ const regenerateFocusAreas = async (userId) => {
  * @returns {Promise<Array>} List of personalized focus areas
  */
 const getFocusAreasForUser = async (userEmail, options = {}) => {
+  // Get userRepository at runtime
+  const userRepository = container.get('userRepository');
+  
   try {
     // Find user by email
     const user = await userRepository.findByEmail(userEmail);

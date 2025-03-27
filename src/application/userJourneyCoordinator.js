@@ -11,8 +11,8 @@ const userJourneyRepository = require('../core/userJourney/repositories/UserJour
 const userJourneyService = require('../core/userJourney/services/UserJourneyService');
 const container = require('../config/container');
 
-const userRepository = container.get('userRepository');
-const challengeRepository = container.get('challengeRepository');
+// No longer getting repositories at module load time
+// This fixes the circular dependency issue
 
 /**
  * Record a user interaction event
@@ -23,6 +23,9 @@ const challengeRepository = container.get('challengeRepository');
  * @returns {Promise<Object>} The recorded event
  */
 const recordUserEvent = async (userEmail, eventType, eventData = {}, challengeId = null) => {
+  // Get repositories at runtime
+  const userRepository = container.get('userRepository');
+  
   try {
     if (!userEmail || !eventType) {
       logger.warn('Missing required parameters for recording user event');
@@ -91,6 +94,10 @@ const recordUserEvent = async (userEmail, eventType, eventData = {}, challengeId
  * @returns {Promise<Object>} Updated user
  */
 const updateUserJourneyMetrics = async (userEmail, journeyMeta, recentEvents) => {
+  // Get repositories at runtime
+  const userRepository = container.get('userRepository');
+  const challengeRepository = container.get('challengeRepository');
+  
   try {
     // Get completed challenges count
     const challengeHistory = await challengeRepository.getUserChallengeHistory(userEmail);
@@ -129,6 +136,9 @@ const updateUserJourneyMetrics = async (userEmail, journeyMeta, recentEvents) =>
  * @returns {Promise<Object>} Journey insights and recommendations
  */
 const getUserJourneyInsights = async (userEmail) => {
+  // Get repositories at runtime
+  const userRepository = container.get('userRepository');
+  
   try {
     // Get user data
     const user = await userRepository.getUserByEmail(userEmail);

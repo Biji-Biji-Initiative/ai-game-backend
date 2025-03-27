@@ -8,7 +8,7 @@
  */
 
 const { v4: uuidv4 } = require('uuid');
-const evaluationCategoryRepository = require('../../../repositories/evaluationCategoryRepository');
+const evaluationCategoryRepository = require('../repositories/evaluationCategoryRepository');
 
 /**
  * Enhanced Evaluation class representing comprehensive assessment of a user's challenge response
