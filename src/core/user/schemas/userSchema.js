@@ -3,6 +3,7 @@
  * 
  * Defines validation schemas for the User domain model
  * to ensure data consistency and integrity.
+ * Personality data is now managed by the personality domain.
  */
 
 const { z } = require('zod');
@@ -19,8 +20,6 @@ const userSchema = z.object({
   role: z.enum(['user', 'admin']).default('user'),
   location: z.string().optional().default(''),
   country: z.string().optional().default(''),
-  personalityTraits: z.record(z.number().min(0).max(1)).optional().default({}),
-  aiAttitudes: z.record(z.number().min(0).max(1)).optional().default({}),
   focusArea: z.string().optional().default(''),
   lastActive: z.string().nullable().optional(),
   createdAt: z.string().optional(),
@@ -57,8 +56,6 @@ const userDatabaseSchema = z.object({
   role: z.enum(['user', 'admin']).default('user'),
   location: z.string().optional().default(''),
   country: z.string().optional().default(''),
-  personality_traits: z.record(z.number().min(0).max(1)).optional().default({}),
-  ai_attitudes: z.record(z.number().min(0).max(1)).optional().default({}),
   focus_area: z.string().optional().default(''),
   last_active: z.string().nullable().optional(),
   created_at: z.string().optional(),
@@ -79,8 +76,6 @@ function fromDatabase(dbUser) {
     role: dbUser.role,
     location: dbUser.location,
     country: dbUser.country,
-    personalityTraits: dbUser.personality_traits,
-    aiAttitudes: dbUser.ai_attitudes,
     focusArea: dbUser.focus_area,
     lastActive: dbUser.last_active,
     createdAt: dbUser.created_at,
@@ -102,8 +97,6 @@ function toDatabase(user) {
     role: user.role,
     location: user.location,
     country: user.country,
-    personality_traits: user.personalityTraits,
-    ai_attitudes: user.aiAttitudes,
     focus_area: user.focusArea,
     last_active: user.lastActive,
     created_at: user.createdAt,

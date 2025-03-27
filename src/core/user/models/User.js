@@ -3,6 +3,7 @@
  * 
  * This model represents a user in the system and encapsulates user-specific behavior.
  * Uses Zod for data validation to ensure integrity.
+ * Personality data is now managed by the personality domain.
  */
 
 const domainEvents = require('../../shared/domainEvents');
@@ -22,8 +23,6 @@ class User {
       role: data.role || 'user',
       location: data.location || '',
       country: data.country || '',
-      personalityTraits: data.personality_traits || data.personalityTraits || {},
-      aiAttitudes: data.ai_attitudes || data.aiAttitudes || {},
       focusArea: data.focus_area || data.focusArea || '',
       lastActive: data.last_active || data.lastActive || null,
       createdAt: data.created_at || data.createdAt || new Date().toISOString(),
@@ -44,6 +43,18 @@ class User {
       Object.assign(this, userData);
       console.warn('User data validation warning:', result.error.message);
     }
+    
+    // Subscribe to relevant personality domain events
+    this._subscribeToPersonalityEvents();
+  }
+  
+  /**
+   * Subscribe to personality domain events
+   * @private
+   */
+  _subscribeToPersonalityEvents() {
+    // No need to do anything here as the User service will handle the events
+    // This method is kept as a placeholder for documentation purposes
   }
 
   /**
@@ -122,16 +133,22 @@ class User {
    * @param {Object} updates - The profile updates to apply
    */
   updateProfile(updates = {}) {
-    // Track if personality traits were updated
-    const personalityUpdated = updates.personalityTraits && 
-      JSON.stringify(updates.personalityTraits) !== JSON.stringify(this.personalityTraits);
-      
-    // Apply updates
-    Object.keys(updates).forEach(key => {
-      if (this.hasOwnProperty(key)) {
-        this[key] = updates[key];
+    // Apply updates to user fields only
+    const allowedFields = [
+      'fullName', 'professionalTitle', 'location', 'country', 
+      'role', 'focusArea', 'focusAreaThreadId', 'challengeThreadId',
+      'evaluationThreadId', 'personalityThreadId'
+    ];
+    
+    const filteredUpdates = {};
+    allowedFields.forEach(field => {
+      if (updates[field] !== undefined) {
+        filteredUpdates[field] = updates[field];
       }
     });
+      
+    // Apply updates
+    Object.assign(this, filteredUpdates);
     
     this.updatedAt = new Date().toISOString();
     
@@ -139,16 +156,8 @@ class User {
     if (this.id) {
       domainEvents.publish('UserProfileUpdated', {
         userId: this.id,
-        updatedFields: Object.keys(updates)
+        updatedFields: Object.keys(filteredUpdates)
       });
-      
-      // If personality traits were updated, publish a specific event
-      if (personalityUpdated) {
-        domainEvents.publish('UserTraitsUpdated', {
-          userId: this.id,
-          traits: this.personalityTraits
-        });
-      }
     }
   }
 }

@@ -1,5 +1,6 @@
 -- User Domain Database Schema
 -- This file defines all tables, indexes, and other database objects for the User domain
+-- Personality data is now managed by the personality domain
 
 -- Enable UUID extension if not already enabled
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -20,9 +21,7 @@ CREATE TABLE IF NOT EXISTS users (
   location TEXT,
   country TEXT,
   
-  -- Personality and preferences
-  personality_traits JSONB DEFAULT '{}'::JSONB,
-  ai_attitudes JSONB DEFAULT '{}'::JSONB,
+  -- User preferences
   focus_area TEXT,
   
   -- Thread IDs for stateful conversations
@@ -46,8 +45,6 @@ COMMENT ON COLUMN users.professional_title IS 'User professional title or job ro
 COMMENT ON COLUMN users.role IS 'User role (user, admin)';
 COMMENT ON COLUMN users.location IS 'User location (city/region)';
 COMMENT ON COLUMN users.country IS 'User country';
-COMMENT ON COLUMN users.personality_traits IS 'JSONB containing personality assessment data';
-COMMENT ON COLUMN users.ai_attitudes IS 'JSONB containing attitudes toward AI technologies';
 COMMENT ON COLUMN users.focus_area IS 'Current focus area for the user';
 COMMENT ON COLUMN users.focus_area_thread_id IS 'ID of the focus area conversation thread';
 COMMENT ON COLUMN users.challenge_thread_id IS 'ID of the challenge conversation thread';
@@ -96,4 +93,21 @@ SELECT
   END AS activity_status
 FROM users;
 
-COMMENT ON VIEW user_activity_view IS 'View for analyzing user activity patterns'; 
+COMMENT ON VIEW user_activity_view IS 'View for analyzing user activity patterns';
+
+-- Create a trigger to automatically create a personality profile for new users
+CREATE OR REPLACE FUNCTION create_personality_profile_for_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO personality_profiles (user_id)
+  VALUES (NEW.id);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Add the trigger if it doesn't exist
+DROP TRIGGER IF EXISTS create_personality_profile_trigger ON users;
+CREATE TRIGGER create_personality_profile_trigger
+AFTER INSERT ON users
+FOR EACH ROW
+EXECUTE FUNCTION create_personality_profile_for_new_user(); 

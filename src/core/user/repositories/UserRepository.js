@@ -3,6 +3,7 @@
  * 
  * Handles data access operations for User domain model.
  * Uses Zod schemas for data validation and conversion.
+ * Personality data is now managed by the personality domain.
  */
 
 const User = require('../models/User');

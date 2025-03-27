@@ -6,17 +6,14 @@
 
 const Personality = require('../models/Personality');
 const PersonalityRepository = require('../repositories/PersonalityRepository');
+const TraitsAnalysisService = require('./TraitsAnalysisService');
 const domainEvents = require('../../shared/domainEvents');
 const { v4: uuidv4 } = require('uuid');
-const { 
-  computeDominantTraits, 
-  identifyTraitClusters,
-  analyzeAiAttitudes 
-} = require('../../../core/user/services/UserTraitsService');
 
 class PersonalityService {
-  constructor(personalityRepository, promptBuilder, openaiClient) {
+  constructor(personalityRepository, traitsAnalysisService, promptBuilder, openaiClient) {
     this.personalityRepository = personalityRepository || new PersonalityRepository();
+    this.traitsAnalysisService = traitsAnalysisService || new TraitsAnalysisService(this.personalityRepository);
     this.promptBuilder = promptBuilder;
     this.openaiClient = openaiClient;
   }
@@ -56,6 +53,15 @@ class PersonalityService {
   }
 
   /**
+   * Get personality profile with computed insights
+   * @param {string} userId - User ID
+   * @returns {Promise<Object>} Personality profile with computed insights
+   */
+  async getEnrichedProfile(userId) {
+    return this.traitsAnalysisService.getEnrichedProfile(userId);
+  }
+
+  /**
    * Generate insights based on a user's personality traits and AI attitudes
    * @param {string} userId - User ID
    * @returns {Promise<Object>} Generated insights
@@ -76,6 +82,9 @@ class PersonalityService {
         profile.setThreadId(threadId);
         await this.personalityRepository.save(profile);
       }
+      
+      // Make sure personality profile is fully analyzed
+      await this.processPersonalityData(profile);
       
       // Build prompt for insights generation
       const promptTemplate = await this.promptBuilder.buildPrompt('personality', {
@@ -114,6 +123,40 @@ class PersonalityService {
   }
 
   /**
+   * Process personality data to ensure computed fields are populated
+   * @param {Personality} profile - The personality profile to process
+   * @returns {Promise<Personality>} The processed profile
+   * @private
+   */
+  async processPersonalityData(profile) {
+    // Calculate dominant traits if needed
+    if (Object.keys(profile.personalityTraits).length > 0 && 
+        profile.dominantTraits.length === 0) {
+      
+      const dominantTraits = this.traitsAnalysisService.computeDominantTraits(profile.personalityTraits);
+      profile.setDominantTraits(dominantTraits);
+      
+      const traitClusters = this.traitsAnalysisService.identifyTraitClusters(dominantTraits);
+      profile.setTraitClusters(traitClusters);
+    }
+    
+    // Calculate AI attitude profile if needed
+    if (Object.keys(profile.aiAttitudes).length > 0 && 
+        Object.keys(profile.aiAttitudeProfile).length === 0) {
+      
+      const aiAttitudeProfile = this.traitsAnalysisService.analyzeAiAttitudes(profile.aiAttitudes);
+      profile.setAIAttitudeProfile(aiAttitudeProfile);
+    }
+    
+    // Save if changes were made
+    if (profile.updatedAt !== profile.createdAt) {
+      await this.personalityRepository.save(profile);
+    }
+    
+    return profile;
+  }
+
+  /**
    * Update personality traits for a user
    * @param {string} userId - User ID
    * @param {Object} traits - Personality traits to update
@@ -128,14 +171,22 @@ class PersonalityService {
       profile.updateTraits(traits);
       
       // Process personality data
-      const dominantTraits = computeDominantTraits(profile.personalityTraits);
+      const dominantTraits = this.traitsAnalysisService.computeDominantTraits(profile.personalityTraits);
       profile.setDominantTraits(dominantTraits);
       
-      const traitClusters = identifyTraitClusters(dominantTraits);
+      const traitClusters = this.traitsAnalysisService.identifyTraitClusters(dominantTraits);
       profile.setTraitClusters(traitClusters);
       
       // Save updated profile
-      return this.personalityRepository.save(profile);
+      const savedProfile = await this.personalityRepository.save(profile);
+      
+      // Publish domain event for user service to update its copy if needed
+      domainEvents.publish('PersonalityTraitsUpdatedForUser', {
+        userId: profile.userId,
+        personalityTraits: profile.personalityTraits
+      });
+      
+      return savedProfile;
     } catch (error) {
       console.error('PersonalityService.updatePersonalityTraits error:', error);
       throw error;
@@ -157,11 +208,19 @@ class PersonalityService {
       profile.updateAttitudes(attitudes);
       
       // Process AI attitude data
-      const aiAttitudeProfile = analyzeAiAttitudes(profile.aiAttitudes);
+      const aiAttitudeProfile = this.traitsAnalysisService.analyzeAiAttitudes(profile.aiAttitudes);
       profile.setAIAttitudeProfile(aiAttitudeProfile);
       
       // Save updated profile
-      return this.personalityRepository.save(profile);
+      const savedProfile = await this.personalityRepository.save(profile);
+      
+      // Publish domain event for user service to update its copy if needed
+      domainEvents.publish('AIAttitudesUpdatedForUser', {
+        userId: profile.userId,
+        aiAttitudes: profile.aiAttitudes
+      });
+      
+      return savedProfile;
     } catch (error) {
       console.error('PersonalityService.updateAIAttitudes error:', error);
       throw error;
@@ -193,6 +252,30 @@ class PersonalityService {
     } catch (error) {
       console.error('PersonalityService.deletePersonalityProfile error:', error);
       throw error;
+    }
+  }
+  
+  /**
+   * Calculate compatibility between user and challenge
+   * @param {string} userId - User ID
+   * @param {Object} challengeTraits - Challenge trait requirements 
+   * @returns {Promise<number>} Compatibility score (0-100)
+   */
+  async calculateChallengeCompatibility(userId, challengeTraits) {
+    try {
+      const profile = await this.getPersonalityProfile(userId);
+      
+      if (!profile || Object.keys(profile.personalityTraits).length === 0) {
+        return 50; // Default neutral score
+      }
+      
+      return this.traitsAnalysisService.calculateTraitCompatibility(
+        profile.personalityTraits,
+        challengeTraits
+      );
+    } catch (error) {
+      console.error('PersonalityService.calculateChallengeCompatibility error:', error);
+      return 50; // Default neutral score on error
     }
   }
 }

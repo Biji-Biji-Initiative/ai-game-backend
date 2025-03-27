@@ -2,6 +2,7 @@
  * User Service
  * 
  * Handles business logic for user management.
+ * Personality data is managed by the personality domain.
  */
 
 const User = require('../models/User');
@@ -12,6 +13,39 @@ const { v4: uuidv4 } = require('uuid');
 class UserService {
   constructor(userRepository) {
     this.userRepository = userRepository || new UserRepository();
+    
+    // Register event handlers for personality domain events
+    this._registerPersonalityEventHandlers();
+  }
+  
+  /**
+   * Register event handlers for personality domain events
+   * @private
+   */
+  _registerPersonalityEventHandlers() {
+    // These events are handled for compatibility but don't affect the user model anymore
+    domainEvents.subscribe('PersonalityTraitsUpdatedForUser', this._handlePersonalityTraitsUpdated.bind(this));
+    domainEvents.subscribe('AIAttitudesUpdatedForUser', this._handleAIAttitudesUpdated.bind(this));
+  }
+  
+  /**
+   * Handle personality traits updated event
+   * @param {Object} event - Event data
+   * @private
+   */
+  async _handlePersonalityTraitsUpdated(event) {
+    // Just log the event - personality data is no longer stored in the user model
+    console.log(`Personality traits updated for user ${event.userId}`);
+  }
+  
+  /**
+   * Handle AI attitudes updated event
+   * @param {Object} event - Event data
+   * @private
+   */
+  async _handleAIAttitudesUpdated(event) {
+    // Just log the event - AI attitudes are no longer stored in the user model
+    console.log(`AI attitudes updated for user ${event.userId}`);
   }
 
   /**
