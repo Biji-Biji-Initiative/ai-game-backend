@@ -2,11 +2,13 @@
  * Personality Repository
  * 
  * Handles data access operations for Personality domain model.
+ * Uses Zod schemas for data validation and conversion.
  */
 
 const Personality = require('../models/Personality');
 const { createClient } = require('@supabase/supabase-js');
 const { v4: uuidv4 } = require('uuid');
+const { personalityDatabaseSchema } = require('../schemas/personalitySchema');
 
 class PersonalityRepository {
   constructor(supabaseClient) {
@@ -33,6 +35,12 @@ class PersonalityRepository {
       if (error) throw new Error(`Error fetching personality profile: ${error.message}`);
       if (!data) return null;
 
+      // Validate the database data before converting to domain object
+      const validationResult = personalityDatabaseSchema.safeParse(data);
+      if (!validationResult.success) {
+        console.warn('Database data validation warning:', validationResult.error.message);
+      }
+
       return new Personality(data);
     } catch (error) {
       console.error('PersonalityRepository.findById error:', error);
@@ -55,6 +63,12 @@ class PersonalityRepository {
 
       if (error) throw new Error(`Error fetching personality profile by user ID: ${error.message}`);
       if (!data) return null;
+
+      // Validate the database data before converting to domain object
+      const validationResult = personalityDatabaseSchema.safeParse(data);
+      if (!validationResult.success) {
+        console.warn('Database data validation warning:', validationResult.error.message);
+      }
 
       return new Personality(data);
     } catch (error) {
@@ -86,6 +100,12 @@ class PersonalityRepository {
 
       // Convert to database format
       const personalityData = personality.toDatabase();
+
+      // Validate database format
+      const dbValidationResult = personalityDatabaseSchema.safeParse(personalityData);
+      if (!dbValidationResult.success) {
+        throw new Error(`Invalid database format: ${dbValidationResult.error.message}`);
+      }
 
       // Upsert personality data
       const { data, error } = await this.supabase
