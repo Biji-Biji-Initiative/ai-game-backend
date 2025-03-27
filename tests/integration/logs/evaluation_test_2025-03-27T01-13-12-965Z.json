@@ -1,0 +1,8 @@
+{
+  "timestamp": "2025-03-27T01:13:12.965Z",
+  "testId": "test_1743037992883",
+  "action": "ImportError",
+  "data": {
+    "message": "Cannot find module '../../src/infrastructure/repositories/EvaluationRepository'\nRequire stack:\n- /Users/gsplace/responses api 3/tests/integration/evaluation-flow.test.js"
+  }
+}

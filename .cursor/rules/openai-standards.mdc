@@ -1,0 +1,58 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+ # OpenAI Responses API Standards
+
+## Key Requirements
+- Use **ONLY** the OpenAI Responses API (never Chat Completions API)
+- Use 4o-mini model during development
+
+## API Client Implementation
+
+### Structure
+- All OpenAI calls must go through `lib/openai/client.js`
+- No direct OpenAI package imports outside this module
+- Implement proper error handling and retry logic
+
+### Thread Management
+- Store thread IDs in the database for each conversation context
+- Use `lib/openai/threadManager.js` for all thread operations
+- Implement methods for:
+  - Creating threads
+  - Retrieving threads
+  - Managing thread lifecycle
+
+### Response Processing
+- Parse structured responses appropriately
+- Validate responses against expected schemas
+- Handle partial responses gracefully
+
+### Error Handling
+- Create specific error types for API failures
+- Implement exponential backoff for retries
+- Log all API errors with context
+
+## Function Calling
+- Define function schemas in `lib/openai/functions.js`
+- Use standardized function call formats
+- Implement proper error handling for function results
+
+## Required Functions
+
+```javascript
+// Example required functions in the client
+async function createThread(userId, context)
+async function createMessage(threadId, content)
+async function runAssistant(threadId, assistantId, options)
+async function waitForCompletion(threadId, runId)
+async function getCompletionResult(threadId, runId)
+```
+
+## Migration Guide
+If you find code using Chat Completions API:
+1. Replace with Responses API
+2. Implement thread management
+3. Update prompt format
+4. Add proper error handling

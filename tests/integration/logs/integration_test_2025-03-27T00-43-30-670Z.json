@@ -1,0 +1,10 @@
+{
+  "timestamp": "2025-03-27T00:43:30.670Z",
+  "testId": "test_1743036206750",
+  "action": "SupabaseError",
+  "data": {
+    "message": "Failed to save challenge: insert or update on table \"challenges\" violates foreign key constraint \"challenges_user_email_fkey\"",
+    "stack": "Error: Failed to save challenge: insert or update on table \"challenges\" violates foreign key constraint \"challenges_user_email_fkey\"\n    at Object.save (/Users/gsplace/responses api 3/tests/integration/openai-supabase-flow.test.js:161:23)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async Context.<anonymous> (/Users/gsplace/responses api 3/tests/integration/openai-supabase-flow.test.js:271:32)",
+    "phase": "database_operations"
+  }
+}

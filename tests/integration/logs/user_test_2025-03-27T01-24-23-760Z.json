@@ -1,0 +1,11 @@
+{
+  "timestamp": "2025-03-27T01:24:23.760Z",
+  "testId": "test_1743038663243",
+  "action": "UserCreated",
+  "data": {
+    "id": "81c75477-26e2-480c-bc6f-771cdd9ced4a",
+    "email": "test-user-c6735c4c-f67c-4cb4-8751-8a9e0b361063@example.com",
+    "fullName": "Test User",
+    "createdAt": "2025-03-27T01:24:23.271+00:00"
+  }
+}

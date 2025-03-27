@@ -1,0 +1,55 @@
+---
+description: Code Quality Standards
+globs: 
+alwaysApply: false
+---
+ # Code Quality Standards
+
+## SOLID Principles
+- **Single Responsibility**: Each class/module should have only one reason to change
+- **Open/Closed**: Open for extension, closed for modification
+- **Liskov Substitution**: Subtypes must be substitutable for their base types
+- **Interface Segregation**: Clients shouldn't depend on interfaces they don't use
+- **Dependency Inversion**: Depend on abstractions, not concretions
+
+## Code Organization
+- Keep files under 300 lines
+- Keep functions under 30 lines
+- Keep nesting levels under 3
+- Maximum of 3 arguments per function
+
+## Naming Conventions
+- Files: lowercase with hyphens (e.g., `user-service.js`)
+- Classes: PascalCase (e.g., `UserService`)
+- Functions: camelCase (e.g., `createUser`)
+- Variables: camelCase (e.g., `userData`)
+- Constants: UPPER_SNAKE_CASE (e.g., `MAX_USERS`)
+- Private properties/methods: Prefix with underscore (e.g., `_privateMethod`)
+
+## Documentation
+- Every file must have a JSDoc header
+- Every function must have JSDoc comments
+- Document parameters and return values
+- Document exceptions/errors that may be thrown
+- Add examples for complex logic
+
+## Code Style
+- Use ESLint rules consistently
+- No commented-out code
+- No magic numbers (use constants)
+- No duplicate code (follow DRY principle)
+- Use early returns to reduce nesting
+
+## Error Handling
+- Use custom error classes
+- Provide context in error messages
+- Don't swallow errors
+- Log errors with appropriate level
+- Use try/catch for async operations
+
+## Security Practices
+- Validate all user inputs
+- Sanitize data before using in queries
+- Use parameterized queries
+- Don't log sensitive information
+- Follow least privilege principle

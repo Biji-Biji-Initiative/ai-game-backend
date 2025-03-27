@@ -1,0 +1,37 @@
+{
+  "timestamp": "2025-03-27T01:24:12.406Z",
+  "testId": "test_1743038649533",
+  "action": "SaveSuccess",
+  "data": {
+    "data": [
+      {
+        "id": "df352114-825a-4d27-a228-067b5b435cfd",
+        "user_id": null,
+        "name": "Human-AI Collaboration",
+        "description": "As a Product Manager with a strong interest in AI ethics, product development, and user experience, focusing on Human-AI Collaboration aligns well with your professional goals. This area emphasizes creating AI systems that complement human skills, leading to more effective user experiences and ethically responsible product development. By understanding this collaboration, you can lead teams in designing AI-driven products that prioritize user needs and ethical considerations, ensuring successful project outcomes.",
+        "relevance_score": null,
+        "relevance_explanation": null,
+        "suggested_challenges": [],
+        "skill_progression": {},
+        "is_selected": false,
+        "ai_generated": true,
+        "generation_thread_id": null,
+        "created_at": "2025-03-27T01:24:12.122+00:00",
+        "updated_at": "2025-03-27T01:24:12.352877+00:00",
+        "active": true,
+        "priority": 1,
+        "metadata": {},
+        "challenges": [],
+        "skills": [
+          "Designing human-centered AI interactions",
+          "Integrating user feedback into AI product development",
+          "Ethical decision-making in AI design",
+          "Facilitating interdisciplinary team collaboration",
+          "Implementing user interface and experience design principles in AI systems"
+        ],
+        "thread_id": null,
+        "user_email": "permanent-test-user@example.com"
+      }
+    ]
+  }
+}

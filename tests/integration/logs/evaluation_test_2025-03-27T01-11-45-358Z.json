@@ -1,0 +1,10 @@
+{
+  "timestamp": "2025-03-27T01:11:45.358Z",
+  "testId": "test_1743037899555",
+  "action": "SupabaseError",
+  "data": {
+    "message": "Failed to save evaluation: insert or update on table \"evaluations\" violates foreign key constraint \"evaluations_challenge_id_fkey\"",
+    "stack": "Error: Failed to save evaluation: insert or update on table \"evaluations\" violates foreign key constraint \"evaluations_challenge_id_fkey\"\n    at Object.save (/Users/gsplace/responses api 3/tests/integration/evaluation-flow.test.js:149:23)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async Context.<anonymous> (/Users/gsplace/responses api 3/tests/integration/evaluation-flow.test.js:334:33)",
+    "phase": "database_operations"
+  }
+}

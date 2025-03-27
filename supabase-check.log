@@ -1,0 +1,116 @@
+Starting Supabase check at 2025-03-27T01:06:23.701Z
+Checking Supabase connection...
+Using URL: https://dvmfpddmnzaxjmxxpupk.supabase.co
+Using Key: eyJhbGciOiJIUzI...
+Attempting to query Supabase...
+✅ Successfully connected to Supabase!
+Retrieved 1 items from challenges table
+Sample data: {
+  "id": "ebe872c4-c79b-401c-bb91-3ed109421259",
+  "user_email": "test.user@example.com",
+  "challenge_type": "critical-analysis",
+  "format_type": "case-study",
+  "focus_area": "AI Literacy",
+  "difficulty": "medium",
+  "difficulty_settings": {
+    "standardTime": 600,
+    "questionCount": 3,
+    "contextComplexity": 0.5
+  },
+  "content": {
+    "scenario": "This is a test challenge for AI Literacy",
+    "questions": [
+      {
+        "id": "q1",
+        "text": "What are the ethical implications of AI in healthcare?",
+        "type": "open-ended"
+      },
+      {
+        "id": "q2",
+        "text": "How can we ensure AI systems are developed responsibly?",
+        "type": "open-ended"
+      },
+      {
+        "id": "q3",
+        "text": "What role should regulation play in AI development?",
+        "type": "open-ended"
+      }
+    ]
+  },
+  "title": "Test Challenge: AI Literacy",
+  "status": "active",
+  "submitted_at": null,
+  "completed_at": null,
+  "response": null,
+  "evaluation": null,
+  "context": null,
+  "questions": null,
+  "created_at": "2025-03-22T15:35:28.572+00:00",
+  "updated_at": "2025-03-22T15:35:28.681099+00:00",
+  "focus_area_id": null,
+  "expected_response_format": {},
+  "evaluation_criteria": [],
+  "example_response": null,
+  "generation_metadata": {},
+  "difficulty_factors": {},
+  "ai_generated": true,
+  "generation_thread_id": null
+}
+Starting Supabase check at 2025-03-27T03:47:47.871Z
+Checking Supabase connection...
+Using URL: https://dvmfpddmnzaxjmxxpupk.supabase.co
+Using Key: eyJhbGciOiJIUzI...
+Attempting to query Supabase...
+✅ Successfully connected to Supabase!
+Retrieved 1 items from challenges table
+Sample data: {
+  "id": "ebe872c4-c79b-401c-bb91-3ed109421259",
+  "user_email": "test.user@example.com",
+  "challenge_type": "critical-analysis",
+  "format_type": "case-study",
+  "focus_area": "AI Literacy",
+  "difficulty": "medium",
+  "difficulty_settings": {
+    "standardTime": 600,
+    "questionCount": 3,
+    "contextComplexity": 0.5
+  },
+  "content": {
+    "scenario": "This is a test challenge for AI Literacy",
+    "questions": [
+      {
+        "id": "q1",
+        "text": "What are the ethical implications of AI in healthcare?",
+        "type": "open-ended"
+      },
+      {
+        "id": "q2",
+        "text": "How can we ensure AI systems are developed responsibly?",
+        "type": "open-ended"
+      },
+      {
+        "id": "q3",
+        "text": "What role should regulation play in AI development?",
+        "type": "open-ended"
+      }
+    ]
+  },
+  "title": "Test Challenge: AI Literacy",
+  "status": "active",
+  "submitted_at": null,
+  "completed_at": null,
+  "response": null,
+  "evaluation": null,
+  "context": null,
+  "questions": null,
+  "created_at": "2025-03-22T15:35:28.572+00:00",
+  "updated_at": "2025-03-22T15:35:28.681099+00:00",
+  "focus_area_id": null,
+  "expected_response_format": {},
+  "evaluation_criteria": [],
+  "example_response": null,
+  "generation_metadata": {},
+  "difficulty_factors": {},
+  "ai_generated": true,
+  "generation_thread_id": null
+}

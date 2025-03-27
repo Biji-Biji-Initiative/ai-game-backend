@@ -1,0 +1,10 @@
+{
+  "timestamp": "2025-03-27T01:13:51.451Z",
+  "testId": "test_1743038005617",
+  "action": "EvaluationRetrieved",
+  "data": {
+    "id": "0933d815-0cba-4eef-a581-b3a0bf8ff44e",
+    "score": 9,
+    "retrievalSuccess": true
+  }
+}

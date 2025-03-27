@@ -1,0 +1,10 @@
+{
+  "timestamp": "2025-03-27T01:08:14.317Z",
+  "testId": "test_1743037690929",
+  "action": "ChallengeRetrieved",
+  "data": {
+    "id": "f482c372-bf7b-4d3f-ba6a-f04466299eff",
+    "title": "The Lighthouse Puzzle",
+    "retrievalSuccess": true
+  }
+}

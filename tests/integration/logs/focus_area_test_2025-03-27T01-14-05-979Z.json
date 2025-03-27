@@ -1,0 +1,24 @@
+{
+  "timestamp": "2025-03-27T01:14:05.979Z",
+  "testId": "test_1743038043610",
+  "action": "FocusAreaToSave",
+  "data": {
+    "focusArea": {
+      "id": "083b94dc-2416-4e89-9231-e7c4092e5f7f",
+      "name": "Human-AI Collaboration",
+      "description": "Given your background as a Product Manager with interests in AI ethics, product development, and user experience, focusing on Human-AI Collaboration is an ideal choice. This area aligns well with your existing skills in project management, data analysis, and team leadership. It emphasizes the integration of AI systems with human-centric product development, requiring a deep understanding of how AI can enhance user experiences while being guided by ethical principles. As AI increasingly becomes part of daily interactions, your expertise in facilitating seamless human-AI partnerships will be invaluable.",
+      "skills": [
+        "Design Thinking for AI Products",
+        "User-Centric AI Solution Development",
+        "AI-Augmented Decision Making",
+        "Ethical AI Implementation",
+        "Cross-Functional Collaboration in AI Projects"
+      ],
+      "challenges": [],
+      "created_at": "2025-03-27T01:14:05.978Z",
+      "user_email": "permanent-test-user@example.com",
+      "thread_id": null
+    },
+    "url": "https://dvmfpddmnzaxjmxxpupk.supabase.co"
+  }
+}

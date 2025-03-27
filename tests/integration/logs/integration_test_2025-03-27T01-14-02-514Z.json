@@ -1,0 +1,25 @@
+{
+  "timestamp": "2025-03-27T01:14:02.514Z",
+  "testId": "test_1743038037938",
+  "action": "ChallengeToSave",
+  "data": {
+    "challenge": {
+      "id": "2abe15b8-6432-4128-8a07-b59bb3647cb5",
+      "title": "The Mysterious Alien Language",
+      "content": {
+        "description": "An alien spacecraft has landed on Earth, and you're chosen to be the first human to make contact. Inside the spacecraft, you find a console with four buttons labeled with strange symbols: Circle, Triangle, Square, and Star. Next to the console, a message flashes on the screen in English:\n\n\"To prove Earth's intelligence, crack our simple code!\"\n\nBeneath the message is a sequence of symbols: Circle, Square, Star, Triangle, Circle. You carefully observe the sequence, trying to determine the logic behind it. After some thought, you realize each symbol corresponds to a number based on its angles: Circle (0), Triangle (3), Square (4), Star (5). Your task is to find the pattern in the sequence and predict the next symbol that should follow according to the aliens' logic. Can you determine the next symbol in the sequence?\n\nNote: Assume each symbol represents the number of angles or protrusions it has: a Circle has 0, a Triangle has 3, a Square has 4, and a Star has 5. Each subsequent symbol is determined by the sum of the values (modulo 6) of the previous two symbols. Good luck, and the fate of first contact may depend on your solution!"
+      },
+      "difficulty": "medium",
+      "challenge_type": "logical-reasoning",
+      "format_type": "text",
+      "focus_area": "reasoning",
+      "status": "test",
+      "created_at": "2025-03-27T01:14:02.513Z",
+      "ai_generated": true,
+      "user_email": "permanent-test-user@example.com"
+    },
+    "url": "https://dvmfpddmnzaxjmxxpupk.supabase.co",
+    "hasKey": true,
+    "keyLength": 208
+  }
+}

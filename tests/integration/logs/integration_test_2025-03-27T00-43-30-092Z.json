@@ -1,0 +1,25 @@
+{
+  "timestamp": "2025-03-27T00:43:30.092Z",
+  "testId": "test_1743036206750",
+  "action": "ChallengeToSave",
+  "data": {
+    "challenge": {
+      "id": "d2874cee-b260-4d0e-b373-ed93a03d1542",
+      "title": "The Island of Misfit Patterns",
+      "content": {
+        "description": "You find yourself on an island where every object follows a unique pattern rule. As an observer, your task is to identify which object doesn’t match the others based on the patterns described. Consider five sequences of numbers, each representing the pattern followed by one object:\n\n1. Sequence A: 2, 4, 6, 8, 10, 12\n2. Sequence B: 5, 10, 20, 40, 80\n3. Sequence C: 3, 6, 11, 18, 27\n4. Sequence D: 2, 4, 8, 16, 32\n5. Sequence E: 7, 14, 21, 28, 35\n\nDetermine which sequence of numbers doesn't fit the pattern of the other sequences. Provide a brief explanation of the rules behind the pattern for each object."
+      },
+      "difficulty": "medium",
+      "challenge_type": "logical-reasoning",
+      "format_type": "text",
+      "focus_area": "reasoning",
+      "status": "test",
+      "created_at": "2025-03-27T00:43:30.090Z",
+      "ai_generated": true,
+      "user_email": "test@example.com"
+    },
+    "url": "https://dvmfpddmnzaxjmxxpupk.supabase.co",
+    "hasKey": true,
+    "keyLength": 208
+  }
+}

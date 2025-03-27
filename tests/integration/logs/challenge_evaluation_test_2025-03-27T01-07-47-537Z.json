@@ -1,0 +1,39 @@
+{
+  "timestamp": "2025-03-27T01:07:47.537Z",
+  "testId": "test_1743037662829",
+  "action": "ChallengeSaveSuccess",
+  "data": {
+    "data": [
+      {
+        "id": "261f41e9-80e9-4af4-beed-1e2f4c554395",
+        "user_email": "permanent-test-user@example.com",
+        "challenge_type": "critical_thinking",
+        "format_type": "text",
+        "focus_area": "AI Ethics",
+        "difficulty": "medium",
+        "difficulty_settings": {},
+        "content": {
+          "description": "You are part of the design team for a new autonomous vehicle. A recent incident has sparked a debate: In a near-collision scenario, the vehicle’s algorithm must decide whom to prioritize for safety - the passengers inside the vehicle or pedestrians on the road. Different stakeholders have varied priorities: manufacturers prioritize brand reputation, governments focus on public safety, and the public looks for accountability and trust. Your task is to design a decision-making framework for the vehicle’s algorithms that considers these ethical dimensions. In 500 words, outline your approach, addressing potential ethical conflicts, stakeholder impacts, and propose a transparent method for decision-making and accountability. Justify your choices with ethical theories or principles where applicable."
+        },
+        "title": "Navigating Ethical Dilemmas in Autonomous Vehicle Design",
+        "status": "published",
+        "submitted_at": null,
+        "completed_at": null,
+        "response": null,
+        "evaluation": null,
+        "context": null,
+        "questions": null,
+        "created_at": "2025-03-27T01:07:46.725+00:00",
+        "updated_at": "2025-03-27T01:07:47.490805+00:00",
+        "focus_area_id": null,
+        "expected_response_format": {},
+        "evaluation_criteria": [],
+        "example_response": null,
+        "generation_metadata": {},
+        "difficulty_factors": {},
+        "ai_generated": true,
+        "generation_thread_id": null
+      }
+    ]
+  }
+}

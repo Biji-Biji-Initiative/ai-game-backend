@@ -1,0 +1,10 @@
+{
+  "timestamp": "2025-03-27T00:32:29.721Z",
+  "testId": "test_1743035543637",
+  "action": "SupabaseError",
+  "data": {
+    "message": "Failed to save challenge: Unknown error",
+    "stack": "Error: Failed to save challenge: Unknown error\n    at Object.save (/Users/gsplace/responses api 3/tests/integration/openai-supabase-flow.test.js:155:23)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async Context.<anonymous> (/Users/gsplace/responses api 3/tests/integration/openai-supabase-flow.test.js:262:32)",
+    "phase": "database_operations"
+  }
+}

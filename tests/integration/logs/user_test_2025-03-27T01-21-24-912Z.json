@@ -1,0 +1,9 @@
+{
+  "timestamp": "2025-03-27T01:21:24.912Z",
+  "testId": "test_1743038484856",
+  "action": "TestError",
+  "data": {
+    "message": "userService.createUser is not a function",
+    "stack": "TypeError: userService.createUser is not a function\n    at Context.<anonymous> (/Users/gsplace/responses api 3/tests/integration/user-flow.test.js:127:43)\n    at callFn (/Users/gsplace/responses api 3/node_modules/mocha/lib/runnable.js:364:21)\n    at Runnable.run (/Users/gsplace/responses api 3/node_modules/mocha/lib/runnable.js:352:5)\n    at Runner.runTest (/Users/gsplace/responses api 3/node_modules/mocha/lib/runner.js:677:10)\n    at /Users/gsplace/responses api 3/node_modules/mocha/lib/runner.js:800:12\n    at next (/Users/gsplace/responses api 3/node_modules/mocha/lib/runner.js:592:14)\n    at /Users/gsplace/responses api 3/node_modules/mocha/lib/runner.js:602:7\n    at next (/Users/gsplace/responses api 3/node_modules/mocha/lib/runner.js:485:14)\n    at Immediate._onImmediate (/Users/gsplace/responses api 3/node_modules/mocha/lib/runner.js:570:5)\n    at process.processImmediate (node:internal/timers:491:21)"
+  }
+}

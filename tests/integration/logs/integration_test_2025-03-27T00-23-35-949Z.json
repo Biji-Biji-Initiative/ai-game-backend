@@ -1,0 +1,9 @@
+{
+  "timestamp": "2025-03-27T00:23:35.949Z",
+  "testId": "test_1743035012733",
+  "action": "TableCreated",
+  "data": {
+    "success": true,
+    "method": "rpc"
+  }
+}

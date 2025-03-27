@@ -1,0 +1,11 @@
+{
+  "timestamp": "2025-03-27T00:42:54.944Z",
+  "testId": "test_1743036172744",
+  "action": "ChallengeGenerated",
+  "data": {
+    "id": "a62cdc07-a432-4243-99f6-4659cc5641cd",
+    "title": "The Island of Truth and Lies",
+    "difficulty": "medium",
+    "category": "logical-reasoning"
+  }
+}

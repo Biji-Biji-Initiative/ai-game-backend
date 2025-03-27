@@ -1,0 +1,10 @@
+{
+  "timestamp": "2025-03-27T01:24:12.592Z",
+  "testId": "test_1743038649533",
+  "action": "FocusAreaRetrieved",
+  "data": {
+    "id": "df352114-825a-4d27-a228-067b5b435cfd",
+    "name": "Human-AI Collaboration",
+    "retrievalSuccess": true
+  }
+}

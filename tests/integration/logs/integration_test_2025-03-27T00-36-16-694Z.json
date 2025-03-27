@@ -1,0 +1,22 @@
+{
+  "timestamp": "2025-03-27T00:36:16.694Z",
+  "testId": "test_1743035774225",
+  "action": "ChallengeToSave",
+  "data": {
+    "challenge": {
+      "id": "b80d29a5-d65f-44d0-8a3b-d1f8bb8d7887",
+      "title": "The Town of Misleading Directions",
+      "content": {
+        "description": "In the peculiar town of Redirectsville, every street sign points in the wrong direction. The town has only four main streets running north, south, east, and west. You find yourself at the central intersection and must navigate back to your starting point by only taking three turns. Each turn should lead you to a new street, and you cannot retrace any street immediately. Furthermore, each street you take changes direction at every intersection due to the confusing signs. How can you plan your route to ensure you return to your starting point after exactly three turns?"
+      },
+      "difficulty": "hard",
+      "challenge_type": "logical-reasoning",
+      "status": "test",
+      "created_at": "2025-03-27T00:36:16.693Z",
+      "ai_generated": true
+    },
+    "url": "https://ubkverbfdlyfcesrtzjf.supabase.co",
+    "hasKey": true,
+    "keyLength": 219
+  }
+}

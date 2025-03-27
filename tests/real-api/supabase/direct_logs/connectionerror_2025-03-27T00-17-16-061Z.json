@@ -1,0 +1,14 @@
+{
+  "timestamp": "2025-03-27T00:17:16.061Z",
+  "label": "ConnectionError",
+  "data": {
+    "success": false,
+    "error": "Could not find the function public.get_current_timestamp without parameters in the schema cache",
+    "details": {
+      "code": "PGRST202",
+      "details": "Searched for the function public.get_current_timestamp without parameters or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache.",
+      "hint": null,
+      "message": "Could not find the function public.get_current_timestamp without parameters in the schema cache"
+    }
+  }
+}

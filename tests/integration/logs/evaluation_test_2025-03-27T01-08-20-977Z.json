@@ -1,0 +1,11 @@
+{
+  "timestamp": "2025-03-27T01:08:20.977Z",
+  "testId": "test_1743037697518",
+  "action": "SaveError",
+  "data": {
+    "error": "Could not find the 'user_email' column of 'evaluations' in the schema cache",
+    "code": "PGRST204",
+    "details": null,
+    "fullError": "{\"code\":\"PGRST204\",\"details\":null,\"hint\":null,\"message\":\"Could not find the 'user_email' column of 'evaluations' in the schema cache\"}"
+  }
+}

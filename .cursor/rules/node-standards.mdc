@@ -1,0 +1,54 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+ # Node.js Development Standards
+
+## Directory Structure
+- `/config` - Configuration management
+- `/api` - API endpoints and controllers
+- `/core` - Core business logic by domain
+- `/services` - Business operations
+- `/repositories` - Data access layer
+- `/models` - Data models
+- `/lib` - External service integrations
+- `/utils` - Shared utilities
+
+## Coding Standards
+
+### General
+- Use `const` for all imports and variables that don't need to be reassigned
+- Use `let` for variables that need to be reassigned
+- Use template literals instead of string concatenation
+- Use destructuring for object properties and array items
+- Use async/await for asynchronous operations
+- Add JSDoc comments for all functions and classes
+
+### Error Handling
+- Use custom error classes
+- Always include error context information
+- Ensure all async functions properly handle errors with try/catch
+- Use error middleware to process all errors consistently
+
+### Logging
+- Log all errors with context information
+- Use appropriate log levels (error, warn, info, debug)
+- Don't log sensitive information
+- Include request IDs in all logs
+
+### Dependency Injection
+- Use the container consistently
+- Avoid direct imports between modules where possible
+- Register all services and utilities in the container
+
+### Testing
+- Write unit tests for all business logic
+- Use integration tests for API endpoints
+- Mock external dependencies
+- Test error cases as well as success cases
+
+### File & Function Size
+- Maximum file size: 300 lines
+- Maximum function size: 30 lines
+- Each function should do one thing and do it well

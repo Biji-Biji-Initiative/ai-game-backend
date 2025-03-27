@@ -1,0 +1,22 @@
+{
+  "timestamp": "2025-03-27T00:32:29.213Z",
+  "testId": "test_1743035543637",
+  "action": "ChallengeToSave",
+  "data": {
+    "challenge": {
+      "id": "9a9059ef-e848-4ab7-a3a3-cd2e03ceab55",
+      "title": "The Enigmatic Elevator Algorithm",
+      "content": {
+        "description": "In a futuristic building, an AI-driven elevator decides the order in which floors are visited based on a unique algorithm. There are eight floors in the building, and each floor is uniquely identified by a letter from A to H. The first ride of the day always starts at floor A and the last ride ends at floor H. On any given ride, the elevator will visit each floor exactly once, but the sequence is not straightforward. The sequence can be represented as a series of clues: \n1. The elevator always visits one of the top-most floors (G or H) after it stops at a bottom-most floor (A or B).\n2. It never visits two consecutive even-numbered floors in a row.\n3. After visiting a floor labeled with a consonant, the next floor visited has to be labeled with a vowel, and vice versa (consider letters A, E, and H as vowels and others as consonants here).\n4. The elevator finishes its journey three floors higher than it started but cannot exceed the height limit of H. \n\nYour task is to deduce the correct sequence of stops the elevator makes, ensuring it follows all the rules. Can you break the code and reveal the secret path of the enigmatic elevator?"
+      },
+      "difficulty": "hard",
+      "challenge_type": "logical-reasoning",
+      "status": "test",
+      "created_at": "2025-03-27T00:32:29.212Z",
+      "ai_generated": true
+    },
+    "url": "https://ubkverbfdlyfcesrtzjf.supabase.co",
+    "hasKey": true,
+    "keyLength": 219
+  }
+}

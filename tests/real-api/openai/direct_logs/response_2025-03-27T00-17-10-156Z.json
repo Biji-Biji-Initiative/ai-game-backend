@@ -1,0 +1,85 @@
+{
+  "timestamp": "2025-03-27T00:17:10.156Z",
+  "label": "API Response",
+  "data": {
+    "status": 200,
+    "statusText": "OK",
+    "headers": {
+      "date": "Thu, 27 Mar 2025 00:17:10 GMT",
+      "content-type": "application/json",
+      "transfer-encoding": "chunked",
+      "connection": "keep-alive",
+      "openai-version": "2020-10-01",
+      "openai-organization": "biji-biji-non-profits",
+      "x-request-id": "req_f7ed49020eed703fb322325e2f5379e9",
+      "openai-processing-ms": "3278",
+      "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+      "cf-cache-status": "DYNAMIC",
+      "set-cookie": "__cf_bm=eoUVZX68BwcFjQg9rrrc9ZPBTosUikLy44Qz4_w.nss-1743034630-1.0.1.1-SU0QolpEcEK94Jglft8sPBjiQ2ZuT4mJ7KokViw8Kc9NoBnT6COEXd7Ija4NuUk4NT120CiqZgO86p3oMoi0MkMmToQP5r.K4VYpRAlGqgQ; path=/; expires=Thu, 27-Mar-25 00:47:10 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None, _cfuvid=iuKFFPDYj3S4p_Wvzc0wM1AGtE.I2LZqNGkzGa0vUj8-1743034630301-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None",
+      "x-content-type-options": "nosniff",
+      "server": "cloudflare",
+      "cf-ray": "926ab3f1ac5ba7ef-SYD",
+      "alt-svc": "h3=\":443\"; ma=86400"
+    },
+    "data": {
+      "id": "resp_67e49902fa1481929ab9c084b003556a0941fe5228e9e97e",
+      "object": "response",
+      "created_at": 1743034627,
+      "status": "completed",
+      "error": null,
+      "incomplete_details": null,
+      "instructions": "You are an expert evaluator of AI ethics responses. Format your response as JSON with a specific schema including overallScore, categoryScores, and strengths.",
+      "max_output_tokens": null,
+      "model": "gpt-4o-2024-08-06",
+      "output": [
+        {
+          "type": "message",
+          "id": "msg_67e49903afe081928d23a8dda9a593000941fe5228e9e97e",
+          "status": "completed",
+          "role": "assistant",
+          "content": [
+            {
+              "type": "output_text",
+              "text": "```json\n{\n  \"overallScore\": 8,\n  \"categoryScores\": {\n    \"Privacy\": 9,\n    \"Transparency\": 8,\n    \"Bias and Fairness\": 8,\n    \"Human Oversight\": 7\n  },\n  \"strengths\": [\n    \"The response effectively highlights the importance of protecting patient privacy in AI healthcare applications.\",\n    \"It emphasizes transparency in AI diagnosis systems, which is crucial for trust and understanding.\",\n    \"The response acknowledges the need to test AI systems across diverse populations, addressing potential bias.\",\n    \"It underscores the importance of human oversight, ensuring AI serves as a tool to support medical professionals.\"\n  ]\n}\n```",
+              "annotations": []
+            }
+          ]
+        }
+      ],
+      "parallel_tool_calls": true,
+      "previous_response_id": null,
+      "reasoning": {
+        "effort": null,
+        "generate_summary": null
+      },
+      "store": true,
+      "temperature": 0.4,
+      "text": {
+        "format": {
+          "type": "text"
+        }
+      },
+      "tool_choice": "auto",
+      "tools": [],
+      "top_p": 1,
+      "truncation": "disabled",
+      "usage": {
+        "input_tokens": 151,
+        "input_tokens_details": {
+          "cached_tokens": 0
+        },
+        "output_tokens": 139,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 290
+      },
+      "user": null,
+      "metadata": {}
+    },
+    "timing": {
+      "responseTime": null,
+      "startTime": 1743034626306
+    }
+  }
+}

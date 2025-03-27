@@ -1,0 +1,79 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+ # Dynamic Prompt System Standards
+
+## Core Components
+
+1. **Prompt Builders**
+   - Each prompt type must have its dedicated builder class
+   - Builders must implement the `build(params)` method
+   - All builders must follow the same interface
+   - Builders should be pure functions without side effects
+
+2. **Data Formatters**
+   - User profile formatting must be consistent
+   - Challenge parameters must be properly structured
+   - Game state context must be included when relevant
+   - Structured output schemas must be defined
+
+3. **Thread Management**
+   - Each conversation context needs a separate thread
+   - Thread IDs must be stored in user records
+   - Previous response IDs must be tracked for continuity
+   - Thread creation must be idempotent
+
+4. **API Standards**
+   - All prompts must include API-specific instructions
+   - Error handling instructions must be included
+   - Response format requirements must be specified
+   - Token optimization techniques must be applied
+
+## Implementation Requirements
+
+```javascript
+// Example prompt builder structure
+class ChallengePromptBuilder {
+  static build({ user, challengeParams, gameState = {} }) {
+    // Validation
+    if (!user) throw new MissingParameterError('user', 'challenge');
+    if (!challengeParams) throw new MissingParameterError('challengeParams', 'challenge');
+    
+    // Formatting
+    const userProfileText = formatUserProfile(user);
+    const challengeParametersText = formatChallengeParameters(challengeParams);
+    
+    // Building prompt sections
+    let prompt = `### CHALLENGE GENERATION TASK\n\n`;
+    prompt += `${userProfileText}\n\n`;
+    prompt += `${challengeParametersText}\n\n`;
+    
+    // Adding game state context
+    // ...
+    
+    // Adding instructions
+    // ...
+    
+    // Applying API standards
+    prompt = appendApiStandards(prompt);
+    
+    return prompt;
+  }
+}
+```
+
+## Integration With Responses API
+
+- All prompt builders must generate content suitable for Responses API
+- Thread and response IDs must be managed properly
+- Function calling schemas must be defined per prompt type
+- Structured output schemas must validate responses
+
+## Error Handling
+
+- Missing parameters must throw specific errors
+- API errors must be logged with context
+- Error propagation must be consistent
+- No fallbacks in prompt generation (fail fast)

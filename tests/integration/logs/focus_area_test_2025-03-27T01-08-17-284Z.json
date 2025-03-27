@@ -1,0 +1,11 @@
+{
+  "timestamp": "2025-03-27T01:08:17.284Z",
+  "testId": "test_1743037694883",
+  "action": "SaveError",
+  "data": {
+    "error": "Could not find the 'challenges' column of 'focus_areas' in the schema cache",
+    "code": "PGRST204",
+    "details": null,
+    "fullError": "{\"code\":\"PGRST204\",\"details\":null,\"hint\":null,\"message\":\"Could not find the 'challenges' column of 'focus_areas' in the schema cache\"}"
+  }
+}

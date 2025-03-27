@@ -1,0 +1,14 @@
+{
+  "timestamp": "2025-03-27T00:17:35.085Z",
+  "label": "ConnectionError",
+  "data": {
+    "success": false,
+    "error": "relation \"public.challenges\" does not exist",
+    "details": {
+      "code": "42P01",
+      "details": null,
+      "hint": null,
+      "message": "relation \"public.challenges\" does not exist"
+    }
+  }
+}

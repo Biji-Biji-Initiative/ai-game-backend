@@ -1,0 +1,9 @@
+{
+  "timestamp": "2025-03-27T01:23:31.283Z",
+  "testId": "test_1743038609152",
+  "action": "UserDeleted",
+  "data": {
+    "id": "8396bb0a-7378-461b-86c0-753de3751a46",
+    "success": true
+  }
+}

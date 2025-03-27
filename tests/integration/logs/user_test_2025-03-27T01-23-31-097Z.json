@@ -1,0 +1,10 @@
+{
+  "timestamp": "2025-03-27T01:23:31.097Z",
+  "testId": "test_1743038609152",
+  "action": "UserRetrieved",
+  "data": {
+    "id": "8396bb0a-7378-461b-86c0-753de3751a46",
+    "email": "test-user-491d3fa6-1da6-4aa1-b662-1c8aba7800fa@example.com",
+    "focusArea": "Machine Learning"
+  }
+}

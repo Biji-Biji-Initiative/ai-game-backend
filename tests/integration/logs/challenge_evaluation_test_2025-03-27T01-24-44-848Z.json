@@ -1,0 +1,12 @@
+{
+  "timestamp": "2025-03-27T01:24:44.848Z",
+  "testId": "test_1743038665013",
+  "action": "ChallengeEvaluationsRetrieved",
+  "data": {
+    "challengeId": "aea633e0-3378-4d7a-b53b-7ca9249f9b82",
+    "evaluationsCount": 1,
+    "evaluationIds": [
+      "557de077-da3e-475e-acd0-22a31dfc4a02"
+    ]
+  }
+}

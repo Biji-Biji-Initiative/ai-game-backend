@@ -1,0 +1,23 @@
+{
+  "timestamp": "2025-03-27T00:42:20.250Z",
+  "testId": "test_1743036132478",
+  "action": "ChallengeToSave",
+  "data": {
+    "challenge": {
+      "id": "7fe2ab89-21c9-4b97-b17b-d3b6162e1c29",
+      "title": "The Enchanted Forest Pathways",
+      "content": {
+        "description": "You find yourself in an enchanted forest where paths are connected by magical gates, each of which opens under specific conditions. The forest is organized in a grid, with gates in between the blocks that open only when a specific rule is satisfied. You have a map with numbers 1-4 on each path segment, representing the harmony level required to open a gate. To navigate through, you must activate the paths in a manner that the sums of each adjacent pair of paths match that path’s harmony level.\n\nThe grid is as follows:\n \n \n  1-------(2)-------[?]\n  |               |\n  (3)     7—[?]\n  |               |\n  [?]—(4)-------[?]\n\nAdjacent paths are marked with numbers in parentheses representing a path you can see but not access until the gates open. Your challenge is to determine the sum of each missing segment, ensuring all pathways open their gates and allow you to reach the opposite edge of the grid from where you started. Assume you start from the top-left corner and need to proceed to the bottom-right. Can you determine the numbers that should be on the missing pathways to seamlessly traverse through the enchanted forest?"
+      },
+      "difficulty": "medium",
+      "challenge_type": "logical-reasoning",
+      "status": "test",
+      "created_at": "2025-03-27T00:42:20.248Z",
+      "ai_generated": true,
+      "user_email": "test@example.com"
+    },
+    "url": "https://dvmfpddmnzaxjmxxpupk.supabase.co",
+    "hasKey": true,
+    "keyLength": 208
+  }
+}

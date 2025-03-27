@@ -1,0 +1,9 @@
+{
+  "timestamp": "2025-03-27T01:12:45.781Z",
+  "testId": "test_1743037964803",
+  "action": "TestError",
+  "data": {
+    "message": "400 'messages' must contain the word 'json' in some form, to use 'response_format' of type 'json_object'.",
+    "stack": "Error: 400 'messages' must contain the word 'json' in some form, to use 'response_format' of type 'json_object'.\n    at APIError.generate (/Users/gsplace/responses api 3/node_modules/openai/error.js:45:20)\n    at OpenAI.makeStatusError (/Users/gsplace/responses api 3/node_modules/openai/core.js:300:33)\n    at OpenAI.makeRequest (/Users/gsplace/responses api 3/node_modules/openai/core.js:344:30)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async generateEvaluation (/Users/gsplace/responses api 3/tests/integration/evaluation-flow.test.js:427:24)\n    at async Context.<anonymous> (/Users/gsplace/responses api 3/tests/integration/evaluation-flow.test.js:249:26)"
+  }
+}

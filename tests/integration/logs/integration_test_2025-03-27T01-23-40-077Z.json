@@ -1,0 +1,39 @@
+{
+  "timestamp": "2025-03-27T01:23:40.077Z",
+  "testId": "test_1743038617245",
+  "action": "SaveSuccess",
+  "data": {
+    "data": [
+      {
+        "id": "82d1e748-503c-4c2c-9151-75831b267ce4",
+        "user_email": "permanent-test-user@example.com",
+        "challenge_type": "logical-reasoning",
+        "format_type": "text",
+        "focus_area": "reasoning",
+        "difficulty": "medium",
+        "difficulty_settings": null,
+        "content": {
+          "description": "You find yourself on a peculiar island inhabited by two groups of people: the Truth-tellers, who always speak the truth, and the Liars, who always lie. You meet three inhabitants: A, B, and C. You know that A says that B is a liar. B says that A and C are in the same group. C claims that 'I am not a liar'. Using only this information, determine which of the inhabitants are Truth-tellers and which are Liars."
+        },
+        "title": "The Island of Truth and Lies",
+        "status": "test",
+        "submitted_at": null,
+        "completed_at": null,
+        "response": null,
+        "evaluation": null,
+        "context": null,
+        "questions": null,
+        "created_at": "2025-03-27T01:23:39.766+00:00",
+        "updated_at": "2025-03-27T01:23:40.026519+00:00",
+        "focus_area_id": null,
+        "expected_response_format": {},
+        "evaluation_criteria": [],
+        "example_response": null,
+        "generation_metadata": {},
+        "difficulty_factors": {},
+        "ai_generated": true,
+        "generation_thread_id": null
+      }
+    ]
+  }
+}

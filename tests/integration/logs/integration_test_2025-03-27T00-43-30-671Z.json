@@ -1,0 +1,10 @@
+{
+  "timestamp": "2025-03-27T00:43:30.671Z",
+  "testId": "test_1743036206750",
+  "action": "TestComplete",
+  "data": {
+    "openaiSuccess": true,
+    "supabaseSuccess": false,
+    "message": "Partial success: OpenAI working, Supabase failed"
+  }
+}

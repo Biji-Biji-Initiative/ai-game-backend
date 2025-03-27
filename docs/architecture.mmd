@@ -1,0 +1,100 @@
+```mermaid
+erDiagram
+    %% Domain Entities %%
+    User ||--o{ UserJourneyEvent : "records events"
+    User ||--o{ Challenge : "attempts"
+    Challenge ||--o{ Response : "has user responses"
+    Response ||--o{ Evaluation : "receives evaluation"
+
+    %% Entity Definitions %%
+    User {
+        string id PK
+        string email
+        string name
+        json personality_traits
+        json ai_attitude
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    UserJourneyEvent {
+        string id PK
+        string user_id FK
+        string event_type
+        json metadata
+        timestamp created_at
+    }
+
+    Challenge {
+        string id PK
+        string user_id FK
+        string focus_area
+        string type
+        integer difficulty
+        json criteria
+        string scenario
+        string prompt
+        timestamp created_at
+        timestamp completed_at
+        string status
+    }
+
+    Response {
+        string id PK
+        string challenge_id FK
+        string user_id FK
+        json responses
+        timestamp submitted_at
+    }
+
+    Evaluation {
+        string id PK
+        string response_id FK
+        integer score
+        json detailed_feedback
+        timestamp created_at
+    }
+
+    %% Clearly Layered Application Structure %%
+
+    %% API Layer %%
+    OpenAI_API ||--o{ OpenAIService : "calls"
+
+    %% Service Layer %%
+    UserService ||--o{ UserJourneyService : "uses"
+    UserService ||--o{ PersonalityService : "uses"
+    ChallengeService ||--o{ UserService : "uses"
+    ChallengeService ||--o{ OpenAIService : "uses"
+    EvaluationService ||--o{ ChallengeService : "uses"
+    EvaluationService ||--o{ OpenAIService : "uses"
+
+    %% Data Access Layer (Repositories) %%
+    UserRepository ||--|| Supabase : "stores"
+    ChallengeRepository ||--|| Supabase : "stores"
+    ResponseRepository ||--|| Supabase : "stores"
+    EvaluationRepository ||--|| Supabase : "stores"
+    UserJourneyRepository ||--|| Supabase : "stores"
+
+    %% Service <--> Repository Layer Relations %%
+    UserService ||--|| UserRepository : "uses"
+    UserJourneyService ||--|| UserJourneyRepository : "uses"
+    ChallengeService ||--|| ChallengeRepository : "uses"
+    ChallengeService ||--|| ResponseRepository : "uses"
+    EvaluationService ||--|| EvaluationRepository : "uses"
+
+    %% CLI / Interface Layer %%
+    CLI ||--o{ UserService : "commands"
+    CLI ||--o{ ChallengeService : "commands"
+    CLI ||--o{ EvaluationService : "commands"
+
+    %% External Dependencies %%
+    Supabase {
+        string url
+        string api_key
+    }
+
+    OpenAI_API {
+        string api_key
+        string model
+    }
+```

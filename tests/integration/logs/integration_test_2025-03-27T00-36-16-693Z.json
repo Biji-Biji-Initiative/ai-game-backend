@@ -1,0 +1,11 @@
+{
+  "timestamp": "2025-03-27T00:36:16.693Z",
+  "testId": "test_1743035774225",
+  "action": "ChallengeGenerated",
+  "data": {
+    "id": "b80d29a5-d65f-44d0-8a3b-d1f8bb8d7887",
+    "title": "The Town of Misleading Directions",
+    "difficulty": "hard",
+    "category": "logical-reasoning"
+  }
+}

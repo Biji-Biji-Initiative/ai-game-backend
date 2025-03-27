@@ -1,0 +1,71 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x]
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Create .env file
+      run: |
+        echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
+        echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env
+        echo "SUPABASE_KEY=${{ secrets.SUPABASE_KEY }}" >> .env
+        echo "NODE_ENV=test" >> .env
+        echo "LOG_LEVEL=error" >> .env
+    
+    # Run schema validation and domain model tests that don't require API calls
+    - name: Run unit tests
+      run: npm run test:unit
+    
+    # Run integration tests for our domain-driven design
+    - name: Run integration tests
+      run: npm run test:integration
+      
+    # Run real API tests if secrets are available
+    - name: Run real API tests
+      if: "${{ env.OPENAI_API_KEY != '' && env.SUPABASE_URL != '' && env.SUPABASE_KEY != '' }}"
+      run: npm run test:real-api
+    
+    # Run end-to-end tests
+    - name: Run E2E tests
+      if: "${{ env.OPENAI_API_KEY != '' && env.SUPABASE_URL != '' && env.SUPABASE_KEY != '' }}"
+      run: npm run test:e2e
+
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Use Node.js 18.x
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18.x
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run ESLint
+      run: npx eslint src/ tests/ 

@@ -1,0 +1,8 @@
+{
+  "timestamp": "2025-03-27T01:24:09.535Z",
+  "testId": "test_1743038649533",
+  "action": "ImportError",
+  "data": {
+    "message": "Cannot find module '../../src/core/focusArea/services/FocusAreaService'\nRequire stack:\n- /Users/gsplace/responses api 3/tests/integration/focus-area-flow.test.js"
+  }
+}

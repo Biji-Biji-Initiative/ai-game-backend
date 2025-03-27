@@ -1,0 +1,22 @@
+{
+  "timestamp": "2025-03-27T01:08:25.188Z",
+  "testId": "test_1743037701218",
+  "action": "SaveSuccess",
+  "data": {
+    "data": [
+      {
+        "id": "0b70f601-fc6e-4bd6-bdad-61d329ce2c84",
+        "name": "Logical Reasoning Challenge Generator",
+        "description": "This prompt generates logical reasoning challenges aimed at testing a user's critical thinking skills. The generated challenges are structured to be engaging and include a well-explained scenario along with a clear and logical solution.",
+        "template": "Generate a logical reasoning challenge based on the following parameters:\n\n1. Scenario: {scenario_description}\n2. Objective: Clearly define what the user needs to determine or achieve.\n3. Hints: Provide any initial clues or data that can assist in solving the challenge.\n4. Solution: Outline the steps or thought process needed to reach the correct answer, without revealing it to the user.\n\nPlease ensure the challenge is engaging and tests critical thinking by requiring the user to synthesize information and apply deductive reasoning. The result should be a coherent and self-contained challenge, ready for any user to attempt.",
+        "variables": [
+          "scenario_description"
+        ],
+        "domain": "challenge",
+        "created_at": "2025-03-27T01:08:24.858+00:00",
+        "user_email": "permanent-test-user@example.com",
+        "is_active": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,109 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+ # Service Layer Standards
+
+## Architectural Principles
+
+1. **Service Boundaries**
+   - Each service must have clear domain responsibilities
+   - Services must not directly access other service's internal state
+   - Services should depend on interfaces, not implementations
+   - Service methods must be atomic and transactional
+
+2. **Error Handling**
+   - Services must throw specific error types with context
+   - Error propagation must be consistent
+   - No silent failures allowed
+   - Error logging must include sufficient context
+
+3. **Dependency Injection**
+   - Services must get dependencies through constructor or container
+   - Direct imports of other services are prohibited
+   - Side effects must be explicit and testable
+   - Repository dependencies must be injectable
+
+4. **State Management**
+   - Services must not maintain mutable state between requests
+   - Thread state must be persisted in the database
+   - Session management must be handled consistently
+   - User state must be retrieved fresh for each operation
+
+## Core Services
+
+1. **UserService**
+   - User creation, retrieval, and updates
+   - Personality analysis
+   - Profile management
+   - Focus area selection
+
+2. **ChallengeService**
+   - Challenge generation and persistence
+   - Response evaluation
+   - History management
+   - Challenge recommendation
+
+3. **AdaptiveEngine**
+   - Difficulty calculation
+   - Challenge type selection
+   - Focus area generation
+   - Progress trend analysis
+
+4. **OpenAIService**
+   - Thread management
+   - Prompt building orchestration
+   - Response processing
+   - Error handling
+
+## Implementation Requirements
+
+```javascript
+// Example service method
+async function generateAndPersistChallenge(params) {
+  // Validate input
+  if (!params.email) throw new ValidationError('Email is required');
+  
+  // Get dependencies
+  const user = await this.userRepository.getUserByEmail(params.email);
+  if (!user) throw new NotFoundError(`User with email ${params.email} not found`);
+  
+  // Business logic
+  const challengeParams = this.adaptiveEngine.generateDynamicChallenge(
+    user, 
+    await this.getRecentChallengesForUser(params.email),
+    params.focusArea
+  );
+  
+  // Call OpenAI service
+  const content = await this.openaiService.generateChallengeContent(
+    user, 
+    challengeParams
+  );
+  
+  // Persist result
+  return await this.challengeRepository.createChallenge({
+    userEmail: params.email,
+    ...challengeParams,
+    content,
+    status: 'active',
+    createdAt: new Date().toISOString()
+  });
+}
+```
+
+## Orchestration Patterns
+
+1. Each service operation should follow this flow:
+   - Validate inputs
+   - Retrieve dependencies
+   - Apply business logic
+   - Persist changes
+   - Return results
+
+2. Avoid:
+   - Long method chains
+   - Deeply nested conditionals
+   - Mixed responsibilities
+   - Direct database access in services

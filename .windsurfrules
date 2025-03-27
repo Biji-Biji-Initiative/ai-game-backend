@@ -1,0 +1,78 @@
+# Project Rules for Responses API Fight Club
+
+## Core Technical Rules
+
+### 1. OpenAI API Usage
+- **ALWAYS** use OpenAI Responses API exclusively.
+- **NEVER** use Chat Completions API for any implementation.
+- Always leverage conversation threads for stateful interactions.
+
+### 2. Error Handling
+- **ALWAYS** throw errors when encountering exceptional conditions.
+- **NEVER** implement fallback mechanisms or silent failure modes.
+- Errors must be specific, descriptive, and include context about the failure.
+
+### 3. Service Integration
+- **ALWAYS** integrate with existing application services and repositories.
+- **NEVER** reimplement functionality that exists in the application code.
+- Step definitions should call the same services as the actual application.
+
+### 4. Code Organization
+- Follow SOLID principles, particularly Single Responsibility.
+- Each step definition file should focus on a specific feature area.
+- Maintain clear separation between UI logic, API interaction, and data operations.
+
+### 5. Thread Management
+- Always create, persist, and retrieve thread IDs via user records.
+- Use consistent thread management across all API interactions.
+- Strictly validate thread continuity in all tests.
+
+## BDD Implementation Standards
+
+### Test Structure
+- All features must have corresponding step definitions.
+- Step definitions must be organized by feature domain (challenges, focus areas, etc.).
+- Scenarios should test both happy paths and error paths.
+
+### Test Data
+- Use realistic, diverse test data that matches production scenarios.
+- Clean up test data after tests complete.
+- Avoid hardcoded values for API keys or sensitive information.
+
+### Assertions
+- Validate both functional correctness and structural conformance.
+- Include assertions for error conditions with specific error messages.
+- Check performance expectations where relevant.
+
+## Specific Implementation Guidelines
+
+### Focus Area Generation
+- Validate that generated focus areas align with user profiles.
+- Test that thread IDs are properly stored and retrieved.
+- Verify error handling when the API returns unexpected formats.
+
+### Challenge Generation
+- Ensure challenges are properly generated based on focus areas.
+- Validate difficulty adjustment based on user performance.
+- Check for proper error handling when generation fails.
+
+### Response Evaluation
+- Verify that evaluations include scores and feedback.
+- Test structured output schema conformance.
+- Ensure proper error handling for malformed responses.
+
+### Personality Insights
+- Validate that insights reflect user's response patterns.
+- Check that recommendations are actionable and relevant.
+- Test error conditions with clear error messages.
+
+## Prohibited Practices
+
+1. **NEVER** implement silent fallbacks - all errors must be thrown.
+2. **NEVER** use Chat Completions API - only use Responses API.
+3. **NEVER** duplicate application logic in test code.
+4. **NEVER** hardcode credentials or sensitive data.
+5. **NEVER** ignore failed assertions or API errors.
+6. **NEVER** implement tests without proper cleanup.
+
+These rules are non-negotiable and ensure our implementation remains consistent, maintainable, and aligned with best practices.

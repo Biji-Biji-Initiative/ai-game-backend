@@ -1,0 +1,81 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+ # Adaptive Challenge Engine Standards
+
+## Core Components
+
+1. **Difficulty Management**
+   - Difficulty calculation must be based on user performance history
+   - Personality traits must influence difficulty adjustments
+   - Trending performance (improving/declining) must be considered
+   - Time allocation must be appropriate for challenge complexity
+
+2. **Challenge Type Selection**
+   - Selection must be based on user strengths and weaknesses
+   - Focus areas must influence challenge type selection
+   - Challenge variety must be maintained
+   - Previously attempted types must affect selection weights
+
+3. **Focus Area Generation**
+   - Focus areas must be personalized to user traits
+   - Focus areas must be diverse and relevant
+   - Professional background must influence suggestions
+   - Past performance must inform focus area recommendations
+
+4. **User Progress Tracking**
+   - Performance metrics must be calculated consistently
+   - Strength areas must be identified from challenge history
+   - Improvement areas must be highlighted
+   - Progress trends must be analyzed over time
+
+## Implementation Requirements
+
+```javascript
+// Example difficulty calculation
+function calculateOptimalDifficulty(user, challengeHistory, challengeType) {
+  // Initial settings
+  let difficulty = {
+    level: 'beginner',
+    complexity: 0.5,
+    depth: 0.5,
+    timeAllocation: 300,
+    adaptiveFactor: 0.0
+  };
+  
+  // No history - use defaults or preferences
+  if (!challengeHistory?.length) {
+    return applyPersonalityModifiers(difficulty, user);
+  }
+  
+  // Calculate average performance
+  const scores = challengeHistory.map(c => c.evaluation?.score || 50);
+  const averageScore = calculateAverage(scores);
+  
+  // Determine trending performance
+  const isImproving = detectImprovementTrend(challengeHistory);
+  
+  // Set difficulty based on performance
+  difficulty = adjustDifficultyForPerformance(difficulty, averageScore, isImproving);
+  
+  // Apply personality-based modifiers
+  return applyPersonalityModifiers(difficulty, user);
+}
+```
+
+## Data Flow
+
+1. User completes challenge -> Performance data stored
+2. Adaptive engine analyzes performance -> Generates recommendations
+3. Next challenge difficulty adjusted -> User experience personalized
+4. Personalized focus areas generated -> Learning path optimized
+
+## Evaluation Criteria
+
+- Recommendations must be consistent with user performance
+- Difficulty must increase gradually for improving users
+- Challenge variety must be maintained over time
+- Focus areas must evolve based on user progress
+- The system must adapt to changing user preferences

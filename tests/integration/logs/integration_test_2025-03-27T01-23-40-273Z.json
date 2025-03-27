@@ -1,0 +1,10 @@
+{
+  "timestamp": "2025-03-27T01:23:40.273Z",
+  "testId": "test_1743038617245",
+  "action": "ChallengeRetrieved",
+  "data": {
+    "id": "82d1e748-503c-4c2c-9151-75831b267ce4",
+    "title": "The Island of Truth and Lies",
+    "retrievalSuccess": true
+  }
+}

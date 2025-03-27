@@ -1,0 +1,8 @@
+{
+  "timestamp": "2025-03-27T01:13:57.940Z",
+  "testId": "test_1743038037938",
+  "action": "ImportError",
+  "data": {
+    "message": "Cannot find module '../../src/core/challenge/services/ChallengeService'\nRequire stack:\n- /Users/gsplace/responses api 3/tests/integration/openai-supabase-flow.test.js"
+  }
+}
