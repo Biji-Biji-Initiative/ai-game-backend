@@ -80,4 +80,31 @@ Each schema file should include:
 - Table definitions with proper constraints
 - Indexes for performance optimization
 - Comments describing the purpose of tables and columns
-- Any domain-specific functions or triggers 
+- Any domain-specific functions or triggers
+
+## Applying Schemas Through Supabase Dashboard
+
+If you encounter issues with the `exec_sql` RPC function not being available, you can apply the schema manually through the Supabase dashboard:
+
+1. Log in to the Supabase dashboard
+2. Select your project
+3. Go to the "SQL Editor" section
+4. Create a new query
+5. Copy the content of the schema file you want to apply
+6. Paste it into the SQL editor
+7. Click "Run" to execute the SQL statements
+
+Alternatively, you may need to create the `exec_sql` function if your Supabase project doesn't already have it:
+
+```sql
+CREATE OR REPLACE FUNCTION exec_sql(sql_query text) RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  EXECUTE sql_query;
+END;
+$$;
+```
+
+This function needs to be created with appropriate permissions, which typically requires a Supabase administrator role 
