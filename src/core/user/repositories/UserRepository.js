@@ -2,11 +2,13 @@
  * User Repository
  * 
  * Handles data access operations for User domain model.
+ * Uses Zod schemas for data validation and conversion.
  */
 
 const User = require('../models/User');
 const { createClient } = require('@supabase/supabase-js');
 const { v4: uuidv4 } = require('uuid');
+const { userDatabaseSchema, fromDatabase } = require('../schemas/userSchema');
 
 class UserRepository {
   constructor(supabaseClient) {
@@ -33,6 +35,12 @@ class UserRepository {
       if (error) throw new Error(`Error fetching user: ${error.message}`);
       if (!data) return null;
 
+      // Validate the database data before converting to domain object
+      const validationResult = userDatabaseSchema.safeParse(data);
+      if (!validationResult.success) {
+        console.warn('Database data validation warning:', validationResult.error.message);
+      }
+
       return new User(data);
     } catch (error) {
       console.error('UserRepository.findById error:', error);
@@ -55,6 +63,12 @@ class UserRepository {
 
       if (error) throw new Error(`Error fetching user by email: ${error.message}`);
       if (!data) return null;
+
+      // Validate the database data before converting to domain object
+      const validationResult = userDatabaseSchema.safeParse(data);
+      if (!validationResult.success) {
+        console.warn('Database data validation warning:', validationResult.error.message);
+      }
 
       return new User(data);
     } catch (error) {
@@ -84,29 +98,14 @@ class UserRepository {
       // Generate ID if not present (for new users)
       if (!user.id) user.id = uuidv4();
 
-      // Minimal database fields that are known to exist
-      const userData = {
-        id: user.id,
-        email: user.email,
-        full_name: user.fullName,
-        created_at: user.createdAt,
-        updated_at: user.updatedAt
-      };
+      // Convert to database format
+      const userData = user.toDatabase();
 
-      // Only add optional fields if they have values
-      if (user.focusArea) userData.focus_area = user.focusArea;
-      if (user.focusAreaThreadId) userData.focus_area_thread_id = user.focusAreaThreadId;
-      if (user.challengeThreadId) userData.challenge_thread_id = user.challengeThreadId;
-      if (user.evaluationThreadId) userData.evaluation_thread_id = user.evaluationThreadId;
-      if (user.personalityThreadId) userData.personality_thread_id = user.personalityThreadId;
-      if (user.lastActive) userData.last_active = user.lastActive;
-      if (user.professionalTitle) userData.professional_title = user.professionalTitle;
-      if (user.location) userData.location = user.location;
-      if (user.country) userData.country = user.country;
-      if (Object.keys(user.personalityTraits || {}).length > 0) userData.personality_traits = user.personalityTraits;
-      if (Object.keys(user.aiAttitudes || {}).length > 0) userData.ai_attitudes = user.aiAttitudes;
-
-      console.log('Saving user with data:', userData);
+      // Validate database format
+      const dbValidationResult = userDatabaseSchema.safeParse(userData);
+      if (!dbValidationResult.success) {
+        throw new Error(`Invalid database format: ${dbValidationResult.error.message}`);
+      }
 
       // Upsert user data
       const { data, error } = await this.supabase

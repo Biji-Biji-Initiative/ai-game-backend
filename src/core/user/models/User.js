@@ -2,9 +2,11 @@
  * User domain model
  * 
  * This model represents a user in the system and encapsulates user-specific behavior.
+ * Uses Zod for data validation to ensure integrity.
  */
 
 const domainEvents = require('../../shared/domainEvents');
+const { userSchema, toDatabase } = require('../schemas/userSchema');
 
 class User {
   /**
@@ -12,23 +14,36 @@ class User {
    * @param {Object} data - User data
    */
   constructor(data = {}) {
-    this.id = data.id || null;
-    this.email = data.email || '';
-    this.fullName = data.full_name || data.fullName || '';
-    this.professionalTitle = data.professional_title || data.professionalTitle || '';
-    this.role = data.role || 'user';
-    this.location = data.location || '';
-    this.country = data.country || '';
-    this.personalityTraits = data.personality_traits || data.personalityTraits || {};
-    this.aiAttitudes = data.ai_attitudes || data.aiAttitudes || {};
-    this.focusArea = data.focus_area || data.focusArea || '';
-    this.lastActive = data.last_active || data.lastActive || null;
-    this.createdAt = data.created_at || data.createdAt || new Date().toISOString();
-    this.updatedAt = data.updated_at || data.updatedAt || new Date().toISOString();
-    this.focusAreaThreadId = data.focus_area_thread_id || data.focusAreaThreadId || '';
-    this.challengeThreadId = data.challenge_thread_id || data.challengeThreadId || '';
-    this.evaluationThreadId = data.evaluation_thread_id || data.evaluationThreadId || '';
-    this.personalityThreadId = data.personality_thread_id || data.personalityThreadId || '';
+    const userData = {
+      id: data.id || null,
+      email: data.email || '',
+      fullName: data.full_name || data.fullName || '',
+      professionalTitle: data.professional_title || data.professionalTitle || '',
+      role: data.role || 'user',
+      location: data.location || '',
+      country: data.country || '',
+      personalityTraits: data.personality_traits || data.personalityTraits || {},
+      aiAttitudes: data.ai_attitudes || data.aiAttitudes || {},
+      focusArea: data.focus_area || data.focusArea || '',
+      lastActive: data.last_active || data.lastActive || null,
+      createdAt: data.created_at || data.createdAt || new Date().toISOString(),
+      updatedAt: data.updated_at || data.updatedAt || new Date().toISOString(),
+      focusAreaThreadId: data.focus_area_thread_id || data.focusAreaThreadId || '',
+      challengeThreadId: data.challenge_thread_id || data.challengeThreadId || '',
+      evaluationThreadId: data.evaluation_thread_id || data.evaluationThreadId || '',
+      personalityThreadId: data.personality_thread_id || data.personalityThreadId || ''
+    };
+
+    // Parse and validate with zod, using safeParse to handle errors
+    const result = userSchema.safeParse(userData);
+    
+    if (result.success) {
+      Object.assign(this, result.data);
+    } else {
+      // Still assign the data but log validation issues
+      Object.assign(this, userData);
+      console.warn('User data validation warning:', result.error.message);
+    }
   }
 
   /**
@@ -44,22 +59,24 @@ class User {
    * @returns {Object} Validation result with isValid and errors properties
    */
   validate() {
-    const errors = [];
-
-    // Required fields
-    if (!this.email) errors.push('Email is required');
-    if (!this.fullName) errors.push('Full name is required');
-
-    // Email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (this.email && !emailRegex.test(this.email)) {
-      errors.push('Invalid email format');
+    const result = userSchema.safeParse(this);
+    
+    if (result.success) {
+      return {
+        isValid: true,
+        errors: []
+      };
+    } else {
+      // Extract error messages from Zod validation result
+      const errorMessages = result.error.errors.map(err => 
+        `${err.path.join('.')}: ${err.message}`
+      );
+      
+      return {
+        isValid: false,
+        errors: errorMessages
+      };
     }
-
-    return {
-      isValid: errors.length === 0,
-      errors
-    };
   }
 
   /**
@@ -67,25 +84,7 @@ class User {
    * @returns {Object} Database-formatted user data
    */
   toDatabase() {
-    return {
-      id: this.id,
-      email: this.email,
-      full_name: this.fullName,
-      professional_title: this.professionalTitle,
-      role: this.role,
-      location: this.location,
-      country: this.country,
-      personality_traits: this.personalityTraits,
-      ai_attitudes: this.aiAttitudes,
-      focus_area: this.focusArea,
-      last_active: this.lastActive,
-      created_at: this.createdAt,
-      updated_at: this.updatedAt,
-      focus_area_thread_id: this.focusAreaThreadId,
-      challenge_thread_id: this.challengeThreadId,
-      evaluation_thread_id: this.evaluationThreadId,
-      personality_thread_id: this.personalityThreadId
-    };
+    return toDatabase(this);
   }
 
   /**
