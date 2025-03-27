@@ -134,17 +134,13 @@ container.register('adaptiveService', (c) => {
 }, true);
 
 container.register('challengeGenerationService', (c) => {
-  const ChallengeGenerationService = require('../core/challenge/services/challengeGenerationService');
-  const challengeRepository = c.get('challengeRepository');
-  const openaiClient = c.get('openaiClient');
-  return ChallengeGenerationService;
+  const challengeGenerationService = require('../core/challenge/services/challengeGenerationService');
+  return challengeGenerationService;
 }, true);
 
 container.register('challengeEvaluationService', (c) => {
-  const ChallengeEvaluationService = require('../core/challenge/services/challengeEvaluationService');
-  const challengeRepository = c.get('challengeRepository');
-  const openaiClient = c.get('openaiClient');
-  return ChallengeEvaluationService;
+  const challengeEvaluationService = require('../core/challenge/services/challengeEvaluationService');
+  return challengeEvaluationService;
 }, true);
 
 container.register('focusAreaGenerationService', (c) => {
