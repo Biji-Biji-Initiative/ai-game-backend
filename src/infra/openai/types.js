@@ -1,7 +1,7 @@
 /**
  * OpenAI API Types
  * 
- * Type definitions and constants for OpenAI APIs
+ * Type definitions and constants for OpenAI Responses API
  */
 
 // Model names for the Responses API
@@ -14,10 +14,7 @@ const ResponsesApiModel = {
   // Specific versions
   GPT4_0125: 'gpt-4-0125-preview',
   GPT4_1106: 'gpt-4-1106-preview',
-  GPT35_TURBO_0125: 'gpt-3.5-turbo-0125',
-  
-  // Legacy - included for backward compatibility
-  GPT4: 'gpt-4'
+  GPT35_TURBO_0125: 'gpt-3.5-turbo-0125'
 };
 
 // Message roles for the Responses API
@@ -25,20 +22,25 @@ const MessageRole = {
   SYSTEM: 'system',
   USER: 'user',
   ASSISTANT: 'assistant',
-  TOOL: 'tool',
-  FUNCTION: 'function' // Maintained for backward compatibility
+  TOOL: 'tool'
 };
 
 // Response format options
 const ResponseFormat = {
   TEXT: 'text',
-  JSON_OBJECT: 'json_object'
+  JSON_OBJECT: 'json_object',
+  MARKDOWN: 'markdown',
+  HTML: 'html'
 };
 
 // Message content types
 const ContentType = {
   TEXT: 'text',
-  IMAGE_URL: 'image_url'
+  IMAGE_URL: 'image_url',
+  FILE: 'file',
+  JSON: 'json',
+  MARKDOWN: 'markdown',
+  HTML: 'html'
 };
 
 // Tool types
@@ -52,4 +54,4 @@ module.exports = {
   ResponseFormat,
   ContentType,
   ToolType
-}; 
+};

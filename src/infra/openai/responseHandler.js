@@ -1,7 +1,7 @@
 /**
- * Response Handler for OpenAI API
+ * Response Handler for OpenAI Responses API
  * 
- * Processes responses from the OpenAI API, handling various formats,
+ * Processes responses from the OpenAI Responses API, handling various formats,
  * extracting content, and providing utilities for specific response types.
  * 
  * @module responseHandler
@@ -14,7 +14,58 @@ const { OpenAIResponseHandlingError } = require('./errors');
 const { logger } = require('../../core/infra/logging/logger');
 
 /**
- * Handles responses from OpenAI API, providing methods to extract and parse content
+ * Schema for validating Responses API response structure
+ */
+const responsesApiResponseSchema = z.object({
+  id: z.string(),
+  responseId: z.string().optional(),
+  output: z.array(z.object({
+    type: z.literal('message'),
+    role: z.literal('assistant'),
+    content: z.array(z.object({
+      type: z.literal('text'),
+      text: z.string()
+    }))
+  })),
+  usage: z.object({
+    prompt_tokens: z.number(),
+    completion_tokens: z.number(),
+    total_tokens: z.number()
+  }).optional()
+});
+
+/**
+ * Schema for validating JSON structure in the response
+ * This is a flexible schema that allows for different data structures
+ */
+const jsonResponseSchema = z.object({
+  // Challenge data schema
+  title: z.string().optional(),
+  description: z.string().optional(),
+  content: z.object({
+    context: z.string().optional(),
+    scenario: z.string().optional(),
+    instructions: z.array(z.string()).or(z.string()).optional()
+  }).optional(),
+  questions: z.array(z.object({
+    id: z.string().optional(),
+    text: z.string(),
+    type: z.string().optional(),
+    options: z.array(z.string()).optional()
+  })).optional(),
+  data: z.record(z.any()).optional(),
+  metadata: z.record(z.any()).optional(),
+  evaluationCriteria: z.record(z.any()).or(z.array(z.any())).optional(),
+  recommendations: z.array(z.object({
+    title: z.string(),
+    description: z.string().optional(),
+    url: z.string().optional(),
+    type: z.string().optional()
+  })).optional()
+}).or(z.record(z.any()));
+
+/**
+ * Handles responses from OpenAI Responses API
  */
 class OpenAIResponseHandler {
   /**
@@ -27,127 +78,200 @@ class OpenAIResponseHandler {
   }
 
   /**
-   * Process a response from OpenAI
+   * Process a response from OpenAI Responses API
    * @param {Object} response - Raw response from OpenAI
    * @returns {Object} Processed response
+   * @throws {OpenAIResponseHandlingError} If response is invalid
    */
   process(response) {
     if (!response) {
       throw new OpenAIResponseHandlingError('No response received');
     }
 
-    return response;
+    try {
+      // Validate response structure
+      const validatedResponse = responsesApiResponseSchema.parse(response);
+      
+      // Extract the message content from the response
+      const assistantMessage = validatedResponse.output.find(item => 
+        item.type === 'message' && item.role === 'assistant'
+      );
+      
+      if (!assistantMessage || !assistantMessage.content) {
+        throw new OpenAIResponseHandlingError('No assistant message found in the response');
+      }
+      
+      // Get the text content from the output
+      const textOutput = assistantMessage.content.find(item => 
+        item.type === 'text'
+      );
+      
+      if (!textOutput) {
+        throw new OpenAIResponseHandlingError('No text output found in the response');
+      }
+      
+      return {
+        id: validatedResponse.id,
+        responseId: validatedResponse.responseId || validatedResponse.id,
+        content: textOutput.text,
+        usage: validatedResponse.usage
+      };
+    } catch (error) {
+      this.logger.error('Error processing OpenAI response', {
+        error: error.message,
+        stack: error.stack,
+        response: typeof response === 'object' ? JSON.stringify(response).substring(0, 500) : 'Invalid response'
+      });
+      
+      throw new OpenAIResponseHandlingError('Failed to process OpenAI response', {
+        cause: error,
+        context: { responseType: typeof response }
+      });
+    }
   }
 
   /**
    * Extract text content from a response
-   * @param {Object} response - OpenAI response
+   * @param {Object} response - OpenAI Responses API response
    * @returns {string} Extracted text
+   * @throws {OpenAIResponseHandlingError} If content cannot be extracted
    */
   extractText(response) {
-    return extractMessageContent(response);
+    const processed = this.process(response);
+    return processed.content;
   }
 
   /**
-   * Extract and parse JSON from a response
-   * @param {Object} response - OpenAI response
-   * @param {Object} schema - Optional Zod schema to validate against
-   * @returns {Object} Parsed JSON
+   * Format a response as JSON
+   * @param {Object} response - OpenAI Responses API response
+   * @param {Object} [options] - Formatting options
+   * @param {Object} [options.schema] - Zod schema to validate against
+   * @param {boolean} [options.strictMode] - Whether to use strict validation
+   * @returns {Object} The formatted and validated JSON
+   * @throws {OpenAIResponseHandlingError} If parsing or validation fails
    */
-  extractJson(response, schema) {
-    return extractJsonFromResponse(response, { schema });
+  formatJson(response, options = {}) {
+    const text = this.extractText(response);
+    
+    try {
+      // Clean the JSON string to remove any markdown formatting
+      const cleanedJson = cleanJsonString(text);
+      
+      // Parse the JSON
+      let parsed;
+      try {
+        parsed = JSON.parse(cleanedJson);
+      } catch (parseError) {
+        // Try to extract JSON from text by finding the first { and last }
+        const jsonMatch = cleanedJson.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try {
+            parsed = JSON.parse(jsonMatch[0]);
+          } catch (innerError) {
+            throw parseError; // If the extracted JSON is also invalid, throw the original error
+          }
+        } else {
+          throw parseError;
+        }
+      }
+      
+      // Apply schema validation
+      if (options.schema) {
+        // Custom schema validation
+        options.schema.parse(parsed);
+      } else if (options.strictMode !== false) {
+        // Default schema validation
+        jsonResponseSchema.parse(parsed);
+      }
+      
+      return parsed;
+    } catch (error) {
+      this.logger.error('Error parsing JSON response', {
+        error: error.message,
+        stack: error.stack,
+        responseContent: text.substring(0, 500) + (text.length > 500 ? '...' : '')
+      });
+      
+      throw new OpenAIResponseHandlingError('Failed to parse JSON response', {
+        cause: error,
+        context: { responseContentLength: text.length }
+      });
+    }
+  }
+
+  /**
+   * Process a tool call response
+   * @param {Object} response - OpenAI Responses API response 
+   * @returns {Object} The processed tool call
+   * @throws {OpenAIResponseHandlingError} If processing fails
+   */
+  processToolCall(response) {
+    if (!response) {
+      throw new OpenAIResponseHandlingError('No response received for tool call');
+    }
+
+    try {
+      // Validate response structure
+      const validatedResponse = responsesApiResponseSchema.parse(response);
+      
+      // Find the tool call message if it exists
+      const toolCallMessage = validatedResponse.output.find(item => 
+        item.type === 'message' && item.role === 'assistant'
+      );
+      
+      if (!toolCallMessage) {
+        throw new OpenAIResponseHandlingError('No assistant message found in the tool call response');
+      }
+
+      // Process tool calls
+      return {
+        id: validatedResponse.id,
+        responseId: validatedResponse.responseId || validatedResponse.id,
+        toolCall: toolCallMessage,
+        usage: validatedResponse.usage
+      };
+    } catch (error) {
+      this.logger.error('Error processing tool call response', {
+        error: error.message,
+        stack: error.stack
+      });
+      
+      throw new OpenAIResponseHandlingError('Failed to process tool call response', {
+        cause: error
+      });
+    }
   }
 }
 
 /**
- * Extracts the message content from an OpenAI API response
- * @param {Object} response - OpenAI API response object
+ * Extracts the message content from an OpenAI Responses API response
+ * @param {Object} response - OpenAI Responses API response object
  * @returns {string|null} Extracted content as string, or null if not found
+ * @throws {OpenAIResponseHandlingError} If response format is invalid
  */
-function extractMessageContent(response) {
-  if (!response) return null;
-  
+const extractMessageContent = (response) => {
   try {
-    // Handle Responses API format
-    if (response.output) {
-      // If output is an array (standard Responses API format)
-      if (Array.isArray(response.output)) {
-        // First look for content in output items of type output_text
-        const outputText = response.output
-          .filter(item => item.type === 'output_text')
-          .map(item => item.text || '')
-          .join('\n');
-        
-        if (outputText) return outputText;
-        
-        // Then look for text content in assistant messages
-        const assistantMessages = response.output
-          .filter(item => item.type === 'message' && item.role === 'assistant');
-        
-        if (assistantMessages.length > 0) {
-          // Process content array in assistant messages
-          for (const message of assistantMessages) {
-            if (Array.isArray(message.content)) {
-              const textContents = message.content
-                .filter(item => item.type === 'text' || item.type === 'output_text')
-                .map(item => item.text || '')
-                .join('\n');
-              
-              if (textContents) return textContents;
-            } else if (typeof message.content === 'string') {
-              return message.content;
-            }
-          }
-        }
-      } 
-      // If output is an object with content field
-      else if (response.output.content) {
-        if (Array.isArray(response.output.content)) {
-          // Handle content array
-          const textContents = response.output.content
-            .filter(item => item.type === 'text' || item.type === 'output_text')
-            .map(item => item.text || '')
-            .join('\n');
-          
-          return textContents || null;
-        }
-        
-        // Handle string content
-        if (typeof response.output.content === 'string') {
-          return response.output.content;
-        }
-      }
-      
-      // Fall back to output_text if it exists directly on the response
-      if (response.output_text) {
-        return response.output_text;
-      }
+    if (!response || !response.output || !Array.isArray(response.output)) {
+      throw new OpenAIResponseHandlingError('Invalid response structure');
+    }
+
+    const assistantMessage = response.output.find(item => 
+      item.type === 'message' && item.role === 'assistant'
+    );
+    
+    if (!assistantMessage || !assistantMessage.content) {
+      return null;
     }
     
-    // Handle Chat Completions API format (fallback)
-    if (response.choices && Array.isArray(response.choices) && response.choices.length > 0) {
-      const message = response.choices[0].message;
-      
-      if (message && message.content) {
-        return message.content;
-      }
-    }
+    const textOutput = assistantMessage.content.find(item => 
+      item.type === 'text'
+    );
     
-    // Direct content access (last resort)
-    if (response.content) {
-      return response.content;
-    }
-    
-    logger.warn('Could not extract message content from response', { 
-      responseStructure: JSON.stringify(Object.keys(response))
-    });
-    
-    return null;
+    return textOutput ? textOutput.text : null;
   } catch (error) {
-    logger.error('Error extracting message content', { error: error.message });
-    return null;
+    throw new OpenAIResponseHandlingError('Invalid response format', { cause: error });
   }
-}
+};
 
 /**
  * Clean a JSON string by removing markdown formatting and other non-JSON elements
@@ -155,171 +279,69 @@ function extractMessageContent(response) {
  * @returns {string} The cleaned JSON string
  * @private
  */
-function cleanJsonString(jsonString) {
-  if (!jsonString) {
+const cleanJsonString = (jsonString) => {
+  if (!jsonString || typeof jsonString !== 'string') {
     return '{}';
   }
+
+  // Remove markdown formatting
+  let cleaned = jsonString
+    .replace(/```(?:json)?([\s\S]*?)```/g, '$1') // Extract JSON from code blocks
+    .replace(/`([^`]*)`/g, '$1') // Extract content from inline code
+    .replace(/\*\*([^*]*)\*\*/g, '$1') // Extract content from bold
+    .replace(/\*([^*]*)\*/g, '$1') // Extract content from italic
+    .replace(/\[[^\]]*\]\([^\)]*\)/g, '') // Remove links
+    .replace(/^\s*(?:```)?\s*json/i, '') // Remove json tag if present
+    .replace(/\n/g, ' '); // Replace newlines with spaces
   
-  let cleaned = jsonString;
-  
-  try {
-    // Remove markdown code blocks
-    const codeBlockRegex = /```(?:json)?\s*([\s\S]*?)\s*```/;
-    const codeBlockMatch = cleaned.match(codeBlockRegex);
-    if (codeBlockMatch && codeBlockMatch[1]) {
-      cleaned = codeBlockMatch[1];
-      // Log successful code block extraction
-      logger.debug('Extracted JSON from code block', {
-        before: jsonString.substring(0, 50),
-        after: cleaned.substring(0, 50)
-      });
-    }
-    
-    // If the response still contains backticks, try a more aggressive approach
-    if (cleaned.includes('```')) {
-      logger.debug('JSON still contains backticks, attempting secondary cleanup');
-      // Using a split approach as a fallback
-      const parts = cleaned.split('```');
-      // Find the part that looks most like JSON (has { or [ at the start)
-      for (const part of parts) {
-        const trimmed = part.trim();
-        if ((trimmed.startsWith('{') || trimmed.startsWith('[')) && 
-            (trimmed.endsWith('}') || trimmed.endsWith(']'))) {
-          cleaned = trimmed;
-          logger.debug('Found JSON-like part after split', { part: trimmed.substring(0, 50) });
-          break;
-        }
-      }
-    }
-    
-    // Remove leading/trailing non-JSON content
-    const jsonStartMatch = cleaned.match(/\s*(\{|\[)/);
-    if (jsonStartMatch) {
-      const startIndex = jsonStartMatch.index;
-      cleaned = cleaned.substring(startIndex);
-      
-      // Find matching closing bracket/brace
-      let openCount = 0;
-      let closeIndex = cleaned.length - 1;
-      
-      const firstChar = cleaned.charAt(0);
-      const matchingChar = firstChar === '{' ? '}' : ']';
-      
-      for (let i = 0; i < cleaned.length; i++) {
-        const char = cleaned.charAt(i);
-        if (char === firstChar) {
-          openCount++;
-        } else if (char === matchingChar) {
-          openCount--;
-          if (openCount === 0) {
-            closeIndex = i;
-            break;
-          }
-        }
-      }
-      
-      cleaned = cleaned.substring(0, closeIndex + 1);
-    }
-    
-    // Final validation - try to parse it to make sure it's valid JSON
-    JSON.parse(cleaned);
-    
-    return cleaned;
-  } catch (error) {
-    logger.warn('Error cleaning JSON string', { 
-      error: error.message, 
-      jsonString: jsonString.substring(0, 200) 
-    });
-    // If our advanced cleaning fails, return the original string
-    // The main JSON parser will handle the error appropriately
-    return jsonString;
+  // Try to extract just the JSON object if there's text around it
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    cleaned = jsonMatch[0];
   }
-}
+  
+  return cleaned.trim();
+};
 
 /**
- * Format a response as JSON
- * @param {string|Object} response - The response to format
- * @param {Object} [options] - Formatting options
- * @param {Object} [options.schema] - Zod schema to validate against
- * @returns {Object} The formatted and validated JSON
- * @throws {Error} If parsing or validation fails
+ * Format JSON response data for the Responses API
+ * @param {string|Object} response - Response content to format
+ * @returns {Object} Formatted JSON object
  */
-function formatJson(response, options = {}) {
-  try {
-    // If response is already an object, use it directly
-    let jsonObject;
-    if (typeof response === 'object' && response !== null) {
-      jsonObject = response;
-    } else if (typeof response === 'string') {
-      // Log original response for debugging
-      logger.debug('Attempting to parse JSON response', {
-        responsePreview: response.substring(0, 100) + (response.length > 100 ? '...' : '')
-      });
-      
-      // Clean up the response string
-      const cleanedResponse = cleanJsonString(response);
-      
-      // Parse the JSON
-      try {
-        jsonObject = JSON.parse(cleanedResponse);
-      } catch (parseError) {
-        logger.error('Failed to parse JSON response', {
-          error: parseError.message,
-          content: response
-        });
-        throw new Error(`Failed to parse JSON: ${parseError.message}`);
-      }
-    } else {
-      throw new Error(`Invalid response type: ${typeof response}`);
-    }
-    
-    // Validate against schema if provided
-    if (options.schema) {
-      try {
-        const validatedJson = options.schema.parse(jsonObject);
-        return validatedJson;
-      } catch (validationError) {
-        logger.error('JSON validation failed', {
-          error: validationError.message
-        });
-        throw new Error(`JSON validation failed: ${validationError.message}`);
-      }
-    }
-    
-    return jsonObject;
-  } catch (error) {
-    logger.error('Error formatting JSON', {
-      error: error.message
-    });
-    throw error;
-  }
-}
-
-/**
- * Extracts a JSON object from the response
- * @param {Object} response - OpenAI API response object
- * @param {Object} [options] - Options for JSON extraction
- * @param {Object} [options.schema] - Zod schema to validate against
- * @returns {Object|null} Extracted JSON object or null if not found/invalid
- */
-function extractJsonFromResponse(response, options = {}) {
-  const content = extractMessageContent(response);
-  
-  if (!content) return null;
-  
-  try {
-    return formatJson(content, options);
-  } catch (error) {
-    logger.error('Error extracting JSON from response', { error: error.message });
+const formatJson = (response) => {
+  if (!response) {
     return null;
   }
-}
 
-// Export both the class and utility functions
+  if (typeof response === 'object') {
+    // If it's already an object, extract the text content
+    if (response.output && Array.isArray(response.output)) {
+      const content = extractMessageContent(response);
+      if (content) {
+        const cleaned = cleanJsonString(content);
+        try {
+          return JSON.parse(cleaned);
+        } catch (error) {
+          throw new OpenAIResponseHandlingError('Failed to parse JSON in response object');
+        }
+      }
+      return null;
+    }
+    return response; // It's already a parsed object
+  }
+
+  // If it's a string, try to parse it as JSON
+  try {
+    const cleaned = cleanJsonString(response);
+    return JSON.parse(cleaned);
+  } catch (error) {
+    throw new OpenAIResponseHandlingError('Failed to parse JSON from string response');
+  }
+};
+
 module.exports = {
   OpenAIResponseHandler,
   extractMessageContent,
-  extractJsonFromResponse,
-  formatJson,
-  cleanJsonString
-}; 
+  cleanJsonString,
+  formatJson
+};
