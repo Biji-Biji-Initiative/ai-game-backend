@@ -87,7 +87,7 @@ class EvaluationPromptBuilder {
         prompt += `### CHALLENGE CONTENT\n${challenge.content}\n\n`;
       }
       
-      // Add user context - NEW
+      // Add user context
       if (user && Object.keys(user).length > 0) {
         prompt += `### USER CONTEXT\n`;
         if (user.name) prompt += `Name: ${user.name}\n`;
@@ -109,7 +109,7 @@ class EvaluationPromptBuilder {
         prompt += `\n`;
       }
       
-      // Add evaluation history for growth tracking - NEW
+      // Add evaluation history for growth tracking
       if (evaluationHistory && Object.keys(evaluationHistory).length > 0) {
         prompt += `### PREVIOUS EVALUATION DATA\n`;
         
@@ -162,7 +162,7 @@ class EvaluationPromptBuilder {
       prompt += `2. Why this aspect is effective or important\n`;
       prompt += `3. How it specifically contributes to the quality of the response\n\n`;
       
-      // Add improvement plan instructions - NEW
+      // Add improvement plan instructions
       prompt += `### IMPROVEMENT PLANS\n`;
       prompt += `For each area needing improvement, provide a detailed plan including:\n`;
       prompt += `1. Specific issue to address\n`;
@@ -170,7 +170,7 @@ class EvaluationPromptBuilder {
       prompt += `3. Actionable steps to improve\n`;
       prompt += `4. Resources or exercises that could help\n\n`;
       
-      // Add growth tracking instructions - NEW
+      // Add growth tracking instructions
       if (evaluationHistory && Object.keys(evaluationHistory).length > 0) {
         prompt += `### GROWTH TRACKING\n`;
         prompt += `Compare the current response to previous evaluations:\n`;
@@ -179,61 +179,28 @@ class EvaluationPromptBuilder {
         prompt += `3. Provide specific growth insights\n\n`;
       }
       
-      // Add personalized recommendations instructions - NEW
+      // Add personalized recommendations instructions
       prompt += `### PERSONALIZED RECOMMENDATIONS\n`;
       prompt += `Based on the user's context, provide:\n`;
       prompt += `1. Personalized next steps tailored to their focus areas and skill level\n`;
       prompt += `2. 2-3 specific resources that would help improvement (articles, books, courses, etc.)\n`;
       prompt += `3. 1-2 recommended challenge types that would build on current strengths or address weaknesses\n\n`;
       
-      // Add response format instructions - UPDATED FOR ENHANCED FORMAT
+      // Add response format instructions
       prompt += `### RESPONSE FORMAT\n`;
       prompt += `Provide your evaluation as a JSON object with the following structure:\n\n`;
-      prompt += `{
-  "categoryScores": {
-${Object.keys(categoryWeights).map(cat => `    "${cat}": 25`).join(',\n')}
-  },
-  "overallScore": 85,
-  "overallFeedback": "Comprehensive evaluation of the entire response...",
-  "strengths": [
-    "Strength 1",
-    "Strength 2"
-  ],
-  "strengthAnalysis": [
-    {
-      "strength": "Strength 1",
-      "analysis": "Detailed explanation of why this is effective...",
-      "impact": "How this contributes to overall quality..."
-    }
-  ],
-  "areasForImprovement": [
-    "Area for improvement 1",
-    "Area for improvement 2"
-  ],
-  "improvementPlans": [
-    {
-      "area": "Area for improvement 1",
-      "importance": "Why improving this is important...",
-      "actionItems": ["Specific action 1", "Specific action 2"],
-      "resources": ["Suggested resource or exercise"]
-    }
-  ],
-  "growthInsights": {
-    "improvements": ["Specific improvements since last evaluation"],
-    "persistentStrengths": ["Strengths maintained across evaluations"],
-    "developmentAreas": ["Areas that still need focus"],
-    "growthSummary": "Overall assessment of growth trajectory..."
-  },
-  "recommendations": {
-    "nextSteps": "Personalized next steps for improvement...",
-    "resources": [
-      {"title": "Resource Title", "type": "article|video|course", "url": "URL if available", "relevance": "Why this is relevant"}
-    ],
-    "recommendedChallenges": [
-      {"title": "Challenge Type", "description": "Brief description", "relevance": "Why this would help growth"}
-    ]
-  }
-}\n\n`;
+      prompt += `{\n`;
+      prompt += `  "categoryScores": {\n${Object.keys(categoryWeights).map(cat => `    "${cat}": 25`).join(',\n')}
+  },\n`;
+      prompt += `  "overallScore": 85,\n`;
+      prompt += `  "overallFeedback": "Comprehensive evaluation of the entire response...",\n`;
+      prompt += `  "strengths": [\n    "Strength 1",\n    "Strength 2"\n  ],\n`;
+      prompt += `  "strengthAnalysis": [\n    {\n      "strength": "Strength 1",\n      "analysis": "Detailed explanation of why this is effective...",\n      "impact": "How this contributes to overall quality..."\n    }\n  ],\n`;
+      prompt += `  "areasForImprovement": [\n    "Area for improvement 1",\n    "Area for improvement 2"\n  ],\n`;
+      prompt += `  "improvementPlans": [\n    {\n      "area": "Area for improvement 1",\n      "importance": "Why improving this is important...",\n      "actionItems": ["Specific action 1", "Specific action 2"],\n      "resources": ["Suggested resource or exercise"]\n    }\n  ],\n`;
+      prompt += `  "growthInsights": {\n    "improvements": ["Specific improvements since last evaluation"],\n    "persistentStrengths": ["Strengths maintained across evaluations"],\n    "developmentAreas": ["Areas that still need focus"],\n    "growthSummary": "Overall assessment of growth trajectory..."\n  },\n`;
+      prompt += `  "recommendations": {\n    "nextSteps": "Personalized next steps for improvement...",\n    "resources": [\n      {\n        "title": "Resource Title",\n        "type": "article|video|course",\n        "url": "URL if available",\n        "relevance": "Why this is relevant"\n      }\n    ],\n    "recommendedChallenges": [\n      {\n        "title": "Challenge Type",\n        "description": "Brief description",\n        "relevance": "Why this would help growth"\n      }\n    ]\n  }\n`;
+      prompt += `}\n\n`;
       
       // Add Responses API instruction
       prompt += `\n\n${getResponsesApiInstruction()}`;
@@ -249,13 +216,14 @@ ${Object.keys(categoryWeights).map(cat => `    "${cat}": 25`).join(',\n')}
         options
       );
       
-      // Return object formatted for Responses API
+      // Format for Responses API
       return formatForResponsesApi(prompt.trim(), systemMessage);
     } catch (error) {
       log('error', 'Error building evaluation prompt', { 
         error: error.message,
         stack: error.stack
       });
+      
       throw new PromptConstructionError(`Failed to build evaluation prompt: ${error.message}`, {
         originalError: error
       });
@@ -346,13 +314,14 @@ ${Object.keys(categoryWeights).map(cat => `    "${cat}": 25`).join(',\n')}
       
       return systemMsg;
     } catch (error) {
-      log('error', 'Error building dynamic system message', { 
+      log('error', 'Error building system message', { 
         error: error.message,
         stack: error.stack
       });
       
-      // Return a basic system message as fallback
-      return 'You are an AI evaluation expert providing constructive feedback. Return your response as JSON according to the format specified in the prompt.';
+      throw new PromptConstructionError(`Failed to build system message: ${error.message}`, {
+        originalError: error
+      });
     }
   }
   
@@ -498,11 +467,10 @@ ${Object.keys(categoryWeights).map(cat => `    "${cat}": 25`).join(',\n')}
       // Impact categories
       impact_analysis: "Evaluate depth and breadth of impact analysis across domains",
       stakeholder_consideration: "Assess identification and consideration of affected stakeholders",
-      systemic_thinking: "Evaluate understanding of complex systemic interactions and dynamics",
-      practical_insight: "Judge the practicality and applicability of insights about AI's impact"
+      systemic_thinking: "Evaluate understanding of complex systemic interactions and dynamics"
     };
     
-    return descriptions[category] || `Evaluate the quality of ${category.replace(/_/g, ' ')}`;
+    return descriptions[category.toLowerCase()] || "Evaluate this aspect of the response";
   }
   
   /**
@@ -510,8 +478,8 @@ ${Object.keys(categoryWeights).map(cat => `    "${cat}": 25`).join(',\n')}
    * @returns {Function} Configured build function
    */
   static createBuilder() {
-    return EvaluationPromptBuilder.build;
+    return this.build.bind(this);
   }
 }
 
-module.exports = EvaluationPromptBuilder; 
+module.exports = EvaluationPromptBuilder;

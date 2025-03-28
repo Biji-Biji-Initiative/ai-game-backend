@@ -15,6 +15,7 @@ const { v4: uuidv4 } = require('uuid');
 const promptBuilder = require('../../prompt/promptBuilder');
 const { PROMPT_TYPES, getRecommendedModel } = require('../../prompt/promptTypes');
 const Evaluation = require('../models/Evaluation');
+const { formatForResponsesApi } = require('../../infra/openai/messageFormatter');
 
 /**
  * Service for generating and processing evaluations
@@ -98,6 +99,10 @@ class EvaluationService {
       // Get the previous response ID for conversation continuity
       const previousResponseId = await this.openAIStateManager.getLastResponseId(conversationState.id);
 
+      // Gather user and history data for personalization
+      const user = options.user || { email: userId };
+      const evaluationHistory = options.evaluationHistory || {};
+      
       // Get challenge type name for more accurate evaluation
       const challengeTypeName = challenge.getChallengeTypeName ? 
         challenge.getChallengeTypeName() : 
@@ -110,10 +115,6 @@ class EvaluationService {
       
       // Get focus area for more accurate evaluation
       const focusArea = challenge.focusArea || options.focusArea || 'general';
-      
-      // Gather user and history data for personalization
-      const user = options.user || { email: userId };
-      const evaluationHistory = options.evaluationHistory || {};
       
       // Add type information to prompt options
       const promptOptions = {
@@ -145,6 +146,17 @@ class EvaluationService {
         hasEvaluationHistory: !!options.evaluationHistory
       });
       
+      // Format messages for Responses API
+      const messages = formatForResponsesApi(
+        prompt,
+        `You are an AI evaluation expert specializing in providing personalized feedback on ${challengeTypeName} challenges.
+Always return your evaluation as a JSON object with category scores, overall score, detailed feedback, strengths with analysis, and personalized insights.
+Format your response as valid, parsable JSON with no markdown formatting.
+This is a ${formatTypeName} type challenge in the ${focusArea} focus area, so adapt your evaluation criteria accordingly.
+${promptOptions.typeMetadata.evaluationNote || ''}
+${promptOptions.formatMetadata.evaluationNote || ''}`
+      );
+      
       // Configure API call options for Responses API
       const apiOptions = {
         model: options.model || 'gpt-4o',
@@ -152,23 +164,6 @@ class EvaluationService {
         responseFormat: 'json',
         previousResponseId: previousResponseId
       };
-      
-      // Create messages for the Responses API
-      const messages = [
-        {
-          role: this.responsesApiClient.MessageRole.SYSTEM,
-          content: systemMessage || `You are an AI evaluation expert specializing in providing personalized feedback on ${challengeTypeName} challenges.
-Always return your evaluation as a JSON object with category scores, overall score, detailed feedback, strengths with analysis, and personalized insights.
-Format your response as valid, parsable JSON with no markdown formatting.
-This is a ${formatTypeName} type challenge in the ${focusArea} focus area, so adapt your evaluation criteria accordingly.
-${promptOptions.typeMetadata.evaluationNote || ''}
-${promptOptions.formatMetadata.evaluationNote || ''}`
-        },
-        {
-          role: this.responsesApiClient.MessageRole.USER,
-          content: prompt
-        }
-      ];
       
       // Call the OpenAI Responses API for evaluation
       this.log('debug', 'Calling OpenAI Responses API for personalized evaluation', { 
@@ -368,10 +363,22 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`
       // Add streaming-specific instructions
       const streamingPrompt = `${prompt}\n\nIMPORTANT: Format your response as a continuous stream of your evaluation, providing each part as soon as it's ready. Begin with an overall assessment, then provide detailed analysis of each category, followed by strengths and improvement areas. This is a real-time evaluation, so provide as much value as possible throughout the stream.`;
       
-      // Configure streaming options
+      // Format messages for Responses API
+      const messages = formatForResponsesApi(
+        streamingPrompt,
+        `You are an AI evaluation expert providing real-time personalized feedback on ${challengeTypeName} challenges.
+Your evaluation should be structured but conversational, providing immediate value as you analyze the response.
+This is a ${formatTypeName} type challenge in the ${focusArea} focus area, so adapt your evaluation criteria accordingly.
+For each strength you identify, provide a detailed analysis explaining why it's effective and how it contributes to the quality.
+${promptOptions.typeMetadata.evaluationNote || ''}
+${promptOptions.formatMetadata.evaluationNote || ''}`
+      );
+      
+      // Prepare streaming options
       const streamOptions = {
         model: options.model || 'gpt-4o',
         temperature: options.temperature || 0.4,
+        responseFormat: 'json',
         previousResponseId: previousResponseId,
         onChunk: callbacks.onChunk,
         onComplete: (response) => {
@@ -398,23 +405,6 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`
         },
         onError: callbacks.onError
       };
-      
-      // Create messages for the Responses API
-      const messages = [
-        {
-          role: this.responsesApiClient.MessageRole.SYSTEM,
-          content: systemMessage || `You are an AI evaluation expert providing real-time personalized feedback on ${challengeTypeName} challenges.
-Your evaluation should be structured but conversational, providing immediate value as you analyze the response.
-This is a ${formatTypeName} type challenge in the ${focusArea} focus area, so adapt your evaluation criteria accordingly.
-For each strength you identify, provide a detailed analysis explaining why it's effective and how it contributes to the quality.
-${promptOptions.typeMetadata.evaluationNote || ''}
-${promptOptions.formatMetadata.evaluationNote || ''}`
-        },
-        {
-          role: this.responsesApiClient.MessageRole.USER,
-          content: streamingPrompt
-        }
-      ];
       
       // Stream the evaluation
       await this.responsesApiClient.streamMessage(messages, streamOptions);
@@ -580,4 +570,4 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`
   }
 }
 
-module.exports = EvaluationService; 
+module.exports = EvaluationService;

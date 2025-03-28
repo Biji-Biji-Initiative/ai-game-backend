@@ -13,9 +13,7 @@ const logger = container.get('logger');
 const { requestLogger, errorLogger } = require('./core/infra/logging/logger');
 const { errorHandler, notFoundHandler } = require('./core/infra/errors/errorHandler');
 const { responseFormatterMiddleware } = require('./core/infra/http/responseFormatter');
-
-// Import routes
-const apiRoutes = require('./routes/index');
+const RouteFactory = require('./core/infra/http/routes/RouteFactory');
 
 // Import domain events system
 const { eventBus, EventTypes } = require('./core/common/events/domainEvents');
@@ -81,8 +79,26 @@ function initializeDomainEventSystem() {
 // Initialize the domain event system
 initializeDomainEventSystem();
 
-// Mount API routes under /api
-app.use('/api', apiRoutes);
+// Initialize route factory
+const routeFactory = new RouteFactory(container);
+
+// Create and initialize all routes
+const personalityRoutes = routeFactory.createPersonalityRoutes();
+const adaptiveRoutes = routeFactory.createAdaptiveRoutes();
+const authRoutes = routeFactory.createAuthRoutes();
+const progressRoutes = routeFactory.createProgressRoutes();
+const evaluationRoutes = routeFactory.createEvaluationRoutes();
+const challengeRoutes = routeFactory.createChallengeRoutes();
+const userJourneyRoutes = routeFactory.createUserJourneyRoutes();
+
+// Mount routes
+app.use('/api/personality', personalityRoutes);
+app.use('/api/adaptive', adaptiveRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/progress', progressRoutes);
+app.use('/api/evaluation', evaluationRoutes);
+app.use('/api/challenge', challengeRoutes);
+app.use('/api/user-journey', userJourneyRoutes);
 
 // Handle 404 errors
 app.use(notFoundHandler);

@@ -7,6 +7,7 @@
 
 const FocusArea = require('../../models/config/FocusArea');
 const { challengeLogger } = require('../../../../core/infra/logging/domainLogger');
+const { supabaseClient } = require('../../../../core/infra/db/supabaseClient');
 
 class FocusAreaRepository {
   /**
@@ -15,7 +16,7 @@ class FocusAreaRepository {
    * @param {Object} logger - Logger instance
    */
   constructor(supabase, logger) {
-    this.supabase = supabase;
+    this.supabase = supabase || supabaseClient;
     this.tableName = 'challenge_focus_areas';
     this.logger = logger || challengeLogger.child('repository:focusArea');
   }
@@ -246,4 +247,4 @@ class FocusAreaRepository {
   }
 }
 
-module.exports = FocusAreaRepository; 
+module.exports = FocusAreaRepository;

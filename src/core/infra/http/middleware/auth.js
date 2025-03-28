@@ -5,7 +5,7 @@
  * Located in the infrastructure layer according to our DDD architecture
  */
 
-const { createClient } = require('@supabase/supabase-js');
+const { supabaseClient } = require('../../../infra/db/supabaseClient');
 const { logger } = require('../../../infra/logging/logger');
 const container = require('../../../../config/container');
 
@@ -89,11 +89,8 @@ const authenticateUser = async (req, res, next) => {
     
     logger.debug('Processing authentication request', { tokenPrefix: token.substring(0, 10) });
     
-    // 2. Retrieve Supabase client from infrastructure layer
-    const supabase = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_KEY
-    );
+    // 2. Use the centralized Supabase client from infrastructure layer
+    const supabase = supabaseClient;
     
     // 3. Verify the token with Supabase Auth
     const { data: userData, error: authError } = await supabase.auth.getUser(token);

@@ -7,6 +7,7 @@
 
 const DifficultyLevel = require('../../models/config/DifficultyLevel');
 const { challengeLogger } = require('../../../../core/infra/logging/domainLogger');
+const { supabaseClient } = require('../../../../core/infra/db/supabaseClient');
 
 class DifficultyLevelRepository {
   /**
@@ -15,7 +16,7 @@ class DifficultyLevelRepository {
    * @param {Object} logger - Logger instance
    */
   constructor(supabase, logger) {
-    this.supabase = supabase;
+    this.supabase = supabase || supabaseClient;
     this.tableName = 'difficulty_levels';
     this.logger = logger || challengeLogger.child('repository:difficultyLevel');
   }

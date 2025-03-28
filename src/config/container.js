@@ -334,4 +334,15 @@ container.register('dynamicPromptService', (c) => {
   });
 }, true);
 
+container.register('applicationEventHandlers', (c) => {
+  return new ApplicationEventHandlers({
+    personalityCoordinator: c.get('personalityCoordinator'),
+    logger: c.get('logger').child('eventHandlers')
+  });
+}, true);
+
+// Initialize event handlers
+const applicationEventHandlers = container.get('applicationEventHandlers');
+applicationEventHandlers.registerEventHandlers();
+
 module.exports = container;

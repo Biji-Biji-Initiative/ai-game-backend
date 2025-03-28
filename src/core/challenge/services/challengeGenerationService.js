@@ -11,7 +11,7 @@
 
 const { logger } = require('../../../core/infra/logging/logger');
 const promptBuilder = require('../../prompt/promptBuilder');
-const { formatJson } = require('../../../infra/openai/responseHandler');
+const { formatForResponsesApi } = require('../../../infra/openai/messageFormatter');
 const Challenge = require('../models/Challenge');
 
 /**
@@ -37,7 +37,7 @@ class ChallengeGenerationService {
     this.openAIClient = openAIClient;
     this.openAIStateManager = openAIStateManager;
     this.personalityRepository = personalityRepository;
-    this.MessageRole = openAIConfig.OpenAITypes.MessageRole;
+    this.openAIConfig = openAIConfig;
     this.logger = logger || logger;
   }
   
@@ -146,20 +146,23 @@ class ChallengeGenerationService {
         user: user.id || user.email
       });
           
-      // Create system and user messages
-      const messages = [
-        {
-          role: this.MessageRole.SYSTEM,
-          content: systemMessage || `You are an AI challenge creator specialized in ${challengeParams.challengeType || 'general'} challenges.
-  Always return your challenge as a JSON object with title, content, questions, and evaluation criteria.
-  Format your response as valid, parsable JSON with no markdown formatting.
-  This is focused on the ${focusArea} area, so customize your challenge accordingly.`
-        },
-        {
-          role: this.MessageRole.USER,
-          content: prompt
-        }
-      ];
+      // Format messages for Responses API
+      const messages = formatForResponsesApi(
+        prompt,
+        `You are an AI challenge creator specialized in ${challengeParams.challengeType || 'general'} challenges.
+Always return your challenge as a JSON object with title, content, questions, and evaluation criteria.
+Format your response as valid, parsable JSON with no markdown formatting.
+This is focused on the ${focusArea} area, so customize your challenge accordingly.
+${systemMessage || ''}`
+      );
+      
+      // Prepare API options
+      const apiOptions = {
+        model: this.openAIConfig.model || 'gpt-4o',
+        temperature: options.temperature || 0.7,
+        responseFormat: 'json',
+        previousResponseId
+      };
       
       // Call the OpenAI Responses API for challenge generation
       this.log('debug', 'Calling OpenAI Responses API for challenge generation', { 
@@ -167,17 +170,14 @@ class ChallengeGenerationService {
         stateId: conversationState.id
       });
       
-      // Send the JSON message with the 'CHALLENGE_GENERATION' use case 
-      const response = await this.openAIClient.sendJsonMessage(messages, 'CHALLENGE_GENERATION', {
-        previous_response_id: previousResponseId
-      });
+      const response = await this.openAIClient.sendJsonMessage(messages, apiOptions);
       
       // Update the conversation state with the new response ID
       await this.openAIStateManager.updateLastResponseId(conversationState.id, response.responseId);
       
       // Validate the challenge data
-      if (!response.data || !response.data.title || !response.data.content) {
-        throw new Error('Generated challenge is missing required fields');
+      if (!response || !response.data || !response.data.title || !response.data.content) {
+        throw new Error('Invalid challenge response format from OpenAI Responses API');
       }
       
       const challengeData = response.data;
@@ -202,19 +202,21 @@ class ChallengeGenerationService {
         }
       });
       
-      this.log('info', 'Successfully generated personalized challenge', {
+      this.log('info', 'Successfully generated personalized challenge', { 
         challengeId: challenge.id,
-        challengeType: challenge.challengeType,
-        threadId
+        userId: user.id || user.email,
+        challengeType: challenge.challengeType
       });
       
       return challenge;
     } catch (error) {
-      this.log('error', 'Error in challenge generation service', { 
+      this.log('error', 'Error generating challenge', { 
         error: error.message,
-        user: user?.id || user?.email
+        stack: error.stack,
+        userId: user?.id || user?.email,
+        challengeType: challengeParams?.challengeType
       });
-      throw error;
+      throw new Error(`Failed to generate challenge: ${error.message}`);
     }
   }
 
@@ -229,64 +231,123 @@ class ChallengeGenerationService {
   async generateChallengeVariation(challenge, user, options = {}) {
     try {
       if (!challenge) {
-        throw new Error('Original challenge is required for variation generation');
+        throw new Error('Challenge is required for variation generation');
       }
       
       if (!user) {
-        throw new Error('User data is required for challenge variation');
+        throw new Error('User data is required for variation generation');
       }
       
       const threadId = options.threadId;
       if (!threadId) {
-        throw new Error('Thread ID is required for challenge variation');
+        throw new Error('Thread ID is required for variation generation');
       }
       
-      // Prepare challenge params based on the original challenge
-      const challengeParams = {
-        challengeType: challenge.challengeType,
-        formatType: challenge.formatType,
-        difficulty: challenge.difficulty,
-        focusArea: challenge.focusArea,
-        // Add variation-specific parameters
+      // Get or create a conversation state for this variation thread
+      const conversationState = await this.openAIStateManager.findOrCreateConversationState(
+        user.id || user.email, 
+        `variation_${threadId}`,
+        { createdAt: new Date().toISOString() }
+      );
+      
+      // Get the previous response ID for conversation continuity
+      const previousResponseId = await this.openAIStateManager.getLastResponseId(conversationState.id);
+      
+      // Get focus area and ensure it's set properly
+      const focusArea = challenge.focusArea || 'general';
+      
+      // Build the variation prompt
+      const { prompt, systemMessage } = await promptBuilder.buildPrompt('challenge_variation', {
+        challenge,
+        user,
         variationType: options.variationType || 'creative',
-        originalChallengeId: challenge.id,
-        // Preserve any existing metadata
-        typeMetadata: challenge.typeMetadata || {},
-        formatMetadata: challenge.formatMetadata || {}
+        gameState: options.gameState || {}
+      });
+      
+      this.log('debug', 'Generated variation prompt using promptBuilder', { 
+        promptLength: prompt.length, 
+        user: user.id || user.email,
+        originalChallengeId: challenge.id
+      });
+      
+      // Format messages for Responses API
+      const messages = formatForResponsesApi(
+        prompt,
+        `You are an AI challenge variation creator specialized in modifying ${challenge.challengeType} challenges.
+Always return your variation as a JSON object with title, content, questions, and evaluation criteria.
+Format your response as valid, parsable JSON with no markdown formatting.
+This is focused on the ${focusArea} area, so customize your variation accordingly.
+${systemMessage || ''}`
+      );
+      
+      // Prepare API options
+      const apiOptions = {
+        model: this.openAIConfig.model || 'gpt-4o',
+        temperature: options.temperature || 0.7,
+        responseFormat: 'json',
+        previousResponseId
       };
       
-      // Set creative variation based on variationType
-      let creativeVariation = 0.7; // Default
-      if (options.variationType === 'creative') {
-        creativeVariation = 0.9; // High creativity
-      } else if (options.variationType === 'structured') {
-        creativeVariation = 0.4; // More structured
+      // Call the OpenAI Responses API for variation generation
+      this.log('debug', 'Calling OpenAI Responses API for challenge variation', { 
+        user: user.id || user.email, 
+        stateId: conversationState.id,
+        originalChallengeId: challenge.id
+      });
+      
+      const response = await this.openAIClient.sendJsonMessage(messages, apiOptions);
+      
+      // Update the conversation state with the new response ID
+      await this.openAIStateManager.updateLastResponseId(conversationState.id, response.responseId);
+      
+      // Validate the variation data
+      if (!response || !response.data || !response.data.title || !response.data.content) {
+        throw new Error('Invalid variation response format from OpenAI Responses API');
       }
       
-      // Generate the challenge variation
-      return await this.generateChallenge(user, challengeParams, {
-        ...options,
-        creativeVariation,
-        // Include original challenge in game state for context
-        gameState: {
-          ...options.gameState,
-          originalChallenge: {
-            id: challenge.id,
-            title: challenge.title,
-            challengeType: challenge.challengeType,
-            difficulty: challenge.difficulty,
-            content: challenge.content
-          }
+      const variationData = response.data;
+      
+      // Construct the variation domain model
+      const variation = new Challenge({
+        title: variationData.title,
+        content: variationData.content,
+        questions: variationData.questions || [],
+        evaluationCriteria: variationData.evaluationCriteria || {},
+        recommendedResources: variationData.recommendedResources || [],
+        challengeType: challenge.challengeType,
+        formatType: challenge.formatType,
+        difficulty: variationData.difficulty || challenge.difficulty,
+        focusArea: focusArea,
+        userId: user.id || user.email,
+        metadata: {
+          generationPromptLength: prompt.length,
+          responseId: response.responseId,
+          threadId: threadId,
+          generatedAt: new Date().toISOString(),
+          originalChallengeId: challenge.id,
+          variationType: options.variationType
         }
       });
+      
+      this.log('info', 'Successfully generated challenge variation', { 
+        variationId: variation.id,
+        userId: user.id || user.email,
+        originalChallengeId: challenge.id,
+        variationType: options.variationType
+      });
+      
+      return variation;
     } catch (error) {
       this.log('error', 'Error generating challenge variation', { 
         error: error.message,
-        originalChallengeId: challenge?.id
+        stack: error.stack,
+        userId: user?.id || user?.email,
+        originalChallengeId: challenge?.id,
+        variationType: options?.variationType
       });
-      throw error;
+      throw new Error(`Failed to generate challenge variation: ${error.message}`);
     }
   }
 }
 
-module.exports = ChallengeGenerationService; 
+module.exports = ChallengeGenerationService;

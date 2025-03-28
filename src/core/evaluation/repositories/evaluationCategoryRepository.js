@@ -8,7 +8,7 @@
  * @requires logger
  */
 
-const { supabaseClient } = require('../../infra/db/supabaseClient');
+const { supabaseClient } = require('../../../core/infra/db/supabaseClient');
 const { logger } = require('../../infra/logging/logger');
 
 /**

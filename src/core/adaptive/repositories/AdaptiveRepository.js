@@ -9,7 +9,7 @@
  */
 
 const Recommendation = require('../models/Recommendation');
-const { createClient } = require('@supabase/supabase-js');
+const { supabaseClient } = require('../../../core/infra/db/supabaseClient');
 const { v4: uuidv4 } = require('uuid');
 const { 
   RecommendationSchema, 
@@ -17,11 +17,8 @@ const {
 } = require('../schemas/RecommendationSchema');
 
 class AdaptiveRepository {
-  constructor(supabaseClient) {
-    this.supabase = supabaseClient || createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY
-    );
+  constructor(supabase) {
+    this.supabase = supabase || supabaseClient;
     this.tableName = 'user_recommendations';
   }
 

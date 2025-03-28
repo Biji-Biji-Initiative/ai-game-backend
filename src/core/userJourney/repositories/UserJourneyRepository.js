@@ -14,6 +14,8 @@ const {
   UserJourneyEventDatabaseSchema,
   UserJourneyEventQuerySchema
 } = require('../schemas/UserJourneyEventSchema');
+const { supabaseClient } = require('../../../core/infra/db/supabaseClient');
+const { logger } = require('../../../core/infra/logging/logger');
 
 /**
  * User Journey Repository Class
@@ -25,8 +27,8 @@ class UserJourneyRepository {
    * @param {Object} logger - Logger instance
    */
   constructor(supabaseClient, logger) {
-    this.supabase = supabaseClient;
-    this.logger = logger;
+    this.supabase = supabaseClient || supabaseClient;
+    this.logger = logger || logger;
   }
 
   /**

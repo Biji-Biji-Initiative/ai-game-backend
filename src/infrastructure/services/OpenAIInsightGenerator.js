@@ -6,7 +6,11 @@
 
 const InsightGenerator = require('../../core/personality/ports/InsightGenerator');
 const { personalityLogger } = require('../../core/infra/logging/domainLogger');
+const { formatForResponsesApi } = require('../../infra/openai/messageFormatter');
 
+/**
+ * Class for generating insights using OpenAI's Responses API
+ */
 class OpenAIInsightGenerator extends InsightGenerator {
   /**
    * Creates an OpenAI insight generator
@@ -27,7 +31,7 @@ class OpenAIInsightGenerator extends InsightGenerator {
    */
   async generateFor(profile) {
     try {
-      this.logger.debug('Generating insights with OpenAI', { userId: profile.userId });
+      this.logger.debug('Generating insights with OpenAI Responses API', { userId: profile.userId });
       
       // Build prompt for insights generation
       const { prompt, systemMessage } = await this.promptBuilder.buildPrompt('personality', {
@@ -38,34 +42,32 @@ class OpenAIInsightGenerator extends InsightGenerator {
         }
       });
       
+      // Format messages for Responses API
+      const messages = formatForResponsesApi(prompt, systemMessage);
+      
       // Generate insights using OpenAI Responses API
-      const response = await this.openaiClient.responses.create({
+      const response = await this.openaiClient.sendMessage(messages, {
         model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: systemMessage || 'You are an AI personality analyst helping users understand their cognitive profile and AI attitudes. Respond with valid JSON only.'
-          },
-          { 
-            role: 'user', 
-            content: prompt 
-          }
-        ],
-        response_format: { type: 'json_object' },
+        responseFormat: 'json',
         temperature: 0.7
       });
       
       // Parse and transform the response
-      const aiResponse = JSON.parse(response.choices[0].message.content);
+      const aiResponse = await this.openaiClient.responseHandler.formatJson(response);
       
       // Transform the OpenAI response to match our expected insight format
       const insights = this._transformOpenAIResponse(aiResponse);
       
-      this.logger.info('Generated insights with OpenAI', { userId: profile.userId });
+      this.logger.info('Successfully generated insights with OpenAI', { 
+        userId: profile.userId,
+        insightsCount: Object.keys(insights).length
+      });
+      
       return insights;
     } catch (error) {
       this.logger.error('Error generating insights with OpenAI', { 
         error: error.message,
+        stack: error.stack,
         userId: profile.userId
       });
       throw new Error(`Failed to generate insights: ${error.message}`);
@@ -99,24 +101,16 @@ class OpenAIInsightGenerator extends InsightGenerator {
         if (aiResponse.communicationStyle.strengths && Array.isArray(aiResponse.communicationStyle.strengths)) {
           strengths.push(...aiResponse.communicationStyle.strengths);
         }
-        
-        if (aiResponse.communicationStyle.challenges && Array.isArray(aiResponse.communicationStyle.challenges)) {
-          focusAreas.push(...aiResponse.communicationStyle.challenges);
+        if (aiResponse.communicationStyle.recommendations && Array.isArray(aiResponse.communicationStyle.recommendations)) {
+          recommendations.push(...aiResponse.communicationStyle.recommendations);
         }
       }
       
-      // Extract from aiAttitudeProfile if available
-      if (aiResponse.aiAttitudeProfile) {
-        if (aiResponse.aiAttitudeProfile.preferences && Array.isArray(aiResponse.aiAttitudeProfile.preferences)) {
-          strengths.push(...aiResponse.aiAttitudeProfile.preferences.map(p => `Strong preference for ${p}`));
-        }
-        
-        if (aiResponse.aiAttitudeProfile.concerns && Array.isArray(aiResponse.aiAttitudeProfile.concerns)) {
-          focusAreas.push(...aiResponse.aiAttitudeProfile.concerns.map(c => `Address concern about ${c}`));
-        }
+      // Extract focus areas
+      if (aiResponse.focusAreas && Array.isArray(aiResponse.focusAreas)) {
+        focusAreas.push(...aiResponse.focusAreas);
       }
       
-      // Build the standard insights format
       return {
         strengths: strengths.slice(0, 5),
         focus_areas: focusAreas.slice(0, 3),
@@ -129,11 +123,11 @@ class OpenAIInsightGenerator extends InsightGenerator {
         }
       };
     } catch (error) {
-      this.logger.warn('Error transforming AI response, returning raw response', { 
-        error: error.message 
+      this.logger.error('Error transforming OpenAI response', { 
+        error: error.message,
+        stack: error.stack
       });
-      // If transformation fails, return raw response
-      return aiResponse;
+      throw new Error(`Failed to transform OpenAI response: ${error.message}`);
     }
   }
   
@@ -160,4 +154,4 @@ class OpenAIInsightGenerator extends InsightGenerator {
   }
 }
 
-module.exports = OpenAIInsightGenerator; 
+module.exports = OpenAIInsightGenerator;

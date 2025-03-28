@@ -7,6 +7,7 @@
 
 const FormatType = require('../../models/config/FormatType');
 const { challengeLogger } = require('../../../../core/infra/logging/domainLogger');
+const { supabaseClient } = require('../../../../core/infra/db/supabaseClient');
 
 class FormatTypeRepository {
   /**
@@ -15,7 +16,7 @@ class FormatTypeRepository {
    * @param {Object} logger - Logger instance
    */
   constructor(supabase, logger) {
-    this.supabase = supabase;
+    this.supabase = supabase || supabaseClient;
     this.tableName = 'format_types';
     this.logger = logger || challengeLogger.child('repository:formatType');
   }

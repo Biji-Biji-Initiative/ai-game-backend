@@ -21,6 +21,7 @@ const PersonalizedLearningPathPromptBuilder = require('./builders/PersonalizedLe
 const EngagementOptimizationPromptBuilder = require('./builders/EngagementOptimizationPromptBuilder');
 const { PROMPT_TYPES } = require('./promptTypes');
 const { PromptBuilderNotFoundError, PromptConstructionError } = require('./common/errors');
+const { formatForResponsesApi } = require('../../infra/openai/messageFormatter');
 
 // Builder registry to store all available prompt builders
 const builderRegistry = new Map();
@@ -182,14 +183,8 @@ async function buildPrompt(type, params) {
       hasInstructions: !!instructions
     });
     
-    // Return in format suitable for Responses API
-    return {
-      input,
-      instructions,
-      // Include legacy fields for backward compatibility
-      prompt: input,
-      systemMessage: instructions
-    };
+    // Format for Responses API
+    return formatForResponsesApi(input, instructions);
   } catch (error) {
     log('error', `Error building prompt for type "${type}"`, {
       error: error.message,
@@ -202,8 +197,7 @@ async function buildPrompt(type, params) {
     }
     
     throw new PromptConstructionError(`Failed to build prompt for type "${type}": ${error.message}`, {
-      originalError: error,
-      promptType: type
+      originalError: error
     });
   }
 }
@@ -215,19 +209,13 @@ async function buildPrompt(type, params) {
  */
 function createBuilder(type) {
   const builder = getBuilder(type);
-  
-  log('debug', `Created specialized builder for "${type}"`);
-  
-  // Return a function that proxies to the builder
   return async (params) => {
     try {
-      return await builder(params);
+      return await buildPrompt(type, params);
     } catch (error) {
-      log('error', `Error in specialized builder for "${type}"`, {
-        error: error.message
+      throw new PromptConstructionError(`Failed to create builder for type "${type}": ${error.message}`, {
+        originalError: error
       });
-      
-      throw error;
     }
   };
 }
@@ -238,12 +226,7 @@ function createBuilder(type) {
  * @returns {boolean} True if a builder exists, false otherwise
  */
 function hasBuilder(type) {
-  try {
-    const normalizedType = normalizeType(type);
-    return builderRegistry.has(normalizedType);
-  } catch (error) {
-    return false;
-  }
+  return builderRegistry.has(normalizeType(type));
 }
 
 /**
@@ -259,7 +242,6 @@ function getAvailableTypes() {
  */
 function reset() {
   builderRegistry.clear();
-  log('debug', 'Reset prompt builder registry');
 }
 
 // Register the default builders when the module is loaded
@@ -267,11 +249,10 @@ registerDefaultBuilders();
 
 module.exports = {
   buildPrompt,
-  registerBuilder,
-  registerBuilderInstance,
   createBuilder,
   hasBuilder,
   getAvailableTypes,
-  reset,
-  registerDefaultBuilders
-}; 
+  registerBuilder,
+  registerBuilderInstance,
+  reset
+};

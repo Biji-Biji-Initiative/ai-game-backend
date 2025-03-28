@@ -18,6 +18,7 @@ const {
 } = require('../common/apiStandards');
 const { validateChallengePromptParams } = require('../schemas/challengeSchema');
 const { PromptConstructionError } = require('../common/errors');
+const { formatForResponsesApi } = require('../../../infra/openai/messageFormatter');
 
 /**
  * Helper function for logging if logger exists
@@ -190,36 +191,36 @@ class ChallengePromptBuilder {
       // Add response format instructions
       prompt += `### RESPONSE FORMAT\n`;
       prompt += `Return the challenge as a JSON object with the following structure:\n\n`;
-      prompt += `{
-  "title": "Challenge title",
-  "content": {
-    "context": "Background information and context",
-    "scenario": "Specific scenario or problem statement",
-    "instructions": "What the user needs to do"
-  },
-  "questions": [
-    {
-      "id": "q1",
-      "text": "Question text",
-      "type": "open-ended | multiple-choice | reflection",
-      "options": ["Option 1", "Option 2", "Option 3"] // For multiple-choice only
-    }
-  ],
-  "evaluationCriteria": {
-    "criteria1": {
-      "description": "Description of criteria",
-      "weight": 0.5
-    }
-  },
-  "recommendedResources": [
-    {
-      "title": "Resource title",
-      "type": "article | video | book | tutorial",
-      "url": "URL if available",
-      "description": "Brief description of why this resource is helpful"
-    }
-  ]
-}\n\n`;
+      prompt += `{\n`;
+      prompt += `  "title": "Challenge title",\n`;
+      prompt += `  "content": {\n`;
+      prompt += `    "context": "Background information and context",\n`;
+      prompt += `    "scenario": "Specific scenario or problem statement",\n`;
+      prompt += `    "instructions": "What the user needs to do"\n`;
+      prompt += `  },\n`;
+      prompt += `  "questions": [\n`;
+      prompt += `    {\n`;
+      prompt += `      "id": "q1",\n`;
+      prompt += `      "text": "Question text",\n`;
+      prompt += `      "type": "open-ended | multiple-choice | reflection",\n`;
+      prompt += `      "options": ["Option 1", "Option 2", "Option 3"] // For multiple-choice only\n`;
+      prompt += `    }\n`;
+      prompt += `  ],\n`;
+      prompt += `  "evaluationCriteria": {\n`;
+      prompt += `    "criteria1": {\n`;
+      prompt += `      "description": "Description of criteria",\n`;
+      prompt += `      "weight": 0.5\n`;
+      prompt += `    }\n`;
+      prompt += `  },\n`;
+      prompt += `  "recommendedResources": [\n`;
+      prompt += `    {\n`;
+      prompt += `      "title": "Resource title",\n`;
+      prompt += `      "type": "article | video | book | tutorial",\n`;
+      prompt += `      "url": "URL if available",\n`;
+      prompt += `      "description": "Brief description of why this resource is helpful"\n`;
+      prompt += `    }\n`;
+      prompt += `  ]\n`;
+      prompt += `}\n\n`;
       
       // Add Responses API instruction
       prompt += `\n\n${getResponsesApiInstruction()}`;
@@ -237,11 +238,8 @@ class ChallengePromptBuilder {
         options
       );
       
-      // Return both the prompt content and system message
-      return {
-        prompt: prompt.trim(),
-        systemMessage
-      };
+      // Format for Responses API
+      return formatForResponsesApi(prompt.trim(), systemMessage);
     } catch (error) {
       log('error', 'Error building challenge prompt', { 
         error: error.message,
@@ -299,57 +297,41 @@ class ChallengePromptBuilder {
         } else if (user.skillLevel.toLowerCase() === 'intermediate') {
           systemMsg += `Focus on application of concepts and moderate complexity. `;
         } else if (user.skillLevel.toLowerCase() === 'expert' || user.skillLevel.toLowerCase() === 'advanced') {
-          systemMsg += `Develop challenges that test nuanced understanding and edge cases. `;
+          systemMsg += `Design sophisticated challenges that push the boundaries of expertise. `;
         }
       }
       
-      // Adapt to personality traits if available
-      if (personalityProfile.traits) {
-        const traits = Array.isArray(personalityProfile.traits) 
-          ? personalityProfile.traits 
-          : Object.keys(personalityProfile.traits || {});
-        
-        if (traits.includes('analytical') || traits.includes('logical')) {
-          systemMsg += `Incorporate logical reasoning components into the challenge. `;
+      // Add personality context if available
+      if (personalityProfile && Object.keys(personalityProfile).length > 0) {
+        if (personalityProfile.communicationStyle) {
+          systemMsg += `Adapt your communication style to be ${personalityProfile.communicationStyle}. `;
         }
         
-        if (traits.includes('creative') || traits.includes('innovative')) {
-          systemMsg += `Include opportunities for creative problem-solving. `;
-        }
-        
-        if (traits.includes('detail_oriented') || traits.includes('thorough')) {
-          systemMsg += `Include details that reward careful attention. `;
+        if (personalityProfile.learningPreferences) {
+          systemMsg += `Consider the user's learning preferences: ${personalityProfile.learningPreferences}. `;
         }
       }
       
-      // Adapt to learning style if available
-      if (user.learningStyle) {
-        if (user.learningStyle === 'visual') {
-          systemMsg += `Suggest visual elements or scenarios that can be easily visualized. `;
-        } else if (user.learningStyle === 'practical') {
-          systemMsg += `Create challenges with clear real-world applications. `;
-        } else if (user.learningStyle === 'conceptual') {
-          systemMsg += `Incorporate theoretical frameworks and concepts. `;
-        }
+      // Add creative variation context
+      if (options.creativeVariation) {
+        const variationLevel = Math.floor(options.creativeVariation * 100);
+        systemMsg += `Vary your challenge creativity by approximately ${variationLevel}%. `;
       }
       
-      // Add general instructions
-      systemMsg += `\n\nYour challenge should be engaging, clear, and aligned with the user's profile and learning goals. `;
-      systemMsg += `Provide enough context for the user to understand the challenge but leave room for them to demonstrate their skills and creativity.`;
-      
-      // Add output format instructions
-      systemMsg += `\n\nYour response MUST follow the exact JSON structure specified in the prompt. `;
-      systemMsg += `Ensure all required fields are included and properly formatted.`;
+      // Add format-specific instructions
+      systemMsg += `\nAlways return your challenge as a JSON object with all required fields. `;
+      systemMsg += `Format your response as valid, parsable JSON with no markdown formatting. `;
       
       return systemMsg;
     } catch (error) {
-      log('error', 'Error building dynamic system message', { 
+      log('error', 'Error building system message', { 
         error: error.message,
         stack: error.stack
       });
       
-      // Return a basic system message as fallback
-      return 'You are an AI challenge creator. Return your response as JSON according to the format specified in the prompt.';
+      throw new PromptConstructionError(`Failed to build system message: ${error.message}`, {
+        originalError: error
+      });
     }
   }
   
@@ -358,8 +340,8 @@ class ChallengePromptBuilder {
    * @returns {Function} Configured build function
    */
   static createBuilder() {
-    return ChallengePromptBuilder.build;
+    return this.build.bind(this);
   }
 }
 
-module.exports = ChallengePromptBuilder; 
+module.exports = ChallengePromptBuilder;

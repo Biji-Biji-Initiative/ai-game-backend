@@ -9,53 +9,61 @@ const { EventTypes, eventBus } = require('../core/common/events/domainEvents');
 const { appLogger } = require('../core/infra/logging/appLogger');
 
 /**
- * Register event handlers for cross-domain communication
- * @param {Object} container - Dependency injection container
+ * Class representing Application Event Handlers
  */
-function registerEventHandlers(container) {
-  const logger = appLogger.child('eventHandlers');
-  
-  logger.info('Registering application event handlers');
-  
-  // Handle personality profile updated events
-  eventBus.subscribe(EventTypes.PERSONALITY_PROFILE_UPDATED, async (event) => {
-    try {
-      // Only handle attitude updates for cross-domain integration
-      if (!event.payload || event.payload.updateType !== 'attitudes' || !event.payload.aiAttitudes) {
-        return;
+class ApplicationEventHandlers {
+  /**
+   * Create a new ApplicationEventHandlers instance
+   * @param {Object} dependencies - Injected dependencies
+   * @param {Object} dependencies.personalityCoordinator - Personality coordinator service
+   * @param {Object} dependencies.logger - Logger instance
+   */
+  constructor({ personalityCoordinator, logger }) {
+    this.personalityCoordinator = personalityCoordinator;
+    this.logger = logger;
+  }
+
+  /**
+   * Register event handlers for cross-domain communication
+   */
+  registerEventHandlers() {
+    this.logger.info('Registering application event handlers');
+    
+    // Handle personality profile updated events
+    eventBus.subscribe(EventTypes.PERSONALITY_PROFILE_UPDATED, async (event) => {
+      try {
+        // Only handle attitude updates for cross-domain integration
+        if (!event.payload || event.payload.updateType !== 'attitudes' || !event.payload.aiAttitudes) {
+          return;
+        }
+        
+        this.logger.debug('Handling personality profile update', {
+          userId: event.payload.userId,
+          updateType: event.payload.updateType
+        });
+        
+        // Synchronize user preferences based on AI attitudes
+        await this.personalityCoordinator.synchronizeUserPreferences(
+          event.payload.userId,
+          event.payload.aiAttitudes
+        );
+        
+        this.logger.info('Successfully processed personality profile update', {
+          userId: event.payload.userId,
+          updateType: event.payload.updateType
+        });
+      } catch (error) {
+        this.logger.error('Error handling personality profile update', {
+          error: error.message,
+          stack: error.stack,
+          eventType: event.type,
+          userId: event.payload?.userId
+        });
       }
-      
-      logger.debug('Handling personality profile update', {
-        userId: event.payload.userId,
-        updateType: event.payload.updateType
-      });
-      
-      // Get the personality coordinator
-      const personalityCoordinator = container.get('personalityCoordinator');
-      
-      // Synchronize user preferences based on AI attitudes
-      await personalityCoordinator.synchronizeUserPreferences(
-        event.payload.userId,
-        event.payload.aiAttitudes
-      );
-      
-      logger.info('Successfully processed personality profile update', {
-        userId: event.payload.userId,
-        updateType: event.payload.updateType
-      });
-    } catch (error) {
-      logger.error('Error handling personality profile update', {
-        error: error.message,
-        stack: error.stack,
-        eventType: event.type,
-        userId: event.payload?.userId
-      });
-    }
-  });
-  
-  logger.info('Application event handlers registered');
+    });
+    
+    this.logger.info('Application event handlers registered');
+  }
 }
 
-module.exports = {
-  registerEventHandlers
-}; 
+module.exports = ApplicationEventHandlers;

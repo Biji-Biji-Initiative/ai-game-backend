@@ -5,15 +5,12 @@
  */
 
 const Progress = require('../models/Progress');
-const { createClient } = require('@supabase/supabase-js');
+const { supabaseClient } = require('../../../core/infra/db/supabaseClient');
 const { v4: uuidv4 } = require('uuid');
 
 class ProgressRepository {
-  constructor(supabaseClient) {
-    this.supabase = supabaseClient || createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY
-    );
+  constructor(supabase) {
+    this.supabase = supabase || supabaseClient;
     this.tableName = 'user_progress';
   }
 
