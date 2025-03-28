@@ -17,6 +17,7 @@ const {
   getResponsesApiInstruction
 } = require('../common/apiStandards');
 const { validateFocusAreaPromptParams } = require('../schemas/focusAreaSchema');
+const { PromptConstructionError } = require('../common/errors');
 
 /**
  * Helper function for logging if logger exists
@@ -39,16 +40,23 @@ class FocusAreaPromptBuilder {
    * @param {Object} params.user - User traits and profile data
    * @param {Array} [params.challengeHistory] - User's challenge history
    * @param {Object} [params.progressData] - User's learning progress data
+   * @param {Object} [params.personalityProfile] - User's personality profile
    * @param {Object} [params.options] - Additional prompt options
-   * @returns {string} Generated focus area prompt
-   * @throws {Error} If required parameters are missing
+   * @returns {Object} Generated focus area prompt with system message
+   * @throws {PromptConstructionError} If required parameters are missing
    */
   static build(params) {
     try {
       // Validate parameters against schema
       const validatedParams = validateFocusAreaPromptParams(params);
       
-      const { user, challengeHistory = [], progressData = {}, options = {} } = validatedParams;
+      const { 
+        user, 
+        challengeHistory = [], 
+        progressData = {}, 
+        personalityProfile = {},
+        options = {} 
+      } = validatedParams;
       
       // Extract key parameters
       const traits = user.traits || {};
@@ -208,13 +216,118 @@ class FocusAreaPromptBuilder {
       // Ensure API standards are applied
       prompt = appendApiStandards(prompt);
       
-      return prompt.trim();
+      // Build dynamic system message based on user context
+      const systemMessage = FocusAreaPromptBuilder.buildDynamicSystemMessage(
+        user,
+        progressData,
+        personalityProfile,
+        options
+      );
+      
+      // Return both the prompt content and system message
+      return {
+        prompt: prompt.trim(),
+        systemMessage
+      };
     } catch (error) {
       log('error', 'Error building focus area prompt', { 
         error: error.message,
         stack: error.stack
       });
-      throw error;
+      
+      throw new PromptConstructionError(`Failed to build focus area prompt: ${error.message}`, {
+        originalError: error
+      });
+    }
+  }
+  
+  /**
+   * Build a dynamic system message based on user context
+   * @param {Object} user - User profile data
+   * @param {Object} progressData - User's progress data
+   * @param {Object} personalityProfile - User's personality profile
+   * @param {Object} options - Additional options
+   * @returns {string} Dynamic system message
+   * @private
+   */
+  static buildDynamicSystemMessage(user = {}, progressData = {}, personalityProfile = {}, options = {}) {
+    try {
+      // Start with base system message
+      let systemMsg = `You are an AI learning strategist specializing in personalized focus area recommendations `;
+      
+      // Add professional context if available
+      if (user.professional_title) {
+        systemMsg += `for ${user.professional_title}s. `;
+      } else {
+        systemMsg += `for AI communication skills. `;
+      }
+      
+      // Add progress-based context
+      if (progressData.completedChallenges && progressData.completedChallenges > 0) {
+        if (progressData.averageScore !== undefined) {
+          if (progressData.averageScore > 80) {
+            systemMsg += `The user has demonstrated strong performance (${progressData.averageScore}% average) across ${progressData.completedChallenges} challenges. Focus on advanced skill development. `;
+          } else if (progressData.averageScore > 60) {
+            systemMsg += `The user has shown moderate performance (${progressData.averageScore}% average) across ${progressData.completedChallenges} challenges. Recommend areas for skill refinement. `;
+          } else {
+            systemMsg += `The user has completed ${progressData.completedChallenges} challenges with room for improvement (${progressData.averageScore}% average). Prioritize foundational skill development. `;
+          }
+        } else {
+          systemMsg += `The user has completed ${progressData.completedChallenges} challenges. `;
+        }
+      } else {
+        systemMsg += `The user is at the beginning of their learning journey. Recommend foundational focus areas. `;
+      }
+      
+      // Add trait-based adaptations
+      if (user.traits) {
+        const traits = Object.entries(user.traits || {});
+        
+        // Check for high analytical traits
+        const analyticalTraits = traits.filter(([trait, score]) => 
+          ['analytical', 'logical', 'systematic'].includes(trait.toLowerCase()) && score > 7);
+        
+        if (analyticalTraits.length > 0) {
+          systemMsg += `Emphasize structured, systematic approaches in your recommendations. `;
+        }
+        
+        // Check for high creative traits
+        const creativeTraits = traits.filter(([trait, score]) => 
+          ['creative', 'innovative', 'imaginative'].includes(trait.toLowerCase()) && score > 7);
+        
+        if (creativeTraits.length > 0) {
+          systemMsg += `Include creative problem-solving and innovative approaches. `;
+        }
+      }
+      
+      // Adapt to personality profile if available
+      if (personalityProfile.communicationStyle) {
+        if (personalityProfile.communicationStyle === 'direct') {
+          systemMsg += `Present focus areas in a direct, straightforward manner. `;
+        } else if (personalityProfile.communicationStyle === 'collaborative') {
+          systemMsg += `Frame focus areas in terms of collaborative learning opportunities. `;
+        } else if (personalityProfile.communicationStyle === 'exploratory') {
+          systemMsg += `Suggest focus areas that encourage exploration and discovery. `;
+        }
+      }
+      
+      // Add general focus area guidance
+      systemMsg += `\n\nYour focus area recommendations should be specific, actionable, and personalized to the user's context, learning history, and goals. `;
+      systemMsg += `Include a clear rationale for each focus area and practical strategies for improvement.`;
+      
+      // Add output format instructions
+      systemMsg += `\n\nYour response MUST follow the exact JSON structure specified in the prompt. `;
+      systemMsg += `Ensure all required fields are included and properly formatted.`;
+      
+      return systemMsg;
+    } catch (error) {
+      log('error', 'Error building dynamic system message', { 
+        error: error.message,
+        stack: error.stack
+      });
+      
+      // Return a basic system message as fallback
+      return 'You are an AI learning strategist providing personalized focus area recommendations. Return your response as JSON according to the format specified in the prompt.';
     }
   }
   

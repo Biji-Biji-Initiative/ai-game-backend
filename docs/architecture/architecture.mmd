@@ -1,0 +1,189 @@
+graph TB
+    %% Layers with styling for better visualization
+    subgraph "External Interfaces Layer"
+        API[API Routes]
+        CLI[CLI Interface]
+    end
+
+    subgraph "Application Layer"
+        UC[Coordinators]
+        EH[Error Handlers]
+    end
+
+    subgraph "Domain Layer"
+        subgraph "Challenge Domain"
+            CM[Challenge Models]
+            CS[Challenge Services]
+            CR[Challenge Repository Interface]
+            CC[Challenge Controllers]
+        end
+        
+        subgraph "User Domain"
+            UM[User Models]
+            US[User Services]
+            UR[User Repository Interface]
+            UC2[User Controllers]
+        end
+        
+        subgraph "Evaluation Domain"
+            EM[Evaluation Models]
+            ES[Evaluation Services]
+            ER[Evaluation Repository Interface]
+            EC[Evaluation Controllers]
+        end
+        
+        subgraph "Focus Area Domain"
+            FM[Focus Area Models]
+            FS[Focus Area Services]
+            FR[Focus Area Repository Interface]
+            FC[Focus Area Controllers]
+        end
+
+        subgraph "Progress Domain"
+            PM[Progress Models]
+            PS[Progress Services]
+            PR[Progress Repository Interface]
+            PC[Progress Controllers]
+        end
+        
+        subgraph "Personality Domain"
+            PEM[Personality Models]
+            PES[Personality Services]
+            PER[Personality Repository Interface]
+            PEC[Personality Controllers]
+        end
+
+        subgraph "Prompt Domain"
+            PB[Prompt Builders]
+            PT[Prompt Types]
+            PF[Prompt Formatters]
+            DPS[Dynamic Prompt Service]
+        end
+        
+        subgraph "Shared"
+            DE[Domain Events]
+            SH[Shared Models]
+        end
+    end
+
+    subgraph "Infrastructure Layer"
+        subgraph "Repository Implementations"
+            CRI[Challenge Repository Impl]
+            URI[User Repository Impl]
+            ERI[Evaluation Repository Impl]
+            FRI[Focus Area Repository Impl]
+            PRI[Progress Repository Impl]
+            PERI[Personality Repository Impl]
+        end
+        
+        subgraph "External Services"
+            OAI[OpenAI Client]
+            RA[Responses API Client]
+            SB[Supabase Client]
+        end
+        
+        subgraph "Infrastructure Services"
+            L[Logging]
+            DI[Dependency Injection]
+            V[Validation]
+        end
+    end
+
+    %% Connections between layers
+    API --> CC
+    API --> UC2
+    API --> EC
+    API --> FC
+    API --> PC
+    API --> PEC
+    
+    CLI --> UC
+    
+    UC --> CS
+    UC --> US
+    UC --> ES
+    UC --> FS
+    UC --> PS
+    UC --> PES
+    
+    %% Domain connections
+    CS --> CM
+    CS --> CR
+    CS --> DE
+    
+    US --> UM
+    US --> UR
+    US --> DE
+    
+    ES --> EM
+    ES --> ER
+    ES --> DE
+    
+    FS --> FM
+    FS --> FR
+    FS --> DE
+    
+    PS --> PM
+    PS --> PR
+    PS --> DE
+    
+    PES --> PEM
+    PES --> PER
+    PES --> DE
+    
+    %% Controllers to Services
+    CC --> CS
+    UC2 --> US
+    EC --> ES
+    FC --> FS
+    PC --> PS
+    PEC --> PES
+    
+    %% Repository implementations
+    CR --> CRI
+    UR --> URI
+    ER --> ERI
+    FR --> FRI
+    PR --> PRI
+    PER --> PERI
+    
+    %% Infrastructure dependencies
+    CRI --> SB
+    URI --> SB
+    ERI --> SB
+    FRI --> SB
+    PRI --> SB
+    PERI --> SB
+    
+    %% External services usage
+    CS --> PB
+    ES --> PB
+    FS --> PB
+    PES --> PB
+    
+    PB --> PT
+    PB --> PF
+    PB --> DPS
+    
+    PB --> OAI
+    OAI --> RA
+    
+    %% Cross-domain communication via events
+    DE --> CS
+    DE --> US
+    DE --> ES
+    DE --> FS
+    DE --> PS
+    DE --> PES
+    
+    %% Style definitions
+    classDef interfaceLayer fill:#f9f,stroke:#333,stroke-width:2px
+    classDef applicationLayer fill:#bbf,stroke:#333,stroke-width:2px
+    classDef domainLayer fill:#bfb,stroke:#333,stroke-width:2px
+    classDef infrastructureLayer fill:#fbb,stroke:#333,stroke-width:2px
+    
+    class API,CLI interfaceLayer
+    class UC,EH applicationLayer
+    class CM,CS,CR,CC,UM,US,UR,UC2,EM,ES,ER,EC,FM,FS,FR,FC,PM,PS,PR,PC,PEM,PES,PER,PEC,PB,PT,PF,DPS,DE,SH domainLayer
+    class CRI,URI,ERI,FRI,PRI,PERI,OAI,RA,SB,L,DI,V infrastructureLayer
+```

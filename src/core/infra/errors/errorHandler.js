@@ -59,8 +59,73 @@ const notFoundHandler = (req, res, next) => {
   next(error);
 };
 
+/**
+ * Format error response based on environment
+ * @param {Error} err - The error object
+ * @param {Request} req - The request object
+ */
+const formatError = (err, req) => {
+  // Start with basic error info
+  const errorResponse = {
+    status: err.status || 'error',
+    message: err.message || 'Something went wrong',
+    requestId: req.id
+  };
+
+  // If we have a domain, add domain-specific data
+  if (err.metadata && err.metadata.domain) {
+    errorResponse.domain = err.metadata.domain;
+    errorResponse.errorType = err.metadata.errorType || 'UNKNOWN_ERROR';
+  }
+
+  // Add stack trace in development mode
+  if (process.env.NODE_ENV === 'development') {
+    errorResponse.stack = err.stack;
+    errorResponse.metadata = err.metadata;
+  }
+
+  return errorResponse;
+};
+
+/**
+ * Error Handler Class
+ * 
+ * Central error handling utility for transforming errors
+ * and providing a consistent error handling interface
+ */
+class ErrorHandler {
+  constructor() {
+    this.formatErrorResponse = formatErrorResponse;
+    this.formatError = formatError;
+  }
+
+  /**
+   * Handle error for Express middleware
+   * @param {Error} err - Error to handle
+   * @param {Request} req - Express request object
+   * @param {Response} res - Express response object
+   * @param {Function} next - Express next function
+   */
+  handleError(err, req, res, next) {
+    return errorHandler(err, req, res, next);
+  }
+
+  /**
+   * Handle 404 Not Found errors
+   * @param {Request} req - Express request object
+   * @param {Response} res - Express response object
+   * @param {Function} next - Express next function
+   */
+  handleNotFound(req, res, next) {
+    return notFoundHandler(req, res, next);
+  }
+}
+
 module.exports = {
   errorHandler,
   notFoundHandler,
-  formatErrorResponse
+  formatErrorResponse,
+  formatError,
+  AppError,
+  ErrorHandler
 }; 

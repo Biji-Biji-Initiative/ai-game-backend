@@ -1,4 +1,12 @@
 /**
+ * MARKED FOR MANUAL REVIEW
+ * 
+ * This file needs significant refactoring to align with the new testing structure.
+ * Consider breaking it into proper domain tests and E2E tests.
+ * See tests/README.md for guidance.
+ */
+
+/**
  * Integration Test: User Flow
  * 
  * This test verifies the complete flow for the User domain:
@@ -13,6 +21,10 @@ const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
+
+const testEnv = require('../loadEnv');
+
+const { skipIfMissingEnv } = require('../helpers/testHelpers');
 require('dotenv').config();
 
 // Generate a unique test ID for this run
@@ -40,12 +52,17 @@ function logTestAction(action, data) {
 }
 
 describe('Integration: User Flow', function() {
-  // Set longer timeout for API calls
+  
+  before(function() {
+    skipIfMissingEnv(this, 'supabase');
+  });
+
+// Set longer timeout for API calls
   this.timeout(30000);
   
   // Skip if API keys not available
   before(function() {
-    if (!process.env.SUPABASE_URL || (!process.env.SUPABASE_KEY && !process.env.SUPABASE_ANON_KEY)) {
+    if (!testEnv.getTestConfig().supabase.url || (!testEnv.getTestConfig().supabase.key && !process.env.SUPABASE_ANON_KEY)) {
       console.warn('SUPABASE credentials not found, skipping integration tests');
       this.skip();
     }
@@ -76,8 +93,8 @@ describe('Integration: User Flow', function() {
         logTestAction('ImportError', { message: error.message });
         
         // Use environment variables to create Supabase client
-        const supabaseUrl = process.env.SUPABASE_URL;
-        const supabaseKey = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY;
+        const supabaseUrl = testEnv.getTestConfig().supabase.url;
+        const supabaseKey = testEnv.getTestConfig().supabase.key || process.env.SUPABASE_ANON_KEY;
         
         // Log the credentials we're using (obscuring the key)
         console.log(`Using Supabase URL: ${supabaseUrl}`);

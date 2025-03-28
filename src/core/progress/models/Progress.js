@@ -5,7 +5,7 @@
  * focus areas, and skills within the system.
  */
 
-const domainEvents = require('../../shared/domainEvents');
+const domainEvents = require('../../common/events/domainEvents');
 const { v4: uuidv4 } = require('uuid');
 
 class Progress {

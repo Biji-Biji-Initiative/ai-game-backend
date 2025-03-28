@@ -1,0 +1,61 @@
+graph TB
+    %% Evaluation Domain Components
+    subgraph "Evaluation Domain"
+        EM[Evaluation Models]
+        ES[Evaluation Services]
+        ER[Evaluation Repository Interface]
+        EC[Evaluation Controllers]
+        EPB[Evaluation Prompt Builder]
+        
+        %% Sub-components
+        subgraph "Evaluation Models"
+            Eval[Evaluation]
+            EvalCategory[EvaluationCategory]
+            EvalResult[EvaluationResult]
+        end
+        
+        subgraph "Evaluation Services"
+            EvalService[EvaluationService]
+            CategoryService[CategoryMappingService]
+            FeedbackGenerator[FeedbackGeneratorService]
+        end
+        
+        subgraph "Repository Layer"
+            EvalRepo[EvaluationRepository]
+            CategoryRepo[EvaluationCategoryRepository]
+        end
+    end
+    
+    %% External Components
+    User[User Domain]
+    Challenge[Challenge Domain]
+    OpenAI[OpenAI Client]
+    Database[Supabase]
+    
+    %% Relationships
+    EC --> ES
+    ES --> EM
+    ES --> ER
+    ES --> EPB
+    EPB --> OpenAI
+    ER --> Database
+    
+    %% Cross-domain relationships
+    User --> ES
+    Challenge --> ES
+    
+    %% Internal relationships
+    EvalService --> FeedbackGenerator
+    EvalService --> CategoryService
+    EvalRepo --> CategoryRepo
+    
+    %% Style definitions
+    classDef models fill:#f9d,stroke:#333,stroke-width:1px
+    classDef services fill:#adf,stroke:#333,stroke-width:1px
+    classDef repositories fill:#fda,stroke:#333,stroke-width:1px
+    classDef external fill:#ddd,stroke:#333,stroke-width:1px
+    
+    class EM,Eval,EvalCategory,EvalResult models
+    class ES,EvalService,CategoryService,FeedbackGenerator,EPB services
+    class ER,EvalRepo,CategoryRepo repositories
+    class User,Challenge,OpenAI,Database external 

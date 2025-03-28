@@ -1,9 +1,9 @@
-# Openai Integration Tests
+# Real API Tests - Openai
 
-Tests for integration with openai.
+Tests that use real external APIs for openai functionality.
 
-## Test Approach
+## Requirements
 
-- Test the adapter/client for openai
-- Test error handling and retries
-- Use real API for key scenarios, mocks for edge cases
+- Valid API keys in the .env file
+- Internet connection
+- May incur API usage costs

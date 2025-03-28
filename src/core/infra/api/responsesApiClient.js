@@ -6,11 +6,11 @@
  * to interact with the OpenAI API.
  */
 
-const openaiClient = require('../../../lib/openai/client');
+const { OpenAIClient } = require('../../../infra/openai');
 const { logger } = require('../logging/logger');
 
-// Re-export constants from the lib layer
-const { ResponsesApiModel, MessageRole, ResponseFormat } = require('../../../lib/openai/types');
+// Re-export constants from the openai config
+const { MessageRole, ResponseFormat, ResponsesApiModel } = require('../../../infra/openai/config');
 
 /**
  * Send a message to the OpenAI Responses API
@@ -24,7 +24,11 @@ async function sendMessage(messages, options = {}) {
   });
   
   try {
-    return await openaiClient.sendMessage(messages, options);
+    const client = new OpenAIClient({
+      logger,
+      apiKey: process.env.OPENAI_API_KEY
+    });
+    return await client.sendMessage(messages, options);
   } catch (error) {
     logger.error('Error in responsesApiClient.sendMessage', { error: error.message });
     throw error;
@@ -43,7 +47,11 @@ async function sendJsonMessage(messages, options = {}) {
   });
   
   try {
-    return await openaiClient.sendJsonMessage(messages, options);
+    const client = new OpenAIClient({
+      logger,
+      apiKey: process.env.OPENAI_API_KEY
+    });
+    return await client.sendJsonMessage(messages, options);
   } catch (error) {
     logger.error('Error in responsesApiClient.sendJsonMessage', { error: error.message });
     throw error;
@@ -62,7 +70,11 @@ async function streamMessage(messages, options = {}) {
   });
   
   try {
-    return await openaiClient.streamMessage(messages, options);
+    const client = new OpenAIClient({
+      logger,
+      apiKey: process.env.OPENAI_API_KEY
+    });
+    return await client.streamMessage(messages, options);
   } catch (error) {
     logger.error('Error in responsesApiClient.streamMessage', { error: error.message });
     throw error;

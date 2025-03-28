@@ -5,13 +5,19 @@
  * Located within the focusArea domain following our DDD architecture.
  */
 const { logger } = require('../../../core/infra/logging/logger');
-const AppError = require('../../../core/infra/errors/AppError');
 const container = require('../../../config/container');
+const { 
+  FocusAreaError, 
+  FocusAreaNotFoundError,
+  FocusAreaGenerationError
+} = require('../errors/focusAreaErrors');
+
+// Create focused domain-specific logger
+const focusAreaLogger = logger.child({ service: 'FocusAreaController' });
 
 class FocusAreaController {
   constructor() {
     this.focusAreaCoordinator = container.get('focusAreaCoordinator');
-    this.userRepository = container.get('userRepository');
   }
 
   /**
@@ -21,7 +27,7 @@ class FocusAreaController {
     try {
       const focusAreas = await this.focusAreaCoordinator.getAllFocusAreas();
       
-      res.status(200).json({
+      return res.status(200).json({
         status: 'success',
         results: focusAreas.length,
         data: {
@@ -29,8 +35,14 @@ class FocusAreaController {
         }
       });
     } catch (error) {
-      logger.error('Error getting all focus areas', { error: error.message });
-      next(error);
+      focusAreaLogger.error('Error getting all focus areas', { error: error.message });
+      
+      // Pass through domain errors or wrap generic errors
+      if (error instanceof FocusAreaError) {
+        return next(error);
+      }
+      
+      return next(new FocusAreaError(`Failed to get focus areas: ${error.message}`));
     }
   }
 
@@ -40,21 +52,11 @@ class FocusAreaController {
   async getFocusAreasForUser(req, res, next) {
     try {
       const { email } = req.params;
-      
-      if (!email) {
-        throw new AppError('User email is required', 400);
-      }
-      
-      // Check if user exists
-      const user = await this.userRepository.findByEmail(email);
-      
-      if (!user) {
-        throw new AppError('User not found', 404);
-      }
+      // Email validation is handled by middleware
       
       const focusAreas = await this.focusAreaCoordinator.getFocusAreasForUser(email);
       
-      res.status(200).json({
+      return res.status(200).json({
         status: 'success',
         results: focusAreas.length,
         data: {
@@ -62,8 +64,18 @@ class FocusAreaController {
         }
       });
     } catch (error) {
-      logger.error('Error getting focus areas for user', { error: error.message });
-      next(error);
+      focusAreaLogger.error('Error getting focus areas for user', { 
+        error: error.message,
+        email: req.params.email
+      });
+      
+      if (error instanceof FocusAreaNotFoundError) {
+        return next(error);
+      } else if (error instanceof FocusAreaError) {
+        return next(error);
+      }
+      
+      return next(new FocusAreaError(`Failed to get focus areas: ${error.message}`));
     }
   }
 
@@ -75,35 +87,27 @@ class FocusAreaController {
       const { email } = req.params;
       const { focusAreas } = req.body;
       
-      if (!email) {
-        throw new AppError('User email is required', 400);
-      }
-      
-      if (!focusAreas || !Array.isArray(focusAreas)) {
-        throw new AppError('Focus areas must be provided as an array', 400);
-      }
-      
-      // Check if user exists
-      const user = await this.userRepository.findByEmail(email);
-      
-      if (!user) {
-        throw new AppError('User not found', 404);
-      }
+      // Email and focusAreas validation handled by middleware
       
       await this.focusAreaCoordinator.setFocusAreasForUser(email, focusAreas);
       
-      // Get updated user
-      const updatedUser = await this.userRepository.findByEmail(email);
-      
-      res.status(200).json({
+      return res.status(200).json({
         status: 'success',
-        data: {
-          user: updatedUser
-        }
+        message: 'Focus areas updated successfully'
       });
     } catch (error) {
-      logger.error('Error setting focus areas for user', { error: error.message });
-      next(error);
+      focusAreaLogger.error('Error setting focus areas for user', { 
+        error: error.message,
+        email: req.params.email
+      });
+      
+      if (error instanceof FocusAreaNotFoundError) {
+        return next(error);
+      } else if (error instanceof FocusAreaError) {
+        return next(error);
+      }
+      
+      return next(new FocusAreaError(`Failed to set focus areas: ${error.message}`));
     }
   }
 
@@ -115,23 +119,15 @@ class FocusAreaController {
       const { email } = req.params;
       const { limit } = req.query;
       
-      if (!email) {
-        throw new AppError('User email is required', 400);
-      }
-      
-      // Check if user exists
-      const user = await this.userRepository.findByEmail(email);
-      
-      if (!user) {
-        throw new AppError('User not found', 404);
-      }
+      // Email and limit validation handled by middleware
+      const limitValue = limit ? parseInt(limit) : 3;
       
       const recommendations = await this.focusAreaCoordinator.getRecommendedFocusAreas(
         email,
-        limit ? parseInt(limit) : 3
+        limitValue
       );
       
-      res.status(200).json({
+      return res.status(200).json({
         status: 'success',
         results: recommendations.length,
         data: {
@@ -139,8 +135,18 @@ class FocusAreaController {
         }
       });
     } catch (error) {
-      logger.error('Error getting recommended focus areas', { error: error.message });
-      next(error);
+      focusAreaLogger.error('Error getting recommended focus areas', { 
+        error: error.message,
+        email: req.params.email
+      });
+      
+      if (error instanceof FocusAreaNotFoundError) {
+        return next(error);
+      } else if (error instanceof FocusAreaError) {
+        return next(error);
+      }
+      
+      return next(new FocusAreaError(`Failed to get recommended focus areas: ${error.message}`));
     }
   }
 
@@ -151,13 +157,7 @@ class FocusAreaController {
     try {
       const { name, description, category, difficulty } = req.body;
       
-      if (!name) {
-        throw new AppError('Focus area name is required', 400);
-      }
-      
-      if (!description) {
-        throw new AppError('Focus area description is required', 400);
-      }
+      // Input validation handled by middleware
       
       const focusArea = await this.focusAreaCoordinator.generateFocusArea({
         name,
@@ -166,15 +166,25 @@ class FocusAreaController {
         difficulty: difficulty || 'intermediate'
       });
       
-      res.status(201).json({
+      return res.status(201).json({
         status: 'success',
         data: {
           focusArea
         }
       });
     } catch (error) {
-      logger.error('Error generating focus area', { error: error.message });
-      next(error);
+      focusAreaLogger.error('Error generating focus area', { 
+        error: error.message,
+        name: req.body.name
+      });
+      
+      if (error instanceof FocusAreaGenerationError) {
+        return next(error);
+      } else if (error instanceof FocusAreaError) {
+        return next(error);
+      }
+      
+      return next(new FocusAreaGenerationError(`Failed to generate focus area: ${error.message}`));
     }
   }
 }

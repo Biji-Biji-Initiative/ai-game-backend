@@ -3,169 +3,135 @@
 /**
  * Test Runner Script
  * 
- * An interactive script to help run tests in different categories.
- * Makes it easier to run specific test groups without remembering
- * all the npm commands.
+ * A unified CLI tool for running tests with proper environment configuration
+ * and better output formatting.
+ * 
+ * Usage:
+ *   node scripts/run-tests.js [options] [test-pattern]
+ * 
+ * Examples:
+ *   node scripts/run-tests.js                     # Run all tests
+ *   node scripts/run-tests.js --domain            # Run domain tests
+ *   node scripts/run-tests.js --integration       # Run integration tests
+ *   node scripts/run-tests.js --external          # Run external API tests
+ *   node scripts/run-tests.js --focus=challenge   # Run tests for the challenge feature
+ *   node scripts/run-tests.js tests/domain/user   # Run specific test directory
  */
 
-const readline = require('readline');
-const { execSync } = require('child_process');
+const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const chalk = require('chalk');
 
-// Create readline interface
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout
+// Parse command line arguments
+const args = process.argv.slice(2);
+let testPattern = 'tests/**/*.test.js';
+let testCategory = 'all';
+let focusArea = null;
+let skipOpenAI = false;
+let skipSupabase = false;
+
+// Process arguments
+args.forEach(arg => {
+  if (arg === '--domain') {
+    testPattern = 'tests/domain/**/*.test.js';
+    testCategory = 'domain';
+  } else if (arg === '--integration') {
+    testPattern = 'tests/integration/**/*.test.js';
+    testCategory = 'integration';
+  } else if (arg === '--external') {
+    testPattern = 'tests/external/**/*.test.js';
+    testCategory = 'external';
+  } else if (arg === '--e2e') {
+    testPattern = 'tests/e2e/**/*.test.js';
+    testCategory = 'e2e';
+  } else if (arg === '--unit') {
+    testPattern = 'tests/unit/**/*.test.js';
+    testCategory = 'unit';
+  } else if (arg === '--application') {
+    testPattern = 'tests/application/**/*.test.js';
+    testCategory = 'application';
+  } else if (arg === '--skip-openai') {
+    skipOpenAI = true;
+  } else if (arg === '--skip-supabase') {
+    skipSupabase = true;
+  } else if (arg.startsWith('--focus=')) {
+    focusArea = arg.split('=')[1];
+    
+    // Define test pattern based on focus area
+    switch (focusArea) {
+      case 'challenge':
+        testPattern = '{tests/domain/challenge/**/*.test.js,tests/integration/challenge/**/*.test.js,tests/external/openai/direct/challengeGeneration.direct.test.js}';
+        break;
+      case 'focusArea':
+        testPattern = '{tests/domain/focusArea/**/*.test.js,tests/integration/focusArea/**/*.test.js}';
+        break;
+      case 'evaluation':
+        testPattern = '{tests/domain/evaluation/**/*.test.js,tests/integration/evaluation/**/*.test.js}';
+        break;
+      case 'user':
+        testPattern = '{tests/domain/user/**/*.test.js,tests/integration/user/**/*.test.js}';
+        break;
+      default:
+        // Try to match pattern to test files
+        testPattern = `**/*${focusArea}*/**/*.test.js`;
+    }
+  } else if (!arg.startsWith('--') && !arg.startsWith('-')) {
+    // If it's a path-like argument, use it directly
+    testPattern = arg;
+    if (!testPattern.includes('*') && !testPattern.endsWith('.js')) {
+      // If it's a directory, add the wildcard pattern
+      testPattern = path.join(testPattern, '**/*.test.js');
+    }
+  }
 });
 
-// Test categories
-const TEST_CATEGORIES = [
-  {
-    name: 'All Tests',
-    command: 'npm test',
-    description: 'Run all tests'
-  },
-  {
-    name: 'Domain Tests',
-    command: 'npx mocha tests/domains/**/*.test.js',
-    description: 'Run all domain-specific tests'
-  },
-  {
-    name: 'Challenge Domain',
-    command: 'npx mocha tests/domains/challenge/**/*.test.js',
-    description: 'Run challenge domain tests'
-  },
-  {
-    name: 'Focus Area Domain',
-    command: 'npx mocha tests/domains/focusArea/**/*.test.js',
-    description: 'Run focus area domain tests'
-  },
-  {
-    name: 'Evaluation Domain',
-    command: 'npx mocha tests/domains/evaluation/**/*.test.js',
-    description: 'Run evaluation domain tests'
-  },
-  {
-    name: 'Prompt Domain',
-    command: 'npx mocha tests/domains/prompt/**/*.test.js',
-    description: 'Run prompt domain tests'
-  },
-  {
-    name: 'Integration Tests',
-    command: 'npx mocha tests/integration/**/*.test.js',
-    description: 'Run cross-domain integration tests'
-  },
-  {
-    name: 'OpenAI-Supabase Flow',
-    command: 'npm run test:integration:openai-supabase',
-    description: 'Run integration test for OpenAI to Supabase flow (tests domain architecture with real APIs)'
-  },
-  {
-    name: 'Real API Tests',
-    command: 'npx mocha tests/real-api/**/*.test.js',
-    description: 'Run tests with real APIs (requires API keys)'
-  },
-  {
-    name: 'External Service Tests',
-    command: 'npx mocha tests/external/**/*.test.js',
-    description: 'Run tests for external service integration'
-  },
-  {
-    name: 'OpenAI API Logs',
-    command: 'npm run test:openai:logs',
-    description: 'Run OpenAI API logging tests to capture request/response data'
-  },
-  {
-    name: 'Supabase DB Logs',
-    command: 'npm run test:supabase:logs',
-    description: 'Run Supabase database logging tests to verify storage operations'
-  },
-  {
-    name: 'Shared Component Tests',
-    command: 'npx mocha tests/shared/**/*.test.js',
-    description: 'Run tests for shared utilities and components'
-  },
-  {
-    name: 'End-to-End Tests',
-    command: 'npx mocha tests/e2e/**/*.test.js',
-    description: 'Run end-to-end workflow tests'
-  },
-  {
-    name: 'Check Test Structure',
-    command: 'node scripts/test-structure-check.js',
-    description: 'Analyze test directory structure'
-  },
-  {
-    name: 'Legacy Tests',
-    command: 'npx mocha tests/legacy/**/*.test.js',
-    description: 'Run tests in the legacy directory (not recommended)'
+console.log(chalk.blue('=== Responses API Test Runner ==='));
+console.log(chalk.cyan(`Category: ${testCategory.toUpperCase()}`));
+if (focusArea) {
+  console.log(chalk.cyan(`Focus: ${focusArea}`));
+}
+console.log(chalk.cyan(`Pattern: ${testPattern}`));
+console.log(chalk.cyan('-------------------------------'));
+
+// Environment validation
+const envFile = path.resolve(process.cwd(), '.env.test');
+const hasEnvFile = fs.existsSync(envFile);
+
+if (!hasEnvFile) {
+  console.log(chalk.yellow('⚠️  Warning: No .env.test file found!'));
+  console.log(chalk.yellow('    Some tests requiring API credentials may be skipped.'));
+  console.log(chalk.yellow('    Consider copying .env.test.example to .env.test and updating credentials.'));
+  console.log('');
+}
+
+// Create the Mocha command
+const mochaArgs = ['--require', './tests/loadEnv.js', testPattern, '--recursive'];
+
+// Check if we need to skip certain tests
+if (skipOpenAI) {
+  process.env.SKIP_OPENAI_TESTS = 'true';
+  console.log(chalk.yellow('OpenAI tests will be skipped'));
+}
+
+if (skipSupabase) {
+  process.env.SKIP_SUPABASE_TESTS = 'true';
+  console.log(chalk.yellow('Supabase tests will be skipped'));
+}
+
+// Actually run the tests
+console.log(chalk.green('Running tests...\n'));
+
+const mochaProcess = spawn('npx', ['mocha', ...mochaArgs], {
+  stdio: 'inherit',
+  env: process.env
+});
+
+mochaProcess.on('close', (code) => {
+  if (code === 0) {
+    console.log(chalk.green('\n✅ All tests passed!'));
+  } else {
+    console.log(chalk.red(`\n❌ Tests failed with exit code ${code}`));
+    process.exit(code);
   }
-];
-
-// Main menu
-function showMainMenu() {
-  console.log('\n--------- Test Runner ---------\n');
-  console.log('Choose a test category to run:');
-  
-  TEST_CATEGORIES.forEach((category, index) => {
-    console.log(`${index + 1}. ${category.name} - ${category.description}`);
-  });
-  
-  console.log('\n0. Exit');
-  
-  rl.question('\nEnter your choice (number): ', (answer) => {
-    const choice = parseInt(answer, 10);
-    
-    if (choice === 0) {
-      rl.close();
-      return;
-    }
-    
-    if (choice > 0 && choice <= TEST_CATEGORIES.length) {
-      const selected = TEST_CATEGORIES[choice - 1];
-      
-      console.log(`\nRunning ${selected.name}...\n`);
-      
-      try {
-        execSync(selected.command, { stdio: 'inherit' });
-        console.log(`\n${selected.name} completed.`);
-      } catch (error) {
-        console.log(`\n${selected.name} failed with code ${error.status}.`);
-      }
-      
-      askToContinue();
-    } else {
-      console.log('Invalid choice. Please try again.');
-      showMainMenu();
-    }
-  });
-}
-
-// Ask if the user wants to run more tests
-function askToContinue() {
-  rl.question('\nDo you want to run more tests? (y/n): ', (answer) => {
-    if (answer.toLowerCase() === 'y') {
-      showMainMenu();
-    } else {
-      rl.close();
-    }
-  });
-}
-
-// Add the script to package.json if not already there
-try {
-  const packagePath = path.join(__dirname, '..', 'package.json');
-  const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
-  
-  if (!packageJson.scripts['test:run']) {
-    packageJson.scripts['test:run'] = 'node scripts/run-tests.js';
-    fs.writeFileSync(packagePath, JSON.stringify(packageJson, null, 2));
-    console.log('Added test:run script to package.json');
-  }
-} catch (error) {
-  console.error('Error updating package.json:', error.message);
-}
-
-// Start the menu
-showMainMenu(); 
+}); 

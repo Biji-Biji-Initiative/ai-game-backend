@@ -135,3 +135,56 @@ Tests HTTP endpoints, request parameters, and response formats.
 ## Getting Help
 
 If you need help with tests, ask any team member or refer to the test examples in each directory.
+
+## Known Issues and Troubleshooting
+
+The test suite currently has several known issues that you might encounter:
+
+### Import Path Issues
+
+If you encounter module not found errors, check the import paths:
+- Domain tests should import from `../../../src/...` (3 levels up)
+- Older tests might still use `../../../../src/...` (4 levels up)
+- Some tests may reference non-existent modules or incorrect paths
+
+Example fix:
+```javascript
+// Incorrect
+const { SomeService } = require('../../../../src/core/domain/services/SomeService');
+
+// Correct
+const SomeService = require('../../../src/core/domain/services/SomeService');
+```
+
+### EventBus Mocking Issues
+
+User domain tests have issues with the eventBus mock implementation:
+- Error: `TypeError: Cannot read properties of undefined (reading 'publish')`
+- To fix, ensure the eventBus mock is properly set up in the test:
+
+```javascript
+const eventBusMock = {
+  publishEvent: sinon.stub().resolves(),
+  // Other eventBus methods as needed
+};
+
+// Pass to the service constructor
+const userService = new UserService({
+  userRepository: userRepositoryMock,
+  eventBus: eventBusMock
+});
+```
+
+### Environment Variables for Tests
+
+E2E and External tests require proper environment variables:
+- Ensure you have a `.env.test` file with test credentials
+- For local testing, run `npm run setup:test` to set up the test environment
+- Supabase credentials are required for E2E and Supabase external tests
+
+### OpenAI API Issues
+
+Focus area tests may fail with OpenAI API errors:
+- "response_format parameter not supported with this model" error indicates a model compatibility issue
+- Update the API call to match the latest OpenAI API specifications
+- Check model names and parameters in your tests

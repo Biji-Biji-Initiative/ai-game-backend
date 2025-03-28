@@ -4,11 +4,12 @@
  * Domain service that provides utilities for analyzing personality traits and AI attitudes.
  * Centralizes all personality analytics functions in the personality domain.
  */
-const { logger } = require('../../infra/logging/logger');
+const { personalityLogger } = require('../../infra/logging/domainLogger');
 
 class TraitsAnalysisService {
   constructor(personalityRepository) {
     this.personalityRepository = personalityRepository;
+    this.logger = personalityLogger.child('traitsAnalysis');
   }
 
   /**
@@ -32,7 +33,7 @@ class TraitsAnalysisService {
       // Return top traits (or all above threshold)
       return sortedTraits;
     } catch (error) {
-      logger.error('Error computing dominant traits', { error: error.message });
+      this.logger.error('Error computing dominant traits', { error: error.message });
       return [];
     }
   }
@@ -74,7 +75,7 @@ class TraitsAnalysisService {
         Object.entries(clusters).filter(([_, traits]) => traits.length > 0)
       );
     } catch (error) {
-      logger.error('Error identifying trait clusters', { error: error.message });
+      this.logger.error('Error identifying trait clusters', { error: error.message });
       return {};
     }
   }
@@ -129,7 +130,7 @@ class TraitsAnalysisService {
         summary: this.generateAttitudeSummary(stance, categoryScores)
       };
     } catch (error) {
-      logger.error('Error analyzing AI attitudes', { error: error.message });
+      this.logger.error('Error analyzing AI attitudes', { error: error.message });
       return {
         overall: 'neutral',
         categories: {},
@@ -222,7 +223,7 @@ class TraitsAnalysisService {
       
       return profile;
     } catch (error) {
-      logger.error('Error getting enriched profile', { error: error.message, userId });
+      this.logger.error('Error getting enriched profile', { error: error.message, userId });
       throw error;
     }
   }
@@ -234,32 +235,37 @@ class TraitsAnalysisService {
    * @returns {number} Compatibility score (0-100)
    */
   calculateTraitCompatibility(personalityTraits, challengeTraits) {
-    if (!personalityTraits || Object.keys(personalityTraits).length === 0) {
-      return 50; // Neutral score if no traits available
-    }
-    
-    if (!challengeTraits || Object.keys(challengeTraits).length === 0) {
-      return 50; // Neutral score if no challenge traits available
-    }
-    
-    let totalScore = 0;
-    let totalWeight = 0;
-    
-    // Calculate weighted score based on trait importance
-    Object.entries(challengeTraits).forEach(([trait, importance]) => {
-      const userTraitScore = personalityTraits[trait] || 50; // Default to 50 if trait not assessed
-      const weight = importance;
+    try {
+      if (!personalityTraits || Object.keys(personalityTraits).length === 0) {
+        return 50; // Neutral score if no traits available
+      }
       
-      totalScore += userTraitScore * weight;
-      totalWeight += weight;
-    });
-    
-    // Calculate normalized score (0-100)
-    const normalizedScore = totalWeight > 0 
-      ? Math.round((totalScore / totalWeight) * 100 / 100)
-      : 50;
-    
-    return normalizedScore;
+      if (!challengeTraits || Object.keys(challengeTraits).length === 0) {
+        return 50; // Neutral score if no challenge traits available
+      }
+      
+      let totalScore = 0;
+      let totalWeight = 0;
+      
+      // Calculate weighted score based on trait importance
+      Object.entries(challengeTraits).forEach(([trait, importance]) => {
+        const userTraitScore = personalityTraits[trait] || 50; // Default to 50 if trait not assessed
+        const weight = importance;
+        
+        totalScore += userTraitScore * weight;
+        totalWeight += weight;
+      });
+      
+      // Calculate normalized score (0-100)
+      return totalWeight > 0 ? Math.round(totalScore / totalWeight) : 50;
+    } catch (error) {
+      this.logger.error('Error calculating trait compatibility', { 
+        error: error.message,
+        personalityTraitsCount: personalityTraits ? Object.keys(personalityTraits).length : 0,
+        challengeTraitsCount: challengeTraits ? Object.keys(challengeTraits).length : 0 
+      });
+      return 50; // Default neutral score on error
+    }
   }
 }
 

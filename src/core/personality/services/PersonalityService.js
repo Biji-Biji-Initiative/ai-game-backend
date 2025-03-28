@@ -7,15 +7,23 @@
 const Personality = require('../models/Personality');
 const PersonalityRepository = require('../repositories/PersonalityRepository');
 const TraitsAnalysisService = require('./TraitsAnalysisService');
-const domainEvents = require('../../shared/domainEvents');
+const { EventTypes, eventBus } = require('../../common/events/domainEvents');
 const { v4: uuidv4 } = require('uuid');
+const { personalityLogger } = require('../../infra/logging/domainLogger');
+const { NoPersonalityDataError } = require('../errors/PersonalityErrors');
 
 class PersonalityService {
-  constructor(personalityRepository, traitsAnalysisService, promptBuilder, openaiClient) {
+  /**
+   * Create a new PersonalityService
+   * @param {PersonalityRepository} personalityRepository - Repository for personality data
+   * @param {TraitsAnalysisService} traitsAnalysisService - Service for analyzing traits
+   * @param {Object} insightGenerator - Service for generating insights, via port
+   */
+  constructor(personalityRepository, traitsAnalysisService, insightGenerator) {
     this.personalityRepository = personalityRepository || new PersonalityRepository();
-    this.traitsAnalysisService = traitsAnalysisService || new TraitsAnalysisService(this.personalityRepository);
-    this.promptBuilder = promptBuilder;
-    this.openaiClient = openaiClient;
+    this.traitsAnalysisService = traitsAnalysisService;
+    this.insightGenerator = insightGenerator;
+    this.logger = personalityLogger.child('service');
   }
 
   /**
@@ -39,15 +47,19 @@ class PersonalityService {
         profile = await this.personalityRepository.save(profile);
         
         // Publish domain event for new profile
-        await domainEvents.publish('PersonalityProfileCreated', {
+        await eventBus.publishEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
           userId,
-          personalityId: profile.id
+          personalityId: profile.id,
+          updateType: 'created'
         });
       }
       
       return profile;
     } catch (error) {
-      console.error('PersonalityService.getOrCreatePersonalityProfile error:', error);
+      this.logger.error('Error getting or creating personality profile', {
+        error: error.message,
+        userId
+      });
       throw error;
     }
   }
@@ -73,7 +85,7 @@ class PersonalityService {
       
       // Check if there are personality traits to analyze
       if (Object.keys(profile.personalityTraits).length === 0) {
-        throw new Error('No personality traits available for analysis');
+        throw new NoPersonalityDataError('No personality traits available for analysis');
       }
       
       // Create or get a conversation thread for insights
@@ -86,38 +98,21 @@ class PersonalityService {
       // Make sure personality profile is fully analyzed
       await this.processPersonalityData(profile);
       
-      // Build prompt for insights generation
-      const promptTemplate = await this.promptBuilder.buildPrompt('personality', {
-        personalityTraits: profile.personalityTraits,
-        aiAttitudes: profile.aiAttitudes,
-        dominantTraits: profile.dominantTraits,
-        traitClusters: profile.traitClusters,
-        aiAttitudeProfile: profile.aiAttitudeProfile
-      });
-      
-      // Generate insights using OpenAI
-      const response = await this.openaiClient.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an AI personality analyst helping users understand their cognitive profile and AI attitudes. Respond with valid JSON only.'
-          },
-          { role: 'user', content: promptTemplate }
-        ],
-        response_format: { type: 'json_object' },
-        temperature: 0.7
-      });
-      
-      const insights = JSON.parse(response.choices[0].message.content);
+      // Generate insights using the insight generator port
+      this.logger.debug('Generating insights', { userId: profile.userId });
+      const insights = await this.insightGenerator.generateFor(profile);
       
       // Store insights in the profile
       profile.setInsights(insights);
       await this.personalityRepository.save(profile);
       
+      this.logger.info('Generated insights', { userId: profile.userId });
       return insights;
     } catch (error) {
-      console.error('PersonalityService.generateInsights error:', error);
+      this.logger.error('Error generating insights', {
+        error: error.message,
+        userId
+      });
       throw error;
     }
   }
@@ -181,14 +176,19 @@ class PersonalityService {
       const savedProfile = await this.personalityRepository.save(profile);
       
       // Publish domain event for user service to update its copy if needed
-      domainEvents.publish('PersonalityTraitsUpdatedForUser', {
+      await eventBus.publishEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
         userId: profile.userId,
-        personalityTraits: profile.personalityTraits
+        personalityId: profile.id,
+        personalityTraits: profile.personalityTraits,
+        updateType: 'traits'
       });
       
       return savedProfile;
     } catch (error) {
-      console.error('PersonalityService.updatePersonalityTraits error:', error);
+      this.logger.error('Error updating personality traits', {
+        error: error.message,
+        userId
+      });
       throw error;
     }
   }
@@ -215,14 +215,19 @@ class PersonalityService {
       const savedProfile = await this.personalityRepository.save(profile);
       
       // Publish domain event for user service to update its copy if needed
-      domainEvents.publish('AIAttitudesUpdatedForUser', {
+      await eventBus.publishEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
         userId: profile.userId,
-        aiAttitudes: profile.aiAttitudes
+        personalityId: profile.id,
+        aiAttitudes: profile.aiAttitudes,
+        updateType: 'attitudes'
       });
       
       return savedProfile;
     } catch (error) {
-      console.error('PersonalityService.updateAIAttitudes error:', error);
+      this.logger.error('Error updating AI attitudes', {
+        error: error.message,
+        userId
+      });
       throw error;
     }
   }
@@ -230,13 +235,35 @@ class PersonalityService {
   /**
    * Get personality profile for a user
    * @param {string} userId - User ID
+   * @param {Object} queryParams - Query parameters for filtering data
    * @returns {Promise<Personality|null>} Personality profile or null if not found
    */
-  async getPersonalityProfile(userId) {
+  async getPersonalityProfile(userId, queryParams = {}) {
     try {
-      return this.personalityRepository.findByUserId(userId);
+      let profile = await this.personalityRepository.findByUserId(userId);
+      
+      // Filter data based on query parameters if needed
+      if (profile && queryParams) {
+        if (queryParams.includeInsights === false) {
+          profile.insights = {};
+        }
+        if (queryParams.includeTraits === false) {
+          profile.personalityTraits = {};
+          profile.dominantTraits = [];
+          profile.traitClusters = {};
+        }
+        if (queryParams.includeAttitudes === false) {
+          profile.aiAttitudes = {};
+          profile.aiAttitudeProfile = {};
+        }
+      }
+      
+      return profile;
     } catch (error) {
-      console.error('PersonalityService.getPersonalityProfile error:', error);
+      this.logger.error('Error getting personality profile', {
+        error: error.message,
+        userId
+      });
       throw error;
     }
   }
@@ -250,7 +277,10 @@ class PersonalityService {
     try {
       return this.personalityRepository.deleteByUserId(userId);
     } catch (error) {
-      console.error('PersonalityService.deletePersonalityProfile error:', error);
+      this.logger.error('Error deleting personality profile', {
+        error: error.message,
+        userId
+      });
       throw error;
     }
   }
@@ -274,7 +304,10 @@ class PersonalityService {
         challengeTraits
       );
     } catch (error) {
-      console.error('PersonalityService.calculateChallengeCompatibility error:', error);
+      this.logger.error('Error calculating challenge compatibility', {
+        error: error.message,
+        userId
+      });
       return 50; // Default neutral score on error
     }
   }

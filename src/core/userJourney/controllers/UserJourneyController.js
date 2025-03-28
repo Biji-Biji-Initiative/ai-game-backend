@@ -6,12 +6,17 @@
  */
 const { logger } = require('../../../core/infra/logging/logger');
 const AppError = require('../../../core/infra/errors/AppError');
-const container = require('../../../config/container');
 
 class UserJourneyController {
-  constructor() {
-    this.userJourneyCoordinator = container.get('userJourneyCoordinator');
-    this.userRepository = container.get('userRepository');
+  /**
+   * Create a new UserJourneyController
+   * @param {Object} dependencies - Injected dependencies
+   * @param {Object} dependencies.userJourneyCoordinator - Coordinator for user journey operations
+   * @param {Object} dependencies.userRepository - Repository for user operations
+   */
+  constructor({ userJourneyCoordinator, userRepository }) {
+    this.userJourneyCoordinator = userJourneyCoordinator;
+    this.userRepository = userRepository;
   }
 
   /**
@@ -37,7 +42,7 @@ class UserJourneyController {
       }
       
       // Record the event
-      const event = await this.userJourneyCoordinator.trackUserEvent(
+      const event = await this.userJourneyCoordinator.recordUserEvent(
         email, 
         eventType, 
         eventData || {}, 

@@ -1,81 +1,88 @@
 /**
- * Test Factory
+ * Test Factory Helper
  * 
- * Provides factory functions for creating test objects
+ * Provides factory functions to create test data objects for tests.
+ * This simplifies test creation and avoids duplication.
  */
 
-const { v4: uuidv4 } = require('uuid');
-
 /**
- * Creates a test user with optional overrides
+ * Creates a test user with default values
+ * @param {Object} overrides - Properties to override the defaults
+ * @returns {Object} A test user object
  */
 function createTestUser(overrides = {}) {
-  return {
-    id: uuidv4(),
+  const defaultUser = {
+    id: 'test-user-id',
+    email: 'test@example.com',
     name: 'Test User',
-    email: `test-${Date.now()}@example.com`,
-    professionalTitle: 'Software Engineer',
-    location: 'San Francisco, CA',
-    personality_traits: ['curious', 'analytical'],
-    ai_attitudes: ['optimistic', 'pragmatic'],
-    ...overrides
+    skillLevel: 'intermediate',
+    focusAreas: ['critical_thinking', 'problem_solving'],
+    personality_traits: ['analytical', 'logical', 'thoughtful'],
+    ai_attitudes: ['interested', 'neutral'],
+    professionalTitle: 'Software Developer',
+    location: 'New York',
+    preferences: {
+      challenge_difficulty: 'moderate',
+      feedback_style: 'direct',
+      learning_style: 'visual'
+    },
+    created_at: new Date().toISOString()
   };
+  
+  return { ...defaultUser, ...overrides };
 }
 
 /**
- * Creates a test challenge with optional overrides
+ * Creates a test challenge with default values
+ * @param {Object} overrides - Properties to override the defaults
+ * @returns {Object} A test challenge object
  */
 function createTestChallenge(overrides = {}) {
-  return {
-    id: uuidv4(),
+  const defaultChallenge = {
+    id: 'test-challenge-id',
     title: 'Test Challenge',
-    content: 'This is a test challenge',
-    difficulty: 'medium',
-    type: 'scenario',
-    focusArea: 'effective-communication',
-    userId: uuidv4(),
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    ...overrides
+    description: 'This is a test challenge description',
+    challengeType: 'analysis',
+    content: 'This is the content of the test challenge.',
+    focusArea: 'critical_thinking',
+    difficulty: 'intermediate',
+    tags: ['test', 'sample', 'analysis'],
+    userId: 'test-user-id',
+    collaborators: [],
+    status: 'published',
+    created_at: new Date().toISOString()
   };
+  
+  return { ...defaultChallenge, ...overrides };
 }
 
 /**
- * Creates a test focus area with optional overrides
- */
-function createTestFocusArea(overrides = {}) {
-  return {
-    id: uuidv4(),
-    name: 'Test Focus Area',
-    description: 'This is a test focus area for testing',
-    userId: uuidv4(),
-    priority: 1,
-    metadata: {},
-    createdAt: new Date(),
-    ...overrides
-  };
-}
-
-/**
- * Creates a test evaluation with optional overrides
+ * Creates a test evaluation with default values
+ * @param {Object} overrides - Properties to override the defaults
+ * @returns {Object} A test evaluation object
  */
 function createTestEvaluation(overrides = {}) {
-  return {
-    id: uuidv4(),
-    challengeId: uuidv4(),
-    userId: uuidv4(),
-    score: 75,
-    feedback: 'This is test feedback',
-    strengths: ['clarity', 'structure'],
-    weaknesses: ['brevity'],
-    createdAt: new Date(),
-    ...overrides
+  const defaultEvaluation = {
+    id: 'test-evaluation-id',
+    userId: 'test-user-id',
+    challengeId: 'test-challenge-id',
+    score: 85,
+    categoryScores: {
+      clarity: 80,
+      accuracy: 90,
+      reasoning: 85
+    },
+    overallFeedback: 'This is overall feedback for the evaluation.',
+    strengths: ['Clear explanation', 'Good use of examples'],
+    areasForImprovement: ['Could improve depth of analysis'],
+    created_at: new Date().toISOString()
   };
+  
+  return { ...defaultEvaluation, ...overrides };
 }
 
 module.exports = {
   createTestUser,
   createTestChallenge,
-  createTestFocusArea,
   createTestEvaluation
 };

@@ -3,20 +3,31 @@
  * 
  * Handles HTTP requests related to personality operations.
  */
+const { personalityLogger } = require('../../infra/logging/domainLogger');
+const { 
+  ProfileNotFoundError,
+  TraitsValidationError,
+  AttitudesValidationError,
+  InsightGenerationError,
+  NoPersonalityDataError
+} = require('../errors/PersonalityErrors');
+const {
+  updatePersonalityTraitsSchema,
+  updateAIAttitudesSchema,
+  profileQuerySchema
+} = require('../schemas/personalityApiSchemas');
 
 class PersonalityController {
   /**
    * Create a new PersonalityController
    * @param {Object} dependencies - Dependencies
-   * @param {Object} dependencies.logger - Logger instance
    * @param {Object} dependencies.personalityService - Personality service
    */
   constructor(dependencies = {}) {
-    const { logger, personalityService, errorHandler } = dependencies;
+    const { personalityService } = dependencies;
     
-    this.logger = logger;
     this.personalityService = personalityService;
-    this.AppError = errorHandler?.AppError;
+    this.logger = personalityLogger.child('controller');
   }
 
   /**
@@ -24,35 +35,34 @@ class PersonalityController {
    * @param {Request} req - Express request object
    * @param {Response} res - Express response object
    */
-  async generateInsights(req, res) {
+  async generateInsights(req, res, next) {
     try {
       // Check if user is authenticated
       if (!req.user || !req.user.id) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
+      this.logger.debug('Generating personality insights', { userId: req.user.id });
+
       // Generate insights
       const insights = await this.personalityService.generateInsights(req.user.id);
 
+      this.logger.info('Generated personality insights', { userId: req.user.id });
+
       // Return insights
-      return res.status(200).json({
-        status: 'success',
-        data: { insights }
-      });
+      return res.success({ insights }, 'Personality insights generated successfully');
     } catch (error) {
-      this.logger.error('Error generating insights', { error: error.message, userId: req.user?.id });
+      this.logger.error('Error generating insights', { 
+        error: error.message, 
+        userId: req.user?.id,
+        stack: error.stack
+      });
       
-      if (error.message.includes('No personality traits available')) {
-        return res.status(400).json({ 
-          status: 'error',
-          message: 'No personality traits available. Please update your traits first.'
-        });
+      if (error instanceof NoPersonalityDataError) {
+        return next(error);
       }
       
-      return res.status(500).json({ 
-        status: 'error',
-        message: 'Failed to generate insights'
-      });
+      return next(new InsightGenerationError(error.message, { originalError: error }));
     }
   }
 
@@ -61,22 +71,27 @@ class PersonalityController {
    * @param {Request} req - Express request object
    * @param {Response} res - Express response object
    */
-  async updatePersonalityTraits(req, res) {
+  async updatePersonalityTraits(req, res, next) {
     try {
       // Check if user is authenticated
       if (!req.user || !req.user.id) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      const { personalityTraits } = req.body;
-      
-      // Basic validation
-      if (!personalityTraits || typeof personalityTraits !== 'object') {
-        return res.status(400).json({ 
-          status: 'error',
-          message: 'Personality traits are required and must be an object'
+      // Validate using Zod schema
+      const validationResult = updatePersonalityTraitsSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        throw new TraitsValidationError('Invalid personality traits', { 
+          details: validationResult.error.format() 
         });
       }
+
+      const { personalityTraits } = validationResult.data;
+
+      this.logger.debug('Updating personality traits', { 
+        userId: req.user.id,
+        traitCount: Object.keys(personalityTraits).length
+      });
 
       // Update personality traits
       const profile = await this.personalityService.updatePersonalityTraits(
@@ -84,34 +99,31 @@ class PersonalityController {
         personalityTraits
       );
 
-      // Return the updated profile
-      return res.status(200).json({
-        status: 'success',
-        data: {
-          id: profile.id,
-          personalityTraits: profile.personalityTraits,
-          dominantTraits: profile.dominantTraits,
-          traitClusters: profile.traitClusters,
-          updatedAt: profile.updatedAt
-        }
+      this.logger.info('Personality traits updated', { 
+        userId: req.user.id,
+        dominantTraits: profile.dominantTraits
       });
+
+      // Return the updated profile
+      return res.success({
+        id: profile.id,
+        personalityTraits: profile.personalityTraits,
+        dominantTraits: profile.dominantTraits,
+        traitClusters: profile.traitClusters,
+        updatedAt: profile.updatedAt
+      }, 'Personality traits updated successfully');
     } catch (error) {
       this.logger.error('Error updating personality traits', { 
         error: error.message, 
-        userId: req.user?.id 
+        userId: req.user?.id,
+        stack: error.stack
       });
       
-      if (error.message.includes('between 0 and 100')) {
-        return res.status(400).json({
-          status: 'error',
-          message: 'Personality trait values must be between 0 and 100'
-        });
+      if (error instanceof TraitsValidationError) {
+        return next(error);
       }
       
-      return res.status(500).json({
-        status: 'error',
-        message: 'Failed to update personality traits'
-      });
+      return next(new TraitsValidationError(error.message, { originalError: error }));
     }
   }
 
@@ -120,22 +132,27 @@ class PersonalityController {
    * @param {Request} req - Express request object
    * @param {Response} res - Express response object
    */
-  async updateAIAttitudes(req, res) {
+  async updateAIAttitudes(req, res, next) {
     try {
       // Check if user is authenticated
       if (!req.user || !req.user.id) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      const { aiAttitudes } = req.body;
-      
-      // Basic validation
-      if (!aiAttitudes || typeof aiAttitudes !== 'object') {
-        return res.status(400).json({
-          status: 'error',
-          message: 'AI attitudes are required and must be an object'
+      // Validate using Zod schema
+      const validationResult = updateAIAttitudesSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        throw new AttitudesValidationError('Invalid AI attitudes', { 
+          details: validationResult.error.format() 
         });
       }
+
+      const { aiAttitudes } = validationResult.data;
+      
+      this.logger.debug('Updating AI attitudes', { 
+        userId: req.user.id,
+        attitudeCount: Object.keys(aiAttitudes).length
+      });
 
       // Update AI attitudes
       const profile = await this.personalityService.updateAIAttitudes(
@@ -143,33 +160,30 @@ class PersonalityController {
         aiAttitudes
       );
 
-      // Return the updated profile
-      return res.status(200).json({
-        status: 'success',
-        data: {
-          id: profile.id,
-          aiAttitudes: profile.aiAttitudes,
-          aiAttitudeProfile: profile.aiAttitudeProfile,
-          updatedAt: profile.updatedAt
-        }
+      this.logger.info('AI attitudes updated', { 
+        userId: req.user.id,
+        attitudeProfile: profile.aiAttitudeProfile.overall
       });
+
+      // Return the updated profile
+      return res.success({
+        id: profile.id,
+        aiAttitudes: profile.aiAttitudes,
+        aiAttitudeProfile: profile.aiAttitudeProfile,
+        updatedAt: profile.updatedAt
+      }, 'AI attitudes updated successfully');
     } catch (error) {
       this.logger.error('Error updating AI attitudes', { 
         error: error.message, 
-        userId: req.user?.id 
+        userId: req.user?.id,
+        stack: error.stack
       });
       
-      if (error.message.includes('between 0 and 100')) {
-        return res.status(400).json({
-          status: 'error',
-          message: 'AI attitude values must be between 0 and 100'
-        });
+      if (error instanceof AttitudesValidationError) {
+        return next(error);
       }
       
-      return res.status(500).json({
-        status: 'error',
-        message: 'Failed to update AI attitudes'
-      });
+      return next(new AttitudesValidationError(error.message, { originalError: error }));
     }
   }
 
@@ -178,38 +192,61 @@ class PersonalityController {
    * @param {Request} req - Express request object
    * @param {Response} res - Express response object
    */
-  async getPersonalityProfile(req, res) {
+  async getPersonalityProfile(req, res, next) {
     try {
       // Check if user is authenticated
       if (!req.user || !req.user.id) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
+      // Parse query parameters with defaults
+      let queryParams = { 
+        includeInsights: true,
+        includeTraits: true,
+        includeAttitudes: true
+      };
+      
+      // Only attempt to validate query params if they exist
+      if (Object.keys(req.query).length > 0) {
+        const validationResult = profileQuerySchema.safeParse(req.query);
+        if (validationResult.success) {
+          queryParams = validationResult.data;
+        } else {
+          this.logger.warn('Invalid query parameters, using defaults', { 
+            userId: req.user.id,
+            params: req.query,
+            errors: validationResult.error.format() 
+          });
+        }
+      }
+      
+      this.logger.debug('Getting personality profile', { 
+        userId: req.user.id,
+        params: queryParams
+      });
+
       // Get personality profile
-      const profile = await this.personalityService.getPersonalityProfile(req.user.id);
+      const profile = await this.personalityService.getPersonalityProfile(
+        req.user.id, 
+        queryParams
+      );
 
       if (!profile) {
-        return res.status(404).json({
-          status: 'error',
-          message: 'Personality profile not found'
-        });
+        throw new ProfileNotFoundError(req.user.id);
       }
 
+      this.logger.info('Personality profile retrieved', { userId: req.user.id });
+
       // Return the profile
-      return res.status(200).json({
-        status: 'success',
-        data: profile
-      });
+      return res.success(profile, 'Personality profile retrieved successfully');
     } catch (error) {
       this.logger.error('Error getting personality profile', { 
         error: error.message, 
-        userId: req.user?.id 
+        userId: req.user?.id,
+        stack: error.stack
       });
       
-      return res.status(500).json({
-        status: 'error',
-        message: 'Failed to get personality profile'
-      });
+      return next(error);
     }
   }
 }

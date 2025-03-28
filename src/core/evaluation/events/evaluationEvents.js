@@ -5,7 +5,7 @@
  * Following DDD principles, these events are used to communicate changes
  * in the domain to other domains.
  */
-const { EventTypes, eventBus, DomainEvent } = require('../../shared/domainEvents');
+const { EventTypes, eventBus, DomainEvent } = require('../../common/events/domainEvents');
 const { logger } = require('../../../core/infra/logging/logger');
 
 /**

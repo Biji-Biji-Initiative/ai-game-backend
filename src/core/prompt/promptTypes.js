@@ -29,7 +29,13 @@ const PROMPT_TYPES = {
   SKILL_MAPPING: 'skill-mapping',
   LEARNING_STYLE: 'learning-style',
   SKILL_ASSESSMENT: 'skill-assessment',
-  GROWTH_TRAJECTORY: 'growth-trajectory'
+  GROWTH_TRAJECTORY: 'growth-trajectory',
+  
+  // Adaptive types
+  ADAPTIVE_CHALLENGE_SELECTION: 'adaptive-challenge-selection',
+  DIFFICULTY_CALIBRATION: 'difficulty-calibration',
+  PERSONALIZED_LEARNING_PATH: 'personalized-learning-path',
+  ENGAGEMENT_OPTIMIZATION: 'engagement-optimization'
 };
 
 /**
@@ -51,7 +57,11 @@ const RECOMMENDED_MODELS = {
   [PROMPT_TYPES.SKILL_MAPPING]: 'gpt-4o',
   [PROMPT_TYPES.LEARNING_STYLE]: 'gpt-4o',
   [PROMPT_TYPES.SKILL_ASSESSMENT]: 'gpt-4o',
-  [PROMPT_TYPES.GROWTH_TRAJECTORY]: 'gpt-4o'
+  [PROMPT_TYPES.GROWTH_TRAJECTORY]: 'gpt-4o',
+  [PROMPT_TYPES.ADAPTIVE_CHALLENGE_SELECTION]: 'gpt-4o',
+  [PROMPT_TYPES.DIFFICULTY_CALIBRATION]: 'gpt-4o',
+  [PROMPT_TYPES.PERSONALIZED_LEARNING_PATH]: 'gpt-4o',
+  [PROMPT_TYPES.ENGAGEMENT_OPTIMIZATION]: 'gpt-4o'
 };
 
 /**
@@ -73,7 +83,11 @@ const OUTPUT_FORMATS = {
   [PROMPT_TYPES.SKILL_MAPPING]: { format: 'json', schema: 'skillMappingSchema' },
   [PROMPT_TYPES.LEARNING_STYLE]: { format: 'json', schema: 'learningStyleSchema' },
   [PROMPT_TYPES.SKILL_ASSESSMENT]: { format: 'json', schema: 'skillAssessmentSchema' },
-  [PROMPT_TYPES.GROWTH_TRAJECTORY]: { format: 'json', schema: 'growthTrajectorySchema' }
+  [PROMPT_TYPES.GROWTH_TRAJECTORY]: { format: 'json', schema: 'growthTrajectorySchema' },
+  [PROMPT_TYPES.ADAPTIVE_CHALLENGE_SELECTION]: { format: 'json', schema: 'adaptiveChallengeSelectionSchema' },
+  [PROMPT_TYPES.DIFFICULTY_CALIBRATION]: { format: 'json', schema: 'difficultyCalibratonSchema' },
+  [PROMPT_TYPES.PERSONALIZED_LEARNING_PATH]: { format: 'json', schema: 'personalizedLearningPathSchema' },
+  [PROMPT_TYPES.ENGAGEMENT_OPTIMIZATION]: { format: 'json', schema: 'engagementOptimizationSchema' }
 };
 
 /**

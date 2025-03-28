@@ -5,75 +5,116 @@
 const { container } = require('../core/infra/di/DIContainer');
 const config = require('./config');
 const { logger } = require('../core/infra/logging/logger');
-const OpenAI = require('openai');
+const { supabaseClient: supabase } = require('../core/infra/db/supabaseClient');
 
 // Error handling
 const AppError = require('../core/infra/errors/AppError');
 
-// Dynamic prompt builders
-// Note: These will be migrated to proper domain services in the future
-const { buildChallengePrompt, buildEvaluationPrompt } = require('../core/prompt/dynamicPromptBuilder');
-const { getFallbackChallenge } = require('../core/common/fallbackChallenges');
-
-// Register OpenAI client as a singleton
-container.register('openaiClient', () => {
-  return new OpenAI({
-    apiKey: config.openai.apiKey,
-  });
-}, true);
-
-// Register prompt builder (assuming this exists or will be implemented)
-container.register('promptBuilder', (c) => {
-  return require('../core/prompt/promptBuilder');
-}, true);
-
-// Register basic utilities
+// Register basic infrastructure
 container.registerInstance('logger', logger);
 container.registerInstance('config', config);
 container.registerInstance('AppError', AppError);
-container.registerInstance('buildChallengePrompt', buildChallengePrompt);
-container.registerInstance('buildEvaluationPrompt', buildEvaluationPrompt);
-container.registerInstance('getFallbackChallenge', getFallbackChallenge);
+container.registerInstance('supabase', supabase);
 
-// Register conversation manager for stateful conversations
-container.register('conversationManager', (c) => {
-  return require('../utils/conversationManager');
+// Register domain-specific loggers
+const { 
+  userLogger, 
+  personalityLogger, 
+  challengeLogger,
+  evaluationLogger,
+  focusAreaLogger,
+  progressLogger,
+  dbLogger,
+  infraLogger,
+  apiLogger
+} = require('../core/infra/logging/domainLogger');
+
+container.registerInstance('userLogger', userLogger);
+container.registerInstance('personalityLogger', personalityLogger);
+container.registerInstance('challengeLogger', challengeLogger);
+container.registerInstance('evaluationLogger', evaluationLogger);
+container.registerInstance('focusAreaLogger', focusAreaLogger);
+container.registerInstance('progressLogger', progressLogger);
+container.registerInstance('dbLogger', dbLogger);
+container.registerInstance('infraLogger', infraLogger);
+container.registerInstance('apiLogger', apiLogger);
+
+// Register event system
+const { EventTypes, eventBus } = require('../core/common/events/domainEvents');
+container.registerInstance('EventTypes', EventTypes);
+container.registerInstance('eventBus', eventBus);
+
+// Register OpenAI services
+container.register('openAIConfig', (c) => {
+  return require('../infra/openai/config');
 }, true);
 
-// Register the entire errorHandler module
-container.register('errorHandler', (c) => {
-  return require('../core/infra/errors/errorHandler');
+container.register('openAIClient', (c) => {
+  const { OpenAIClient } = require('../infra/openai');
+  return new OpenAIClient({
+    config: c.get('openAIConfig'),
+    logger: c.get('apiLogger'),
+    apiKey: c.get('config').openai.apiKey
+  });
 }, true);
 
-// Register repositories from core domain models
+container.register('openAIResponseHandler', (c) => {
+  const { OpenAIResponseHandler } = require('../lib/openai');
+  return new OpenAIResponseHandler({
+    logger: c.get('logger')
+  });
+}, true);
+
+// Register conversation state repository and OpenAI state manager
+container.register('conversationStateRepository', (c) => {
+  const ConversationStateRepository = require('../infra/repositories/ConversationStateRepository');
+  return new ConversationStateRepository(
+    c.get('supabase'), 
+    c.get('dbLogger')
+  );
+}, true);
+
+container.register('openAIStateManager', (c) => {
+  const { OpenAIStateManager } = require('../infra/openai');
+  return new OpenAIStateManager({
+    conversationStateRepository: c.get('conversationStateRepository'),
+    logger: c.get('apiLogger')
+  });
+}, true);
+
+// Register domain repositories
 container.register('userRepository', (c) => {
   const UserRepository = require('../core/user/repositories/UserRepository');
-  return new UserRepository();
+  return new UserRepository(c.get('supabase'), c.get('logger'));
 }, true);
 
 container.register('personalityRepository', (c) => {
   const PersonalityRepository = require('../core/personality/repositories/PersonalityRepository');
-  return new PersonalityRepository();
+  return new PersonalityRepository(c.get('supabase'), c.get('logger'));
 }, true);
 
 container.register('progressRepository', (c) => {
   const ProgressRepository = require('../core/progress/repositories/ProgressRepository');
-  return new ProgressRepository();
+  return new ProgressRepository(c.get('supabase'), c.get('logger'));
 }, true);
 
 container.register('adaptiveRepository', (c) => {
   const AdaptiveRepository = require('../core/adaptive/repositories/AdaptiveRepository');
-  return new AdaptiveRepository();
+  return new AdaptiveRepository(c.get('supabase'), c.get('logger'));
 }, true);
 
 container.register('challengeRepository', (c) => {
-  const challengeRepository = require('../core/challenge/repositories/challengeRepository');
-  return challengeRepository;
+  const ChallengeRepository = require('../core/challenge/repositories/challengeRepository');
+  return new ChallengeRepository(c.get('supabase'), c.get('challengeLogger'));
 }, true);
 
 container.register('focusAreaRepository', (c) => {
-  const FocusAreaRepository = require('../core/focusArea/repositories/focusAreaRepository');
-  return new FocusAreaRepository();
+  const focusAreaRepository = require('../core/focusArea/repositories/focusAreaRepository');
+  return focusAreaRepository;
+}, true);
+
+container.register('evaluationCategoryRepository', (c) => {
+  return require('../core/evaluation/repositories/evaluationCategoryRepository');
 }, true);
 
 container.register('evaluationRepository', (c) => {
@@ -83,116 +124,214 @@ container.register('evaluationRepository', (c) => {
 
 container.register('userJourneyRepository', (c) => {
   const UserJourneyRepository = require('../core/userJourney/repositories/UserJourneyRepository');
-  return UserJourneyRepository;
+  return new UserJourneyRepository(c.get('supabase'), c.get('logger'));
 }, true);
 
+// Register challenge configuration repositories
 container.register('challengeTypeRepository', (c) => {
-  const ChallengeTypeRepository = require('../core/challenge/repositories/ChallengeTypeRepository');
-  return new ChallengeTypeRepository();
+  const { ChallengeTypeRepository } = require('../core/challenge/config');
+  return new ChallengeTypeRepository(c.get('supabase'), c.get('challengeLogger'));
 }, true);
 
-// Register core domain services
-container.register('openaiService', (c) => {
-  const openai = require('../lib/openai');
-  return openai;
+container.register('formatTypeRepository', (c) => {
+  const { FormatTypeRepository } = require('../core/challenge/config');
+  return new FormatTypeRepository(c.get('supabase'), c.get('challengeLogger'));
 }, true);
 
+container.register('focusAreaConfigRepository', (c) => {
+  const { FocusAreaRepository } = require('../core/challenge/config');
+  return new FocusAreaRepository(c.get('supabase'), c.get('challengeLogger'));
+}, true);
+
+container.register('difficultyLevelRepository', (c) => {
+  const { DifficultyLevelRepository } = require('../core/challenge/config');
+  return new DifficultyLevelRepository(c.get('supabase'), c.get('challengeLogger'));
+}, true);
+
+// Register challenge configuration initializer
+container.register('challengeConfigInitializer', (c) => {
+  const { initializeChallengeConfig } = require('../core/challenge/config');
+  return {
+    initialize: async (shouldSeed = false) => {
+      return initializeChallengeConfig(
+        c.get('supabase'),
+        c.get('challengeLogger'),
+        shouldSeed
+      );
+    }
+  };
+}, true);
+
+// Register domain services
 container.register('userService', (c) => {
   const UserService = require('../core/user/services/UserService');
-  const userRepository = c.get('userRepository');
-  return new UserService(userRepository);
+  return new UserService(c.get('userRepository'), c.get('logger'));
+}, true);
+
+container.register('challengeService', (c) => {
+  const ChallengeService = require('../core/challenge/services/ChallengeService');
+  return new ChallengeService({
+    challengeRepository: c.get('challengeRepository'),
+    logger: c.get('challengeLogger')
+  });
 }, true);
 
 container.register('personalityService', (c) => {
   const PersonalityService = require('../core/personality/services/PersonalityService');
-  const personalityRepository = c.get('personalityRepository');
-  const promptBuilder = c.get('promptBuilder');
-  const openaiClient = c.get('openaiClient');
-  return new PersonalityService(personalityRepository, promptBuilder, openaiClient);
+  return new PersonalityService(
+    c.get('personalityRepository'), 
+    c.get('openAIClient'),
+    c.get('logger')
+  );
 }, true);
 
 container.register('progressService', (c) => {
   const ProgressService = require('../core/progress/services/ProgressService');
-  const progressRepository = c.get('progressRepository');
-  return new ProgressService(progressRepository);
+  return new ProgressService(c.get('progressRepository'), c.get('logger'));
 }, true);
 
 container.register('adaptiveService', (c) => {
   const AdaptiveService = require('../core/adaptive/services/AdaptiveService');
-  const adaptiveRepository = c.get('adaptiveRepository');
-  const userRepository = c.get('userRepository');
-  const challengeRepository = c.get('challengeRepository');
-  const progressService = c.get('progressService');
-  const focusAreaCoordinator = c.get('focusAreaCoordinator');
-  return new AdaptiveService(
-    adaptiveRepository,
-    userRepository,
-    challengeRepository,
-    progressService,
-    focusAreaCoordinator
-  );
+  return new AdaptiveService({
+    adaptiveRepository: c.get('adaptiveRepository'),
+    logger: c.get('logger')
+  });
 }, true);
 
-container.register('challengeGenerationService', (c) => {
-  const challengeGenerationService = require('../core/challenge/services/challengeGenerationService');
-  return challengeGenerationService;
+container.register('evaluationDomainService', (c) => {
+  const EvaluationDomainService = require('../core/evaluation/services/domain/EvaluationDomainService');
+  return new EvaluationDomainService({
+    evaluationCategoryRepository: c.get('evaluationCategoryRepository'),
+    logger: c.get('evaluationLogger')
+  });
 }, true);
 
-container.register('challengeEvaluationService', (c) => {
-  const challengeEvaluationService = require('../core/challenge/services/challengeEvaluationService');
-  return challengeEvaluationService;
+container.register('evaluationService', (c) => {
+  const EvaluationService = require('../core/evaluation/services/evaluationService');
+  return new EvaluationService({
+    responsesApiClient: require('../core/infra/api/responsesApiClient'),
+    logger: c.get('evaluationLogger'),
+    openAIStateManager: c.get('openAIStateManager'),
+    evaluationDomainService: c.get('evaluationDomainService')
+  });
+}, true);
+
+// Register focus area services
+container.register('focusAreaThreadService', (c) => {
+  const FocusAreaThreadService = require('../core/focusArea/services/focusAreaThreadService');
+  return new FocusAreaThreadService({
+    openAIStateManager: c.get('openAIStateManager'),
+    logger: c.get('focusAreaLogger')
+  });
 }, true);
 
 container.register('focusAreaGenerationService', (c) => {
   const FocusAreaGenerationService = require('../core/focusArea/services/focusAreaGenerationService');
-  return FocusAreaGenerationService;
+  return new FocusAreaGenerationService({
+    openAIClient: c.get('openAIClient'),
+    MessageRole: c.get('openAIConfig').MessageRole,
+    logger: c.get('focusAreaLogger')
+  });
 }, true);
 
-container.register('evaluationService', (c) => {
-  const evaluationService = require('../core/evaluation/services/evaluationService');
-  return evaluationService;
-}, true);
-
-// Application-level coordinators (renamed from services)
-container.register('challengeCoordinator', (c) => {
-  return require('../application/challengeCoordinator');
-}, true);
-
+// Register application-level coordinators
 container.register('focusAreaCoordinator', (c) => {
-  return require('../application/focusAreaCoordinator');
+  const FocusAreaCoordinator = require('../application/focusAreaCoordinator');
+  return new FocusAreaCoordinator({
+    userRepository: c.get('userRepository'),
+    challengeRepository: c.get('challengeRepository'),
+    progressRepository: c.get('progressRepository'),
+    focusAreaRepository: c.get('focusAreaRepository'),
+    focusAreaThreadService: c.get('focusAreaThreadService'),
+    focusAreaGenerationService: c.get('focusAreaGenerationService'),
+    openAIStateManager: c.get('openAIStateManager'),
+    openAIClient: c.get('openAIClient'),
+    eventBus: c.get('eventBus'),
+    EventTypes: c.get('EventTypes'),
+    logger: c.get('logger')
+  });
+}, true);
+
+container.register('challengeCoordinator', (c) => {
+  const ChallengeCoordinator = require('../application/challengeCoordinator');
+  return new ChallengeCoordinator({
+    userService: c.get('userService'),
+    challengeService: c.get('challengeService'),
+    challengeTypeRepository: c.get('challengeTypeRepository'),
+    formatTypeRepository: c.get('formatTypeRepository'),
+    focusAreaConfigRepository: c.get('focusAreaConfigRepository'),
+    difficultyLevelRepository: c.get('difficultyLevelRepository'),
+    challengeGenerationService: c.get('challengeGenerationService'),
+    challengeEvaluationService: c.get('challengeEvaluationService'),
+    openAIClient: c.get('openAIClient'),
+    openAIStateManager: c.get('openAIStateManager'),
+    logger: c.get('logger')
+  });
+}, true);
+
+// Register the UserJourneyService
+container.register('userJourneyService', (c) => {
+  const UserJourneyService = require('../core/userJourney/services/UserJourneyService');
+  return new UserJourneyService();
 }, true);
 
 container.register('userJourneyCoordinator', (c) => {
-  return require('../application/userJourneyCoordinator');
+  const UserJourneyCoordinator = require('../application/userJourneyCoordinator');
+  return new UserJourneyCoordinator({
+    userRepository: c.get('userRepository'),
+    challengeRepository: c.get('challengeRepository'),
+    userJourneyRepository: c.get('userJourneyRepository'),
+    userJourneyService: c.get('userJourneyService'),
+    logger: c.get('logger')
+  });
 }, true);
 
-// Remove any lingering legacy registrations
-container.register('progressTrackingService', (c) => {
-  const ProgressService = require('../core/progress/services/ProgressService');
-  const progressRepository = c.get('progressRepository');
-  const userJourneyCoordinator = c.get('userJourneyCoordinator');
-  return new ProgressService(progressRepository, userJourneyCoordinator);
+container.register('personalityCoordinator', (c) => {
+  const PersonalityCoordinator = require('../application/PersonalityCoordinator');
+  return new PersonalityCoordinator(
+    c.get('userService'), 
+    c.get('personalityService'),
+    c.get('personalityLogger')
+  );
 }, true);
 
-// Register ChallengeUtils from core
-container.register('challengeUtils', (c) => {
-  const ChallengeUtils = require('../core/challenge/services/ChallengeUtils');
-  const challengeTypeRepository = c.get('challengeTypeRepository');
-  return new ChallengeUtils(challengeTypeRepository);
+// Register error handling
+container.register('errorHandler', (c) => {
+  const { ErrorHandler } = require('../core/infra/errors/errorHandler');
+  return new ErrorHandler();
 }, true);
 
-// Register ChallengePerformanceService from core
-container.register('performanceMetrics', (c) => {
-  const ChallengePerformanceService = require('../core/challenge/services/ChallengePerformanceService');
-  const challengeRepository = c.get('challengeRepository');
-  return new ChallengePerformanceService(challengeRepository);
+// Register the ChallengeGenerationService
+container.register('challengeGenerationService', (c) => {
+  const ChallengeGenerationService = require('../core/challenge/services/challengeGenerationService');
+  return new ChallengeGenerationService({
+    openAIClient: c.get('openAIClient'),
+    openAIStateManager: c.get('openAIStateManager'),
+    personalityRepository: c.get('personalityRepository'),
+    openAIConfig: c.get('openAIConfig'),
+    logger: c.get('challengeLogger')
+  });
 }, true);
 
-// Register UserTraitsService from core
-container.register('traitUtils', (c) => {
-  const UserTraitsService = require('../core/user/services/UserTraitsService');
-  const userRepository = c.get('userRepository');
-  return new UserTraitsService(userRepository);
+// Register challengeEvaluationService
+container.register('challengeEvaluationService', (c) => {
+  const ChallengeEvaluationService = require('../core/challenge/services/challengeEvaluationService');
+  return new ChallengeEvaluationService({
+    openAIClient: c.get('openAIClient'),
+    openAIStateManager: c.get('openAIStateManager'),
+    openAIConfig: c.get('openAIConfig'),
+    logger: c.get('challengeLogger')
+  });
+}, true);
+
+// Register dynamicPromptService
+container.register('dynamicPromptService', (c) => {
+  const DynamicPromptService = require('../core/evaluation/services/dynamicPromptService');
+  const evaluationCategoryRepository = require('../core/evaluation/repositories/evaluationCategoryRepository');
+  return new DynamicPromptService({
+    evaluationCategoryRepository: evaluationCategoryRepository,
+    logger: c.get('evaluationLogger')
+  });
 }, true);
 
 module.exports = container;

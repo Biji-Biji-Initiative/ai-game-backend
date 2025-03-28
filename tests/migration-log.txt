@@ -1,0 +1,44 @@
+# Test Migration Log
+
+[2025-03-27T11:48:22.608Z] Starting test migration...
+[2025-03-27T11:48:22.616Z] Created directory: domain
+[2025-03-27T11:48:22.616Z] Created directory: domain/user
+[2025-03-27T11:48:22.617Z] Created directory: domain/personality
+[2025-03-27T11:48:22.617Z] Created directory: domain/challenge
+[2025-03-27T11:48:22.617Z] Created directory: domain/evaluation
+[2025-03-27T11:48:22.617Z] Created directory: domain/focusArea
+[2025-03-27T11:48:22.617Z] Created directory: domain/prompt
+[2025-03-27T11:48:22.618Z] Created directory: domain/shared
+[2025-03-27T11:48:22.618Z] Created directory: application
+[2025-03-27T11:48:22.618Z] Created directory: integration
+[2025-03-27T11:48:22.618Z] Created directory: e2e
+[2025-03-27T11:48:22.619Z] Created directory: external/openai
+[2025-03-27T11:48:22.619Z] Created directory: external/supabase
+[2025-03-27T11:48:22.619Z] Created directory: unit
+[2025-03-27T11:48:22.619Z] Migrated: domains/challenge/Challenge.test.js -> domain/challenge/challenge.model.test.js
+[2025-03-27T11:48:22.620Z] Migrated: domains/challenge/challengeDomain.test.js -> domain/challenge/challenge.collaborators.test.js
+[2025-03-27T11:48:22.620Z] Migrated: domains/challenge/challengeFocusAreaIntegration.test.js -> integration/challengeFocusArea.workflow.test.js
+[2025-03-27T11:48:22.621Z] Migrated: domains/challenge/legacy-Challenge.test.js -> legacy/challenge-legacy.test.js
+[2025-03-27T11:48:22.621Z] Migrated: domains/evaluation/Evaluation.test.js -> domain/evaluation/evaluation.model.test.js
+[2025-03-27T11:48:22.621Z] Migrated: domains/evaluation/evaluationCategoryRepository.test.js -> domain/evaluation/evaluationCategory.repository.test.js
+[2025-03-27T11:48:22.622Z] Migrated: domains/evaluation/evaluationPrompt.test.js -> domain/prompt/builders/evaluation.builder.test.js
+[2025-03-27T11:48:22.622Z] Migrated: domains/evaluation/legacy-Evaluation.test.js -> legacy/evaluation-legacy.test.js
+[2025-03-27T11:48:22.623Z] Migrated: domains/personality/controllers/PersonalityController.test.js -> unit/personality/personality.controller.test.js
+[2025-03-27T11:48:22.623Z] Migrated: domains/personality/services/TraitsAnalysisService.test.js -> domain/personality/traitsAnalysis.service.test.js
+[2025-03-27T11:48:22.624Z] Migrated: domains/prompt/promptBuilder.test.js -> domain/prompt/promptBuilder.facade.test.js
+[2025-03-27T11:48:22.624Z] Migrated: domains/prompt/schemaValidation.test.js -> domain/prompt/promptSchemas.validation.test.js
+[2025-03-27T11:48:22.625Z] Migrated: domains/user/controllers/UserController.test.js -> unit/user/user.controller.test.js
+[2025-03-27T11:48:22.625Z] Migrated: domains/user/services/UserService.test.js -> domain/user/user.service.test.js
+[2025-03-27T11:48:22.625Z] Migrated: infrastructure/services/MockInsightGenerator.test.js -> unit/infra/MockInsightGenerator.adapter.test.js
+[2025-03-27T11:48:22.626Z] Migrated: api/cross-domain/challengeWorkflow.test.js -> e2e/challengeCycle.e2e.test.js
+[2025-03-27T11:48:22.626Z] Migrated: api/cross-domain/user-personality-interaction.test.js -> e2e/userPersonality.e2e.test.js
+[2025-03-27T11:48:22.627Z] Migrated: api/user/userApi.test.js -> e2e/userLifecycle.e2e.test.js
+[2025-03-27T11:48:22.627Z] Migrated: api/personality/personalityApi.test.js -> e2e/personality.e2e.test.js
+[2025-03-27T11:48:22.627Z] Migrated: shared/common/domainEvents.test.js -> domain/shared/domainEvents.test.js
+[2025-03-27T11:48:22.628Z] Marked for review: integration/challenge-evaluation-flow.test.js
+[2025-03-27T11:48:22.629Z] Marked for review: integration/evaluation-flow.test.js
+[2025-03-27T11:48:22.629Z] Marked for review: integration/focus-area-flow.test.js
+[2025-03-27T11:48:22.630Z] Marked for review: integration/openai-supabase-flow.test.js
+[2025-03-27T11:48:22.630Z] Marked for review: integration/prompt-flow.test.js
+[2025-03-27T11:48:22.631Z] Marked for review: integration/user-flow.test.js
+[2025-03-27T11:48:22.631Z] Migration completed. See migration-log.txt for details.

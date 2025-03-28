@@ -3,13 +3,20 @@
  * Handles database operations for evaluations
  * 
  * @module evaluationRepository
- * @requires supabase
+ * @requires supabaseClient
  * @requires logger
+ * @requires Evaluation
+ * @requires EvaluationSchema
  */
 
-const supabase = require('../../../lib/supabase');
+const { supabaseClient: supabase } = require('../../../core/infra/db/supabaseClient');
 const { logger } = require('../../../core/infra/logging/logger');
 const Evaluation = require('../models/Evaluation');
+const { 
+  EvaluationSchema, 
+  EvaluationUpdateSchema, 
+  EvaluationSearchOptionsSchema 
+} = require('../schemas/EvaluationSchema');
 
 // Helper function for logging if logger exists
 function log(level, message, meta = {}) {
@@ -27,35 +34,43 @@ function log(level, message, meta = {}) {
  */
 const createEvaluation = async (evaluationData) => {
   try {
-    const { userId, challengeId, threadId } = evaluationData;
+    // Validate the evaluation data with Zod schema
+    const validationResult = EvaluationSchema.safeParse(evaluationData);
     
-    if (!userId || !challengeId) {
-      throw new Error('User ID and Challenge ID are required to create an evaluation');
+    if (!validationResult.success) {
+      log('error', 'Evaluation validation failed', { 
+        errors: validationResult.error.flatten() 
+      });
+      throw new Error(`Evaluation validation failed: ${validationResult.error.message}`);
     }
     
+    // Use validated data
+    const validData = validationResult.data;
+    const { userId, challengeId, threadId } = validData;
+    
     // Generate an evaluation ID if not provided
-    const id = evaluationData.id || Evaluation.createNewId();
+    const id = validData.id || Evaluation.createNewId();
     
     // Convert domain model fields to database fields (camelCase to snake_case)
     const dbData = {
       id,
       user_id: userId,
       challenge_id: challengeId,
-      overall_score: evaluationData.score,
-      category_scores: evaluationData.categoryScores || {},
-      feedback: evaluationData.overallFeedback,
-      overall_feedback: evaluationData.overallFeedback,
-      strengths: evaluationData.strengths || [],
-      strength_analysis: evaluationData.strengthAnalysis || [],
-      areas_for_improvement: evaluationData.areasForImprovement || [],
-      next_steps: evaluationData.nextSteps,
+      overall_score: validData.score,
+      category_scores: validData.categoryScores || {},
+      feedback: validData.overallFeedback,
+      overall_feedback: validData.overallFeedback,
+      strengths: validData.strengths || [],
+      strength_analysis: validData.strengthAnalysis || [],
+      areas_for_improvement: validData.areasForImprovement || [],
+      next_steps: validData.nextSteps,
       thread_id: threadId,
       evaluation_thread_id: threadId,
-      response_id: evaluationData.responseId,
-      metrics: evaluationData.metrics || {},
-      metadata: evaluationData.metadata || {},
-      created_at: evaluationData.createdAt || new Date().toISOString(),
-      updated_at: evaluationData.updatedAt || new Date().toISOString()
+      response_id: validData.responseId,
+      metrics: validData.metrics || {},
+      metadata: validData.metadata || {},
+      created_at: validData.createdAt || new Date().toISOString(),
+      updated_at: validData.updatedAt || new Date().toISOString()
     };
     
     // Insert into database
@@ -124,21 +139,34 @@ const updateEvaluation = async (evaluationId, updateData) => {
       throw new Error('Evaluation ID is required for updates');
     }
     
+    // Validate update data with Zod schema
+    const validationResult = EvaluationUpdateSchema.safeParse(updateData);
+    
+    if (!validationResult.success) {
+      log('error', 'Evaluation update validation failed', { 
+        errors: validationResult.error.flatten() 
+      });
+      throw new Error(`Evaluation update validation failed: ${validationResult.error.message}`);
+    }
+    
+    // Use validated data
+    const validData = validationResult.data;
+    
     // Prepare update data (convert camelCase to snake_case)
     const dbUpdateData = {
-      overall_score: updateData.score,
-      category_scores: updateData.categoryScores,
-      feedback: updateData.overallFeedback,
-      overall_feedback: updateData.overallFeedback,
-      strengths: updateData.strengths,
-      strength_analysis: updateData.strengthAnalysis,
-      areas_for_improvement: updateData.areasForImprovement,
-      next_steps: updateData.nextSteps,
-      thread_id: updateData.threadId,
-      evaluation_thread_id: updateData.threadId,
-      response_id: updateData.responseId,
-      metrics: updateData.metrics,
-      metadata: updateData.metadata,
+      overall_score: validData.score,
+      category_scores: validData.categoryScores,
+      feedback: validData.overallFeedback,
+      overall_feedback: validData.overallFeedback,
+      strengths: validData.strengths,
+      strength_analysis: validData.strengthAnalysis,
+      areas_for_improvement: validData.areasForImprovement,
+      next_steps: validData.nextSteps,
+      thread_id: validData.threadId,
+      evaluation_thread_id: validData.threadId,
+      response_id: validData.responseId,
+      metrics: validData.metrics,
+      metadata: validData.metadata,
       updated_at: new Date().toISOString()
     };
     
@@ -215,7 +243,10 @@ const getEvaluationsForUser = async (userId, options = {}) => {
       throw new Error('User ID is required');
     }
     
-    const { limit = 10, offset = 0 } = options;
+    // Validate options with Zod schema
+    const validatedOptions = EvaluationSearchOptionsSchema.parse(options);
+    
+    const { limit = 10, offset = 0 } = validatedOptions;
     
     let query = supabase
       .from('evaluations')
@@ -225,8 +256,8 @@ const getEvaluationsForUser = async (userId, options = {}) => {
       .range(offset, offset + limit - 1);
     
     // Add challenge_id filter if provided
-    if (options.challengeId) {
-      query = query.eq('challenge_id', options.challengeId);
+    if (validatedOptions.challengeId) {
+      query = query.eq('challenge_id', validatedOptions.challengeId);
     }
     
     const { data, error } = await query;
@@ -253,6 +284,17 @@ const saveEvaluation = async (evaluation) => {
   try {
     if (!evaluation || !evaluation.isValid()) {
       throw new Error('Valid evaluation instance is required');
+    }
+    
+    // Convert evaluation to object and validate with Zod
+    const evaluationData = evaluation.toObject();
+    const validationResult = EvaluationSchema.safeParse(evaluationData);
+    
+    if (!validationResult.success) {
+      log('error', 'Evaluation validation failed during save', { 
+        errors: validationResult.error.flatten() 
+      });
+      throw new Error(`Evaluation validation failed: ${validationResult.error.message}`);
     }
     
     const { userId, challengeId } = evaluation;

@@ -389,3 +389,99 @@ npm run test:cross-domain # Test cross-domain communication
 - **Verifies Repository Pattern**: Tests that data persistence works correctly
 
 These integration tests complement unit tests by verifying that components work together as expected, ensuring the robustness of our DDD architecture.
+
+# Responses API Development Project
+
+## Script Organization
+
+This project has been organized with a clear structure for scripts:
+
+### Core Scripts (`scripts/`)
+
+Essential scripts for testing, environment setup, and database operations:
+- Test execution scripts (run-tests.js, run-tests-with-db-check.sh)
+- Environment setup (setup-test-env.js, create-test-user.js)
+- Database operations (planned to be replaced with Supabase CLI)
+
+[View scripts documentation](scripts/README.md)
+
+### Development Scripts (`dev-scripts/`)
+
+Utilities for manual debugging, testing, and exploration:
+- Authentication testing
+- Evaluation flow testing
+- OpenAI API exploration
+- Prompt building testing
+
+[View dev-scripts documentation](dev-scripts/README.md)
+
+### Archived Scripts (`archive/scripts/`)
+
+One-time scripts used during refactoring or migration that are kept for reference only:
+- Test structure migration scripts
+- Cleanup scripts
+- Import update utilities
+
+[View archived scripts documentation](archive/scripts/README.md)
+
+## Development Workflow
+
+### Running Tests
+
+```bash
+# Run the interactive test runner
+npm run test:run
+
+# Run tests with database connectivity checks
+npm run test:integration:with-checks
+
+# Run specific test domains
+npm run test:domain:user
+npm run test:domain:challenge
+```
+
+### Setting Up Environment
+
+```bash
+# Set up test environment
+npm run setup:test
+
+# Create a test user for testing
+npm run setup:test-user
+
+# Get an authentication token
+npm run get:token
+```
+
+### Database Operations
+
+We've started migrating to Supabase CLI for database operations:
+
+```bash
+# Create a new migration
+npm run migrate your-migration-name
+
+# Push migrations to the database
+npm run db:push
+
+# Reset the database
+npm run db:reset
+```
+
+## Using Development Scripts
+
+For manual testing and debugging:
+
+```bash
+# Test authentication
+npm run dev:auth
+
+# Test evaluation flow
+npm run dev:flow
+
+# Test OpenAI integration
+npm run dev:openai
+
+# View stored evaluations
+npm run dev:view-evals
+```

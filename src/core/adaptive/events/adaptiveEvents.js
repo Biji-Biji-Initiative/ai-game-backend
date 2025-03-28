@@ -5,7 +5,7 @@
  * Following DDD principles, these events are used to communicate changes
  * in the domain to other domains.
  */
-const { EventTypes, eventBus, DomainEvent } = require('../../shared/domainEvents');
+const { EventTypes, eventBus, DomainEvent } = require('../../common/events/domainEvents');
 const { logger } = require('../../../core/infra/logging/logger');
 
 /**
@@ -46,10 +46,31 @@ function registerAdaptiveEventHandlers() {
     
     // In a real implementation, we would generate personalized recommendations based on the profile
     // For now, we just log the event
-    logger.info('Would generate adaptive recommendations based on personality profile', {
-      userEmail: event.payload.userEmail,
-      dominantTraits: event.payload.profile.dominantTraits
-    });
+    const userId = event.payload.userId;
+    const updateType = event.payload.updateType;
+    
+    // Handle different update types safely
+    if (updateType === 'traits' && event.payload.traits) {
+      logger.info('Would generate adaptive recommendations based on personality traits', {
+        userId,
+        traits: event.payload.traits
+      });
+    } else if (updateType === 'attitudes' && event.payload.aiAttitudes) {
+      logger.info('Would generate adaptive recommendations based on AI attitudes', {
+        userId,
+        aiAttitudes: event.payload.aiAttitudes
+      });
+    } else if (updateType === 'insights' && event.payload.insights) {
+      logger.info('Would generate adaptive recommendations based on personality insights', {
+        userId,
+        hasInsights: !!event.payload.insights
+      });
+    } else {
+      logger.info('Received personality update with unknown or incomplete data', {
+        userId,
+        updateType
+      });
+    }
   });
   
   // Subscribe to progress updated events

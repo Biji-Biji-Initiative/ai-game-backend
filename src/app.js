@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
+const path = require('path');
 
 // Import container for dependency injection
 const container = require('./config/container');
@@ -11,12 +12,13 @@ const config = container.get('config');
 const logger = container.get('logger');
 const { requestLogger, errorLogger } = require('./core/infra/logging/logger');
 const { errorHandler, notFoundHandler } = require('./core/infra/errors/errorHandler');
+const { responseFormatterMiddleware } = require('./core/infra/http/responseFormatter');
 
 // Import routes
 const apiRoutes = require('./routes/index');
 
 // Import domain events system
-const { eventBus, EventTypes } = require('./core/shared/domainEvents');
+const { eventBus, EventTypes } = require('./core/common/events/domainEvents');
 
 // Import domain event handlers
 const { registerEvaluationEventHandlers } = require('./core/evaluation/events/evaluationEvents');
@@ -27,6 +29,10 @@ const { registerUserJourneyEventHandlers } = require('./core/userJourney/events/
 const { registerFocusAreaEventHandlers } = require('./core/focusArea/events/focusAreaEvents');
 const { registerChallengeEventHandlers } = require('./core/challenge/events/challengeEvents');
 const { registerUserEventHandlers } = require('./core/user/events/userEvents');
+
+// Register application event handlers
+const { registerEventHandlers } = require('./application/EventHandlers');
+registerEventHandlers(container);
 
 // Initialize Express app
 const app = express();
@@ -45,6 +51,14 @@ app.use((req, res, next) => {
 
 // Request logging
 app.use(requestLogger);
+
+// Serve the API Tester UI static files
+const testerUiPath = path.join(__dirname, '../api-tester-ui');
+app.use('/tester', express.static(testerUiPath));
+logger.info(`API Tester UI available at /tester`);
+
+// Add response formatter middleware
+app.use(responseFormatterMiddleware);
 
 // Initialize Supabase (will be implemented when Supabase is integrated)
 const { initializeSupabase } = require('./core/infra/db/databaseConnection');

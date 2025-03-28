@@ -7,45 +7,14 @@
 
 const User = require('../models/User');
 const UserRepository = require('../repositories/UserRepository');
-const domainEvents = require('../../shared/domainEvents');
+const { EventTypes, eventBus } = require('../../common/events/domainEvents');
 const { v4: uuidv4 } = require('uuid');
+const { userLogger } = require('../../infra/logging/domainLogger');
 
 class UserService {
   constructor(userRepository) {
     this.userRepository = userRepository || new UserRepository();
-    
-    // Register event handlers for personality domain events
-    this._registerPersonalityEventHandlers();
-  }
-  
-  /**
-   * Register event handlers for personality domain events
-   * @private
-   */
-  _registerPersonalityEventHandlers() {
-    // These events are handled for compatibility but don't affect the user model anymore
-    domainEvents.subscribe('PersonalityTraitsUpdatedForUser', this._handlePersonalityTraitsUpdated.bind(this));
-    domainEvents.subscribe('AIAttitudesUpdatedForUser', this._handleAIAttitudesUpdated.bind(this));
-  }
-  
-  /**
-   * Handle personality traits updated event
-   * @param {Object} event - Event data
-   * @private
-   */
-  async _handlePersonalityTraitsUpdated(event) {
-    // Just log the event - personality data is no longer stored in the user model
-    console.log(`Personality traits updated for user ${event.userId}`);
-  }
-  
-  /**
-   * Handle AI attitudes updated event
-   * @param {Object} event - Event data
-   * @private
-   */
-  async _handleAIAttitudesUpdated(event) {
-    // Just log the event - AI attitudes are no longer stored in the user model
-    console.log(`AI attitudes updated for user ${event.userId}`);
+    this.logger = userLogger.child('service');
   }
 
   /**
@@ -80,7 +49,7 @@ class UserService {
       const savedUser = await this.userRepository.save(user);
       
       // Publish user created event
-      await domainEvents.publish('UserCreated', {
+      await eventBus.publishEvent(EventTypes.USER_CREATED, {
         userId: savedUser.id,
         email: savedUser.email
       });
@@ -191,7 +160,7 @@ class UserService {
       
       // Publish user deleted event
       if (result) {
-        await domainEvents.publish('UserDeleted', {
+        await eventBus.publishEvent(EventTypes.USER_DELETED, {
           userId: id
         });
       }
@@ -240,6 +209,208 @@ class UserService {
       return this.userRepository.save(user);
     } catch (error) {
       console.error('UserService.setUserFocusArea error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Activate a user account
+   * @param {string} userId - User ID
+   * @returns {Promise<User>} Updated user
+   */
+  async activateUser(userId) {
+    try {
+      this.logger.debug(`Activating user: ${userId}`);
+      
+      // Get existing user
+      const user = await this.userRepository.findById(userId);
+      if (!user) {
+        throw new Error(`User with ID ${userId} not found`);
+      }
+
+      // Use the domain model method to activate
+      user.activate();
+
+      // Save the updated user - domain events published in the model
+      return this.userRepository.save(user);
+    } catch (error) {
+      this.logger.error('UserService.activateUser error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Deactivate a user account
+   * @param {string} userId - User ID
+   * @returns {Promise<User>} Updated user
+   */
+  async deactivateUser(userId) {
+    try {
+      this.logger.debug(`Deactivating user: ${userId}`);
+      
+      // Get existing user
+      const user = await this.userRepository.findById(userId);
+      if (!user) {
+        throw new Error(`User with ID ${userId} not found`);
+      }
+
+      // Use the domain model method to deactivate
+      user.deactivate();
+
+      // Save the updated user - domain events published in the model
+      return this.userRepository.save(user);
+    } catch (error) {
+      this.logger.error('UserService.deactivateUser error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Mark user onboarding as completed
+   * @param {string} userId - User ID
+   * @returns {Promise<User>} Updated user
+   */
+  async completeUserOnboarding(userId) {
+    try {
+      this.logger.debug(`Completing onboarding for user: ${userId}`);
+      
+      // Get existing user
+      const user = await this.userRepository.findById(userId);
+      if (!user) {
+        throw new Error(`User with ID ${userId} not found`);
+      }
+
+      // Use the domain model method to complete onboarding
+      user.completeOnboarding();
+
+      // Save the updated user - domain events published in the model
+      return this.userRepository.save(user);
+    } catch (error) {
+      this.logger.error('UserService.completeUserOnboarding error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Add a role to a user
+   * @param {string} userId - User ID
+   * @param {string} role - Role to add
+   * @returns {Promise<User>} Updated user
+   */
+  async addUserRole(userId, role) {
+    try {
+      this.logger.debug(`Adding role "${role}" to user: ${userId}`);
+      
+      // Get existing user
+      const user = await this.userRepository.findById(userId);
+      if (!user) {
+        throw new Error(`User with ID ${userId} not found`);
+      }
+
+      // Use the domain model method to add role
+      user.addRole(role);
+
+      // Save the updated user - domain events published in the model
+      return this.userRepository.save(user);
+    } catch (error) {
+      this.logger.error('UserService.addUserRole error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove a role from a user
+   * @param {string} userId - User ID
+   * @param {string} role - Role to remove
+   * @returns {Promise<User>} Updated user
+   */
+  async removeUserRole(userId, role) {
+    try {
+      this.logger.debug(`Removing role "${role}" from user: ${userId}`);
+      
+      // Get existing user
+      const user = await this.userRepository.findById(userId);
+      if (!user) {
+        throw new Error(`User with ID ${userId} not found`);
+      }
+
+      // Use the domain model method to remove role
+      user.removeRole(role);
+
+      // Save the updated user - domain events published in the model
+      return this.userRepository.save(user);
+    } catch (error) {
+      this.logger.error('UserService.removeUserRole error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Record a user login
+   * @param {string} userId - User ID
+   * @returns {Promise<User>} Updated user
+   */
+  async recordUserLogin(userId) {
+    try {
+      this.logger.debug(`Recording login for user: ${userId}`);
+      
+      // Get existing user
+      const user = await this.userRepository.findById(userId);
+      if (!user) {
+        throw new Error(`User with ID ${userId} not found`);
+      }
+
+      // Use the domain model method to record login
+      user.recordLogin();
+
+      // Save the updated user - domain events published in the model
+      return this.userRepository.save(user);
+    } catch (error) {
+      this.logger.error('UserService.recordUserLogin error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update a user preference
+   * @param {string} userId - User ID
+   * @param {string} key - Preference key
+   * @param {any} value - Preference value
+   * @returns {Promise<User>} Updated user
+   */
+  async updateUserPreference(userId, key, value) {
+    try {
+      this.logger.debug(`Updating preference "${key}" for user: ${userId}`);
+      
+      // Get existing user
+      const user = await this.userRepository.findById(userId);
+      if (!user) {
+        throw new Error(`User with ID ${userId} not found`);
+      }
+
+      // Use the domain model method to set preference
+      user.setPreference(key, value);
+
+      // Save the updated user
+      return this.userRepository.save(user);
+    } catch (error) {
+      this.logger.error('UserService.updateUserPreference error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Find users by role
+   * @param {string} role - Role to search for
+   * @param {Object} options - Query options (limit, offset, orderBy)
+   * @returns {Promise<Array<User>>} List of matching users
+   */
+  async findUsersByRole(role, options = {}) {
+    try {
+      this.logger.debug(`Finding users with role: ${role}`);
+      return this.userRepository.findByRole(role, options);
+    } catch (error) {
+      this.logger.error('UserService.findUsersByRole error:', error);
       throw error;
     }
   }

@@ -5,7 +5,7 @@
  * based on user performance, profile, and learning history.
  */
 
-const domainEvents = require('../../shared/domainEvents');
+const domainEvents = require('../../common/events/domainEvents');
 const { v4: uuidv4 } = require('uuid');
 
 class Recommendation {

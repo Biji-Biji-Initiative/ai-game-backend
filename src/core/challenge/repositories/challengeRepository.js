@@ -3,56 +3,86 @@
  * 
  * Responsible for data access operations related to challenges.
  * Follows the repository pattern to abstract database access from domain logic.
+ * Uses Supabase as the data store.
  * 
  * @module challengeRepository
- * @requires logger
  * @requires Challenge
+ * @requires ChallengeSchema
+ * @requires ChallengeError
  */
 
-const { logger } = require('../../../core/infra/logging/logger');
 const Challenge = require('../models/Challenge');
+const { 
+  ChallengeSchema, 
+  ChallengeUpdateSchema, 
+  ChallengeSearchSchema, 
+  SearchOptionsSchema 
+} = require('../schemas/ChallengeSchema');
+const { 
+  ChallengeNotFoundError, 
+  ChallengePersistenceError, 
+  ChallengeValidationError 
+} = require('../errors/ChallengeErrors');
+const { challengeLogger } = require('../../../core/infra/logging/domainLogger');
+const { eventBus, EventTypes } = require('../../common/events/domainEvents');
 
 class ChallengeRepository {
-  constructor() {
-    // Simulation of database in memory for this example
-    // In a real application, this would be replaced with database calls
-    this.challengesDb = new Map();
-    this.idCounter = 1;
+  /**
+   * Create a new ChallengeRepository
+   * @param {Object} supabase - Supabase client
+   * @param {Object} logger - Logger instance
+   */
+  constructor(supabase, logger = null) {
+    this.supabase = supabase;
+    this.tableName = 'challenges';
+    this.logger = logger || challengeLogger.child({ component: 'repository:challenge' });
   }
 
   /**
-   * Helper function for logging if logger exists
+   * Log a message with context
+   * @param {string} level - Log level
+   * @param {string} message - Log message
+   * @param {Object} context - Additional context
+   * @private
    */
-  log(level, message, meta = {}) {
-    if (logger && typeof logger[level] === 'function') {
-      logger[level](message, meta);
-    } else {
-      console[level === 'error' ? 'error' : 'log'](message, meta);
-    }
+  log(level, message, context = {}) {
+    this.logger[level](message, context);
   }
 
   /**
    * Find a challenge by its ID
    * @param {string} id - Challenge ID
    * @returns {Promise<Challenge|null>} Challenge object or null if not found
+   * @throws {ChallengePersistenceError} If database operation fails
    */
   async findById(id) {
     try {
-      const challenge = this.challengesDb.get(id);
+      this.log('debug', 'Finding challenge by ID', { id });
       
-      if (!challenge) {
+      const { data, error } = await this.supabase
+        .from(this.tableName)
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) {
+        this.log('error', 'Error finding challenge by ID', { id, error });
+        throw new ChallengePersistenceError(`Failed to fetch challenge: ${error.message}`);
+      }
+      
+      if (!data) {
+        this.log('debug', 'Challenge not found', { id });
         return null;
       }
       
-      return challenge instanceof Challenge 
-        ? challenge 
-        : new Challenge(challenge);
+      return Challenge.fromDatabase(data);
     } catch (error) {
-      this.log('error', 'Error finding challenge by ID', { 
-        id, 
-        error: error.message 
-      });
-      throw error;
+      if (error instanceof ChallengePersistenceError) {
+        throw error;
+      }
+      
+      this.log('error', 'Error in findById', { id, error: error.message });
+      throw new ChallengePersistenceError(`Failed to find challenge: ${error.message}`);
     }
   }
 
@@ -60,28 +90,30 @@ class ChallengeRepository {
    * Find challenges by user ID
    * @param {string} userId - User ID
    * @returns {Promise<Array<Challenge>>} Array of challenges
+   * @throws {ChallengePersistenceError} If database operation fails
    */
   async findByUserId(userId) {
     try {
-      const challenges = [];
+      this.log('debug', 'Finding challenges by user ID', { userId });
       
-      for (const challenge of this.challengesDb.values()) {
-        if (challenge.userId === userId) {
-          challenges.push(
-            challenge instanceof Challenge 
-              ? challenge 
-              : new Challenge(challenge)
-          );
-        }
+      const { data, error } = await this.supabase
+        .from(this.tableName)
+        .select('*')
+        .eq('user_id', userId);
+
+      if (error) {
+        this.log('error', 'Error finding challenges by user ID', { userId, error });
+        throw new ChallengePersistenceError(`Failed to fetch challenges: ${error.message}`);
       }
       
-      return challenges;
+      return (data || []).map(record => Challenge.fromDatabase(record));
     } catch (error) {
-      this.log('error', 'Error finding challenges by user ID', { 
-        userId, 
-        error: error.message 
-      });
-      throw error;
+      if (error instanceof ChallengePersistenceError) {
+        throw error;
+      }
+      
+      this.log('error', 'Error in findByUserId', { userId, error: error.message });
+      throw new ChallengePersistenceError(`Failed to find challenges by user ID: ${error.message}`);
     }
   }
 
@@ -89,28 +121,30 @@ class ChallengeRepository {
    * Find challenges by focus area
    * @param {string} focusArea - Focus area name
    * @returns {Promise<Array<Challenge>>} Array of challenges
+   * @throws {ChallengePersistenceError} If database operation fails
    */
   async findByFocusArea(focusArea) {
     try {
-      const challenges = [];
+      this.log('debug', 'Finding challenges by focus area', { focusArea });
       
-      for (const challenge of this.challengesDb.values()) {
-        if (challenge.focusArea === focusArea) {
-          challenges.push(
-            challenge instanceof Challenge 
-              ? challenge 
-              : new Challenge(challenge)
-          );
-        }
+      const { data, error } = await this.supabase
+        .from(this.tableName)
+        .select('*')
+        .eq('focus_area', focusArea);
+
+      if (error) {
+        this.log('error', 'Error finding challenges by focus area', { focusArea, error });
+        throw new ChallengePersistenceError(`Failed to fetch challenges: ${error.message}`);
       }
       
-      return challenges;
+      return (data || []).map(record => Challenge.fromDatabase(record));
     } catch (error) {
-      this.log('error', 'Error finding challenges by focus area', { 
-        focusArea, 
-        error: error.message 
-      });
-      throw error;
+      if (error instanceof ChallengePersistenceError) {
+        throw error;
+      }
+      
+      this.log('error', 'Error in findByFocusArea', { focusArea, error: error.message });
+      throw new ChallengePersistenceError(`Failed to find challenges by focus area: ${error.message}`);
     }
   }
 
@@ -118,35 +152,114 @@ class ChallengeRepository {
    * Save a challenge to the database
    * @param {Challenge} challenge - Challenge to save
    * @returns {Promise<Challenge>} Saved challenge
+   * @throws {ChallengeValidationError} If challenge fails validation
+   * @throws {ChallengePersistenceError} If database operation fails
    */
   async save(challenge) {
     try {
       if (!(challenge instanceof Challenge)) {
-        throw new Error('Can only save Challenge instances');
+        throw new ChallengeValidationError('Can only save Challenge instances');
       }
       
-      // If it's a new challenge without an ID, generate one
-      if (!challenge.id) {
-        challenge.id = (this.idCounter++).toString();
+      // Validate the challenge using Zod schema
+      const challengeData = challenge.toDatabase();
+      const validationResult = ChallengeSchema.safeParse(challenge.toObject());
+      
+      if (!validationResult.success) {
+        this.log('error', 'Challenge validation failed', { 
+          errors: validationResult.error.flatten() 
+        });
+        throw new ChallengeValidationError(`Challenge validation failed: ${validationResult.error.message}`);
       }
+      
+      // If it's a new challenge without an ID, update might be needed
+      const isUpdate = await this.findById(challenge.id) !== null;
       
       // Update the updatedAt timestamp
-      challenge.updatedAt = new Date().toISOString();
+      challengeData.updated_at = new Date().toISOString();
       
-      // Store in our mock database
-      this.challengesDb.set(challenge.id, challenge);
+      let result;
+      
+      if (isUpdate) {
+        // Update existing challenge
+        this.log('debug', 'Updating existing challenge', { id: challenge.id });
+        
+        const { data, error } = await this.supabase
+          .from(this.tableName)
+          .update(challengeData)
+          .eq('id', challenge.id)
+          .select()
+          .single();
+        
+        if (error) {
+          this.log('error', 'Error updating challenge', { id: challenge.id, error });
+          throw new ChallengePersistenceError(`Failed to update challenge: ${error.message}`);
+        }
+        
+        result = data;
+      } else {
+        // Insert new challenge
+        this.log('debug', 'Creating new challenge', { id: challenge.id });
+        
+        const { data, error } = await this.supabase
+          .from(this.tableName)
+          .insert(challengeData)
+          .select()
+          .single();
+        
+        if (error) {
+          this.log('error', 'Error creating challenge', { id: challenge.id, error });
+          throw new ChallengePersistenceError(`Failed to create challenge: ${error.message}`);
+        }
+        
+        result = data;
+      }
       
       this.log('debug', 'Saved challenge', { 
         id: challenge.id, 
         title: challenge.title 
       });
       
-      return challenge;
+      // Create domain object from database result
+      const savedChallenge = Challenge.fromDatabase(result);
+      
+      // Publish domain events if any
+      if (challenge.domainEvents && Array.isArray(challenge.domainEvents) && challenge.domainEvents.length > 0) {
+        for (const event of challenge.domainEvents) {
+          await eventBus.publish(event);
+        }
+        
+        this.log('debug', 'Published domain events for challenge', {
+          id: challenge.id,
+          eventCount: challenge.domainEvents.length
+        });
+        
+        // Clear events after publishing
+        challenge.domainEvents = [];
+      } else if (!isUpdate) {
+        // If there are no collected events but this is a new challenge, publish a creation event
+        await eventBus.publishEvent(EventTypes.CHALLENGE_CREATED, {
+          challengeId: savedChallenge.id,
+          userId: savedChallenge.userId,
+          challengeType: savedChallenge.challengeType,
+          focusArea: savedChallenge.focusArea
+        });
+        
+        this.log('debug', 'Published challenge created event', { id: savedChallenge.id });
+      }
+      
+      return savedChallenge;
     } catch (error) {
+      if (error instanceof ChallengeValidationError || 
+          error instanceof ChallengePersistenceError) {
+        throw error;
+      }
+      
       this.log('error', 'Error saving challenge', { 
+        id: challenge?.id,
         error: error.message 
       });
-      throw error;
+      throw new ChallengePersistenceError(`Failed to save challenge: ${error.message}`);
     }
   }
 
@@ -154,24 +267,31 @@ class ChallengeRepository {
    * Delete a challenge by ID
    * @param {string} id - Challenge ID to delete
    * @returns {Promise<boolean>} True if deleted, false if not found
+   * @throws {ChallengePersistenceError} If database operation fails
    */
   async deleteById(id) {
     try {
-      const existed = this.challengesDb.has(id);
+      this.log('debug', 'Deleting challenge', { id });
       
-      if (existed) {
-        this.challengesDb.delete(id);
-        
-        this.log('debug', 'Deleted challenge', { id });
+      const { error } = await this.supabase
+        .from(this.tableName)
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        this.log('error', 'Error deleting challenge', { id, error });
+        throw new ChallengePersistenceError(`Failed to delete challenge: ${error.message}`);
       }
       
-      return existed;
+      this.log('debug', 'Deleted challenge', { id });
+      return true;
     } catch (error) {
-      this.log('error', 'Error deleting challenge', { 
-        id, 
-        error: error.message 
-      });
-      throw error;
+      if (error instanceof ChallengePersistenceError) {
+        throw error;
+      }
+      
+      this.log('error', 'Error in deleteById', { id, error: error.message });
+      throw new ChallengePersistenceError(`Failed to delete challenge: ${error.message}`);
     }
   }
 
@@ -189,66 +309,118 @@ class ChallengeRepository {
    * @param {string} [options.sortBy] - Field to sort by
    * @param {string} [options.sortOrder] - Sort order ('asc' or 'desc')
    * @returns {Promise<Array<Challenge>>} Array of matching challenges
+   * @throws {ChallengeValidationError} If criteria or options fail validation
+   * @throws {ChallengePersistenceError} If database operation fails
    */
   async findByCriteria(criteria = {}, options = {}) {
     try {
-      let matches = Array.from(this.challengesDb.values());
+      // Validate search criteria and options
+      const validCriteria = ChallengeSearchSchema.safeParse(criteria);
+      const validOptions = SearchOptionsSchema.safeParse(options);
       
-      // Filter by criteria
+      if (!validCriteria.success) {
+        throw new ChallengeValidationError(`Invalid search criteria: ${validCriteria.error.message}`);
+      }
+      
+      if (!validOptions.success) {
+        throw new ChallengeValidationError(`Invalid search options: ${validOptions.error.message}`);
+      }
+      
+      this.log('debug', 'Finding challenges by criteria', { criteria, options });
+      
+      // Start building query
+      let query = this.supabase
+        .from(this.tableName)
+        .select('*');
+      
+      // Apply filters based on criteria
       if (criteria.userId) {
-        matches = matches.filter(challenge => challenge.userId === criteria.userId);
+        query = query.eq('user_id', criteria.userId);
       }
       
       if (criteria.focusArea) {
-        matches = matches.filter(challenge => challenge.focusArea === criteria.focusArea);
+        query = query.eq('focus_area', criteria.focusArea);
       }
       
       if (criteria.difficulty) {
-        matches = matches.filter(challenge => challenge.difficulty === criteria.difficulty);
+        query = query.eq('difficulty', criteria.difficulty);
       }
       
       if (criteria.active !== undefined) {
-        matches = matches.filter(challenge => challenge.active === criteria.active);
+        query = query.eq('status', criteria.active ? 'active' : 'inactive');
       }
       
       if (criteria.type) {
-        matches = matches.filter(challenge => challenge.type === criteria.type);
+        query = query.eq('challenge_type', criteria.type);
       }
       
-      // Sort results if specified
+      // Apply sorting
       if (options.sortBy) {
-        const sortOrder = options.sortOrder === 'desc' ? -1 : 1;
-        
-        matches.sort((a, b) => {
-          if (a[options.sortBy] < b[options.sortBy]) return -1 * sortOrder;
-          if (a[options.sortBy] > b[options.sortBy]) return 1 * sortOrder;
-          return 0;
-        });
+        const sortField = this.convertToDatabaseField(options.sortBy);
+        const sortDirection = options.sortOrder || 'asc';
+        query = query.order(sortField, { ascending: sortDirection === 'asc' });
       }
       
-      // Apply pagination if specified
-      if (options.offset || options.limit) {
-        const offset = options.offset || 0;
-        const limit = options.limit || matches.length;
-        
-        matches = matches.slice(offset, offset + limit);
+      // Apply pagination
+      if (options.limit) {
+        query = query.limit(options.limit);
       }
       
-      // Ensure all returned items are Challenge instances
-      return matches.map(challenge => 
-        challenge instanceof Challenge 
-          ? challenge 
-          : new Challenge(challenge)
-      );
+      if (options.offset) {
+        query = query.range(options.offset, options.offset + (options.limit || 10) - 1);
+      }
+      
+      // Execute query
+      const { data, error } = await query;
+      
+      if (error) {
+        this.log('error', 'Error finding challenges by criteria', { criteria, options, error });
+        throw new ChallengePersistenceError(`Failed to search challenges: ${error.message}`);
+      }
+      
+      return (data || []).map(record => Challenge.fromDatabase(record));
     } catch (error) {
-      this.log('error', 'Error finding challenges by criteria', { 
+      if (error instanceof ChallengeValidationError ||
+          error instanceof ChallengePersistenceError) {
+        throw error;
+      }
+      
+      this.log('error', 'Error in findByCriteria', { 
         criteria, 
         options, 
         error: error.message 
       });
-      throw error;
+      throw new ChallengePersistenceError(`Failed to search challenges: ${error.message}`);
     }
+  }
+
+  /**
+   * Convert a camelCase field name to snake_case for database queries
+   * @param {string} field - camelCase field name
+   * @returns {string} snake_case field name
+   * @private
+   */
+  convertToDatabaseField(field) {
+    if (!field) return field;
+    
+    // Special case for common fields
+    const fieldMap = {
+      'userId': 'user_id',
+      'focusArea': 'focus_area',
+      'challengeType': 'challenge_type',
+      'formatType': 'format_type',
+      'createdAt': 'created_at',
+      'updatedAt': 'updated_at',
+      'submittedAt': 'submitted_at',
+      'completedAt': 'completed_at',
+      'evaluationCriteria': 'evaluation_criteria',
+      'recommendedResources': 'recommended_resources',
+      'typeMetadata': 'type_metadata',
+      'formatMetadata': 'format_metadata'
+    };
+    
+    return fieldMap[field] || field.replace(/([A-Z])/g, '_$1').toLowerCase();
   }
 }
 
-module.exports = new ChallengeRepository(); 
+module.exports = ChallengeRepository; 

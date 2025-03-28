@@ -1,0 +1,64 @@
+graph TB
+    %% Challenge Domain Components
+    subgraph "Challenge Domain"
+        CM[Challenge Models]
+        CS[Challenge Services]
+        CR[Challenge Repository Interface]
+        CC[Challenge Controllers]
+        CPB[Challenge Prompt Builder]
+        
+        %% Sub-components
+        subgraph "Challenge Models"
+            Challenge[Challenge]
+            ChallengeType[ChallengeType]
+            ChallengeResponse[ChallengeResponse]
+            ChallengeTemplate[ChallengeTemplate]
+        end
+        
+        subgraph "Challenge Services"
+            ChallengeService[ChallengeService]
+            TemplateService[TemplateService]
+            GenerationService[GenerationService]
+        end
+        
+        subgraph "Repository Layer"
+            ChallengeRepo[ChallengeRepository]
+            TemplateRepo[TemplateRepository]
+        end
+    end
+    
+    %% External Components
+    User[User Domain]
+    FocusArea[Focus Area Domain]
+    Evaluation[Evaluation Domain]
+    OpenAI[OpenAI Client]
+    Database[Supabase]
+    
+    %% Relationships
+    CC --> CS
+    CS --> CM
+    CS --> CR
+    CS --> CPB
+    CPB --> OpenAI
+    CR --> Database
+    
+    %% Cross-domain relationships
+    User --> CS
+    FocusArea --> CS
+    CS --> Evaluation
+    
+    %% Internal relationships
+    ChallengeService --> TemplateService
+    ChallengeService --> GenerationService
+    ChallengeRepo --> TemplateRepo
+    
+    %% Style definitions
+    classDef models fill:#f9d,stroke:#333,stroke-width:1px
+    classDef services fill:#adf,stroke:#333,stroke-width:1px
+    classDef repositories fill:#fda,stroke:#333,stroke-width:1px
+    classDef external fill:#ddd,stroke:#333,stroke-width:1px
+    
+    class CM,Challenge,ChallengeType,ChallengeResponse,ChallengeTemplate models
+    class CS,ChallengeService,TemplateService,GenerationService,CPB services
+    class CR,ChallengeRepo,TemplateRepo repositories
+    class User,FocusArea,Evaluation,OpenAI,Database external 

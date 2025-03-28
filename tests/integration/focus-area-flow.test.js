@@ -1,4 +1,12 @@
 /**
+ * MARKED FOR MANUAL REVIEW
+ * 
+ * This file needs significant refactoring to align with the new testing structure.
+ * Consider breaking it into proper domain tests and E2E tests.
+ * See tests/README.md for guidance.
+ */
+
+/**
  * Integration Test: FocusArea Flow
  * 
  * This test verifies the complete flow for the FocusArea domain:
@@ -11,6 +19,10 @@ const { expect } = require('chai');
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+
+const testEnv = require('../loadEnv');
+
+const { skipIfMissingEnv } = require('../helpers/testHelpers');
 require('dotenv').config();
 
 // Generate a unique test ID for this run
@@ -38,17 +50,22 @@ function logTestAction(action, data) {
 }
 
 describe('Integration: FocusArea Flow', function() {
-  // Set longer timeout for API calls
+  
+  before(function() {
+    skipIfMissingEnv(this, 'openai');
+  });
+
+// Set longer timeout for API calls
   this.timeout(30000);
   
   // Skip if API keys not available
   before(function() {
-    if (!process.env.OPENAI_API_KEY) {
+    if (!testEnv.getTestConfig().openai.apiKey) {
       console.warn('OPENAI_API_KEY not found, skipping integration tests');
       this.skip();
     }
     
-    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
+    if (!testEnv.getTestConfig().supabase.url || !testEnv.getTestConfig().supabase.key) {
       console.warn('SUPABASE credentials not found, skipping integration tests');
       this.skip();
     }
@@ -78,14 +95,13 @@ describe('Integration: FocusArea Flow', function() {
         logTestAction('ImportError', { message: error.message });
         
         // Create OpenAI client
-        const { OpenAI } = require('openai');
-        openaiClient = new OpenAI({
-          apiKey: process.env.OPENAI_API_KEY
-        });
+        const { OpenAIClient } = require('../../src/infra/openai');
+        openaiClient = new OpenAIClient({ apiKey: testEnv.getTestConfig().openai.apiKey
+         });
         
         // Use environment variables if available, otherwise use our obtained credentials
-        const supabaseUrl = process.env.SUPABASE_URL || 'https://dvmfpddmnzaxjmxxpupk.supabase.co';
-        const supabaseKey = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2bWZwZGRtbnpheGpteHhwdXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI2NDA3MTAsImV4cCI6MjA1ODIxNjcxMH0.99b38YXJbbNC8kjRpqQq96k0zaB5qwQ2vvcFdxHPH9Y';
+        const supabaseUrl = testEnv.getTestConfig().supabase.url || 'https://dvmfpddmnzaxjmxxpupk.supabase.co';
+        const supabaseKey = testEnv.getTestConfig().supabase.key || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2bWZwZGRtbnpheGpteHhwdXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI2NDA3MTAsImV4cCI6MjA1ODIxNjcxMH0.99b38YXJbbNC8kjRpqQq96k0zaB5qwQ2vvcFdxHPH9Y';
         
         // Log the credentials we're using (obscuring the key)
         console.log(`Using Supabase URL: ${supabaseUrl}`);
@@ -119,7 +135,7 @@ describe('Integration: FocusArea Flow', function() {
               // Log what we're about to insert
               logTestAction('FocusAreaToSave', { 
                 focusArea,
-                url: process.env.SUPABASE_URL
+                url: testEnv.getTestConfig().supabase.url
               });
               
               // Insert into focus_areas table
@@ -207,7 +223,7 @@ describe('Integration: FocusArea Flow', function() {
             description: A detailed description of why this focus area is appropriate for the user
             skills: An array of 3-5 specific skills to develop in this focus area`;
             
-            const completion = await openaiClient.chat.completions.create({
+            const completion = await openaiClient.responses.create({
               model: "gpt-4o",
               messages: [
                 { role: "system", content: "You are an expert career advisor specializing in AI skill development." },

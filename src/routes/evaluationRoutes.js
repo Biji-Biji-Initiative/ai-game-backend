@@ -7,13 +7,12 @@ const router = express.Router();
 const { authenticateUser } = require('../core/infra/http/middleware/auth');
 const EvaluationController = require('../core/evaluation/controllers/EvaluationController');
 const container = require('../config/container');
-const evaluationThreadService = require('../core/evaluation/services/evaluationThreadService');
 
 // Create controller instance with dependencies
 const evaluationController = new EvaluationController({
   logger: container.get('logger'),
   evaluationService: container.get('evaluationService'),
-  evaluationThreadService: evaluationThreadService,
+  openAIStateManager: container.get('openAIStateManager'),
   challengeRepository: container.get('challengeRepository')
 });
 

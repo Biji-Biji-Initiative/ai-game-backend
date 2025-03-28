@@ -6,11 +6,21 @@
  */
 const { supabaseClient } = require('../../../core/infra/db/supabaseClient');
 const { logger } = require('../../../core/infra/logging/logger');
-const AppError = require('../../../core/infra/errors/AppError');
+const { PromptTemplateNotFoundError, PromptError } = require('../common/errors');
 
+/**
+ * Repository for managing prompt templates and usage history
+ */
 class PromptRepository {
-  constructor(dbClient = supabaseClient) {
+  /**
+   * Create a new PromptRepository instance
+   * @param {Object} dependencies - Dependencies for the repository
+   * @param {Object} dependencies.dbClient - Database client
+   * @param {Object} dependencies.logger - Logger instance
+   */
+  constructor({ dbClient = supabaseClient, logger = logger } = {}) {
     this.dbClient = dbClient;
+    this.logger = logger;
     this.templateTableName = 'prompt_templates';
     this.historyTableName = 'prompt_history';
   }
@@ -34,13 +44,13 @@ class PromptRepository {
           return null;
         }
         
-        logger.error('Error getting prompt template by ID', { error, id });
-        throw new AppError(`Failed to get prompt template: ${error.message}`, 500);
+        this.logger.error('Error getting prompt template by ID', { error, id });
+        throw new PromptError(`Failed to get prompt template: ${error.message}`, 'DB_ERROR', 500);
       }
       
       return data;
     } catch (error) {
-      logger.error('Error in getTemplateById', { error: error.message, id });
+      this.logger.error('Error in getTemplateById', { error: error.message, id });
       throw error;
     }
   }
@@ -64,13 +74,13 @@ class PromptRepository {
           return null;
         }
         
-        logger.error('Error getting prompt template by name', { error, name });
-        throw new AppError(`Failed to get prompt template: ${error.message}`, 500);
+        this.logger.error('Error getting prompt template by name', { error, name });
+        throw new PromptError(`Failed to get prompt template: ${error.message}`, 'DB_ERROR', 500);
       }
       
       return data;
     } catch (error) {
-      logger.error('Error in getTemplateByName', { error: error.message, name });
+      this.logger.error('Error in getTemplateByName', { error: error.message, name });
       throw error;
     }
   }
@@ -98,13 +108,13 @@ class PromptRepository {
       const { data, error } = await query;
       
       if (error) {
-        logger.error('Error getting all prompt templates', { error });
-        throw new AppError(`Failed to get prompt templates: ${error.message}`, 500);
+        this.logger.error('Error getting all prompt templates', { error });
+        throw new PromptError(`Failed to get prompt templates: ${error.message}`, 'DB_ERROR', 500);
       }
       
       return data || [];
     } catch (error) {
-      logger.error('Error in getAllTemplates', { error: error.message });
+      this.logger.error('Error in getAllTemplates', { error: error.message });
       throw error;
     }
   }
@@ -117,18 +127,18 @@ class PromptRepository {
   async createTemplate(template) {
     try {
       if (!template.name) {
-        throw new AppError('Template name is required', 400);
+        throw new PromptError('Template name is required', 'VALIDATION_ERROR', 400);
       }
       
       if (!template.content) {
-        throw new AppError('Template content is required', 400);
+        throw new PromptError('Template content is required', 'VALIDATION_ERROR', 400);
       }
       
       // Check if template with this name already exists
       const existing = await this.getTemplateByName(template.name);
       
       if (existing) {
-        throw new AppError(`Template with name '${template.name}' already exists`, 400);
+        throw new PromptError(`Template with name '${template.name}' already exists`, 'DUPLICATE_TEMPLATE', 400);
       }
       
       // Prepare template data
@@ -149,13 +159,13 @@ class PromptRepository {
         .single();
       
       if (error) {
-        logger.error('Error creating prompt template', { error, templateData });
-        throw new AppError(`Failed to create prompt template: ${error.message}`, 500);
+        this.logger.error('Error creating prompt template', { error, templateData });
+        throw new PromptError(`Failed to create prompt template: ${error.message}`, 'DB_ERROR', 500);
       }
       
       return data;
     } catch (error) {
-      logger.error('Error in createTemplate', { error: error.message });
+      this.logger.error('Error in createTemplate', { error: error.message });
       throw error;
     }
   }
@@ -169,14 +179,14 @@ class PromptRepository {
   async updateTemplate(id, updates) {
     try {
       if (!id) {
-        throw new AppError('Template ID is required', 400);
+        throw new PromptError('Template ID is required', 'VALIDATION_ERROR', 400);
       }
       
       // Check if template exists
       const existing = await this.getTemplateById(id);
       
       if (!existing) {
-        throw new AppError(`Template with ID '${id}' not found`, 404);
+        throw new PromptTemplateNotFoundError(id);
       }
       
       // Prepare update data
@@ -193,13 +203,13 @@ class PromptRepository {
         .single();
       
       if (error) {
-        logger.error('Error updating prompt template', { error, id, updateData });
-        throw new AppError(`Failed to update prompt template: ${error.message}`, 500);
+        this.logger.error('Error updating prompt template', { error, id, updateData });
+        throw new PromptError(`Failed to update prompt template: ${error.message}`, 'DB_ERROR', 500);
       }
       
       return data;
     } catch (error) {
-      logger.error('Error in updateTemplate', { error: error.message, id });
+      this.logger.error('Error in updateTemplate', { error: error.message, id });
       throw error;
     }
   }
@@ -212,14 +222,14 @@ class PromptRepository {
   async deleteTemplate(id) {
     try {
       if (!id) {
-        throw new AppError('Template ID is required', 400);
+        throw new PromptError('Template ID is required', 'VALIDATION_ERROR', 400);
       }
       
       // Check if template exists
       const existing = await this.getTemplateById(id);
       
       if (!existing) {
-        throw new AppError(`Template with ID '${id}' not found`, 404);
+        throw new PromptTemplateNotFoundError(id);
       }
       
       const { error } = await this.dbClient
@@ -228,13 +238,13 @@ class PromptRepository {
         .eq('id', id);
       
       if (error) {
-        logger.error('Error deleting prompt template', { error, id });
-        throw new AppError(`Failed to delete prompt template: ${error.message}`, 500);
+        this.logger.error('Error deleting prompt template', { error, id });
+        throw new PromptError(`Failed to delete prompt template: ${error.message}`, 'DB_ERROR', 500);
       }
       
       return true;
     } catch (error) {
-      logger.error('Error in deleteTemplate', { error: error.message, id });
+      this.logger.error('Error in deleteTemplate', { error: error.message, id });
       throw error;
     }
   }
@@ -247,11 +257,11 @@ class PromptRepository {
   async recordPromptUsage(promptUsage) {
     try {
       if (!promptUsage.templateId && !promptUsage.content) {
-        throw new AppError('Either template ID or prompt content is required', 400);
+        throw new PromptError('Either template ID or prompt content is required', 'VALIDATION_ERROR', 400);
       }
       
       if (!promptUsage.domain) {
-        throw new AppError('Domain is required', 400);
+        throw new PromptError('Domain is required', 'VALIDATION_ERROR', 400);
       }
       
       // Prepare usage data
@@ -273,13 +283,13 @@ class PromptRepository {
         .single();
       
       if (error) {
-        logger.error('Error recording prompt usage', { error, usageData });
-        throw new AppError(`Failed to record prompt usage: ${error.message}`, 500);
+        this.logger.error('Error recording prompt usage', { error, usageData });
+        throw new PromptError(`Failed to record prompt usage: ${error.message}`, 'DB_ERROR', 500);
       }
       
       return data;
     } catch (error) {
-      logger.error('Error in recordPromptUsage', { error: error.message });
+      this.logger.error('Error in recordPromptUsage', { error: error.message });
       throw error;
     }
   }
@@ -326,13 +336,13 @@ class PromptRepository {
       const { data, error } = await query;
       
       if (error) {
-        logger.error('Error getting prompt history', { error, filters });
-        throw new AppError(`Failed to get prompt history: ${error.message}`, 500);
+        this.logger.error('Error getting prompt history', { error, filters });
+        throw new PromptError(`Failed to get prompt history: ${error.message}`, 'DB_ERROR', 500);
       }
       
       return data || [];
     } catch (error) {
-      logger.error('Error in getPromptHistory', { error: error.message });
+      this.logger.error('Error in getPromptHistory', { error: error.message });
       throw error;
     }
   }

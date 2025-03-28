@@ -17,6 +17,7 @@ const {
   getResponsesApiInstruction
 } = require('../common/apiStandards');
 const { validateChallengePromptParams } = require('../schemas/challengeSchema');
+const { PromptConstructionError } = require('../common/errors');
 
 /**
  * Helper function for logging if logger exists
@@ -38,17 +39,24 @@ class ChallengePromptBuilder {
    * @param {Object} params - Parameters for building the prompt
    * @param {Object} params.user - User profile data
    * @param {Object} params.challengeParams - Challenge type and format parameters
+   * @param {Object} [params.personalityProfile] - User's personality profile
    * @param {Object} [params.gameState] - Current game state for adaptive challenge generation
    * @param {Object} [params.options] - Additional prompt options
-   * @returns {string} Generated challenge prompt
-   * @throws {Error} If required parameters are missing
+   * @returns {Object} Generated challenge prompt with system message
+   * @throws {PromptConstructionError} If required parameters are missing
    */
   static build(params) {
     try {
       // Validate parameters against schema
       const validatedParams = validateChallengePromptParams(params);
       
-      const { user, challengeParams, gameState = {}, options = {} } = validatedParams;
+      const { 
+        user, 
+        challengeParams, 
+        personalityProfile = {}, 
+        gameState = {}, 
+        options = {} 
+      } = validatedParams;
       
       // Extract key parameters
       const challengeType = challengeParams.challengeType || challengeParams.challengeTypeCode || 'standard';
@@ -219,13 +227,129 @@ class ChallengePromptBuilder {
       // Ensure API standards are applied
       prompt = appendApiStandards(prompt);
       
-      return prompt.trim();
+      // Build dynamic system message based on user context
+      const systemMessage = this.buildDynamicSystemMessage(
+        challengeType,
+        formatType,
+        difficulty,
+        user,
+        personalityProfile,
+        options
+      );
+      
+      // Return both the prompt content and system message
+      return {
+        prompt: prompt.trim(),
+        systemMessage
+      };
     } catch (error) {
       log('error', 'Error building challenge prompt', { 
         error: error.message,
         stack: error.stack
       });
-      throw error;
+      
+      throw new PromptConstructionError(`Failed to build challenge prompt: ${error.message}`, {
+        originalError: error
+      });
+    }
+  }
+  
+  /**
+   * Build a dynamic system message based on user context
+   * @param {string} challengeType - Type of challenge
+   * @param {string} formatType - Format of challenge
+   * @param {string} difficulty - Difficulty level
+   * @param {Object} user - User profile data
+   * @param {Object} personalityProfile - User's personality profile
+   * @param {Object} options - Additional options
+   * @returns {string} Dynamic system message
+   * @private
+   */
+  static buildDynamicSystemMessage(challengeType, formatType, difficulty, user = {}, personalityProfile = {}, options = {}) {
+    try {
+      // Start with base system message
+      let systemMsg = `You are an AI challenge creator specializing in ${challengeType} challenges `;
+      
+      // Add difficulty context
+      if (difficulty === 'beginner') {
+        systemMsg += `that are accessible and instructive for beginners. `;
+      } else if (difficulty === 'intermediate') {
+        systemMsg += `with moderate complexity appropriate for intermediate learners. `;
+      } else if (difficulty === 'advanced' || difficulty === 'expert') {
+        systemMsg += `that challenge and stretch advanced learners. `;
+      } else {
+        systemMsg += `of various difficulty levels. `;
+      }
+      
+      // Add format context
+      if (formatType === 'open-ended') {
+        systemMsg += `You excel at creating open-ended challenges that promote creative thinking. `;
+      } else if (formatType === 'scenario') {
+        systemMsg += `You excel at developing rich, realistic scenarios that require thoughtful analysis. `;
+      } else if (formatType === 'multiple-choice') {
+        systemMsg += `You excel at crafting multiple-choice challenges with well-designed options. `;
+      } else {
+        systemMsg += `You adapt your challenge format based on learning objectives. `;
+      }
+      
+      // Adjust for user skill level
+      if (user.skillLevel) {
+        if (user.skillLevel.toLowerCase() === 'beginner') {
+          systemMsg += `Create challenges that build confidence while teaching fundamentals. `;
+        } else if (user.skillLevel.toLowerCase() === 'intermediate') {
+          systemMsg += `Focus on application of concepts and moderate complexity. `;
+        } else if (user.skillLevel.toLowerCase() === 'expert' || user.skillLevel.toLowerCase() === 'advanced') {
+          systemMsg += `Develop challenges that test nuanced understanding and edge cases. `;
+        }
+      }
+      
+      // Adapt to personality traits if available
+      if (personalityProfile.traits) {
+        const traits = Array.isArray(personalityProfile.traits) 
+          ? personalityProfile.traits 
+          : Object.keys(personalityProfile.traits || {});
+        
+        if (traits.includes('analytical') || traits.includes('logical')) {
+          systemMsg += `Incorporate logical reasoning components into the challenge. `;
+        }
+        
+        if (traits.includes('creative') || traits.includes('innovative')) {
+          systemMsg += `Include opportunities for creative problem-solving. `;
+        }
+        
+        if (traits.includes('detail_oriented') || traits.includes('thorough')) {
+          systemMsg += `Include details that reward careful attention. `;
+        }
+      }
+      
+      // Adapt to learning style if available
+      if (user.learningStyle) {
+        if (user.learningStyle === 'visual') {
+          systemMsg += `Suggest visual elements or scenarios that can be easily visualized. `;
+        } else if (user.learningStyle === 'practical') {
+          systemMsg += `Create challenges with clear real-world applications. `;
+        } else if (user.learningStyle === 'conceptual') {
+          systemMsg += `Incorporate theoretical frameworks and concepts. `;
+        }
+      }
+      
+      // Add general instructions
+      systemMsg += `\n\nYour challenge should be engaging, clear, and aligned with the user's profile and learning goals. `;
+      systemMsg += `Provide enough context for the user to understand the challenge but leave room for them to demonstrate their skills and creativity.`;
+      
+      // Add output format instructions
+      systemMsg += `\n\nYour response MUST follow the exact JSON structure specified in the prompt. `;
+      systemMsg += `Ensure all required fields are included and properly formatted.`;
+      
+      return systemMsg;
+    } catch (error) {
+      log('error', 'Error building dynamic system message', { 
+        error: error.message,
+        stack: error.stack
+      });
+      
+      // Return a basic system message as fallback
+      return 'You are an AI challenge creator. Return your response as JSON according to the format specified in the prompt.';
     }
   }
   

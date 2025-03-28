@@ -5,7 +5,7 @@
  * Handles setup and teardown between tests
  */
 
-const domainEvents = require('../../src/core/shared/domainEvents');
+const domainEvents = require('../../src/core/common/events/domainEvents');
 const logger = require('../../src/utils/logger');
 
 // Configure the logger for tests

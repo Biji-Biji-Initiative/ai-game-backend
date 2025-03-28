@@ -2,167 +2,182 @@
  * Focus Area Thread Service
  * 
  * Manages conversation threads for focus area generation
- * Follows domain-driven design principles for separation of concerns
+ * Uses persistent storage for thread state via OpenAIStateManager
  * 
  * @module focusAreaThreadService
- * @requires responsesApiClient
+ * @requires OpenAIStateManager
  * @requires logger
  */
 
 const { v4: uuidv4 } = require('uuid');
-const { logger } = require('../../../core/infra/logging/logger');
-const promptBuilder = require('../../prompt/promptBuilder');
-const responsesApiClient = require('../../../core/infra/api/responsesApiClient');
+const { focusAreaLogger } = require('../../../core/infra/logging/domainLogger');
 
-// In-memory store for threads (in production, this would be in the database)
-const threadStore = new Map();
+// Define a constant for the context prefix
+const FOCUS_AREA_CONTEXT_PREFIX = 'focus_area_';
 
 /**
- * Create a new thread for focus area generation
- * @param {string} userId User ID
- * @param {Object} metadata Additional metadata for the thread
- * @returns {Promise<string>} Thread ID
+ * Service that manages conversation threads for focus area generation
  */
-async function createThread(userId, metadata = {}) {
-  if (!userId) {
-    throw new Error('User ID is required to create a focus area thread');
-  }
-
-  logger.info('Creating new focus area thread', { userId });
-
-  try {
-    // Create thread metadata using Responses API client
-    const threadMetadata = responsesApiClient.createThread(userId, 'focus-area');
-    
-    // Add custom metadata
-    threadMetadata.metadata = {
-      type: 'focus-area',
-      purpose: 'Generate personalized focus areas for user',
-      ...metadata
-    };
-    
-    // Store the thread metadata
-    threadStore.set(threadMetadata.id, threadMetadata);
-
-    const threadId = threadMetadata.id;
-    
-    if (!threadId) {
-      throw new Error('Failed to create thread for focus area generation');
+class FocusAreaThreadService {
+  /**
+   * Create a new FocusAreaThreadService
+   * @param {Object} dependencies - Service dependencies
+   * @param {OpenAIStateManager} dependencies.openAIStateManager - State manager for OpenAI conversations
+   * @param {Object} dependencies.logger - Logger instance
+   */
+  constructor({ openAIStateManager, logger }) {
+    if (!openAIStateManager) {
+      throw new Error('FocusAreaThreadService requires openAIStateManager dependency');
     }
 
-    logger.info('Successfully created focus area thread', { userId, threadId });
-    return threadId;
-  } catch (error) {
-    logger.error('Error creating focus area thread', {
-      error: error.message,
-      userId
-    });
-    throw error;
-  }
-}
-
-/**
- * Get the last response ID from a thread
- * @param {string} threadId Thread ID
- * @returns {Promise<string|null>} Last response ID or null
- */
-async function getLastResponseId(threadId) {
-  if (!threadId) {
-    throw new Error('Thread ID is required');
+    this.openAIStateManager = openAIStateManager;
+    this.logger = logger || focusAreaLogger.child('threadService');
   }
 
-  try {
-    // Get thread metadata from store
-    const threadMetadata = threadStore.get(threadId);
-    
-    if (!threadMetadata) {
-      logger.warn('Thread not found', { threadId });
+  /**
+   * Generate a unique context identifier for a focus area thread
+   * @param {string} userId User ID
+   * @returns {string} Unique context identifier
+   */
+  generateContextId(userId) {
+    return `${FOCUS_AREA_CONTEXT_PREFIX}${userId}`;
+  }
+
+  /**
+   * Create a new thread for focus area generation
+   * @param {string} userId User ID
+   * @param {Object} metadata Additional metadata for the thread
+   * @returns {Promise<string>} Thread/State ID
+   */
+  async createThread(userId, metadata = {}) {
+    if (!userId) {
+      throw new Error('User ID is required to create a focus area thread');
+    }
+
+    this.logger.info('Creating new focus area conversation state', { userId });
+
+    try {
+      // Create a unique context identifier
+      const context = this.generateContextId(userId);
+      
+      // Create thread metadata for storage
+      const threadMetadata = {
+        type: 'focus-area',
+        purpose: 'Generate personalized focus areas for user',
+        ...metadata
+      };
+      
+      // Create persistent conversation state
+      const state = await this.openAIStateManager.createConversationState(userId, context, threadMetadata);
+      
+      const stateId = state.id;
+      
+      if (!stateId) {
+        throw new Error('Failed to create conversation state for focus area generation');
+      }
+
+      this.logger.info('Successfully created focus area conversation state', { 
+        userId, 
+        stateId,
+        context
+      });
+      
+      return stateId;
+    } catch (error) {
+      this.logger.error('Error creating focus area conversation state', {
+        error: error.message,
+        userId
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Get an existing thread for a user or create a new one
+   * @param {string} userId User ID
+   * @param {Object} metadata Additional metadata for the thread
+   * @returns {Promise<string>} Thread/State ID
+   */
+  async findOrCreateThread(userId, metadata = {}) {
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
+
+    this.logger.info('Finding or creating focus area conversation state', { userId });
+
+    try {
+      // Generate context from userId
+      const context = this.generateContextId(userId);
+      
+      // Create thread metadata for storage
+      const threadMetadata = {
+        type: 'focus-area',
+        purpose: 'Generate personalized focus areas for user',
+        ...metadata
+      };
+      
+      // Find or create persistent conversation state
+      const state = await this.openAIStateManager.findOrCreateConversationState(userId, context, threadMetadata);
+      
+      return state.id;
+    } catch (error) {
+      this.logger.error('Error finding or creating focus area conversation state', {
+        error: error.message,
+        userId
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Get the last response ID from a thread
+   * @param {string} stateId State/Thread ID
+   * @returns {Promise<string|null>} Last response ID or null
+   */
+  async getLastResponseId(stateId) {
+    if (!stateId) {
+      throw new Error('State ID is required');
+    }
+
+    try {
+      return await this.openAIStateManager.getLastResponseId(stateId);
+    } catch (error) {
+      this.logger.warn('Error retrieving last response ID', {
+        error: error.message,
+        stateId
+      });
       return null;
     }
-    
-    return threadMetadata.lastResponseId || null;
-  } catch (error) {
-    logger.warn('Error retrieving last response ID', {
-      error: error.message,
-      threadId
-    });
-    return null;
-  }
-}
-
-/**
- * Update thread with new response ID
- * @param {string} threadId Thread ID
- * @param {string} responseId Response ID
- * @returns {Promise<boolean>} Success status
- */
-async function updateWithResponseId(threadId, responseId) {
-  if (!threadId || !responseId) {
-    return false;
   }
 
-  try {
-    // Get thread metadata from store
-    const threadMetadata = threadStore.get(threadId);
-    
-    if (!threadMetadata) {
-      logger.warn('Thread not found for update', { threadId });
+  /**
+   * Update thread with new response ID
+   * @param {string} stateId State/Thread ID
+   * @param {string} responseId Response ID
+   * @returns {Promise<boolean>} Success status
+   */
+  async updateWithResponseId(stateId, responseId) {
+    if (!stateId || !responseId) {
       return false;
     }
-    
-    // Update thread metadata using Responses API client
-    const updatedMetadata = responsesApiClient.updateThreadWithResponse(threadMetadata, responseId);
-    
-    // Store updated metadata
-    threadStore.set(threadId, updatedMetadata);
-    
-    logger.debug('Updated thread with response ID', { threadId, responseId });
-    return true;
-  } catch (error) {
-    logger.warn('Error updating thread with response ID', {
-      error: error.message,
-      threadId
-    });
-    return false;
-  }
-}
 
-/**
- * Get all focus area threads for a user
- * @param {string} userId User ID
- * @returns {Promise<Array>} List of thread metadata
- */
-async function getUserThreads(userId) {
-  if (!userId) {
-    throw new Error('User ID is required');
-  }
-
-  try {
-    const userThreads = [];
-    
-    // Find all threads for this user
-    for (const thread of threadStore.values()) {
-      if (thread.userId === userId && 
-          (thread.context === 'focus-area' || thread.metadata?.type === 'focus-area')) {
-        userThreads.push(thread);
-      }
+    try {
+      await this.openAIStateManager.updateLastResponseId(stateId, responseId);
+      
+      this.logger.debug('Updated conversation state with response ID', { 
+        stateId, 
+        responseId 
+      });
+      
+      return true;
+    } catch (error) {
+      this.logger.warn('Error updating conversation state with response ID', {
+        error: error.message,
+        stateId
+      });
+      return false;
     }
-    
-    logger.info('Retrieved user focus area threads', { userId, count: userThreads.length });
-    
-    return userThreads;
-  } catch (error) {
-    logger.error('Error retrieving user focus area threads', {
-      error: error.message,
-      userId
-    });
-    return [];
   }
 }
 
-module.exports = {
-  createThread,
-  getLastResponseId,
-  updateWithResponseId,
-  getUserThreads
-}; 
+module.exports = FocusAreaThreadService; 

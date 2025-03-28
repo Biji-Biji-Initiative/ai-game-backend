@@ -2,11 +2,19 @@
  * Adaptive Repository
  * 
  * Handles data access operations for adaptive learning models.
+ * 
+ * @module AdaptiveRepository
+ * @requires Recommendation
+ * @requires RecommendationSchema
  */
 
 const Recommendation = require('../models/Recommendation');
 const { createClient } = require('@supabase/supabase-js');
 const { v4: uuidv4 } = require('uuid');
+const { 
+  RecommendationSchema, 
+  RecommendationDatabaseSchema 
+} = require('../schemas/RecommendationSchema');
 
 class AdaptiveRepository {
   constructor(supabaseClient) {
@@ -33,6 +41,13 @@ class AdaptiveRepository {
       if (error) throw new Error(`Error fetching recommendation: ${error.message}`);
       if (!data) return null;
 
+      // Validate data with Zod schema
+      const validationResult = RecommendationDatabaseSchema.safeParse(data);
+      if (!validationResult.success) {
+        console.error('Invalid recommendation data from database:', validationResult.error);
+        throw new Error(`Invalid recommendation data: ${validationResult.error.message}`);
+      }
+
       return new Recommendation(data);
     } catch (error) {
       console.error('AdaptiveRepository.findById error:', error);
@@ -58,6 +73,13 @@ class AdaptiveRepository {
       if (error) throw new Error(`Error fetching recommendation for user: ${error.message}`);
       if (!data) return null;
 
+      // Validate data with Zod schema
+      const validationResult = RecommendationDatabaseSchema.safeParse(data);
+      if (!validationResult.success) {
+        console.error('Invalid recommendation data from database:', validationResult.error);
+        throw new Error(`Invalid recommendation data: ${validationResult.error.message}`);
+      }
+
       return new Recommendation(data);
     } catch (error) {
       console.error('AdaptiveRepository.findLatestForUser error:', error);
@@ -82,7 +104,16 @@ class AdaptiveRepository {
 
       if (error) throw new Error(`Error fetching recommendations for user: ${error.message}`);
 
-      return (data || []).map(item => new Recommendation(item));
+      // Map and validate each recommendation
+      return (data || []).map(item => {
+        // Validate data with Zod schema
+        const validationResult = RecommendationDatabaseSchema.safeParse(item);
+        if (!validationResult.success) {
+          console.warn('Skipping invalid recommendation data:', validationResult.error);
+          return null;
+        }
+        return new Recommendation(item);
+      }).filter(Boolean); // Filter out null values
     } catch (error) {
       console.error('AdaptiveRepository.findByUserId error:', error);
       throw error;
@@ -96,22 +127,25 @@ class AdaptiveRepository {
    */
   async save(recommendation) {
     try {
-      // Validate recommendation before saving
-      const validation = recommendation.validate();
-      if (!validation.isValid) {
-        throw new Error(`Invalid recommendation data: ${validation.errors.join(', ')}`);
+      // Validate recommendation object with Zod schema
+      const recommendationData = recommendation.toDatabase();
+      const validationResult = RecommendationDatabaseSchema.safeParse(recommendationData);
+      
+      if (!validationResult.success) {
+        console.error('Recommendation validation failed:', validationResult.error.flatten());
+        throw new Error(`Invalid recommendation data: ${validationResult.error.message}`);
       }
+      
+      // Use validated data
+      const validData = validationResult.data;
 
       // Set ID if not present (for new recommendations)
-      if (!recommendation.id) recommendation.id = uuidv4();
-
-      // Convert to database format
-      const recommendationData = recommendation.toDatabase();
+      if (!validData.id) validData.id = uuidv4();
 
       // Upsert recommendation data
       const { data, error } = await this.supabase
         .from(this.tableName)
-        .upsert(recommendationData)
+        .upsert(validData)
         .select()
         .single();
 

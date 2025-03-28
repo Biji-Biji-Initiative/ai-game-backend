@@ -12,12 +12,13 @@ const adaptiveRoutes = require('./adaptiveRoutes');
 const evaluationRoutes = require('./evaluationRoutes');
 const userJourneyRoutes = require('./userJourneyRoutes');
 const focusAreaRoutes = require('./focusAreaRoutes');
+const authRoutes = require('./authRoutes');
 
 // API health check
 router.get('/health', (req, res) => {
   res.status(200).json({
     status: 'success',
-    message: 'API is running',
+    message: 'API health check successful',
     timestamp: new Date().toISOString()
   });
 });
@@ -30,6 +31,7 @@ router.get('/', (req, res) => {
     description: 'API for dynamic AI-driven cognitive challenges',
     documentation: '/api/docs',
     endpoints: {
+      auth: '/api/auth',
       users: '/api/users',
       challenges: '/api/challenges',
       personality: '/api/personality',
@@ -44,6 +46,7 @@ router.get('/', (req, res) => {
 });
 
 // Mount routes
+router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/challenges', challengeRoutes);
 router.use('/personality', personalityRoutes);

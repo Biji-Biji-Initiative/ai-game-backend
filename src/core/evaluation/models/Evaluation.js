@@ -318,26 +318,41 @@ class Evaluation {
   
   /**
    * Map focus areas to evaluation categories
+   * 
+   * NOTE: This is a synchronous implementation that returns a default set of categories.
+   * For accurate mapping that requires database access, use the EvaluationDomainService.mapFocusAreasToCategories method instead.
+   * 
    * @private
    * @param {Array} focusAreas - User focus areas
-   * @returns {Array} Relevant evaluation categories
-   * @throws {Error} If mapping fails or no mappings found
+   * @returns {Array} Default set of relevant evaluation categories
    */
   mapFocusAreasToCategories(focusAreas) {
-    // If no focus areas, throw error
+    // If no focus areas, return an empty array
     if (!focusAreas || !Array.isArray(focusAreas) || focusAreas.length === 0) {
-      throw new Error('Valid focus areas array is required for category mapping');
+      return [];
     }
     
-    try {
-      // Since we can't use async/await in a sync method, and our repository is async,
-      // we'll return a simplified set of categories for testing
-      // In a real implementation, this should be handled differently to support async
-      return ['ethical_reasoning', 'comprehensiveness', 'clarity']; 
-    } catch (error) {
-      console.error('Error mapping focus areas to categories:', error);
-      throw error; // Re-throw to propagate the error
-    }
+    // This is a simplified synchronous implementation
+    // Return default categories based on common focus areas
+    const defaultMappings = {
+      'ai_ethics': ['ethical_reasoning', 'comprehensiveness', 'balanced_view'],
+      'ai_literacy': ['conceptual_understanding', 'application', 'communication'],
+      'ai_capabilities': ['accuracy', 'technical_understanding', 'critical_thinking'],
+      'ai_limitations': ['critical_analysis', 'balanced_view', 'technical_understanding'],
+      'ai_impact': ['impact_analysis', 'stakeholder_consideration', 'systemic_thinking'],
+      'general': ['accuracy', 'clarity', 'reasoning', 'creativity']
+    };
+    
+    // Collect categories for all focus areas
+    const categories = [];
+    focusAreas.forEach(area => {
+      const normalizedArea = area.toLowerCase().replace(/\s+/g, '_');
+      const mappedCategories = defaultMappings[normalizedArea] || defaultMappings['general'];
+      categories.push(...mappedCategories);
+    });
+    
+    // Remove duplicates and return
+    return [...new Set(categories)];
   }
   
   /**
@@ -440,30 +455,25 @@ class Evaluation {
       }
     }
     
-    // Add focus area relevance feedback - simplified to avoid async
+    // Add focus area relevance feedback
     if (this.userContext?.focusAreas && Array.isArray(this.userContext.focusAreas) && this.userContext.focusAreas.length > 0) {
-      try {
-        // For testing purposes, use a simplified approach without async mapping
-        const relevantCategories = ['accuracy', 'critical_thinking', 'clarity', 'insight'];
-        
-        // Get scores for relevant categories
-        const relevantScores = {};
-        relevantCategories.forEach(category => {
-          if (this.categoryScores[category]) {
-            relevantScores[category] = this.categoryScores[category];
-          }
-        });
-        
-        const relevantAverage = Object.values(relevantScores).length > 0 
-          ? Object.values(relevantScores).reduce((sum, score) => sum + score, 0) / Object.values(relevantScores).length 
-          : 0;
-        
-        // Add focus area specific feedback
-        feedback.focusAreaRelevance = `In your focus areas (${this.userContext.focusAreas.join(', ')}), you scored ${Math.round(relevantAverage)}/100. ${relevantAverage > 80 ? 'This shows particular strength in your areas of interest.' : 'These are areas you may want to concentrate on developing further.'}`;
-      } catch (error) {
-        console.error('Error in focus area feedback:', error);
-        feedback.focusAreaRelevance = `Your response addresses topics related to your focus areas (${this.userContext.focusAreas.join(', ')}).`;
-      }
+      // Use synchronous mapping function
+      const relevantCategories = this.mapFocusAreasToCategories(this.userContext.focusAreas);
+      
+      // Get scores for relevant categories
+      const relevantScores = {};
+      relevantCategories.forEach(category => {
+        if (this.categoryScores[category]) {
+          relevantScores[category] = this.categoryScores[category];
+        }
+      });
+      
+      const relevantAverage = Object.values(relevantScores).length > 0 
+        ? Object.values(relevantScores).reduce((sum, score) => sum + score, 0) / Object.values(relevantScores).length 
+        : 0;
+      
+      // Add focus area specific feedback
+      feedback.focusAreaRelevance = `In your focus areas (${this.userContext.focusAreas.join(', ')}), you scored ${Math.round(relevantAverage)}/100. ${relevantAverage > 80 ? 'This shows particular strength in your areas of interest.' : 'These are areas you may want to concentrate on developing further.'}`;
     }
     
     // Add growth insights based on evaluation history

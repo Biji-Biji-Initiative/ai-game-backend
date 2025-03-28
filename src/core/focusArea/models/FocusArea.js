@@ -8,12 +8,18 @@
  * @module FocusArea
  */
 
+const Entity = require('../../common/models/Entity');
+const { EventTypes } = require('../../common/events/domainEvents');
 const { v4: uuidv4 } = require('uuid');
+const { 
+  focusAreaSchema, 
+  validate 
+} = require('../schemas/focusAreaValidation');
 
 /**
  * Focus Area class representing a communication focus area
  */
-class FocusArea {
+class FocusArea extends Entity {
   /**
    * Create a new focus area
    * @param {Object} params Focus area parameters
@@ -34,57 +40,68 @@ class FocusArea {
     priority = 1,
     metadata = {}
   }) {
-    this.validate({ userId, name, priority });
+    super(id);
 
-    this.id = id;
-    this.userId = userId;
-    this.name = name;
-    this.description = description;
-    this.active = active;
-    this.priority = priority;
-    this.metadata = metadata;
+    // Validate using Zod schema
+    const validatedData = validate({ 
+      id, 
+      userId, 
+      name, 
+      description, 
+      active, 
+      priority, 
+      metadata 
+    }, focusAreaSchema);
+
+    this.userId = validatedData.userId;
+    this.name = validatedData.name;
+    this.description = validatedData.description;
+    this.active = validatedData.active;
+    this.priority = validatedData.priority;
+    this.metadata = validatedData.metadata;
     this.createdAt = new Date().toISOString();
     this.updatedAt = this.createdAt;
-  }
-
-  /**
-   * Validate focus area data
-   * @param {Object} data Data to validate
-   * @throws {Error} If validation fails
-   * @private
-   */
-  validate({ userId, name, priority }) {
-    if (!userId) {
-      throw new Error('User ID is required for focus area');
-    }
-
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      throw new Error('Focus area name is required and must be a non-empty string');
-    }
-
-    if (name.length > 200) {
-      throw new Error('Focus area name must be 200 characters or less');
-    }
-
-    if (priority !== undefined && (isNaN(priority) || priority < 1 || priority > 5)) {
-      throw new Error('Priority must be a number between 1 and 5');
-    }
+    
+    // Add domain event for creation (to be published after persistence)
+    this.addDomainEvent(EventTypes.FOCUS_AREA_CREATED, {
+      userId: this.userId,
+      name: this.name,
+      priority: this.priority
+    });
   }
 
   /**
    * Deactivate this focus area
    */
   deactivate() {
+    if (this.active === false) return; // No-op if already inactive
+    
     this.active = false;
     this.updatedAt = new Date().toISOString();
+    
+    // Add domain event for update (to be published after persistence)
+    this.addDomainEvent(EventTypes.FOCUS_AREA_UPDATED, {
+      userId: this.userId,
+      name: this.name,
+      active: this.active
+    });
   }
 
   /**
    * Activate this focus area
    */
   activate() {
+    if (this.active === true) return; // No-op if already active
+    
     this.active = true;
     this.updatedAt = new Date().toISOString();
+    
+    // Add domain event for update (to be published after persistence)
+    this.addDomainEvent(EventTypes.FOCUS_AREA_UPDATED, {
+      userId: this.userId,
+      name: this.name,
+      active: this.active
+    });
   }
 
   /**
@@ -93,14 +110,35 @@ class FocusArea {
    */
   update(updates) {
     const allowedUpdates = ['name', 'description', 'priority', 'metadata', 'active'];
+    const validUpdates = {};
     
     Object.keys(updates).forEach(key => {
       if (allowedUpdates.includes(key)) {
-        this[key] = updates[key];
+        validUpdates[key] = updates[key];
       }
     });
     
-    this.updatedAt = new Date().toISOString();
+    // Validate updates
+    if (Object.keys(validUpdates).length > 0) {
+      const validatedUpdates = validate(
+        { ...this.toObject(), ...validUpdates },
+        focusAreaSchema
+      );
+      
+      // Apply validated updates
+      Object.keys(validUpdates).forEach(key => {
+        this[key] = validatedUpdates[key];
+      });
+      
+      this.updatedAt = new Date().toISOString();
+      
+      // Add domain event for update (to be published after persistence)
+      this.addDomainEvent(EventTypes.FOCUS_AREA_UPDATED, {
+        userId: this.userId,
+        name: this.name,
+        ...validUpdates
+      });
+    }
   }
 
   /**

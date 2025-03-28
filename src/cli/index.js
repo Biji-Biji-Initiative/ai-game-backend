@@ -1,274 +1,495 @@
 /**
- * Command Line Interface for Responses API Fight Club
- * Provides a clean separation between API server and CLI operations
+ * CLI entry point for Responses API Fight Club
+ * Uses the application coordinators and domain services
  */
-const { program } = require('commander');
+
+const container = require('../config/container');
+const readline = require('readline');
 const chalk = require('chalk');
 const { logger } = require('../core/infra/logging/logger');
 
-// Import container to access dependencies
-const container = require('../config/container');
-const config = container.get('config');
+// Initialize services
+const userService = container.get('userService');
+const personalityService = container.get('personalityService');
+const challengeService = container.get('challengeService');
+const challengeCoordinator = container.get('challengeCoordinator');
+const userJourneyCoordinator = container.get('userJourneyCoordinator');
+const personalityCoordinator = container.get('personalityCoordinator');
 
-// Import connection utilities for early connection initialization
-const { initializeConnections } = require('./utils/connectionUtils');
-
-// Load commands
-const { registerUser } = require('./commands/registerUser');
-const { viewProfile } = require('./commands/viewProfile');
-const { generateChallenge } = require('./commands/generateChallenge');
-const { submitChallengeResponse } = require('./commands/submitResponse');
-
-// Load menus
-const { mainMenu } = require('./menus/mainMenu');
-
-// Import readline utilities
-const { closePrompt } = require('./utils/cliPrompt');
-
-// Connection initialization moved to utils/connectionUtils.js
-
-// CLI version and description
-program
-  .version('1.0.0')
-  .description('Responses API Fight Club CLI');
-
-/**
- * Set up error handling for uncaught exceptions and unhandled promise rejections
- * This ensures we log all errors properly and don't silently fail
- */
-process.on('uncaughtException', (error) => {
-  // Log the error using our Winston logger
-  logger.error('Uncaught exception:', { error: error.message, stack: error.stack });
-  logger.error(chalk.red(`Uncaught exception: ${error.message}`));
-  process.exit(1);
+// Create readline interface
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  // Log the rejection using our Winston logger
-  logger.error('Unhandled promise rejection:', { 
-    error: reason instanceof Error ? reason.message : String(reason),
-    stack: reason instanceof Error ? reason.stack : 'No stack trace available'
-  });
-  logger.error(chalk.red(`Unhandled promise rejection: ${reason instanceof Error ? reason.message : reason}`));
-  process.exit(1);
-});
+// Store user data across interactions
+let currentUser = null;
+let currentChallengeId = null;
 
 /**
- * "start" command
- * This will drop the user into an interactive main menu
+ * Display the main menu
  */
-program
-  .command('start')
-  .description('Start the interactive CLI')
-  .action(async () => {
-    logger.info('Starting Responses API Fight Club CLI...');
-    logger.info(chalk.green('Starting Responses API Fight Club CLI...'));
-    
-    try {
-      // Initialize connections before starting the CLI
-      const initialized = await initializeConnections();
-      if (!initialized) {
-        logger.warn('Starting CLI with potential connection issues');
-        console.log('Warning: Starting CLI with potential connection issues');
-      } else {
-        // Explicitly output the success message for tests to capture
-        console.log('All connections initialized successfully');
-      }
-      
-      logger.info('Starting CLI in interactive mode');
-      await mainMenu();
-      logger.info('CLI session ended normally');
-      
-      // Ensure we close the readline interface
-      closePrompt();
-      process.exit(0);
-    } catch (error) {
-      logger.error('Error running CLI in interactive mode:', { error: error.message, stack: error.stack });
-      logger.error(chalk.red(`Error: ${error.message}`));
-      
-      // Ensure we close the readline interface
-      closePrompt();
-      process.exit(1);
-    }
-  });
-
-/**
- * "register" command
- * Directly invokes the user registration flow
- */
-program
-  .command('register')
-  .description('Register a new user')
-  .action(async () => {
-    try {
-      logger.info('Starting user registration via command');
-      
-      // Initialize connections before starting the command
-      const initialized = await initializeConnections();
-      if (!initialized) {
-        logger.error('Cannot register user due to connection issues');
-        logger.error(chalk.red('Failed to connect to database. Please check your configuration and try again.'));
-        closePrompt();
-        process.exit(1);
-        return;
-      }
-      
-      // Register user
-      const user = await registerUser();
-      
-      if (user) {
-        logger.info(`User registered successfully via command: ${user.email}`);
-      } else {
-        logger.warn('User registration failed via command');
-      }
-      
-      // Ensure we close the readline interface
-      closePrompt();
-      process.exit(user ? 0 : 1);
-    } catch (error) {
-      logger.error('Error registering user via command:', { error: error.message, stack: error.stack });
-      logger.error(chalk.red(`Error: ${error.message}`));
-      
-      // Ensure we close the readline interface
-      closePrompt();
-      process.exit(1);
-    }
-  });
-
-/**
- * "profile" command
- * Directly invokes the view profile flow
- */
-program
-  .command('profile')
-  .description('View user profile')
-  .action(async () => {
-    try {
-      logger.info('Starting view profile via command');
-      
-      // Initialize connections before starting the command
-      const initialized = await initializeConnections();
-      if (!initialized) {
-        logger.error('Cannot view profile due to connection issues');
-        logger.error(chalk.red('Failed to connect to database. Please check your configuration and try again.'));
-        closePrompt();
-        process.exit(1);
-        return;
-      }
-      
-      // View profile
-      const profile = await viewProfile();
-      
-      if (profile) {
-        logger.info(`Profile viewed successfully via command: ${profile.email}`);
-      } else {
-        logger.warn('Profile view failed via command');
-      }
-      
-      // Ensure we close the readline interface
-      closePrompt();
-      process.exit(profile ? 0 : 1);
-    } catch (error) {
-      logger.error('Error viewing profile via command:', { error: error.message, stack: error.stack });
-      logger.error(chalk.red(`Error: ${error.message}`));
-      
-      // Ensure we close the readline interface
-      closePrompt();
-      process.exit(1);
-    }
-  });
-
-/**
- * "challenge" command
- * Directly invokes the generate challenge flow
- */
-program
-  .command('challenge')
-  .description('Generate a challenge')
-  .action(async () => {
-    try {
-      logger.info('Starting challenge generation via command');
-      
-      // Initialize connections before starting the command
-      const initialized = await initializeConnections();
-      if (!initialized) {
-        logger.error('Cannot generate challenge due to connection issues');
-        logger.error(chalk.red('Failed to connect to database. Please check your configuration and try again.'));
-        closePrompt();
-        process.exit(1);
-        return;
-      }
-      
-      // Generate challenge
-      const challenge = await generateChallenge();
-      
-      if (challenge) {
-        logger.info(`Challenge generated successfully via command: ${challenge.id}`);
-      } else {
-        logger.warn('Challenge generation failed via command');
-      }
-      
-      // Ensure we close the readline interface
-      closePrompt();
-      process.exit(challenge ? 0 : 1);
-    } catch (error) {
-      logger.error('Error generating challenge via command:', { error: error.message, stack: error.stack });
-      logger.error(chalk.red(`Error: ${error.message}`));
-      
-      // Ensure we close the readline interface
-      closePrompt();
-      process.exit(1);
-    }
-  });
-
-/**
- * "respond" command
- * Directly invokes the submit challenge response flow
- */
-program
-  .command('respond')
-  .description('Submit a response to a challenge')
-  .action(async () => {
-    try {
-      logger.info('Starting challenge response submission via command');
-      
-      // Initialize connections before starting the command
-      const initialized = await initializeConnections();
-      if (!initialized) {
-        logger.error('Cannot submit response due to connection issues');
-        logger.error(chalk.red('Failed to connect to database. Please check your configuration and try again.'));
-        closePrompt();
-        process.exit(1);
-        return;
-      }
-      
-      // Submit challenge response
-      const result = await submitChallengeResponse();
-      
-      if (result) {
-        logger.info('Challenge response submitted successfully via command');
-      } else {
-        logger.warn('Challenge response submission failed via command');
-      }
-      
-      // Ensure we close the readline interface
-      closePrompt();
-      process.exit(result ? 0 : 1);
-    } catch (error) {
-      logger.error('Error submitting challenge response via command:', { error: error.message, stack: error.stack });
-      logger.error(chalk.red(`Error: ${error.message}`));
-      
-      // Ensure we close the readline interface
-      closePrompt();
-      process.exit(1);
-    }
-  });
-
-// Parse arguments or show help if none provided
-program.parse(process.argv);
-
-// If no args are provided, show help and exit
-if (!process.argv.slice(2).length) {
-  program.outputHelp();
-  process.exit(0);
+function displayMainMenu() {
+  // Clear terminal using ANSI escape codes
+  process.stdout.write('\x1Bc');
+  logger.info(chalk.bgBlue.white('\n === AI FIGHT CLUB === \n'));
+  logger.info(chalk.yellow('Discover your Human Edge in the age of AI\n'));
+  
+  logger.info(chalk.cyan('1) Start User Onboarding'));
+  logger.info(chalk.cyan('2) Generate Challenge'));
+  logger.info(chalk.cyan('3) Submit Challenge Response'));
+  logger.info(chalk.cyan('4) View User Profile'));
+  logger.info(chalk.cyan('5) Exit'));
+  
+  rl.question(chalk.green('\nEnter your choice (1-5): '), handleMenuChoice);
 }
+
+/**
+ * Handle the main menu choice
+ */
+function handleMenuChoice(choice) {
+  switch(choice) {
+    case '1':
+      startUserOnboarding();
+      break;
+    case '2':
+      generateChallenge();
+      break;
+    case '3':
+      submitChallengeResponse();
+      break;
+    case '4':
+      viewUserProfile();
+      break;
+    case '5':
+      logger.info(chalk.yellow('\nThank you for using AI Fight Club!\n'));
+      rl.close();
+      process.exit(0);
+      break;
+    default:
+      logger.info(chalk.red('\nInvalid choice. Please try again.'));
+      setTimeout(displayMainMenu, 1500);
+  }
+}
+
+/**
+ * Start the user onboarding process
+ */
+function startUserOnboarding() {
+  // Clear terminal using ANSI escape codes
+  process.stdout.write('\x1Bc');
+  logger.info(chalk.bgBlue.white('\n === USER ONBOARDING === \n'));
+  
+  // Collect basic user information
+  collectBasicUserInfo();
+}
+
+/**
+ * Collect basic user information
+ */
+function collectBasicUserInfo() {
+  const userInfo = {};
+  
+  rl.question(chalk.green('Full Name: '), (fullName) => {
+    userInfo.fullName = fullName;
+    
+    rl.question(chalk.green('Email: '), (email) => {
+      userInfo.email = email;
+      
+      rl.question(chalk.green('Professional Title: '), (professionalTitle) => {
+        userInfo.professionalTitle = professionalTitle;
+        
+        rl.question(chalk.green('Location (City): '), (location) => {
+          userInfo.location = location;
+          
+          rl.question(chalk.green('Country: '), (country) => {
+            userInfo.country = country;
+            
+            logger.info(chalk.cyan('\nNow let\'s assess your personality traits...'));
+            collectPersonalityTraits(userInfo);
+          });
+        });
+      });
+    });
+  });
+}
+
+/**
+ * Collect personality trait assessments
+ */
+function collectPersonalityTraits(userInfo) {
+  const traits = {};
+  
+  logger.info(chalk.yellow('\nRate yourself on a scale of 0.0 to 1.0 (e.g., 0.7)'));
+  
+  rl.question(chalk.green('Creativity: '), (creativity) => {
+    traits.creativity = parseFloat(creativity);
+    
+    rl.question(chalk.green('Analytical Thinking: '), (analyticalThinking) => {
+      traits.analyticalThinking = parseFloat(analyticalThinking);
+      
+      rl.question(chalk.green('Empathy: '), (empathy) => {
+        traits.empathy = parseFloat(empathy);
+        
+        rl.question(chalk.green('Risk-Taking: '), (riskTaking) => {
+          traits.riskTaking = parseFloat(riskTaking);
+          
+          rl.question(chalk.green('Adaptability: '), (adaptability) => {
+            traits.adaptability = parseFloat(adaptability);
+            
+            logger.info(chalk.cyan('\nFinally, let\'s understand your attitudes towards AI...'));
+            collectAIAttitudes(userInfo, traits);
+          });
+        });
+      });
+    });
+  });
+}
+
+/**
+ * Collect AI attitude assessments
+ */
+function collectAIAttitudes(userInfo, traits) {
+  const attitudes = {};
+  
+  logger.info(chalk.yellow('\nRate on a scale of 0.0 to 1.0 (e.g., 0.7)'));
+  
+  rl.question(chalk.green('Trust in AI Technologies: '), (trust) => {
+    attitudes.trust = parseFloat(trust);
+    
+    rl.question(chalk.green('Concern about AI Impact on Jobs: '), (jobConcerns) => {
+      attitudes.jobConcerns = parseFloat(jobConcerns);
+      
+      rl.question(chalk.green('Perceived Positive Impact of AI on Society: '), (impact) => {
+        attitudes.impact = parseFloat(impact);
+        
+        rl.question(chalk.green('Interest in Learning About AI: '), (interest) => {
+          attitudes.interest = parseFloat(interest);
+          
+          rl.question(chalk.green('Frequency of AI Interaction: '), (interaction) => {
+            attitudes.interaction = parseFloat(interaction);
+            
+            submitUserData(userInfo, traits, attitudes);
+          });
+        });
+      });
+    });
+  });
+}
+
+/**
+ * Submit user data using proper application services
+ */
+async function submitUserData(personalInfo, personalityTraits, aiAttitudes) {
+  logger.info(chalk.cyan('\nProcessing your data...'));
+  
+  try {
+    // Create user using UserService
+    const user = await userService.createUser({
+      fullName: personalInfo.fullName,
+      email: personalInfo.email,
+      professionalTitle: personalInfo.professionalTitle,
+      location: personalInfo.location,
+      country: personalInfo.country
+    });
+    
+    // Save personality traits using PersonalityService
+    await personalityService.createProfile(user.id, {
+      personalityTraits,
+      aiAttitudes
+    });
+    
+    // Synchronize AI preferences using PersonalityCoordinator
+    await personalityCoordinator.synchronizeUserPreferences(user.id, aiAttitudes);
+    
+    // Retrieve updated user
+    currentUser = await userService.getUserById(user.id);
+    
+    logger.info(chalk.green('\nOnboarding successful!'));
+    
+    logger.info(chalk.yellow('\nYour AI Preference Profile:'));
+    if (currentUser.preferences && currentUser.preferences.aiInteraction) {
+      Object.entries(currentUser.preferences.aiInteraction).forEach(([key, value]) => {
+        logger.info(chalk.cyan(`${key}: ${value}`));
+      });
+    }
+    
+    rl.question(chalk.green('\nPress Enter to continue...'), () => {
+      displayMainMenu();
+    });
+  } catch (error) {
+    logger.error(chalk.red('\nError during onboarding:'), error);
+    
+    rl.question(chalk.green('\nPress Enter to return to main menu...'), () => {
+      displayMainMenu();
+    });
+  }
+}
+
+/**
+ * Generate a new challenge using ChallengeCoordinator
+ */
+async function generateChallenge() {
+  // Clear terminal using ANSI escape codes
+  process.stdout.write('\x1Bc');
+  logger.info(chalk.bgBlue.white('\n === CHALLENGE GENERATOR === \n'));
+  
+  if (!currentUser) {
+    logger.info(chalk.red('\nYou need to complete onboarding first!'));
+    rl.question(chalk.green('\nPress Enter to return to main menu...'), () => {
+      displayMainMenu();
+    });
+    return;
+  }
+  
+  const currentFocusArea = currentUser.focusArea || 'AI Ethics';
+  logger.info(chalk.yellow('Your current focus area:'), chalk.cyan(currentFocusArea));
+  
+  rl.question(chalk.green('\nWould you like to use this focus area? (y/n): '), async (answer) => {
+    let focusArea = currentFocusArea;
+    
+    if (answer.toLowerCase() === 'n') {
+      rl.question(chalk.green('\nEnter your preferred focus area: '), async (newFocusArea) => {
+        focusArea = newFocusArea;
+        await requestChallenge(focusArea);
+      });
+    } else {
+      await requestChallenge(focusArea);
+    }
+  });
+}
+
+/**
+ * Request a challenge using ChallengeCoordinator
+ */
+async function requestChallenge(focusArea) {
+  logger.info(chalk.cyan('\nGenerating your challenge...'));
+  
+  try {
+    // Generate challenge using ChallengeCoordinator
+    const challenge = await challengeCoordinator.generateAndPersistChallenge({
+      userEmail: currentUser.email,
+      focusArea: focusArea,
+      challengeType: 'critical-analysis',
+      formatType: 'scenario',
+      difficulty: 'medium'
+    });
+    
+    currentChallengeId = challenge.id;
+    
+    logger.info(chalk.green('\nChallenge generated successfully!'));
+    logger.info(chalk.yellow('\n=== ' + challenge.title + ' ==='));
+    logger.info(chalk.cyan('\nContent:'));
+    logger.info(challenge.content);
+    
+    if (challenge.questions && challenge.questions.length > 0) {
+      logger.info(chalk.cyan('\nQuestions:'));
+      challenge.questions.forEach((question, index) => {
+        logger.info(chalk.white(`${index + 1}. ${question.text || question}`));
+      });
+    }
+    
+    logger.info(chalk.yellow('\n======================================='));
+    
+    rl.question(chalk.green('\nPress Enter to return to main menu...'), () => {
+      displayMainMenu();
+    });
+  } catch (error) {
+    logger.error(chalk.red('\nError generating challenge:'), error);
+    
+    rl.question(chalk.green('\nPress Enter to return to main menu...'), () => {
+      displayMainMenu();
+    });
+  }
+}
+
+/**
+ * Submit a response to the current challenge
+ */
+function submitChallengeResponse() {
+  // Clear terminal using ANSI escape codes
+  process.stdout.write('\x1Bc');
+  logger.info(chalk.bgBlue.white('\n === CHALLENGE RESPONSE === \n'));
+  
+  if (!currentChallengeId) {
+    logger.info(chalk.red('\nYou need to generate a challenge first!'));
+    rl.question(chalk.green('\nPress Enter to return to main menu...'), () => {
+      displayMainMenu();
+    });
+    return;
+  }
+  
+  logger.info(chalk.yellow('\nEnter your response to the current challenge:'));
+  logger.info(chalk.cyan('(Type your response and press Enter, then type "END" on a new line to finish)'));
+  
+  let response = '';
+  const responseInput = () => {
+    rl.question('> ', (line) => {
+      if (line === 'END') {
+        sendChallengeResponse(response);
+      } else {
+        response += line + '\n';
+        responseInput();
+      }
+    });
+  };
+  
+  responseInput();
+}
+
+/**
+ * Send the challenge response using ChallengeCoordinator
+ */
+async function sendChallengeResponse(responseText) {
+  logger.info(chalk.cyan('\nEvaluating your response...'));
+  
+  try {
+    // Submit response using ChallengeCoordinator
+    const result = await challengeCoordinator.submitChallengeResponse({
+      challengeId: currentChallengeId,
+      userEmail: currentUser.email,
+      response: responseText
+    });
+    
+    const { evaluation } = result;
+    
+    logger.info(chalk.green('\nEvaluation complete!'));
+    logger.info(chalk.yellow('\n======================================='));
+    logger.info(chalk.cyan('Overall Score: ' + evaluation.score + '/100'));
+    
+    if (evaluation.overallFeedback) {
+      logger.info(chalk.green('\nFeedback:'));
+      logger.info(chalk.white(evaluation.overallFeedback));
+    }
+    
+    if (evaluation.strengths && evaluation.strengths.length > 0) {
+      logger.info(chalk.green('\nStrengths:'));
+      evaluation.strengths.forEach((strength, index) => {
+        logger.info(chalk.cyan(`${index + 1}. ${strength}`));
+      });
+    }
+    
+    if (evaluation.areasForImprovement && evaluation.areasForImprovement.length > 0) {
+      logger.info(chalk.yellow('\nAreas for Improvement:'));
+      evaluation.areasForImprovement.forEach((area, index) => {
+        logger.info(chalk.white(`${index + 1}. ${area}`));
+      });
+    }
+    
+    if (evaluation.nextSteps) {
+      logger.info(chalk.yellow('\nNext Steps:'));
+      logger.info(chalk.white(evaluation.nextSteps));
+    }
+    
+    logger.info(chalk.yellow('=======================================\n'));
+    
+    rl.question(chalk.green('\nPress Enter to return to main menu...'), () => {
+      displayMainMenu();
+    });
+  } catch (error) {
+    logger.error(chalk.red('\nError submitting response:'), error);
+    
+    rl.question(chalk.green('\nPress Enter to return to main menu...'), () => {
+      displayMainMenu();
+    });
+  }
+}
+
+/**
+ * View the current user profile
+ */
+async function viewUserProfile() {
+  // Clear terminal using ANSI escape codes
+  process.stdout.write('\x1Bc');
+  logger.info(chalk.bgBlue.white('\n === USER PROFILE === \n'));
+  
+  if (!currentUser) {
+    logger.info(chalk.red('\nYou need to complete onboarding first!'));
+    rl.question(chalk.green('\nPress Enter to return to main menu...'), () => {
+      displayMainMenu();
+    });
+    return;
+  }
+  
+  try {
+    // Refresh user data
+    currentUser = await userService.getUserById(currentUser.id);
+    
+    logger.info(chalk.yellow('Personal Information:'));
+    logger.info(chalk.cyan(`Name: ${currentUser.fullName}`));
+    logger.info(chalk.cyan(`Email: ${currentUser.email}`));
+    logger.info(chalk.cyan(`Title: ${currentUser.professionalTitle || 'Not specified'}`));
+    logger.info(chalk.cyan(`Location: ${currentUser.location || 'Not specified'}${currentUser.country ? `, ${currentUser.country}` : ''}`));
+    
+    // Get personality profile
+    const personalityProfile = await personalityService.getProfileByUserId(currentUser.id);
+    
+    if (personalityProfile && personalityProfile.personalityTraits) {
+      logger.info(chalk.yellow('\nPersonality Traits:'));
+      Object.entries(personalityProfile.personalityTraits).forEach(([trait, score]) => {
+        logger.info(chalk.cyan(`${trait}: ${score}`));
+      });
+    }
+    
+    if (personalityProfile && personalityProfile.aiAttitudes) {
+      logger.info(chalk.yellow('\nAI Attitudes:'));
+      Object.entries(personalityProfile.aiAttitudes).forEach(([attitude, score]) => {
+        logger.info(chalk.cyan(`${attitude}: ${score}`));
+      });
+    }
+    
+    // Get AI preferences
+    if (currentUser.preferences && currentUser.preferences.aiInteraction) {
+      logger.info(chalk.yellow('\nAI Interaction Preferences:'));
+      Object.entries(currentUser.preferences.aiInteraction).forEach(([pref, value]) => {
+        logger.info(chalk.cyan(`${pref}: ${value}`));
+      });
+    }
+    
+    // Get challenge history
+    const challenges = await challengeService.getChallengesForUser(currentUser.email);
+    
+    if (challenges && challenges.length > 0) {
+      logger.info(chalk.yellow('\nRecent Challenge History:'));
+      challenges.slice(0, 5).forEach((challenge, index) => {
+        logger.info(chalk.cyan(`${index + 1}. ${challenge.title || challenge.prompt} (${new Date(challenge.createdAt).toLocaleDateString()})`));
+        logger.info(chalk.white(`   Score: ${challenge.evaluation?.score || challenge.score || 'Not completed'}/100`));
+      });
+    } else {
+      logger.info(chalk.yellow('\nNo challenge history yet.'));
+    }
+  
+    rl.question(chalk.green('\nPress Enter to return to main menu...'), () => {
+      displayMainMenu();
+    });
+  } catch (error) {
+    logger.error(chalk.red('\nError retrieving profile:'), error);
+    
+    rl.question(chalk.green('\nPress Enter to return to main menu...'), () => {
+      displayMainMenu();
+    });
+  }
+}
+
+// Start the application
+logger.info(chalk.bgBlue.white('\n === WELCOME TO AI FIGHT CLUB === \n'));
+logger.info(chalk.yellow('Discover your Human Edge in the age of AI\n'));
+
+logger.info(chalk.cyan('This CLI allows you to interact with the AI Fight Club application.'));
+logger.info(chalk.cyan('You\'ll be guided through:'));
+logger.info(chalk.cyan('1. The onboarding process to collect your information'));
+logger.info(chalk.cyan('2. Challenge generation based on your profile'));
+logger.info(chalk.cyan('3. Challenge response submission and evaluation\n'));
+
+rl.question(chalk.green('Press Enter to continue...'), () => {
+  displayMainMenu();
+});
+
+module.exports = {
+  // Export functions for testing
+  displayMainMenu,
+  handleMenuChoice,
+  submitUserData,
+  requestChallenge,
+  sendChallengeResponse
+}; 

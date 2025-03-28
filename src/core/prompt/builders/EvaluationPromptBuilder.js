@@ -16,6 +16,8 @@ const {
   getResponsesApiInstruction
 } = require('../common/apiStandards');
 const { validateEvaluationPromptParams } = require('../schemas/evaluationSchema');
+const { PromptConstructionError } = require('../common/errors');
+const { formatForResponsesApi } = require('../../../infra/openai/messageFormatter');
 
 /**
  * Helper function for logging if logger exists
@@ -38,17 +40,25 @@ class EvaluationPromptBuilder {
    * @param {Object} params.challenge - Challenge data
    * @param {string|Object} params.userResponse - User's response to the challenge
    * @param {Object} [params.user] - User profile data
+   * @param {Object} [params.personalityProfile] - User's personality profile
    * @param {Object} [params.evaluationHistory] - Previous evaluation data for growth tracking
    * @param {Object} [params.options] - Additional prompt options
-   * @returns {string} Generated evaluation prompt
-   * @throws {Error} If required parameters are missing
+   * @returns {Object} Generated evaluation prompt with system message
+   * @throws {PromptConstructionError} If prompt construction fails
    */
   static build(params) {
     try {
       // Validate parameters against schema
       const validatedParams = validateEvaluationPromptParams(params);
       
-      const { challenge, userResponse, user = {}, evaluationHistory = {}, options = {} } = validatedParams;
+      const { 
+        challenge, 
+        userResponse, 
+        user = {}, 
+        personalityProfile = {},
+        evaluationHistory = {}, 
+        options = {} 
+      } = validatedParams;
       
       // Extract scoring categories and weights based on challenge type and focus area
       const categoryWeights = this.getCategoryWeights(challenge, options);
@@ -231,13 +241,118 @@ ${Object.keys(categoryWeights).map(cat => `    "${cat}": 25`).join(',\n')}
       // Ensure API standards are applied
       prompt = appendApiStandards(prompt);
       
-      return prompt.trim();
+      // Build dynamic system message based on user context
+      const systemMessage = this.buildDynamicSystemMessage(
+        challenge, 
+        user, 
+        personalityProfile, 
+        options
+      );
+      
+      // Return object formatted for Responses API
+      return formatForResponsesApi(prompt.trim(), systemMessage);
     } catch (error) {
       log('error', 'Error building evaluation prompt', { 
         error: error.message,
         stack: error.stack
       });
-      throw error;
+      throw new PromptConstructionError(`Failed to build evaluation prompt: ${error.message}`, {
+        originalError: error
+      });
+    }
+  }
+  
+  /**
+   * Build a dynamic system message based on user context
+   * @param {Object} challenge - Challenge data
+   * @param {Object} user - User profile data
+   * @param {Object} personalityProfile - User's personality profile
+   * @param {Object} options - Additional options
+   * @returns {string} Dynamic system message
+   * @private
+   */
+  static buildDynamicSystemMessage(challenge, user = {}, personalityProfile = {}, options = {}) {
+    try {
+      const challengeType = challenge.challengeType || 
+                            challenge.challengeTypeCode || 
+                            options.challengeTypeName || 
+                            'standard';
+      
+      // Start with base system message
+      let systemMsg = `You are an AI evaluation expert providing `;
+      
+      // Add feedback style based on user preferences or default to constructive
+      systemMsg += `${user.preferences?.feedbackStyle || 'constructive'} feedback `;
+      
+      // Add challenge type context
+      systemMsg += `on ${challengeType} challenges. `;
+      
+      // Adjust explanation complexity based on user skill level
+      if (user.skillLevel) {
+        if (user.skillLevel.toLowerCase() === 'beginner') {
+          systemMsg += `Explain concepts simply and thoroughly, avoiding jargon. `;
+        } else if (user.skillLevel.toLowerCase() === 'intermediate') {
+          systemMsg += `Balance explanations with appropriate complexity for someone with moderate familiarity. `;
+        } else if (user.skillLevel.toLowerCase() === 'expert' || user.skillLevel.toLowerCase() === 'advanced') {
+          systemMsg += `Provide nuanced, in-depth analysis that acknowledges complexity and edge cases. `;
+        }
+      }
+      
+      // Adjust tone based on personality profile if available
+      if (personalityProfile) {
+        if (personalityProfile.communicationStyle === 'formal') {
+          systemMsg += `Maintain a formal, professional tone. `;
+        } else if (personalityProfile.communicationStyle === 'casual') {
+          systemMsg += `Use a friendly, conversational tone. `;
+        } else if (personalityProfile.communicationStyle === 'technical') {
+          systemMsg += `Use precise, technical language where appropriate. `;
+        } else {
+          systemMsg += `Use a clear, encouraging tone. `; // Default
+        }
+        
+        // Add sensitivity based on personality traits
+        if (personalityProfile.traits) {
+          if (personalityProfile.traits.includes('sensitive_to_criticism')) {
+            systemMsg += `Frame critiques constructively and with emotional intelligence. `;
+          }
+          if (personalityProfile.traits.includes('detail_oriented')) {
+            systemMsg += `Include specific details and examples in your feedback. `;
+          }
+          if (personalityProfile.traits.includes('big_picture_thinker')) {
+            systemMsg += `Connect feedback to broader concepts and applications. `;
+          }
+        }
+      }
+      
+      // Add learning style adaptations if available
+      if (user.learningStyle) {
+        if (user.learningStyle === 'visual') {
+          systemMsg += `Suggest visual aids or diagrams when relevant. `;
+        } else if (user.learningStyle === 'practical') {
+          systemMsg += `Focus on practical applications and concrete examples. `;
+        } else if (user.learningStyle === 'theoretical') {
+          systemMsg += `Include theoretical underpinnings and conceptual frameworks. `;
+        }
+      }
+      
+      // Add standard evaluation guidelines
+      systemMsg += `Your evaluation should be thorough, fair, and aimed at helping the user improve. `;
+      systemMsg += `Always provide specific examples from their response to illustrate your points. `;
+      systemMsg += `Balance critique with encouragement to maintain motivation.`;
+      
+      // Add output format requirements
+      systemMsg += `\n\nYour response MUST follow the exact JSON structure specified in the prompt. `;
+      systemMsg += `Ensure all required fields are included and properly formatted.`;
+      
+      return systemMsg;
+    } catch (error) {
+      log('error', 'Error building dynamic system message', { 
+        error: error.message,
+        stack: error.stack
+      });
+      
+      // Return a basic system message as fallback
+      return 'You are an AI evaluation expert providing constructive feedback. Return your response as JSON according to the format specified in the prompt.';
     }
   }
   

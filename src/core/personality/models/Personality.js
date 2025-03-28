@@ -6,9 +6,10 @@
  * Uses Zod for data validation to ensure integrity.
  */
 
-const domainEvents = require('../../shared/domainEvents');
+const { EventTypes, eventBus } = require('../../common/events/domainEvents');
 const { v4: uuidv4 } = require('uuid');
 const { personalitySchema, toDatabase } = require('../schemas/personalitySchema');
+const { TraitsValidationError, AttitudesValidationError } = require('../errors/PersonalityErrors');
 
 class Personality {
   /**
@@ -78,7 +79,7 @@ class Personality {
     // Validate trait values using the validator
     const validation = personalitySchema.shape.personalityTraits.safeParse(traitsToValidate);
     if (!validation.success) {
-      throw new Error(`Invalid personality traits: ${validation.error.message}`);
+      throw new TraitsValidationError(`Invalid personality traits: ${validation.error.message}`);
     }
 
     // Merge traits
@@ -91,10 +92,11 @@ class Personality {
     
     // Publish domain event
     if (this.userId) {
-      domainEvents.publish('PersonalityTraitsUpdated', {
+      eventBus.publishEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
         userId: this.userId,
         personalityId: this.id,
-        traits: this.personalityTraits
+        traits: this.personalityTraits,
+        updateType: 'traits'
       });
     }
   }
@@ -110,7 +112,7 @@ class Personality {
     // Validate attitude values using the validator
     const validation = personalitySchema.shape.aiAttitudes.safeParse(attitudesToValidate);
     if (!validation.success) {
-      throw new Error(`Invalid AI attitudes: ${validation.error.message}`);
+      throw new AttitudesValidationError(`Invalid AI attitudes: ${validation.error.message}`);
     }
 
     // Merge attitudes
@@ -123,10 +125,11 @@ class Personality {
     
     // Publish domain event
     if (this.userId) {
-      domainEvents.publish('AIAttitudesUpdated', {
+      eventBus.publishEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
         userId: this.userId,
         personalityId: this.id,
-        attitudes: this.aiAttitudes
+        aiAttitudes: this.aiAttitudes,
+        updateType: 'attitudes'
       });
     }
   }
@@ -168,9 +171,10 @@ class Personality {
     
     // Publish domain event
     if (this.userId) {
-      domainEvents.publish('PersonalityInsightsGenerated', {
+      eventBus.publishEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
         userId: this.userId,
-        personalityId: this.id
+        personalityId: this.id,
+        updateType: 'insights'
       });
     }
   }

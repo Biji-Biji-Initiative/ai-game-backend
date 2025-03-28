@@ -19,7 +19,7 @@ async function initializeSupabase() {
     // Perform a simple query to test the connection
     const { data, error } = await supabaseClient
       .from('users')
-      .select('id')
+      .select('count', { count: 'exact' }) // Changed to use count for consistency with previous implementation
       .limit(1);
       
     if (error) {
@@ -60,7 +60,52 @@ async function checkConnection() {
   }
 }
 
+/**
+ * Run a health check on the database connection
+ * @returns {Promise<Object>} Health check results with status, message, and response time
+ */
+async function runDatabaseHealthCheck() {
+  try {
+    // Start timing
+    const startTime = Date.now();
+    
+    // Perform a quick query to check connection
+    const { data, error } = await supabaseClient
+      .from('system_status')
+      .select('last_updated')
+      .limit(1);
+    
+    // Calculate response time
+    const responseTime = Date.now() - startTime;
+    
+    if (error) {
+      return {
+        status: 'error',
+        message: `Database connection error: ${error.message}`,
+        responseTime: responseTime
+      };
+    }
+    
+    return {
+      status: 'healthy',
+      message: 'Database connection is healthy',
+      responseTime: responseTime,
+      lastUpdated: data?.[0]?.last_updated || null
+    };
+  } catch (error) {
+    logger.error('Database health check failed', { error: error.message });
+    
+    return {
+      status: 'error',
+      message: `Failed to perform database health check: ${error.message}`,
+      error: error.message
+    };
+  }
+}
+
 module.exports = {
   initializeSupabase,
-  checkConnection
+  checkConnection,
+  runDatabaseHealthCheck,
+  supabaseClient // Re-exported for backward compatibility
 }; 

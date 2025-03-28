@@ -1,30 +1,35 @@
 /**
- * Migration Runner Script
+ * Database Migration Runner
  * 
- * This script runs SQL migration files against the Supabase database.
- * It can be used to set up or update the database schema.
+ * This script runs the SQL migration files in the migrations directory.
+ * It connects to the database using the Supabase client and executes each migration file.
  */
 
-// Load environment variables first
 require('dotenv').config();
-
 const fs = require('fs');
 const path = require('path');
-const { supabaseClient } = require('../src/core/infra/db/supabaseClient');
+const { createClient } = require('@supabase/supabase-js');
 
-const MIGRATIONS_DIR = path.join(__dirname, '../migrations');
+// Initialize Supabase client
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables');
+  process.exit(1);
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 /**
- * Run a specific migration file
- * @param {string} fileName - Migration file name
+ * Run a specific SQL migration file
+ * @param {string} filePath - Path to migration file
  * @returns {Promise<void>}
  */
-async function runMigration(fileName) {
-  console.log(`Running migration: ${fileName}`);
-  
+async function runMigration(filePath) {
   try {
-    const filePath = path.join(MIGRATIONS_DIR, fileName);
     const sql = fs.readFileSync(filePath, 'utf8');
+    console.log(`Running migration: ${path.basename(filePath)}`);
     
     // Split the SQL file into separate statements
     const statements = sql.split(';')
@@ -33,54 +38,52 @@ async function runMigration(fileName) {
     
     // Run each statement
     for (const statement of statements) {
-      const { error } = await supabaseClient.rpc('exec_sql', { sql: statement });
+      const { error } = await supabase.rpc('exec_sql', { sql: statement });
       
       if (error) {
-        console.error(`Error executing statement from ${fileName}:`, error);
-        // Continue with other statements
+        console.error(`Error executing statement from ${path.basename(filePath)}:`, error);
+        throw error;
       }
     }
     
-    console.log(`Migration ${fileName} completed successfully`);
+    console.log(`Successfully executed migration: ${path.basename(filePath)}`);
   } catch (error) {
-    console.error(`Error running migration ${fileName}:`, error);
+    console.error(`Failed to run migration ${filePath}:`, error);
     throw error;
   }
 }
 
 /**
- * Run all migrations in the migrations directory
- * or a specific migration if file name is provided
+ * Run all SQL migration files in the migrations directory
+ * @returns {Promise<void>}
  */
-async function runMigrations() {
+async function runAllMigrations() {
   try {
-    const specificFile = process.argv[2];
+    const migrationsDir = path.join(__dirname, '..', 'migrations');
+    const files = fs.readdirSync(migrationsDir)
+      .filter(file => file.endsWith('.sql'))
+      .sort(); // Run migrations in alphabetical order
     
-    if (specificFile) {
-      // Run specific migration
-      await runMigration(specificFile);
-    } else {
-      // Run all migrations in order
-      const files = fs.readdirSync(MIGRATIONS_DIR)
-        .filter(file => file.endsWith('.sql'))
-        .sort(); // Sort to ensure order
-      
-      console.log(`Found ${files.length} migration files`);
-      
-      for (const file of files) {
-        await runMigration(file);
-      }
+    console.log(`Found ${files.length} migration files`);
+    
+    for (const file of files) {
+      const filePath = path.join(migrationsDir, file);
+      await runMigration(filePath);
     }
     
     console.log('All migrations completed successfully');
   } catch (error) {
     console.error('Migration failed:', error);
     process.exit(1);
-  } finally {
-    // Close the connection
-    supabaseClient.removeAllChannels();
   }
 }
 
-// Run the migrations
-runMigrations(); 
+// Run migrations when script is executed directly
+if (require.main === module) {
+  runAllMigrations();
+}
+
+module.exports = {
+  runAllMigrations,
+  runMigration
+}; 

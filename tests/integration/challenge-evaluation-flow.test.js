@@ -1,4 +1,12 @@
 /**
+ * MARKED FOR MANUAL REVIEW
+ * 
+ * This file needs significant refactoring to align with the new testing structure.
+ * Consider breaking it into proper domain tests and E2E tests.
+ * See tests/README.md for guidance.
+ */
+
+/**
  * Integration Test: Challenge-Evaluation Cross-Domain Flow
  * 
  * This test verifies the complete flow across Challenge and Evaluation domains:
@@ -14,6 +22,10 @@ const { expect } = require('chai');
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+
+const testEnv = require('../loadEnv');
+
+const { skipIfMissingEnv } = require('../helpers/testHelpers');
 require('dotenv').config();
 
 // Generate a unique test ID for this run
@@ -41,17 +53,22 @@ function logTestAction(action, data) {
 }
 
 describe('Integration: Challenge-Evaluation Cross-Domain Flow', function() {
-  // Set longer timeout for API calls (2 minutes)
+  
+  before(function() {
+    skipIfMissingEnv(this, 'openai');
+  });
+
+// Set longer timeout for API calls (2 minutes)
   this.timeout(120000);
   
   // Skip if API keys not available
   before(function() {
-    if (!process.env.OPENAI_API_KEY) {
+    if (!testEnv.getTestConfig().openai.apiKey) {
       console.warn('OPENAI_API_KEY not found, skipping integration tests');
       this.skip();
     }
     
-    if (!process.env.SUPABASE_URL || (!process.env.SUPABASE_KEY && !process.env.SUPABASE_ANON_KEY)) {
+    if (!testEnv.getTestConfig().supabase.url || (!testEnv.getTestConfig().supabase.key && !process.env.SUPABASE_ANON_KEY)) {
       console.warn('SUPABASE credentials not found, skipping integration tests');
       this.skip();
     }
@@ -85,14 +102,13 @@ describe('Integration: Challenge-Evaluation Cross-Domain Flow', function() {
         logTestAction('ImportError', { message: error.message });
         
         // Create OpenAI client
-        const { OpenAI } = require('openai');
-        openaiClient = new OpenAI({
-          apiKey: process.env.OPENAI_API_KEY
-        });
+        const { OpenAIClient } = require('../../src/infra/openai');
+        openaiClient = new OpenAIClient({ apiKey: testEnv.getTestConfig().openai.apiKey
+         });
         
         // Use environment variables if available, otherwise use our obtained credentials
-        const supabaseUrl = process.env.SUPABASE_URL || 'https://dvmfpddmnzaxjmxxpupk.supabase.co';
-        const supabaseKey = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2bWZwZGRtbnpheGpteHhwdXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI2NDA3MTAsImV4cCI6MjA1ODIxNjcxMH0.99b38YXJbbNC8kjRpqQq96k0zaB5qwQ2vvcFdxHPH9Y';
+        const supabaseUrl = testEnv.getTestConfig().supabase.url || 'https://dvmfpddmnzaxjmxxpupk.supabase.co';
+        const supabaseKey = testEnv.getTestConfig().supabase.key || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2bWZwZGRtbnpheGpteHhwdXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI2NDA3MTAsImV4cCI6MjA1ODIxNjcxMH0.99b38YXJbbNC8kjRpqQq96k0zaB5qwQ2vvcFdxHPH9Y';
         
         // Log the credentials we're using (obscuring the key)
         console.log(`Using Supabase URL: ${supabaseUrl}`);
@@ -151,7 +167,7 @@ describe('Integration: Challenge-Evaluation Cross-Domain Flow', function() {
               // Log what we're about to insert
               logTestAction('ChallengeToSave', { 
                 challenge,
-                url: process.env.SUPABASE_URL
+                url: testEnv.getTestConfig().supabase.url
               });
               
               // Insert into challenges table
@@ -242,7 +258,7 @@ describe('Integration: Challenge-Evaluation Cross-Domain Flow', function() {
               // Log what we're about to insert
               logTestAction('EvaluationToSave', { 
                 evaluation,
-                url: process.env.SUPABASE_URL
+                url: testEnv.getTestConfig().supabase.url
               });
               
               // Insert into evaluations table
@@ -374,7 +390,7 @@ describe('Integration: Challenge-Evaluation Cross-Domain Flow', function() {
             content: An object with a 'description' property containing the challenge text
             evaluation_criteria: An array of criteria to evaluate responses by`;
             
-            const completion = await openaiClient.chat.completions.create({
+            const completion = await openaiClient.responses.create({
               model: "gpt-4o",
               messages: [
                 { role: "system", content: "You are an expert in creating challenging cognitive exercises that test human skills." },
@@ -412,7 +428,7 @@ describe('Integration: Challenge-Evaluation Cross-Domain Flow', function() {
             
             Please provide a thoughtful, well-reasoned response to this challenge.`;
             
-            const completion = await openaiClient.chat.completions.create({
+            const completion = await openaiClient.responses.create({
               model: "gpt-4o",
               messages: [
                 { role: "system", content: "You are a participant in a cognitive challenge, responding as a human would." },
@@ -442,7 +458,7 @@ describe('Integration: Challenge-Evaluation Cross-Domain Flow', function() {
             areas_for_improvement: An array of 2-3 areas that could be improved
             category_scores: An object with scores for clarity (1-10), reasoning (1-10), and originality (1-10)`;
             
-            const completion = await openaiClient.chat.completions.create({
+            const completion = await openaiClient.responses.create({
               model: "gpt-4o",
               messages: [
                 { role: "system", content: "You are an expert evaluator for cognitive challenges." },

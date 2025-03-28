@@ -5,6 +5,7 @@ require('dotenv').config();
 const app = require('./src/app');
 const config = require('./src/config/config');
 const { logger } = require('./src/core/infra/logging/logger');
+const container = require('./src/config/container');
 
 // Define port from configuration
 const PORT = config.server.port;
@@ -20,6 +21,17 @@ const server = app.listen(PORT, async () => {
     // Check Supabase connection
     await checkConnection();
     logger.info('Supabase connection established successfully');
+    
+    // Initialize challenge configuration
+    const challengeConfigInitializer = container.get('challengeConfigInitializer');
+    const shouldSeed = config.server.environment === 'development';
+    const repos = await challengeConfigInitializer.initialize(shouldSeed);
+    logger.info('Challenge configuration initialized successfully', {
+      challengeTypes: await repos.challengeTypeRepository.findAll().then(types => types.length),
+      formatTypes: await repos.formatTypeRepository.findAll().then(types => types.length),
+      focusAreas: await repos.focusAreaRepository.findAll().then(areas => areas.length),
+      difficultyLevels: await repos.difficultyLevelRepository.findAll().then(levels => levels.length)
+    });
   } catch (error) {
     logger.error('Failed to initialize services', { error: error.message });
   }

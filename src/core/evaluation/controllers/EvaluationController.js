@@ -10,20 +10,20 @@ class EvaluationController {
    * @param {Object} dependencies - Dependencies
    * @param {Object} dependencies.logger - Logger instance
    * @param {Object} dependencies.evaluationService - Evaluation service
-   * @param {Object} dependencies.evaluationThreadService - Evaluation thread service
+   * @param {Object} dependencies.openAIStateManager - OpenAI state manager
    * @param {Object} dependencies.challengeRepository - Challenge repository
    */
   constructor(dependencies = {}) {
     const { 
       logger, 
       evaluationService, 
-      evaluationThreadService,
+      openAIStateManager,
       challengeRepository 
     } = dependencies;
     
     this.logger = logger;
     this.evaluationService = evaluationService;
-    this.evaluationThreadService = evaluationThreadService;
+    this.openAIStateManager = openAIStateManager;
     this.challengeRepository = challengeRepository;
   }
 
@@ -58,17 +58,25 @@ class EvaluationController {
       // Add user information to challenge object for the evaluation service
       challenge.userId = userId;
       
-      // Create a thread for the evaluation
-      const threadMetadata = await this.evaluationThreadService.createChallengeEvaluationThread(
-        userId, 
-        challengeId
+      // Create a thread ID for the evaluation
+      const threadId = `eval_${challengeId}_${Date.now()}`;
+      
+      // Create a conversation state for this evaluation
+      const conversationState = await this.openAIStateManager.findOrCreateConversationState(
+        userId,
+        threadId,
+        {
+          type: 'evaluation',
+          challengeId,
+          createdAt: new Date().toISOString()
+        }
       );
       
       // Generate the evaluation
       const evaluation = await this.evaluationService.evaluateResponse(
         challenge, 
         userResponse, 
-        { threadId: threadMetadata.id }
+        { threadId }
       );
       
       return res.status(201).json({
@@ -219,10 +227,18 @@ class EvaluationController {
       // Add user information to challenge object for the evaluation service
       challenge.userId = userId;
       
-      // Create a thread for the evaluation
-      const threadMetadata = await this.evaluationThreadService.createChallengeEvaluationThread(
-        userId, 
-        challengeId
+      // Create a thread ID for the evaluation
+      const threadId = `eval_stream_${challengeId}_${Date.now()}`;
+      
+      // Create a conversation state for this evaluation
+      await this.openAIStateManager.findOrCreateConversationState(
+        userId,
+        threadId,
+        {
+          type: 'evaluation_stream',
+          challengeId,
+          createdAt: new Date().toISOString()
+        }
       );
       
       // Set up server-sent events
@@ -248,7 +264,7 @@ class EvaluationController {
               userId,
               challengeId,
               text,
-              threadMetadata.id
+              threadId
             );
             
             // Send the completed message with evaluation ID
@@ -267,7 +283,7 @@ class EvaluationController {
               res.end();
             }
           }
-        }, { threadId: threadMetadata.id });
+        }, { threadId });
       } catch (error) {
         if (!completed) {
           res.write(`data: ${JSON.stringify({ type: 'error', message: error.message })}\n\n`);
