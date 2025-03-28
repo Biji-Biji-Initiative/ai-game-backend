@@ -41,3 +41,7 @@ out
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# Logs
+logs
+*.log
