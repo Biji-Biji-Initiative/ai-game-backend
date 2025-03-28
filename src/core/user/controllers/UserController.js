@@ -5,7 +5,7 @@
  * Located within the user domain following our DDD architecture.
  */
 const container = require('../../../config/container');
-const { userLogger } = require('../../infra/logging/domainLogger');
+const { userLogger } = require('../../infrastructure/logging/domainLogger');
 const { 
   UserNotFoundError, 
   UserUpdateError, 

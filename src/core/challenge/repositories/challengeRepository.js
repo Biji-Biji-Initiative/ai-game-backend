@@ -21,7 +21,9 @@ const {
 const { 
   ChallengeNotFoundError, 
   ChallengePersistenceError, 
-  ChallengeValidationError 
+  ChallengeValidationError,
+  ChallengeDuplicateError,
+  InvalidChallengeStatusTransitionError
 } = require('../errors/ChallengeErrors');
 const { challengeLogger } = require('../../../core/infra/logging/domainLogger');
 const { eventBus, EventTypes } = require('../../common/events/domainEvents');
@@ -154,6 +156,7 @@ class ChallengeRepository {
    * @returns {Promise<Challenge>} Saved challenge
    * @throws {ChallengeValidationError} If challenge fails validation
    * @throws {ChallengePersistenceError} If database operation fails
+   * @throws {ChallengeDuplicateError} If challenge ID already exists during creation
    */
   async save(challenge) {
     try {
@@ -169,11 +172,39 @@ class ChallengeRepository {
         this.log('error', 'Challenge validation failed', { 
           errors: validationResult.error.flatten() 
         });
-        throw new ChallengeValidationError(`Challenge validation failed: ${validationResult.error.message}`);
+        throw new ChallengeValidationError(`Challenge validation failed: ${validationResult.error.message}`, {
+          metadata: { validationErrors: validationResult.error.flatten() }
+        });
       }
       
-      // If it's a new challenge without an ID, update might be needed
-      const isUpdate = await this.findById(challenge.id) !== null;
+      // Collect domain events for publishing after successful save
+      const domainEvents = challenge.domainEvents ? [...challenge.domainEvents] : [];
+      
+      // Clear the events from the entity to prevent double-publishing
+      if (domainEvents.length > 0) {
+        challenge.clearEvents();
+      }
+      
+      // Check if this is a new challenge or an update
+      const existingChallenge = await this.findById(challenge.id).catch(() => null);
+      const isUpdate = existingChallenge !== null;
+      
+      // Check for status transition validity if this is an update
+      if (isUpdate && existingChallenge.status !== challenge.status) {
+        const isValidTransition = this.isValidStatusTransition(existingChallenge.status, challenge.status);
+        if (!isValidTransition) {
+          throw new InvalidChallengeStatusTransitionError(
+            `Cannot transition challenge status from ${existingChallenge.status} to ${challenge.status}`,
+            {
+              metadata: {
+                currentStatus: existingChallenge.status,
+                requestedStatus: challenge.status,
+                challengeId: challenge.id
+              }
+            }
+          );
+        }
+      }
       
       // Update the updatedAt timestamp
       challengeData.updated_at = new Date().toISOString();
@@ -193,7 +224,10 @@ class ChallengeRepository {
         
         if (error) {
           this.log('error', 'Error updating challenge', { id: challenge.id, error });
-          throw new ChallengePersistenceError(`Failed to update challenge: ${error.message}`);
+          throw new ChallengePersistenceError(`Failed to update challenge: ${error.message}`, {
+            cause: error,
+            metadata: { challengeId: challenge.id }
+          });
         }
         
         result = data;
@@ -209,7 +243,19 @@ class ChallengeRepository {
         
         if (error) {
           this.log('error', 'Error creating challenge', { id: challenge.id, error });
-          throw new ChallengePersistenceError(`Failed to create challenge: ${error.message}`);
+          
+          // Check if this is a duplicate key error
+          if (error.code === '23505' || error.message.includes('duplicate key') || error.message.includes('unique constraint')) {
+            throw new ChallengeDuplicateError(`Challenge with ID ${challenge.id} already exists`, {
+              cause: error,
+              metadata: { challengeId: challenge.id }
+            });
+          }
+          
+          throw new ChallengePersistenceError(`Failed to create challenge: ${error.message}`, {
+            cause: error,
+            metadata: { challengeId: challenge.id }
+          });
         }
         
         result = data;
@@ -223,44 +269,102 @@ class ChallengeRepository {
       // Create domain object from database result
       const savedChallenge = Challenge.fromDatabase(result);
       
-      // Publish domain events if any
-      if (challenge.domainEvents && Array.isArray(challenge.domainEvents) && challenge.domainEvents.length > 0) {
-        for (const event of challenge.domainEvents) {
-          await eventBus.publish(event);
+      // Publish any collected domain events AFTER successful persistence
+      if (domainEvents.length > 0) {
+        try {
+          this.log('debug', 'Publishing collected domain events', {
+            id: savedChallenge.id,
+            eventCount: domainEvents.length
+          });
+          
+          // Publish the events one by one in sequence (maintaining order)
+          for (const event of domainEvents) {
+            await eventBus.publish(event);
+          }
+        } catch (eventError) {
+          // Log event publishing error but don't fail the save operation
+          this.log('error', 'Error publishing domain events', { 
+            id: savedChallenge.id, 
+            error: eventError.message 
+          });
         }
-        
-        this.log('debug', 'Published domain events for challenge', {
-          id: challenge.id,
-          eventCount: challenge.domainEvents.length
-        });
-        
-        // Clear events after publishing
-        challenge.domainEvents = [];
-      } else if (!isUpdate) {
-        // If there are no collected events but this is a new challenge, publish a creation event
-        await eventBus.publishEvent(EventTypes.CHALLENGE_CREATED, {
-          challengeId: savedChallenge.id,
-          userId: savedChallenge.userId,
-          challengeType: savedChallenge.challengeType,
-          focusArea: savedChallenge.focusArea
-        });
-        
-        this.log('debug', 'Published challenge created event', { id: savedChallenge.id });
+      } 
+      // If no specific events, but this is a new challenge, publish a creation event
+      else if (!isUpdate) {
+        try {
+          this.log('debug', 'Publishing challenge created event', { id: savedChallenge.id });
+          
+          // Create the event here rather than asking the entity to create it
+          const creationEvent = {
+            type: EventTypes.CHALLENGE_CREATED,
+            payload: {
+              challengeId: savedChallenge.id,
+              userId: savedChallenge.userId,
+              challengeType: savedChallenge.challengeType,
+              focusArea: savedChallenge.focusArea
+            },
+            timestamp: new Date().toISOString()
+          };
+          
+          await eventBus.publish(creationEvent);
+        } catch (eventError) {
+          // Log event publishing error but don't fail the save operation
+          this.log('error', 'Error publishing challenge created event', { 
+            id: savedChallenge.id, 
+            error: eventError.message 
+          });
+        }
       }
       
       return savedChallenge;
     } catch (error) {
       if (error instanceof ChallengeValidationError || 
-          error instanceof ChallengePersistenceError) {
+          error instanceof ChallengePersistenceError ||
+          error instanceof InvalidChallengeStatusTransitionError ||
+          error instanceof ChallengeDuplicateError) {
         throw error;
       }
       
       this.log('error', 'Error saving challenge', { 
         id: challenge?.id,
-        error: error.message 
+        error: error.message,
+        stack: error.stack 
       });
-      throw new ChallengePersistenceError(`Failed to save challenge: ${error.message}`);
+      
+      throw new ChallengePersistenceError(
+        `Failed to save challenge: ${error.message}`, 
+        { cause: error, metadata: { challengeId: challenge?.id } }
+      );
     }
+  }
+  
+  /**
+   * Check if a status transition is valid
+   * @param {string} currentStatus - Current status
+   * @param {string} newStatus - New status
+   * @returns {boolean} True if transition is valid
+   * @private
+   */
+  isValidStatusTransition(currentStatus, newStatus) {
+    // Define valid transitions
+    const validTransitions = {
+      'draft': ['active', 'deleted'],
+      'active': ['completed', 'expired', 'cancelled', 'deleted'],
+      'completed': ['archived', 'deleted'],
+      'expired': ['archived', 'deleted'],
+      'cancelled': ['archived', 'deleted'],
+      'archived': ['deleted'],
+      'deleted': []
+    };
+    
+    // Allow same-to-same transitions
+    if (currentStatus === newStatus) {
+      return true;
+    }
+    
+    // Check against valid transitions map
+    return validTransitions[currentStatus] && 
+           validTransitions[currentStatus].includes(newStatus);
   }
 
   /**

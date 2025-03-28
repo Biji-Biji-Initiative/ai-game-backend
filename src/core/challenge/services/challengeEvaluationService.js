@@ -12,6 +12,8 @@
 const { v4: uuidv4 } = require('uuid');
 const { PROMPT_TYPES } = require('../../prompt/promptTypes');
 const promptBuilder = require('../../prompt/promptBuilder');
+const { formatForResponsesApi } = require('../../../infra/openai/messageFormatter');
+const { MessageRole } = require('../../../infra/openai/types');
 
 /**
  * Service for evaluating user responses to challenges
@@ -28,7 +30,7 @@ class ChallengeEvaluationService {
   constructor({ openAIClient, openAIStateManager, openAIConfig, logger }) {
     this.openAIClient = openAIClient;
     this.openAIStateManager = openAIStateManager;
-    this.MessageRole = openAIConfig.OpenAITypes.MessageRole;
+    this.MessageRole = MessageRole;
     this.logger = logger;
   }
 
@@ -66,6 +68,12 @@ class ChallengeEvaluationService {
       
       // Get the previous response ID for conversation continuity
       const previousResponseId = await this.openAIStateManager.getLastResponseId(conversationState.id);
+      
+      this.logger.debug('Retrieved previous response ID for stateful conversation', {
+        challengeId: challenge.id,
+        stateId: conversationState.id,
+        hasLastResponseId: !!previousResponseId
+      });
       
       this.logger.info('Evaluating challenge responses', {
         challengeId: challenge.id,
@@ -119,19 +127,38 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`
         }
       ];
       
+      // Format messages for Responses API
+      const formattedMessages = formatForResponsesApi(
+        prompt,
+        systemMessage || `You are an AI evaluation expert specializing in providing fair and constructive feedback on ${challengeTypeName} challenges.
+Always return your evaluation as a JSON object with scoring, feedback, strengths, and improvement suggestions, formatted as valid, parsable JSON.
+This is a ${formatTypeName} type challenge, so adapt your evaluation criteria accordingly.
+${promptOptions.typeMetadata.evaluationNote || ''}
+${promptOptions.formatMetadata.evaluationNote || ''}`
+      );
+      
       // Call the OpenAI Responses API for evaluation
-      this.logger.debug('Calling OpenAI Responses API for evaluation', { 
+      this.logger.debug('Calling OpenAI Responses API for evaluation using Responses API format', { 
         challengeId: challenge.id, 
-        stateId: conversationState.id
+        stateId: conversationState.id,
+        hasLastResponseId: !!previousResponseId
       });
       
-      // Send the JSON message with the 'EVALUATION' use case
-      const response = await this.openAIClient.sendJsonMessage(messages, 'EVALUATION', {
-        previous_response_id: previousResponseId
+      const response = await this.openAIClient.sendJsonMessage(formattedMessages, {
+        model: this.openAIConfig.model || 'gpt-4o',
+        temperature: 0.7,
+        responseFormat: 'json',
+        previousResponseId
       });
       
       // Update the conversation state with the new response ID
       await this.openAIStateManager.updateLastResponseId(conversationState.id, response.responseId);
+      
+      this.logger.debug('Updated conversation state with new response ID', {
+        challengeId: challenge.id,
+        stateId: conversationState.id,
+        responseId: response.responseId
+      });
       
       // Extract evaluation data from response
       const evaluationData = response.data;
@@ -197,6 +224,12 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`
       
       // Get the previous response ID for conversation continuity
       const previousResponseId = await this.openAIStateManager.getLastResponseId(conversationState.id);
+      
+      this.logger.debug('Retrieved previous response ID for stateful conversation', {
+        challengeId: challenge.id,
+        stateId: conversationState.id,
+        hasLastResponseId: !!previousResponseId
+      });
       
       // Get challenge type name for more accurate evaluation
       const challengeTypeName = challenge.getChallengeTypeName ? 

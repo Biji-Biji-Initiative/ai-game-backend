@@ -1,226 +1,169 @@
 /**
  * Challenge Type Repository
  * 
- * Repository implementation for challenge type entities.
- * This replaces the old flat-file repository with a proper DDD-compliant repository.
+ * Repository for managing challenge types data
+ * Follows Single Responsibility Principle by focusing only on challenge type data access
+ * 
+ * @module ChallengeTypeRepository
+ * @requires logger
  */
-const { supabaseClient } = require('../../infra/db/supabaseClient');
+
+const AppError = require('../../infra/errors/AppError');
 const { logger } = require('../../infra/logging/logger');
 
+/**
+ * Repository for challenge types
+ */
 class ChallengeTypeRepository {
-  constructor(dbClient = supabaseClient) {
-    this.dbClient = dbClient;
+  /**
+   * Create a new ChallengeTypeRepository
+   * @param {Object} dependencies - Injected dependencies
+   * @param {Object} dependencies.db - Database client
+   * @param {Object} dependencies.logger - Logger instance
+   */
+  constructor({ db, logger: customLogger }) {
+    this.db = db;
     this.tableName = 'challenge_types';
+    this.logger = customLogger || logger.child({ repository: 'ChallengeTypeRepository' });
   }
 
   /**
-   * Get all challenge types
-   * @returns {Promise<Array>} Array of challenge types
-   */
-  async getChallengeTypes() {
-    try {
-      const { data, error } = await this.dbClient
-        .from(this.tableName)
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) {
-        logger.error('Error getting challenge types', { error });
-        throw new Error(`Failed to get challenge types: ${error.message}`);
-      }
-      
-      return data || [];
-    } catch (error) {
-      logger.error('Error in getChallengeTypes', { error: error.message });
-      throw error;
-    }
-  }
-
-  /**
-   * Get challenge type by ID
-   * @param {string} id - Challenge type ID
-   * @returns {Promise<Object|null>} Challenge type or null if not found
-   */
-  async getChallengeTypeById(id) {
-    try {
-      const { data, error } = await this.dbClient
-        .from(this.tableName)
-        .select('*')
-        .eq('id', id)
-        .single();
-      
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // Record not found error
-          return null;
-        }
-        
-        logger.error('Error getting challenge type by ID', { error, id });
-        throw new Error(`Failed to get challenge type: ${error.message}`);
-      }
-      
-      return data;
-    } catch (error) {
-      logger.error('Error in getChallengeTypeById', { error: error.message, id });
-      throw error;
-    }
-  }
-
-  /**
-   * Get challenge type by code
+   * Find a challenge type by its code
    * @param {string} code - Challenge type code
-   * @returns {Promise<Object|null>} Challenge type or null if not found
+   * @returns {Promise<Object>} Challenge type data
    */
-  async getChallengeTypeByCode(code) {
+  async findByCode(code) {
     try {
-      const { data, error } = await this.dbClient
+      this.logger.debug('Finding challenge type by code', { code });
+      
+      const { data, error } = await this.db
         .from(this.tableName)
         .select('*')
         .eq('code', code)
         .single();
       
       if (error) {
-        if (error.code === 'PGRST116') {
-          // Record not found error
-          return null;
-        }
-        
-        logger.error('Error getting challenge type by code', { error, code });
-        throw new Error(`Failed to get challenge type: ${error.message}`);
+        throw new AppError(`Database error: ${error.message}`, 500, {
+          errorCode: 'DATABASE_ERROR',
+          metadata: { operation: 'findByCode', code }
+        });
       }
       
       return data;
     } catch (error) {
-      logger.error('Error in getChallengeTypeByCode', { error: error.message, code });
+      this.logger.error('Error finding challenge type by code', {
+        error: error.message,
+        code
+      });
+      
       throw error;
     }
   }
 
   /**
-   * Create or update a challenge type
+   * Get all available challenge types
+   * @returns {Promise<Array>} List of challenge types
+   */
+  async findAll() {
+    try {
+      this.logger.debug('Finding all challenge types');
+      
+      const { data, error } = await this.db
+        .from(this.tableName)
+        .select('*');
+      
+      if (error) {
+        throw new AppError(`Database error: ${error.message}`, 500, {
+          errorCode: 'DATABASE_ERROR',
+          metadata: { operation: 'findAll' }
+        });
+      }
+      
+      return data || [];
+    } catch (error) {
+      this.logger.error('Error finding all challenge types', {
+        error: error.message
+      });
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new challenge type
    * @param {Object} challengeType - Challenge type data
-   * @returns {Promise<string>} Challenge type ID
+   * @returns {Promise<Object>} Created challenge type
    */
-  async upsertChallengeType(challengeType) {
+  async create(challengeType) {
     try {
-      if (!challengeType) {
-        throw new Error('Challenge type data is required');
-      }
-      
-      if (!challengeType.code) {
-        throw new Error('Challenge type code is required');
-      }
-      
-      // Check if this challenge type exists
-      const existingType = challengeType.id 
-        ? await this.getChallengeTypeById(challengeType.id)
-        : await this.getChallengeTypeByCode(challengeType.code);
-      
-      // Prepare data for insert/update
-      const typeData = {
-        name: challengeType.name || 'Unnamed Challenge Type',
+      this.logger.debug('Creating new challenge type', { 
         code: challengeType.code,
-        description: challengeType.description || '',
-        parent_type_id: challengeType.parentTypeId || null,
-        metadata: challengeType.metadata || {},
-        trait_mappings: challengeType.traitMappings || {},
-        focus_area_mappings: challengeType.focusAreaMappings || {},
-        updated_at: new Date().toISOString()
-      };
+        name: challengeType.name
+      });
       
-      if (existingType) {
-        // Update existing type
-        typeData.id = existingType.id;
-        
-        const { error } = await this.dbClient
-          .from(this.tableName)
-          .update(typeData)
-          .eq('id', existingType.id);
-        
-        if (error) {
-          logger.error('Error updating challenge type', { error, typeData });
-          throw new Error(`Failed to update challenge type: ${error.message}`);
-        }
-        
-        return existingType.id;
-      } else {
-        // Create new type
-        typeData.created_at = new Date().toISOString();
-        
-        const { data, error } = await this.dbClient
-          .from(this.tableName)
-          .insert(typeData)
-          .select('id')
-          .single();
-        
-        if (error) {
-          logger.error('Error creating challenge type', { error, typeData });
-          throw new Error(`Failed to create challenge type: ${error.message}`);
-        }
-        
-        return data.id;
+      if (!challengeType.code || !challengeType.name) {
+        throw new AppError('Challenge type code and name are required', 400, {
+          errorCode: 'VALIDATION_ERROR',
+          metadata: { operation: 'create' }
+        });
       }
+      
+      const { data, error } = await this.db
+        .from(this.tableName)
+        .insert(challengeType)
+        .select()
+        .single();
+      
+      if (error) {
+        throw new AppError(`Database error: ${error.message}`, 500, {
+          errorCode: 'DATABASE_ERROR',
+          metadata: { operation: 'create' }
+        });
+      }
+      
+      return data;
     } catch (error) {
-      logger.error('Error in upsertChallengeType', { error: error.message });
+      this.logger.error('Error creating challenge type', {
+        error: error.message,
+        challengeType
+      });
+      
       throw error;
     }
   }
 
   /**
-   * Get trait mappings for challenge types
-   * @returns {Promise<Object>} Trait to challenge type mappings
+   * Update a challenge type
+   * @param {string} code - Challenge type code
+   * @param {Object} updates - Challenge type updates
+   * @returns {Promise<Object>} Updated challenge type
    */
-  async getTraitMappings() {
+  async update(code, updates) {
     try {
-      // Get all challenge types
-      const challengeTypes = await this.getChallengeTypes();
+      this.logger.debug('Updating challenge type', { code });
       
-      // Combine all trait mappings
-      const mappings = {};
+      const { data, error } = await this.db
+        .from(this.tableName)
+        .update(updates)
+        .eq('code', code)
+        .select()
+        .single();
       
-      challengeTypes.forEach(type => {
-        if (type.trait_mappings && typeof type.trait_mappings === 'object') {
-          Object.entries(type.trait_mappings).forEach(([trait, value]) => {
-            if (value) {
-              mappings[trait] = type.code;
-            }
-          });
-        }
+      if (error) {
+        throw new AppError(`Database error: ${error.message}`, 500, {
+          errorCode: 'DATABASE_ERROR',
+          metadata: { operation: 'update', code }
+        });
+      }
+      
+      return data;
+    } catch (error) {
+      this.logger.error('Error updating challenge type', {
+        error: error.message,
+        code
       });
       
-      return mappings;
-    } catch (error) {
-      logger.error('Error in getTraitMappings', { error: error.message });
-      return {};
-    }
-  }
-
-  /**
-   * Get focus area mappings for challenge types
-   * @returns {Promise<Object>} Focus area to challenge type mappings
-   */
-  async getFocusAreaMappings() {
-    try {
-      // Get all challenge types
-      const challengeTypes = await this.getChallengeTypes();
-      
-      // Combine all focus area mappings
-      const mappings = {};
-      
-      challengeTypes.forEach(type => {
-        if (type.focus_area_mappings && typeof type.focus_area_mappings === 'object') {
-          Object.entries(type.focus_area_mappings).forEach(([focusArea, value]) => {
-            if (value) {
-              mappings[focusArea] = type.code;
-            }
-          });
-        }
-      });
-      
-      return mappings;
-    } catch (error) {
-      logger.error('Error in getFocusAreaMappings', { error: error.message });
-      return {};
+      throw error;
     }
   }
 }

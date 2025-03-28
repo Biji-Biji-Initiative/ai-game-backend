@@ -18,18 +18,31 @@ const { logger } = require('../../core/infra/logging/logger');
  */
 const responsesApiResponseSchema = z.object({
   id: z.string(),
-  responseId: z.string().optional(),
+  object: z.string().optional(),
+  created_at: z.number().optional(),
+  status: z.enum(['completed', 'failed', 'in_progress', 'incomplete']).optional(),
   output: z.array(z.object({
-    type: z.literal('message'),
-    role: z.literal('assistant'),
+    type: z.string(), // Can be 'message' or 'tool_call' depending on the output
+    id: z.string().optional(),
+    status: z.enum(['completed', 'in_progress']).optional(),
+    role: z.literal('assistant').optional(), // Only present for message type
     content: z.array(z.object({
-      type: z.literal('text'),
-      text: z.string()
-    }))
+      type: z.string(), // Can be 'output_text' or other types
+      text: z.string().optional(),
+      annotations: z.array(z.any()).optional()
+    })).optional(), // content array only present for message type
+    tool_call: z.object({
+      id: z.string(),
+      type: z.literal('function'),
+      function: z.object({
+        name: z.string(),
+        arguments: z.string()
+      })
+    }).optional() // tool_call object only present for tool_call type
   })),
   usage: z.object({
-    prompt_tokens: z.number(),
-    completion_tokens: z.number(),
+    input_tokens: z.number(),
+    output_tokens: z.number(),
     total_tokens: z.number()
   }).optional()
 });
@@ -80,7 +93,7 @@ class OpenAIResponseHandler {
   /**
    * Process a response from OpenAI Responses API
    * @param {Object} response - Raw response from OpenAI
-   * @returns {Object} Processed response
+   * @returns {Object} Processed response with extracted content
    * @throws {OpenAIResponseHandlingError} If response is invalid
    */
   process(response) {
@@ -103,18 +116,21 @@ class OpenAIResponseHandler {
       
       // Get the text content from the output
       const textOutput = assistantMessage.content.find(item => 
-        item.type === 'text'
+        item.type === 'output_text'
       );
       
       if (!textOutput) {
-        throw new OpenAIResponseHandlingError('No text output found in the response');
+        throw new OpenAIResponseHandlingError('No output_text found in the response');
       }
       
       return {
         id: validatedResponse.id,
-        responseId: validatedResponse.responseId || validatedResponse.id,
+        responseId: validatedResponse.id,
         content: textOutput.text,
-        usage: validatedResponse.usage
+        annotations: textOutput.annotations || [],
+        status: validatedResponse.status || 'completed',
+        usage: validatedResponse.usage,
+        rawOutput: validatedResponse.output
       };
     } catch (error) {
       this.logger.error('Error processing OpenAI response', {
@@ -143,7 +159,7 @@ class OpenAIResponseHandler {
 
   /**
    * Format a response as JSON
-   * @param {Object} response - OpenAI Responses API response
+   * @param {Object|string} response - OpenAI Responses API response or text content
    * @param {Object} [options] - Formatting options
    * @param {Object} [options.schema] - Zod schema to validate against
    * @param {boolean} [options.strictMode] - Whether to use strict validation
@@ -151,7 +167,8 @@ class OpenAIResponseHandler {
    * @throws {OpenAIResponseHandlingError} If parsing or validation fails
    */
   formatJson(response, options = {}) {
-    const text = this.extractText(response);
+    // If response is a full API response object, extract text first
+    const text = typeof response === 'object' ? this.extractText(response) : response;
     
     try {
       // Clean the JSON string to remove any markdown formatting
@@ -202,7 +219,7 @@ class OpenAIResponseHandler {
   /**
    * Process a tool call response
    * @param {Object} response - OpenAI Responses API response 
-   * @returns {Object} The processed tool call
+   * @returns {Object} The processed tool calls with extracted information
    * @throws {OpenAIResponseHandlingError} If processing fails
    */
   processToolCall(response) {
@@ -214,34 +231,113 @@ class OpenAIResponseHandler {
       // Validate response structure
       const validatedResponse = responsesApiResponseSchema.parse(response);
       
-      // Find the tool call message if it exists
-      const toolCallMessage = validatedResponse.output.find(item => 
-        item.type === 'message' && item.role === 'assistant'
-      );
+      // Extract all tool calls from the response
+      const toolCalls = extractToolCalls(validatedResponse);
       
-      if (!toolCallMessage) {
-        throw new OpenAIResponseHandlingError('No assistant message found in the tool call response');
+      if (toolCalls.length === 0) {
+        this.logger.warn('No tool calls found in the response', { responseId: validatedResponse.id });
       }
-
-      // Process tool calls
+      
       return {
         id: validatedResponse.id,
-        responseId: validatedResponse.responseId || validatedResponse.id,
-        toolCall: toolCallMessage,
-        usage: validatedResponse.usage
+        responseId: validatedResponse.id,
+        toolCalls: toolCalls,
+        hasToolCalls: toolCalls.length > 0,
+        usage: validatedResponse.usage,
+        // Include the original response for additional context if needed
+        rawResponse: validatedResponse
       };
     } catch (error) {
       this.logger.error('Error processing tool call response', {
         error: error.message,
-        stack: error.stack
+        stack: error.stack,
+        responseId: response?.id
       });
       
       throw new OpenAIResponseHandlingError('Failed to process tool call response', {
-        cause: error
+        cause: error,
+        context: { responseId: response?.id }
       });
     }
   }
 }
+
+/**
+ * Extract tool calls from an OpenAI Responses API response
+ * @param {Object} response - OpenAI Responses API response object
+ * @returns {Array<Object>} Extracted tool calls with parsed information
+ * @throws {OpenAIResponseHandlingError} If format is invalid
+ */
+const extractToolCalls = (response) => {
+  try {
+    if (!response || !response.output || !Array.isArray(response.output)) {
+      throw new OpenAIResponseHandlingError('Invalid response structure: missing output array');
+    }
+
+    // Find tool_call items in the output array
+    const toolCallItems = response.output.filter(item => item.type === 'tool_call');
+    
+    if (!toolCallItems || toolCallItems.length === 0) {
+      return [];
+    }
+    
+    // Extract and parse each tool call
+    return toolCallItems.map(item => {
+      if (!item.tool_call) {
+        throw new OpenAIResponseHandlingError('Missing tool_call object in tool_call item', { 
+          itemId: item.id 
+        });
+      }
+      
+      const toolCall = item.tool_call;
+      
+      // Validate required fields
+      if (!toolCall.id || !toolCall.function || !toolCall.function.name) {
+        throw new OpenAIResponseHandlingError('Incomplete tool call data', { 
+          toolCallId: toolCall.id 
+        });
+      }
+      
+      // Return standardized tool call object
+      return {
+        id: toolCall.id,
+        type: toolCall.type,
+        functionName: toolCall.function.name,
+        arguments: toolCall.function.arguments || '{}',
+        parsedArguments: parseToolArguments(toolCall)
+      };
+    });
+  } catch (error) {
+    if (error instanceof OpenAIResponseHandlingError) {
+      throw error;
+    }
+    throw new OpenAIResponseHandlingError('Failed to extract tool calls', { 
+      cause: error
+    });
+  }
+};
+
+/**
+ * Parse function arguments from a tool call
+ * @param {Object} toolCall - Tool call object
+ * @returns {Object} Parsed arguments
+ * @throws {OpenAIResponseHandlingError} If parsing fails
+ */
+const parseToolArguments = (toolCall) => {
+  if (!toolCall || !toolCall.function || !toolCall.function.arguments) {
+    return {};
+  }
+  
+  try {
+    return JSON.parse(toolCall.function.arguments);
+  } catch (error) {
+    throw new OpenAIResponseHandlingError('Failed to parse tool call arguments JSON', {
+      cause: error,
+      toolCallId: toolCall.id,
+      arguments: toolCall.function.arguments
+    });
+  }
+};
 
 /**
  * Extracts the message content from an OpenAI Responses API response
@@ -252,7 +348,7 @@ class OpenAIResponseHandler {
 const extractMessageContent = (response) => {
   try {
     if (!response || !response.output || !Array.isArray(response.output)) {
-      throw new OpenAIResponseHandlingError('Invalid response structure');
+      throw new OpenAIResponseHandlingError('Invalid response structure: missing output array');
     }
 
     const assistantMessage = response.output.find(item => 
@@ -264,7 +360,7 @@ const extractMessageContent = (response) => {
     }
     
     const textOutput = assistantMessage.content.find(item => 
-      item.type === 'text'
+      item.type === 'output_text'
     );
     
     return textOutput ? textOutput.text : null;
@@ -304,17 +400,19 @@ const cleanJsonString = (jsonString) => {
 };
 
 /**
- * Format JSON response data for the Responses API
+ * Format JSON response data from the Responses API
  * @param {string|Object} response - Response content to format
  * @returns {Object} Formatted JSON object
+ * @throws {OpenAIResponseHandlingError} If JSON parsing fails
  */
 const formatJson = (response) => {
   if (!response) {
     return null;
   }
 
+  // Handle different response types
   if (typeof response === 'object') {
-    // If it's already an object, extract the text content
+    // If the input is a full API response with output array
     if (response.output && Array.isArray(response.output)) {
       const content = extractMessageContent(response);
       if (content) {
@@ -322,12 +420,15 @@ const formatJson = (response) => {
         try {
           return JSON.parse(cleaned);
         } catch (error) {
-          throw new OpenAIResponseHandlingError('Failed to parse JSON in response object');
+          throw new OpenAIResponseHandlingError('Failed to parse JSON in response object', {
+            cause: error
+          });
         }
       }
       return null;
-    }
-    return response; // It's already a parsed object
+    } 
+    // If it's already a parsed JSON object, return it directly
+    return response;
   }
 
   // If it's a string, try to parse it as JSON
@@ -335,13 +436,74 @@ const formatJson = (response) => {
     const cleaned = cleanJsonString(response);
     return JSON.parse(cleaned);
   } catch (error) {
-    throw new OpenAIResponseHandlingError('Failed to parse JSON from string response');
+    throw new OpenAIResponseHandlingError('Failed to parse JSON from string response', {
+      cause: error,
+      context: { content: response.substring(0, 100) }
+    });
+  }
+};
+
+/**
+ * Extract included data from a response
+ * @param {Object} response - OpenAI Responses API response object 
+ * @param {string} includeType - Type of included data to extract (e.g., 'file_search_call.results')
+ * @returns {Object|Array|null} The included data if found, null otherwise
+ * @throws {OpenAIResponseHandlingError} If format is invalid
+ */
+const extractIncludedData = (response, includeType) => {
+  if (!response || !includeType) {
+    return null;
+  }
+  
+  try {
+    // Ensure the include type is valid
+    const validIncludeTypes = [
+      'file_search_call.results', 
+      'message.input_image.image_url', 
+      'computer_call_output.output.image_url'
+    ];
+    
+    if (!validIncludeTypes.includes(includeType)) {
+      throw new OpenAIResponseHandlingError(`Invalid include type: ${includeType}`);
+    }
+    
+    // Check if the response has included data
+    if (!response.included || typeof response.included !== 'object') {
+      return null;
+    }
+    
+    // Extract the requested data type
+    if (includeType === 'file_search_call.results') {
+      return response.included.file_search_call?.results || null;
+    }
+    
+    if (includeType === 'message.input_image.image_url') {
+      return response.included.message?.input_image?.image_url || null;
+    }
+    
+    if (includeType === 'computer_call_output.output.image_url') {
+      return response.included.computer_call_output?.output?.image_url || null;
+    }
+    
+    return null;
+  } catch (error) {
+    if (error instanceof OpenAIResponseHandlingError) {
+      throw error;
+    }
+    
+    throw new OpenAIResponseHandlingError('Failed to extract included data', {
+      includeType,
+      cause: error
+    });
   }
 };
 
 module.exports = {
   OpenAIResponseHandler,
   extractMessageContent,
+  extractToolCalls,
+  parseToolArguments,
   cleanJsonString,
-  formatJson
+  formatJson,
+  extractIncludedData
 };

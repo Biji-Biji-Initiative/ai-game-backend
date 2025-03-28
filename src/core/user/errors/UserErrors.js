@@ -54,6 +54,17 @@ class UserValidationError extends UserError {
 }
 
 /**
+ * User Invalid State Error
+ * Thrown when a user is in an invalid state for an operation
+ */
+class UserInvalidStateError extends UserError {
+  constructor(message = 'User is in an invalid state for this operation') {
+    super(message, 400);
+    this.name = 'UserInvalidStateError';
+  }
+}
+
+/**
  * User Authentication Error
  * Thrown when there's an issue with user authentication
  */
@@ -91,6 +102,7 @@ module.exports = {
   UserNotFoundError,
   UserUpdateError,
   UserValidationError,
+  UserInvalidStateError,
   UserAuthenticationError,
   UserAuthorizationError,
   FocusAreaError

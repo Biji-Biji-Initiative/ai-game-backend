@@ -12,7 +12,6 @@
 const { logger } = require('../../../core/infra/logging/logger');
 const { 
   appendApiStandards, 
-  getStructuredOutputInstructions,
   getResponsesApiInstruction
 } = require('../common/apiStandards');
 const { validateEvaluationPromptParams } = require('../schemas/evaluationSchema');
@@ -21,6 +20,7 @@ const { formatForResponsesApi } = require('../../../infra/openai/messageFormatte
 
 /**
  * Helper function for logging if logger exists
+ * @private
  */
 function log(level, message, meta = {}) {
   if (logger && typeof logger[level] === 'function') {
@@ -63,149 +63,24 @@ class EvaluationPromptBuilder {
       // Extract scoring categories and weights based on challenge type and focus area
       const categoryWeights = this.getCategoryWeights(challenge, options);
       
-      // Build the evaluation prompt
-      let prompt = `### EVALUATION TASK\n\n`;
-      prompt += `Evaluate the user's response to the challenge with detailed scoring in multiple categories, personalized feedback, and growth tracking.\n\n`;
+      // Build the evaluation prompt sections
+      const promptSections = [
+        this.buildHeaderSection(),
+        this.buildChallengeSection(challenge),
+        this.buildUserContextSection(user),
+        this.buildEvaluationHistorySection(evaluationHistory),
+        this.buildUserResponseSection(userResponse),
+        this.buildCriteriaSection(categoryWeights),
+        this.buildStrengthAnalysisSection(),
+        this.buildImprovementPlanSection(),
+        this.buildGrowthTrackingSection(evaluationHistory),
+        this.buildRecommendationsSection(),
+        this.buildResponseFormatSection(categoryWeights),
+        getResponsesApiInstruction()
+      ];
       
-      // Add challenge information
-      prompt += `### CHALLENGE INFORMATION\n`;
-      prompt += `Title: ${challenge.title || 'Untitled Challenge'}\n`;
-      prompt += `Type: ${challenge.challengeType || challenge.challengeTypeCode || 'standard'}\n`;
-      prompt += `Focus Area: ${challenge.focusArea || 'general'}\n`;
-      if (challenge.difficulty) {
-        prompt += `Difficulty: ${challenge.difficulty}\n`;
-      }
-      prompt += `\n`;
-      
-      // Add challenge content
-      if (typeof challenge.content === 'object') {
-        prompt += `### CHALLENGE CONTENT\n`;
-        if (challenge.content.context) prompt += `Context: ${challenge.content.context}\n\n`;
-        if (challenge.content.scenario) prompt += `Scenario: ${challenge.content.scenario}\n\n`;
-        if (challenge.content.instructions) prompt += `Instructions: ${challenge.content.instructions}\n\n`;
-      } else if (typeof challenge.content === 'string' && challenge.content.trim()) {
-        prompt += `### CHALLENGE CONTENT\n${challenge.content}\n\n`;
-      }
-      
-      // Add user context
-      if (user && Object.keys(user).length > 0) {
-        prompt += `### USER CONTEXT\n`;
-        if (user.name) prompt += `Name: ${user.name}\n`;
-        if (user.email) prompt += `User ID: ${user.email}\n`;
-        if (user.skillLevel) prompt += `Skill Level: ${user.skillLevel}\n`;
-        
-        if (user.focusAreas && Array.isArray(user.focusAreas) && user.focusAreas.length > 0) {
-          prompt += `Focus Areas: ${user.focusAreas.join(', ')}\n`;
-        }
-        
-        if (user.learningGoals && Array.isArray(user.learningGoals) && user.learningGoals.length > 0) {
-          prompt += `Learning Goals: ${user.learningGoals.join(', ')}\n`;
-        }
-        
-        if (user.completedChallenges) {
-          prompt += `Completed Challenges: ${user.completedChallenges}\n`;
-        }
-        
-        prompt += `\n`;
-      }
-      
-      // Add evaluation history for growth tracking
-      if (evaluationHistory && Object.keys(evaluationHistory).length > 0) {
-        prompt += `### PREVIOUS EVALUATION DATA\n`;
-        
-        if (evaluationHistory.previousScore !== undefined) {
-          prompt += `Previous Overall Score: ${evaluationHistory.previousScore}\n`;
-        }
-        
-        if (evaluationHistory.previousCategoryScores && 
-            Object.keys(evaluationHistory.previousCategoryScores).length > 0) {
-          prompt += `Previous Category Scores:\n`;
-          Object.entries(evaluationHistory.previousCategoryScores).forEach(([category, score]) => {
-            prompt += `- ${category}: ${score}\n`;
-          });
-        }
-        
-        if (evaluationHistory.consistentStrengths && 
-            Array.isArray(evaluationHistory.consistentStrengths) && 
-            evaluationHistory.consistentStrengths.length > 0) {
-          prompt += `Consistent Strengths: ${evaluationHistory.consistentStrengths.join(', ')}\n`;
-        }
-        
-        if (evaluationHistory.persistentWeaknesses && 
-            Array.isArray(evaluationHistory.persistentWeaknesses) && 
-            evaluationHistory.persistentWeaknesses.length > 0) {
-          prompt += `Areas Needing Improvement: ${evaluationHistory.persistentWeaknesses.join(', ')}\n`;
-        }
-        
-        prompt += `\n`;
-      }
-      
-      // Add user response
-      prompt += `### USER RESPONSE\n${typeof userResponse === 'string' ? userResponse : JSON.stringify(userResponse)}\n\n`;
-      
-      // Add category scoring instructions
-      prompt += `### EVALUATION CRITERIA\n`;
-      prompt += `Evaluate the response using the following criteria:\n\n`;
-      
-      // Add detailed criteria for each category
-      Object.entries(categoryWeights).forEach(([category, weight]) => {
-        const description = this.getCategoryDescription(category);
-        prompt += `- ${category} (0-${weight} points): ${description}\n`;
-      });
-      
-      prompt += `\nThe total maximum score is 100 points.\n\n`;
-      
-      // Add strength analysis instructions
-      prompt += `### STRENGTH ANALYSIS\n`;
-      prompt += `For each strength identified, provide a detailed analysis including:\n`;
-      prompt += `1. What the user did well (the strength itself)\n`;
-      prompt += `2. Why this aspect is effective or important\n`;
-      prompt += `3. How it specifically contributes to the quality of the response\n\n`;
-      
-      // Add improvement plan instructions
-      prompt += `### IMPROVEMENT PLANS\n`;
-      prompt += `For each area needing improvement, provide a detailed plan including:\n`;
-      prompt += `1. Specific issue to address\n`;
-      prompt += `2. Why improving this area is important\n`;
-      prompt += `3. Actionable steps to improve\n`;
-      prompt += `4. Resources or exercises that could help\n\n`;
-      
-      // Add growth tracking instructions
-      if (evaluationHistory && Object.keys(evaluationHistory).length > 0) {
-        prompt += `### GROWTH TRACKING\n`;
-        prompt += `Compare the current response to previous evaluations:\n`;
-        prompt += `1. Identify improvements since the last evaluation\n`;
-        prompt += `2. Note any persistent strengths or weaknesses\n`;
-        prompt += `3. Provide specific growth insights\n\n`;
-      }
-      
-      // Add personalized recommendations instructions
-      prompt += `### PERSONALIZED RECOMMENDATIONS\n`;
-      prompt += `Based on the user's context, provide:\n`;
-      prompt += `1. Personalized next steps tailored to their focus areas and skill level\n`;
-      prompt += `2. 2-3 specific resources that would help improvement (articles, books, courses, etc.)\n`;
-      prompt += `3. 1-2 recommended challenge types that would build on current strengths or address weaknesses\n\n`;
-      
-      // Add response format instructions
-      prompt += `### RESPONSE FORMAT\n`;
-      prompt += `Provide your evaluation as a JSON object with the following structure:\n\n`;
-      prompt += `{\n`;
-      prompt += `  "categoryScores": {\n${Object.keys(categoryWeights).map(cat => `    "${cat}": 25`).join(',\n')}
-  },\n`;
-      prompt += `  "overallScore": 85,\n`;
-      prompt += `  "overallFeedback": "Comprehensive evaluation of the entire response...",\n`;
-      prompt += `  "strengths": [\n    "Strength 1",\n    "Strength 2"\n  ],\n`;
-      prompt += `  "strengthAnalysis": [\n    {\n      "strength": "Strength 1",\n      "analysis": "Detailed explanation of why this is effective...",\n      "impact": "How this contributes to overall quality..."\n    }\n  ],\n`;
-      prompt += `  "areasForImprovement": [\n    "Area for improvement 1",\n    "Area for improvement 2"\n  ],\n`;
-      prompt += `  "improvementPlans": [\n    {\n      "area": "Area for improvement 1",\n      "importance": "Why improving this is important...",\n      "actionItems": ["Specific action 1", "Specific action 2"],\n      "resources": ["Suggested resource or exercise"]\n    }\n  ],\n`;
-      prompt += `  "growthInsights": {\n    "improvements": ["Specific improvements since last evaluation"],\n    "persistentStrengths": ["Strengths maintained across evaluations"],\n    "developmentAreas": ["Areas that still need focus"],\n    "growthSummary": "Overall assessment of growth trajectory..."\n  },\n`;
-      prompt += `  "recommendations": {\n    "nextSteps": "Personalized next steps for improvement...",\n    "resources": [\n      {\n        "title": "Resource Title",\n        "type": "article|video|course",\n        "url": "URL if available",\n        "relevance": "Why this is relevant"\n      }\n    ],\n    "recommendedChallenges": [\n      {\n        "title": "Challenge Type",\n        "description": "Brief description",\n        "relevance": "Why this would help growth"\n      }\n    ]\n  }\n`;
-      prompt += `}\n\n`;
-      
-      // Add Responses API instruction
-      prompt += `\n\n${getResponsesApiInstruction()}`;
-      
-      // Ensure API standards are applied
+      // Combine sections and ensure API standards are applied
+      let prompt = promptSections.filter(Boolean).join('\n\n');
       prompt = appendApiStandards(prompt);
       
       // Build dynamic system message based on user context
@@ -231,6 +106,271 @@ class EvaluationPromptBuilder {
   }
   
   /**
+   * Build the header section of the prompt
+   * @returns {string} The header section
+   * @private
+   */
+  static buildHeaderSection() {
+    return `### EVALUATION TASK\n\nEvaluate the user's response to the challenge with detailed scoring in multiple categories, personalized feedback, and growth tracking.`;
+  }
+  
+  /**
+   * Build the challenge information section of the prompt
+   * @param {Object} challenge - Challenge data
+   * @returns {string} The challenge section
+   * @private
+   */
+  static buildChallengeSection(challenge) {
+    const section = ['### CHALLENGE INFORMATION'];
+    
+    section.push(`Title: ${challenge.title || 'Untitled Challenge'}`);
+    section.push(`Type: ${challenge.challengeType || challenge.challengeTypeCode || 'standard'}`);
+    section.push(`Focus Area: ${challenge.focusArea || 'general'}`);
+    
+    if (challenge.difficulty) {
+      section.push(`Difficulty: ${challenge.difficulty}`);
+    }
+    
+    // Add challenge content
+    if (typeof challenge.content === 'object') {
+      section.push(`\n### CHALLENGE CONTENT`);
+      if (challenge.content.context) section.push(`Context: ${challenge.content.context}`);
+      if (challenge.content.scenario) section.push(`Scenario: ${challenge.content.scenario}`);
+      if (challenge.content.instructions) section.push(`Instructions: ${challenge.content.instructions}`);
+    } else if (typeof challenge.content === 'string' && challenge.content.trim()) {
+      section.push(`\n### CHALLENGE CONTENT\n${challenge.content}`);
+    }
+    
+    return section.join('\n');
+  }
+  
+  /**
+   * Build the user context section of the prompt
+   * @param {Object} user - User profile data
+   * @returns {string|null} The user context section or null if not applicable
+   * @private
+   */
+  static buildUserContextSection(user) {
+    if (!user || Object.keys(user).length === 0) {
+      return null;
+    }
+    
+    const section = ['### USER CONTEXT'];
+    
+    if (user.name) section.push(`Name: ${user.name}`);
+    if (user.email) section.push(`User ID: ${user.email}`);
+    if (user.skillLevel) section.push(`Skill Level: ${user.skillLevel}`);
+    
+    if (user.focusAreas && Array.isArray(user.focusAreas) && user.focusAreas.length > 0) {
+      section.push(`Focus Areas: ${user.focusAreas.join(', ')}`);
+    }
+    
+    if (user.learningGoals && Array.isArray(user.learningGoals) && user.learningGoals.length > 0) {
+      section.push(`Learning Goals: ${user.learningGoals.join(', ')}`);
+    }
+    
+    if (user.completedChallenges) {
+      section.push(`Completed Challenges: ${user.completedChallenges}`);
+    }
+    
+    return section.join('\n');
+  }
+  
+  /**
+   * Build the evaluation history section of the prompt
+   * @param {Object} evaluationHistory - Previous evaluation data
+   * @returns {string|null} The evaluation history section or null if not applicable
+   * @private
+   */
+  static buildEvaluationHistorySection(evaluationHistory) {
+    if (!evaluationHistory || Object.keys(evaluationHistory).length === 0) {
+      return null;
+    }
+    
+    const section = ['### PREVIOUS EVALUATION DATA'];
+    
+    if (evaluationHistory.previousScore !== undefined) {
+      section.push(`Previous Overall Score: ${evaluationHistory.previousScore}`);
+    }
+    
+    if (evaluationHistory.previousCategoryScores && 
+        Object.keys(evaluationHistory.previousCategoryScores).length > 0) {
+      section.push(`Previous Category Scores:`);
+      Object.entries(evaluationHistory.previousCategoryScores).forEach(([category, score]) => {
+        section.push(`- ${category}: ${score}`);
+      });
+    }
+    
+    if (evaluationHistory.consistentStrengths && 
+        Array.isArray(evaluationHistory.consistentStrengths) && 
+        evaluationHistory.consistentStrengths.length > 0) {
+      section.push(`Consistent Strengths: ${evaluationHistory.consistentStrengths.join(', ')}`);
+    }
+    
+    if (evaluationHistory.persistentWeaknesses && 
+        Array.isArray(evaluationHistory.persistentWeaknesses) && 
+        evaluationHistory.persistentWeaknesses.length > 0) {
+      section.push(`Areas Needing Improvement: ${evaluationHistory.persistentWeaknesses.join(', ')}`);
+    }
+    
+    return section.join('\n');
+  }
+  
+  /**
+   * Build the user response section of the prompt
+   * @param {string|Object} userResponse - User's response to evaluate
+   * @returns {string} The user response section
+   * @private
+   */
+  static buildUserResponseSection(userResponse) {
+    return `### USER RESPONSE\n${typeof userResponse === 'string' ? userResponse : JSON.stringify(userResponse)}`;
+  }
+  
+  /**
+   * Build the evaluation criteria section of the prompt
+   * @param {Object} categoryWeights - Category weights mapping
+   * @returns {string} The criteria section
+   * @private
+   */
+  static buildCriteriaSection(categoryWeights) {
+    const section = ['### EVALUATION CRITERIA', 'Evaluate the response using the following criteria:'];
+    
+    // Add detailed criteria for each category
+    Object.entries(categoryWeights).forEach(([category, weight]) => {
+      const description = this.getCategoryDescription(category);
+      section.push(`- ${category} (0-${weight} points): ${description}`);
+    });
+    
+    section.push(`\nThe total maximum score is 100 points.`);
+    
+    return section.join('\n');
+  }
+  
+  /**
+   * Build the strength analysis section of the prompt
+   * @returns {string} The strength analysis section
+   * @private
+   */
+  static buildStrengthAnalysisSection() {
+    return `### STRENGTH ANALYSIS
+For each strength identified, provide a detailed analysis including:
+1. What the user did well (the strength itself)
+2. Why this aspect is effective or important
+3. How it specifically contributes to the quality of the response`;
+  }
+  
+  /**
+   * Build the improvement plan section of the prompt
+   * @returns {string} The improvement plan section
+   * @private
+   */
+  static buildImprovementPlanSection() {
+    return `### IMPROVEMENT PLANS
+For each area needing improvement, provide a detailed plan including:
+1. Specific issue to address
+2. Why improving this area is important
+3. Actionable steps to improve
+4. Resources or exercises that could help`;
+  }
+  
+  /**
+   * Build the growth tracking section of the prompt
+   * @param {Object} evaluationHistory - Previous evaluation data
+   * @returns {string|null} The growth tracking section or null if not applicable
+   * @private
+   */
+  static buildGrowthTrackingSection(evaluationHistory) {
+    if (!evaluationHistory || Object.keys(evaluationHistory).length === 0) {
+      return null;
+    }
+    
+    return `### GROWTH TRACKING
+Compare the current response to previous evaluations:
+1. Identify improvements since the last evaluation
+2. Note any persistent strengths or weaknesses
+3. Provide specific growth insights`;
+  }
+  
+  /**
+   * Build the personalized recommendations section of the prompt
+   * @returns {string} The recommendations section
+   * @private
+   */
+  static buildRecommendationsSection() {
+    return `### PERSONALIZED RECOMMENDATIONS
+Based on the user's context, provide:
+1. Personalized next steps tailored to their focus areas and skill level
+2. 2-3 specific resources that would help improvement (articles, books, courses, etc.)
+3. 1-2 recommended challenge types that would build on current strengths or address weaknesses`;
+  }
+  
+  /**
+   * Build the response format section of the prompt
+   * @param {Object} categoryWeights - Category weights mapping
+   * @returns {string} The response format section
+   * @private
+   */
+  static buildResponseFormatSection(categoryWeights) {
+    return `### RESPONSE FORMAT
+Provide your evaluation as a JSON object with the following structure:
+
+{
+  "categoryScores": {
+${Object.keys(categoryWeights).map(cat => `    "${cat}": 25`).join(',\n')}
+  },
+  "overallScore": 85,
+  "overallFeedback": "Comprehensive evaluation of the entire response...",
+  "strengths": [
+    "Strength 1",
+    "Strength 2"
+  ],
+  "strengthAnalysis": [
+    {
+      "strength": "Strength 1",
+      "analysis": "Detailed explanation of why this is effective...",
+      "impact": "How this contributes to overall quality..."
+    }
+  ],
+  "areasForImprovement": [
+    "Area for improvement 1",
+    "Area for improvement 2"
+  ],
+  "improvementPlans": [
+    {
+      "area": "Area for improvement 1",
+      "importance": "Why improving this is important...",
+      "actionItems": ["Specific action 1", "Specific action 2"],
+      "resources": ["Suggested resource or exercise"]
+    }
+  ],
+  "growthInsights": {
+    "improvements": ["Specific improvements since last evaluation"],
+    "persistentStrengths": ["Strengths maintained across evaluations"],
+    "developmentAreas": ["Areas that still need focus"],
+    "growthSummary": "Overall assessment of growth trajectory..."
+  },
+  "recommendations": {
+    "nextSteps": "Personalized next steps for improvement...",
+    "resources": [
+      {
+        "title": "Resource Title",
+        "type": "article|video|course",
+        "url": "URL if available",
+        "relevance": "Why this is relevant"
+      }
+    ],
+    "recommendedChallenges": [
+      {
+        "title": "Challenge Type",
+        "description": "Brief description",
+        "relevance": "Why this would help growth"
+      }
+    ]
+  }
+}`;
+  }
+  
+  /**
    * Build a dynamic system message based on user context
    * @param {Object} challenge - Challenge data
    * @param {Object} user - User profile data
@@ -246,48 +386,51 @@ class EvaluationPromptBuilder {
                             options.challengeTypeName || 
                             'standard';
       
+      const messageParts = [];
+      
       // Start with base system message
-      let systemMsg = `You are an AI evaluation expert providing `;
+      messageParts.push(`You are an AI evaluation expert providing `);
       
       // Add feedback style based on user preferences or default to constructive
-      systemMsg += `${user.preferences?.feedbackStyle || 'constructive'} feedback `;
+      messageParts.push(`${user.preferences?.feedbackStyle || 'constructive'} feedback `);
       
       // Add challenge type context
-      systemMsg += `on ${challengeType} challenges. `;
+      messageParts.push(`on ${challengeType} challenges. `);
       
       // Adjust explanation complexity based on user skill level
       if (user.skillLevel) {
-        if (user.skillLevel.toLowerCase() === 'beginner') {
-          systemMsg += `Explain concepts simply and thoroughly, avoiding jargon. `;
-        } else if (user.skillLevel.toLowerCase() === 'intermediate') {
-          systemMsg += `Balance explanations with appropriate complexity for someone with moderate familiarity. `;
-        } else if (user.skillLevel.toLowerCase() === 'expert' || user.skillLevel.toLowerCase() === 'advanced') {
-          systemMsg += `Provide nuanced, in-depth analysis that acknowledges complexity and edge cases. `;
+        const skillLevel = user.skillLevel.toLowerCase();
+        if (skillLevel === 'beginner') {
+          messageParts.push(`Explain concepts simply and thoroughly, avoiding jargon. `);
+        } else if (skillLevel === 'intermediate') {
+          messageParts.push(`Balance explanations with appropriate complexity for someone with moderate familiarity. `);
+        } else if (skillLevel === 'expert' || skillLevel === 'advanced') {
+          messageParts.push(`Provide nuanced, in-depth analysis that acknowledges complexity and edge cases. `);
         }
       }
       
       // Adjust tone based on personality profile if available
       if (personalityProfile) {
         if (personalityProfile.communicationStyle === 'formal') {
-          systemMsg += `Maintain a formal, professional tone. `;
+          messageParts.push(`Maintain a formal, professional tone. `);
         } else if (personalityProfile.communicationStyle === 'casual') {
-          systemMsg += `Use a friendly, conversational tone. `;
+          messageParts.push(`Use a friendly, conversational tone. `);
         } else if (personalityProfile.communicationStyle === 'technical') {
-          systemMsg += `Use precise, technical language where appropriate. `;
+          messageParts.push(`Use precise, technical language where appropriate. `);
         } else {
-          systemMsg += `Use a clear, encouraging tone. `; // Default
+          messageParts.push(`Use a clear, encouraging tone. `); // Default
         }
         
         // Add sensitivity based on personality traits
         if (personalityProfile.traits) {
           if (personalityProfile.traits.includes('sensitive_to_criticism')) {
-            systemMsg += `Frame critiques constructively and with emotional intelligence. `;
+            messageParts.push(`Frame critiques constructively and with emotional intelligence. `);
           }
           if (personalityProfile.traits.includes('detail_oriented')) {
-            systemMsg += `Include specific details and examples in your feedback. `;
+            messageParts.push(`Include specific details and examples in your feedback. `);
           }
           if (personalityProfile.traits.includes('big_picture_thinker')) {
-            systemMsg += `Connect feedback to broader concepts and applications. `;
+            messageParts.push(`Connect feedback to broader concepts and applications. `);
           }
         }
       }
@@ -295,24 +438,24 @@ class EvaluationPromptBuilder {
       // Add learning style adaptations if available
       if (user.learningStyle) {
         if (user.learningStyle === 'visual') {
-          systemMsg += `Suggest visual aids or diagrams when relevant. `;
+          messageParts.push(`Suggest visual aids or diagrams when relevant. `);
         } else if (user.learningStyle === 'practical') {
-          systemMsg += `Focus on practical applications and concrete examples. `;
+          messageParts.push(`Focus on practical applications and concrete examples. `);
         } else if (user.learningStyle === 'theoretical') {
-          systemMsg += `Include theoretical underpinnings and conceptual frameworks. `;
+          messageParts.push(`Include theoretical underpinnings and conceptual frameworks. `);
         }
       }
       
       // Add standard evaluation guidelines
-      systemMsg += `Your evaluation should be thorough, fair, and aimed at helping the user improve. `;
-      systemMsg += `Always provide specific examples from their response to illustrate your points. `;
-      systemMsg += `Balance critique with encouragement to maintain motivation.`;
+      messageParts.push(`Your evaluation should be thorough, fair, and aimed at helping the user improve. `);
+      messageParts.push(`Always provide specific examples from their response to illustrate your points. `);
+      messageParts.push(`Balance critique with encouragement to maintain motivation.`);
       
       // Add output format requirements
-      systemMsg += `\n\nYour response MUST follow the exact JSON structure specified in the prompt. `;
-      systemMsg += `Ensure all required fields are included and properly formatted.`;
+      messageParts.push(`\n\nYour response MUST follow the exact JSON structure specified in the prompt. `);
+      messageParts.push(`Ensure all required fields are included and properly formatted.`);
       
-      return systemMsg;
+      return messageParts.join('');
     } catch (error) {
       log('error', 'Error building system message', { 
         error: error.message,
@@ -471,14 +614,6 @@ class EvaluationPromptBuilder {
     };
     
     return descriptions[category.toLowerCase()] || "Evaluate this aspect of the response";
-  }
-  
-  /**
-   * Factory method to create a builder with default settings
-   * @returns {Function} Configured build function
-   */
-  static createBuilder() {
-    return this.build.bind(this);
   }
 }
 

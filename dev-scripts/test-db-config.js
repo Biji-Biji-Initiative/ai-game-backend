@@ -6,7 +6,7 @@
  */
 
 require('dotenv').config();
-const { supabase } = require('../src/lib/supabase');
+const { supabaseClient: supabase } = require('../src/core/infra/db/supabaseClient');
 const container = require('../src/config/container');
 const { logger } = require('../src/core/infra/logging/logger');
 

@@ -19,16 +19,53 @@ const {
 } = require('../schemas/EvaluationSchema');
 
 /**
+ * Error for evaluation repository operations
+ */
+class EvaluationRepositoryError extends Error {
+  constructor(message, options = {}) {
+    super(message);
+    this.name = 'EvaluationRepositoryError';
+    this.cause = options.cause;
+    this.metadata = options.metadata || {};
+  }
+}
+
+/**
+ * Error for evaluation not found
+ */
+class EvaluationNotFoundError extends Error {
+  constructor(message, options = {}) {
+    super(message);
+    this.name = 'EvaluationNotFoundError';
+    this.cause = options.cause;
+    this.metadata = options.metadata || {};
+  }
+}
+
+/**
+ * Error for evaluation validation issues
+ */
+class EvaluationValidationError extends Error {
+  constructor(message, options = {}) {
+    super(message);
+    this.name = 'EvaluationValidationError';
+    this.cause = options.cause;
+    this.metadata = options.metadata || {};
+  }
+}
+
+/**
  * Class representing an Evaluation Repository
  */
 class EvaluationRepository {
   /**
    * Create a new EvaluationRepository instance
    * @param {Object} supabase - Supabase client instance
+   * @param {Object} customLogger - Custom logger instance
    */
-  constructor(supabase) {
+  constructor(supabase, customLogger) {
     this.supabase = supabase || supabaseClient;
-    this._log = logger.child({ service: 'evaluationRepository' });
+    this.logger = customLogger || logger.child({ service: 'evaluationRepository' });
   }
   
   /**
@@ -38,9 +75,9 @@ class EvaluationRepository {
    * @param {Object} meta - Additional metadata
    * @private
    */
-  _log(level, message, meta = {}) {
-    if (this._log && typeof this._log[level] === 'function') {
-      this._log[level](message, meta);
+  log(level, message, meta = {}) {
+    if (this.logger && typeof this.logger[level] === 'function') {
+      this.logger[level](message, meta);
     } else {
       console[level === 'error' ? 'error' : 'log'](message, meta);
     }
@@ -50,22 +87,33 @@ class EvaluationRepository {
    * Create a new evaluation
    * @param {Object} evaluationData - Evaluation data
    * @returns {Promise<Object>} Created evaluation
+   * @throws {EvaluationValidationError} If validation fails
+   * @throws {EvaluationRepositoryError} If database operation fails
    */
   async createEvaluation(evaluationData) {
     try {
+      if (!evaluationData) {
+        throw new EvaluationValidationError('Evaluation data is required');
+      }
+      
       // Validate the evaluation data with Zod schema
       const validationResult = EvaluationSchema.safeParse(evaluationData);
     
       if (!validationResult.success) {
-        this._log('error', 'Evaluation validation failed', { 
+        this.log('error', 'Evaluation validation failed', { 
           errors: validationResult.error.flatten() 
         });
-        throw new Error(`Evaluation validation failed: ${validationResult.error.message}`);
+        
+        throw new EvaluationValidationError(`Evaluation validation failed: ${validationResult.error.message}`, {
+          metadata: { validationErrors: validationResult.error.flatten() }
+        });
       }
     
       // Use validated data
       const validData = validationResult.data;
       const { userId, challengeId, threadId } = validData;
+      
+      this.log('debug', 'Creating evaluation', { userId, challengeId });
       
       // Generate an evaluation ID if not provided
       const id = validData.id || Evaluation.createNewId();
@@ -100,15 +148,37 @@ class EvaluationRepository {
         .single();
       
       if (error) {
-        this._log('error', 'Error creating evaluation', { error: error.message, userId, challengeId });
-        throw error;
+        throw new EvaluationRepositoryError(`Error creating evaluation: ${error.message}`, {
+          cause: error,
+          metadata: { userId, challengeId }
+        });
       }
+      
+      this.log('info', 'Evaluation created successfully', { id, userId, challengeId });
       
       // Convert back to domain model
       return Evaluation.fromDatabase(data);
     } catch (error) {
-      this._log('error', 'Error in createEvaluation', { error: error.message });
-      throw error;
+      // Don't re-wrap repository errors
+      if (error instanceof EvaluationRepositoryError ||
+          error instanceof EvaluationValidationError) {
+        throw error;
+      }
+      
+      this.log('error', 'Error creating evaluation', { 
+        error: error.message, 
+        stack: error.stack,
+        userId: evaluationData?.userId,
+        challengeId: evaluationData?.challengeId
+      });
+      
+      throw new EvaluationRepositoryError(`Failed to create evaluation: ${error.message}`, {
+        cause: error,
+        metadata: { 
+          userId: evaluationData?.userId, 
+          challengeId: evaluationData?.challengeId 
+        }
+      });
     }
   }
 
@@ -116,34 +186,61 @@ class EvaluationRepository {
    * Get evaluation by ID
    * @param {string} evaluationId - Evaluation ID
    * @returns {Promise<Object>} Evaluation object
+   * @throws {EvaluationValidationError} If evaluation ID is missing
+   * @throws {EvaluationRepositoryError} If database operation fails
    */
   async getEvaluationById(evaluationId) {
     try {
       if (!evaluationId) {
-      throw new Error('Evaluation ID is required');
+        throw new EvaluationValidationError('Evaluation ID is required');
+      }
+      
+      this.log('debug', 'Getting evaluation by ID', { evaluationId });
+      
+      const { data, error } = await this.supabase
+        .from('evaluations')
+        .select('*')
+        .eq('id', evaluationId)
+        .single();
+      
+      if (error) {
+        // Handle "not found" error
+        if (error.code === 'PGRST116') {
+          this.log('debug', 'Evaluation not found', { evaluationId });
+          return null;
+        }
+        
+        throw new EvaluationRepositoryError(`Error retrieving evaluation: ${error.message}`, {
+          cause: error,
+          metadata: { evaluationId }
+        });
+      }
+      
+      if (!data) {
+        this.log('debug', 'Evaluation not found', { evaluationId });
+        return null;
+      }
+      
+      // Create domain model from database data
+      return Evaluation.fromDatabase(data);
+    } catch (error) {
+      // Don't re-wrap repository errors
+      if (error instanceof EvaluationRepositoryError ||
+          error instanceof EvaluationValidationError) {
+        throw error;
+      }
+      
+      this.log('error', 'Error getting evaluation by ID', { 
+        error: error.message, 
+        stack: error.stack,
+        evaluationId 
+      });
+      
+      throw new EvaluationRepositoryError(`Failed to get evaluation: ${error.message}`, {
+        cause: error,
+        metadata: { evaluationId }
+      });
     }
-    
-    const { data, error } = await this.supabase
-      .from('evaluations')
-      .select('*')
-      .eq('id', evaluationId)
-      .single();
-    
-    if (error) {
-      this._log('error', 'Error retrieving evaluation', { error: error.message, evaluationId });
-      throw error;
-    }
-    
-    if (!data) {
-      return null;
-    }
-    
-    // Create domain model from database data
-    return Evaluation.fromDatabase(data);
-  } catch (error) {
-    this._log('error', 'Error in getEvaluationById', { error: error.message, evaluationId });
-    throw error;
-  }
   }
 
   /**
@@ -151,101 +248,148 @@ class EvaluationRepository {
    * @param {string} evaluationId - Evaluation ID
    * @param {Object} updateData - Data to update
    * @returns {Promise<Object>} Updated evaluation
+   * @throws {EvaluationValidationError} If validation fails
+   * @throws {EvaluationRepositoryError} If database operation fails
    */
   async updateEvaluation(evaluationId, updateData) {
     try {
       if (!evaluationId) {
-      throw new Error('Evaluation ID is required for updates');
-    }
-    
-    // Validate update data with Zod schema
-    const validationResult = EvaluationUpdateSchema.safeParse(updateData);
-    
-    if (!validationResult.success) {
-      this._log('error', 'Evaluation update validation failed', { 
-        errors: validationResult.error.flatten() 
-      });
-      throw new Error(`Evaluation update validation failed: ${validationResult.error.message}`);
-    }
-    
-    // Use validated data
-    const validData = validationResult.data;
-    
-    // Prepare update data (convert camelCase to snake_case)
-    const dbUpdateData = {
-      overall_score: validData.score,
-      category_scores: validData.categoryScores,
-      feedback: validData.overallFeedback,
-      overall_feedback: validData.overallFeedback,
-      strengths: validData.strengths,
-      strength_analysis: validData.strengthAnalysis,
-      areas_for_improvement: validData.areasForImprovement,
-      next_steps: validData.nextSteps,
-      thread_id: validData.threadId,
-      evaluation_thread_id: validData.threadId,
-      response_id: validData.responseId,
-      metrics: validData.metrics,
-      metadata: validData.metadata,
-      updated_at: new Date().toISOString()
-    };
-    
-    // Remove undefined fields
-    Object.keys(dbUpdateData).forEach(key => {
-      if (dbUpdateData[key] === undefined) {
-        delete dbUpdateData[key];
+        throw new EvaluationValidationError('Evaluation ID is required for updates');
       }
-    });
-    
-    // Update in database
-    const { data, error } = await this.supabase
-      .from('evaluations')
-      .update(dbUpdateData)
-      .eq('id', evaluationId)
-      .select()
-      .single();
-    
-    if (error) {
-      this._log('error', 'Error updating evaluation', { error: error.message, evaluationId });
-      throw error;
+      
+      if (!updateData) {
+        throw new EvaluationValidationError('Update data is required');
+      }
+      
+      this.log('debug', 'Updating evaluation', { evaluationId });
+      
+      // Validate update data with Zod schema
+      const validationResult = EvaluationUpdateSchema.safeParse(updateData);
+      
+      if (!validationResult.success) {
+        this.log('error', 'Evaluation update validation failed', { 
+          errors: validationResult.error.flatten() 
+        });
+        
+        throw new EvaluationValidationError(`Evaluation update validation failed: ${validationResult.error.message}`, {
+          metadata: { validationErrors: validationResult.error.flatten() }
+        });
+      }
+      
+      // Use validated data
+      const validData = validationResult.data;
+      
+      // Prepare update data (convert camelCase to snake_case)
+      const dbUpdateData = {
+        overall_score: validData.score,
+        category_scores: validData.categoryScores,
+        feedback: validData.overallFeedback,
+        overall_feedback: validData.overallFeedback,
+        strengths: validData.strengths,
+        strength_analysis: validData.strengthAnalysis,
+        areas_for_improvement: validData.areasForImprovement,
+        next_steps: validData.nextSteps,
+        thread_id: validData.threadId,
+        evaluation_thread_id: validData.threadId,
+        response_id: validData.responseId,
+        metrics: validData.metrics,
+        metadata: validData.metadata,
+        updated_at: new Date().toISOString()
+      };
+      
+      // Remove undefined fields
+      Object.keys(dbUpdateData).forEach(key => {
+        if (dbUpdateData[key] === undefined) {
+          delete dbUpdateData[key];
+        }
+      });
+      
+      // Update in database
+      const { data, error } = await this.supabase
+        .from('evaluations')
+        .update(dbUpdateData)
+        .eq('id', evaluationId)
+        .select()
+        .single();
+      
+      if (error) {
+        throw new EvaluationRepositoryError(`Error updating evaluation: ${error.message}`, {
+          cause: error,
+          metadata: { evaluationId }
+        });
+      }
+      
+      this.log('info', 'Evaluation updated successfully', { evaluationId });
+      
+      // Create domain model from database data
+      return Evaluation.fromDatabase(data);
+    } catch (error) {
+      // Don't re-wrap repository errors
+      if (error instanceof EvaluationRepositoryError ||
+          error instanceof EvaluationValidationError) {
+        throw error;
+      }
+      
+      this.log('error', 'Error updating evaluation', { 
+        error: error.message, 
+        stack: error.stack,
+        evaluationId
+      });
+      
+      throw new EvaluationRepositoryError(`Failed to update evaluation: ${error.message}`, {
+        cause: error,
+        metadata: { evaluationId }
+      });
     }
-    
-    this._log('info', 'Updated evaluation', { evaluationId });
-    
-    // Create domain model from database data
-    return Evaluation.fromDatabase(data);
-  } catch (error) {
-    this._log('error', 'Error in updateEvaluation', { error: error.message, evaluationId, updateData });
-    throw error;
   }
-};
 
   /**
    * Delete an evaluation
    * @param {string} evaluationId - Evaluation ID
    * @returns {Promise<boolean>} Success indicator
+   * @throws {EvaluationValidationError} If evaluation ID is missing
+   * @throws {EvaluationRepositoryError} If database operation fails
    */
   async deleteEvaluation(evaluationId) {
     try {
       if (!evaluationId) {
-      throw new Error('Evaluation ID is required for deletion');
+        throw new EvaluationValidationError('Evaluation ID is required for deletion');
+      }
+      
+      this.log('debug', 'Deleting evaluation', { evaluationId });
+      
+      const { error } = await this.supabase
+        .from('evaluations')
+        .delete()
+        .eq('id', evaluationId);
+      
+      if (error) {
+        throw new EvaluationRepositoryError(`Error deleting evaluation: ${error.message}`, {
+          cause: error,
+          metadata: { evaluationId }
+        });
+      }
+      
+      this.log('info', 'Evaluation deleted successfully', { evaluationId });
+      return true;
+    } catch (error) {
+      // Don't re-wrap repository errors
+      if (error instanceof EvaluationRepositoryError ||
+          error instanceof EvaluationValidationError) {
+        throw error;
+      }
+      
+      this.log('error', 'Error deleting evaluation', { 
+        error: error.message, 
+        stack: error.stack,
+        evaluationId
+      });
+      
+      throw new EvaluationRepositoryError(`Failed to delete evaluation: ${error.message}`, {
+        cause: error,
+        metadata: { evaluationId }
+      });
     }
-    
-    const { error } = await this.supabase
-      .from('evaluations')
-      .delete()
-      .eq('id', evaluationId);
-    
-    if (error) {
-      this._log('error', 'Error deleting evaluation', { error: error.message, evaluationId });
-      throw error;
-    }
-    
-    this._log('info', 'Deleted evaluation', { evaluationId });
-    return true;
-  } catch (error) {
-    this._log('error', 'Error in deleteEvaluation', { error: error.message, evaluationId });
-    throw error;
-  }
   }
 
   /**
@@ -255,84 +399,137 @@ class EvaluationRepository {
    * @param {number} options.limit - Max number of results
    * @param {number} options.offset - Offset for pagination
    * @returns {Promise<Array>} Evaluations array
+   * @throws {EvaluationValidationError} If user ID is missing
+   * @throws {EvaluationRepositoryError} If database operation fails
    */
   async getEvaluationsForUser(userId, options = {}) {
     try {
       if (!userId) {
-      throw new Error('User ID is required');
+        throw new EvaluationValidationError('User ID is required');
+      }
+      
+      this.log('debug', 'Getting evaluations for user', { userId, options });
+      
+      // Validate options with Zod schema
+      const validatedOptions = EvaluationSearchOptionsSchema.parse(options);
+      
+      const { limit = 10, offset = 0 } = validatedOptions;
+      
+      let query = this.supabase
+        .from('evaluations')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+      
+      // Add challenge_id filter if provided
+      if (validatedOptions.challengeId) {
+        query = query.eq('challenge_id', validatedOptions.challengeId);
+      }
+      
+      const { data, error } = await query;
+      
+      if (error) {
+        throw new EvaluationRepositoryError(`Error retrieving evaluations for user: ${error.message}`, {
+          cause: error,
+          metadata: { userId, options }
+        });
+      }
+      
+      this.log('debug', `Found ${data.length} evaluations for user`, { userId });
+      
+      // Convert database results to domain models
+      return data.map(item => Evaluation.fromDatabase(item));
+    } catch (error) {
+      // Don't re-wrap repository errors
+      if (error instanceof EvaluationRepositoryError ||
+          error instanceof EvaluationValidationError) {
+        throw error;
+      }
+      
+      this.log('error', 'Error getting evaluations for user', { 
+        error: error.message, 
+        stack: error.stack,
+        userId
+      });
+      
+      throw new EvaluationRepositoryError(`Failed to get evaluations for user: ${error.message}`, {
+        cause: error,
+        metadata: { userId, options }
+      });
     }
-    
-    // Validate options with Zod schema
-    const validatedOptions = EvaluationSearchOptionsSchema.parse(options);
-    
-    const { limit = 10, offset = 0 } = validatedOptions;
-    
-    let query = this.supabase
-      .from('evaluations')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
-    
-    // Add challenge_id filter if provided
-    if (validatedOptions.challengeId) {
-      query = query.eq('challenge_id', validatedOptions.challengeId);
-    }
-    
-    const { data, error } = await query;
-    
-    if (error) {
-      this._log('error', 'Error retrieving evaluations for user', { error: error.message, userId });
-      throw error;
-    }
-    
-    // Convert database results to domain models
-    return data.map(item => Evaluation.fromDatabase(item));
-  } catch (error) {
-    this._log('error', 'Error in getEvaluationsForUser', { error: error.message, userId });
-    throw error;
-  }
   }
 
   /**
    * Save a domain model evaluation or update if exists
    * @param {Evaluation} evaluation - Evaluation domain model
    * @returns {Promise<Evaluation>} Saved evaluation
+   * @throws {EvaluationValidationError} If evaluation is invalid
+   * @throws {EvaluationRepositoryError} If database operation fails
    */
   async saveEvaluation(evaluation) {
     try {
-      if (!evaluation || !evaluation.isValid()) {
-        throw new Error('Valid evaluation instance is required');
+      if (!evaluation) {
+        throw new EvaluationValidationError('Evaluation object is required');
       }
+      
+      if (!(evaluation instanceof Evaluation)) {
+        throw new EvaluationValidationError('Object must be an Evaluation instance');
+      }
+      
+      if (!evaluation.isValid()) {
+        throw new EvaluationValidationError('Invalid evaluation instance');
+      }
+      
+      this.log('debug', 'Saving evaluation', { 
+        id: evaluation.id, 
+        userId: evaluation.userId,
+        challengeId: evaluation.challengeId,
+        isNew: !evaluation.id
+      });
 
       const evaluationData = evaluation.toObject();
       const validationResult = EvaluationSchema.safeParse(evaluationData);
 
       if (!validationResult.success) {
-        this._log('error', 'Evaluation validation failed during save', { 
+        this.log('error', 'Evaluation validation failed during save', { 
           errors: validationResult.error.flatten() 
         });
-        throw new Error(`Evaluation validation failed: ${validationResult.error.message}`);
+        
+        throw new EvaluationValidationError(`Evaluation validation failed: ${validationResult.error.message}`, {
+          metadata: { validationErrors: validationResult.error.flatten() }
+        });
       }
-
-      const { userId, challengeId } = evaluation;
 
       const existing = await this.getEvaluationById(evaluation.id).catch(() => null);
 
       if (existing) {
-        const updated = await this.updateEvaluation(evaluation.id, evaluation.toObject());
-        return updated;
+        return await this.updateEvaluation(evaluation.id, evaluation.toObject());
       } else {
-        const created = await this.createEvaluation(evaluation.toObject());
-        return created;
+        return await this.createEvaluation(evaluation.toObject());
       }
     } catch (error) {
-      this._log('error', 'Error in saveEvaluation', { 
+      // Don't re-wrap repository errors
+      if (error instanceof EvaluationRepositoryError ||
+          error instanceof EvaluationValidationError) {
+        throw error;
+      }
+      
+      this.log('error', 'Error saving evaluation', { 
         error: error.message, 
+        stack: error.stack,
         userId: evaluation?.userId, 
         challengeId: evaluation?.challengeId 
       });
-      throw error;
+      
+      throw new EvaluationRepositoryError(`Failed to save evaluation: ${error.message}`, {
+        cause: error,
+        metadata: { 
+          id: evaluation?.id,
+          userId: evaluation?.userId, 
+          challengeId: evaluation?.challengeId 
+        }
+      });
     }
   }
 
@@ -340,12 +537,16 @@ class EvaluationRepository {
    * Count evaluations per challenge
    * @param {string} challengeId - Challenge ID
    * @returns {Promise<number>} Count of evaluations
+   * @throws {EvaluationValidationError} If challenge ID is missing
+   * @throws {EvaluationRepositoryError} If database operation fails
    */
   async countEvaluationsForChallenge(challengeId) {
     try {
       if (!challengeId) {
-        throw new Error('Challenge ID is required');
+        throw new EvaluationValidationError('Challenge ID is required');
       }
+      
+      this.log('debug', 'Counting evaluations for challenge', { challengeId });
 
       const { count, error } = await this.supabase
         .from('evaluations')
@@ -353,14 +554,30 @@ class EvaluationRepository {
         .eq('challenge_id', challengeId);
 
       if (error) {
-        this._log('error', 'Error counting evaluations', { error: error.message, challengeId });
-        throw error;
+        throw new EvaluationRepositoryError(`Error counting evaluations: ${error.message}`, {
+          cause: error,
+          metadata: { challengeId }
+        });
       }
 
       return count || 0;
     } catch (error) {
-      this._log('error', 'Error in countEvaluationsForChallenge', { error: error.message, challengeId });
-      throw error;
+      // Don't re-wrap repository errors
+      if (error instanceof EvaluationRepositoryError ||
+          error instanceof EvaluationValidationError) {
+        throw error;
+      }
+      
+      this.log('error', 'Error counting evaluations for challenge', { 
+        error: error.message, 
+        stack: error.stack,
+        challengeId
+      });
+      
+      throw new EvaluationRepositoryError(`Failed to count evaluations: ${error.message}`, {
+        cause: error,
+        metadata: { challengeId }
+      });
     }
   }
 
@@ -369,12 +586,16 @@ class EvaluationRepository {
    * @param {string} challengeId - Challenge ID
    * @param {string} userId - User ID
    * @returns {Promise<Array>} Evaluations array
+   * @throws {EvaluationValidationError} If challenge ID is missing
+   * @throws {EvaluationRepositoryError} If database operation fails
    */
   async findEvaluationsForChallenge(challengeId, userId) {
     try {
       if (!challengeId) {
-        throw new Error('Challenge ID is required');
+        throw new EvaluationValidationError('Challenge ID is required');
       }
+      
+      this.log('debug', 'Finding evaluations for challenge', { challengeId, userId });
 
       let query = this.supabase
         .from('evaluations')
@@ -389,22 +610,36 @@ class EvaluationRepository {
       const { data, error } = await query;
 
       if (error) {
-        this._log('error', 'Error finding evaluations for challenge', { 
-          error: error.message, 
-          challengeId,
-          userId 
+        throw new EvaluationRepositoryError(`Error finding evaluations for challenge: ${error.message}`, { 
+          cause: error,
+          metadata: { challengeId, userId }
         });
-        throw error;
       }
+      
+      this.log('debug', `Found ${data.length} evaluations for challenge`, { 
+        challengeId, 
+        userId 
+      });
 
       return data.map(item => Evaluation.fromDatabase(item));
     } catch (error) {
-      this._log('error', 'Error in findEvaluationsForChallenge', { 
+      // Don't re-wrap repository errors
+      if (error instanceof EvaluationRepositoryError ||
+          error instanceof EvaluationValidationError) {
+        throw error;
+      }
+      
+      this.log('error', 'Error finding evaluations for challenge', { 
         error: error.message, 
+        stack: error.stack,
         challengeId,
         userId 
       });
-      throw error;
+      
+      throw new EvaluationRepositoryError(`Failed to find evaluations for challenge: ${error.message}`, {
+        cause: error,
+        metadata: { challengeId, userId }
+      });
     }
   }
 
@@ -457,4 +692,7 @@ class EvaluationRepository {
   }
 }
 
-module.exports = EvaluationRepository
+module.exports = EvaluationRepository;
+module.exports.EvaluationRepositoryError = EvaluationRepositoryError;
+module.exports.EvaluationNotFoundError = EvaluationNotFoundError;
+module.exports.EvaluationValidationError = EvaluationValidationError;

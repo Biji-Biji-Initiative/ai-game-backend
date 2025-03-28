@@ -10,13 +10,13 @@ const container = require('./config/container');
 // Get dependencies from container
 const config = container.get('config');
 const logger = container.get('logger');
-const { requestLogger, errorLogger } = require('./core/infra/logging/logger');
-const { errorHandler, notFoundHandler } = require('./core/infra/errors/errorHandler');
-const { responseFormatterMiddleware } = require('./core/infra/http/responseFormatter');
-const RouteFactory = require('./core/infra/http/routes/RouteFactory');
+const { requestLogger, errorLogger, correlationIdMiddleware } = require('./core/infrastructure/logging/logger');
+const { errorHandler, notFoundHandler } = require('./core/infrastructure/errors/errorHandler');
+const { responseFormatterMiddleware } = require('./core/infrastructure/http/responseFormatter');
+const RouteFactory = require('./core/infrastructure/http/routes/RouteFactory');
 
 // Import domain events system
-const { eventBus, EventTypes } = require('./core/common/events/domainEvents');
+const { eventBus, eventTypes } = require('./core/infrastructure/messaging/domainEvents');
 
 // Import domain event handlers
 const { registerEvaluationEventHandlers } = require('./core/evaluation/events/evaluationEvents');
@@ -47,19 +47,37 @@ app.use((req, res, next) => {
   next();
 });
 
+// Setup correlation ID context for logging
+app.use(correlationIdMiddleware);
+
 // Request logging
 app.use(requestLogger);
+
+// Add health check endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'Server is running',
+    timestamp: new Date().toISOString()
+  });
+});
 
 // Serve the API Tester UI static files
 const testerUiPath = path.join(__dirname, '../api-tester-ui');
 app.use('/tester', express.static(testerUiPath));
 logger.info(`API Tester UI available at /tester`);
 
+// Create a simple proxy for the UI to access the API through /api
+app.use('/api/v1', (req, res, next) => {
+  // Forward to the actual API routes
+  next();
+});
+
 // Add response formatter middleware
 app.use(responseFormatterMiddleware);
 
 // Initialize Supabase (will be implemented when Supabase is integrated)
-const { initializeSupabase } = require('./core/infra/db/databaseConnection');
+const { initializeSupabase } = require('./core/infrastructure/persistence/databaseConnection');
 
 // Initialize domain event handlers - register all domain event handlers
 function initializeDomainEventSystem() {
@@ -82,23 +100,9 @@ initializeDomainEventSystem();
 // Initialize route factory
 const routeFactory = new RouteFactory(container);
 
-// Create and initialize all routes
-const personalityRoutes = routeFactory.createPersonalityRoutes();
-const adaptiveRoutes = routeFactory.createAdaptiveRoutes();
-const authRoutes = routeFactory.createAuthRoutes();
-const progressRoutes = routeFactory.createProgressRoutes();
-const evaluationRoutes = routeFactory.createEvaluationRoutes();
-const challengeRoutes = routeFactory.createChallengeRoutes();
-const userJourneyRoutes = routeFactory.createUserJourneyRoutes();
-
-// Mount routes
-app.use('/api/personality', personalityRoutes);
-app.use('/api/adaptive', adaptiveRoutes);
-app.use('/api/auth', authRoutes);
-app.use('/api/progress', progressRoutes);
-app.use('/api/evaluation', evaluationRoutes);
-app.use('/api/challenge', challengeRoutes);
-app.use('/api/user-journey', userJourneyRoutes);
+// Mount all routes using the route factory - mount at both /api/v1 and /v1 for backward compatibility
+routeFactory.mountAll(app, '/api/v1');
+routeFactory.mountAll(app, '/v1');
 
 // Handle 404 errors
 app.use(notFoundHandler);

@@ -31,6 +31,23 @@ const updateAIAttitudesSchema = z.object({
 }).strict();
 
 /**
+ * Schema for validating assessment submissions
+ */
+const submitAssessmentSchema = z.object({
+  answers: z.array(
+    z.object({
+      questionId: z.string(),
+      answer: z.union([
+        z.string(),
+        z.number(),
+        z.boolean(),
+        z.array(z.string())
+      ])
+    })
+  ).min(1, { message: 'At least one answer is required' })
+}).strict();
+
+/**
  * Schema for validating user ID parameter
  */
 const userIdSchema = z.object({
@@ -59,5 +76,6 @@ module.exports = {
   updatePersonalityTraitsSchema,
   updateAIAttitudesSchema,
   userIdSchema,
-  profileQuerySchema
+  profileQuerySchema,
+  submitAssessmentSchema
 }; 

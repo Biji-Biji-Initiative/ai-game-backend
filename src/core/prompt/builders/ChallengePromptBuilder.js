@@ -13,7 +13,6 @@
 const { logger } = require('../../../core/infra/logging/logger');
 const { 
   appendApiStandards, 
-  getStructuredOutputInstructions,
   getResponsesApiInstruction
 } = require('../common/apiStandards');
 const { validateChallengePromptParams } = require('../schemas/challengeSchema');
@@ -22,6 +21,7 @@ const { formatForResponsesApi } = require('../../../infra/openai/messageFormatte
 
 /**
  * Helper function for logging if logger exists
+ * @private
  */
 function log(level, message, meta = {}) {
   if (logger && typeof logger[level] === 'function') {
@@ -66,166 +66,20 @@ class ChallengePromptBuilder {
       const focusArea = challengeParams.focusArea || 'general';
       const creativeVariation = options.creativeVariation || 0.7;
       
-      // Build the challenge prompt
-      let prompt = `### CHALLENGE GENERATION TASK\n\n`;
-      prompt += `Generate a challenge for the user based on their profile and the specified parameters.\n\n`;
+      // Build the challenge prompt sections
+      const promptSections = [
+        this.buildHeaderSection(),
+        this.buildUserProfileSection(user),
+        this.buildChallengeParametersSection(challengeParams, focusArea),
+        this.buildGameStateSection(gameState),
+        this.buildCreativitySection(creativeVariation, options),
+        this.buildAdaptationSection(gameState),
+        this.buildResponseFormatSection(),
+        getResponsesApiInstruction()
+      ];
       
-      // Add user profile section
-      prompt += `### USER PROFILE\n`;
-      prompt += `Name: ${user.fullName || 'Anonymous'}\n`;
-      prompt += `Professional Title: ${user.professionalTitle || 'Professional'}\n`;
-      
-      if (user.focusAreas && Array.isArray(user.focusAreas) && user.focusAreas.length > 0) {
-        prompt += `Focus Areas: ${user.focusAreas.join(', ')}\n`;
-      }
-      
-      if (user.dominantTraits && Array.isArray(user.dominantTraits) && user.dominantTraits.length > 0) {
-        prompt += `Dominant Traits: ${user.dominantTraits.join(', ')}\n`;
-      }
-      
-      if (user.skillLevel) {
-        prompt += `Skill Level: ${user.skillLevel}\n`;
-      }
-      
-      if (user.learningGoals && Array.isArray(user.learningGoals) && user.learningGoals.length > 0) {
-        prompt += `Learning Goals: ${user.learningGoals.join(', ')}\n`;
-      }
-      
-      prompt += `\n`;
-      
-      // Add challenge parameters section
-      prompt += `### CHALLENGE PARAMETERS\n`;
-      prompt += `Type: ${challengeType}\n`;
-      prompt += `Format: ${formatType}\n`;
-      prompt += `Difficulty: ${difficulty}\n`;
-      prompt += `Focus Area: ${focusArea}\n`;
-      
-      if (challengeParams.topic) {
-        prompt += `Topic: ${challengeParams.topic}\n`;
-      }
-      
-      if (challengeParams.keywords && Array.isArray(challengeParams.keywords)) {
-        prompt += `Keywords: ${challengeParams.keywords.join(', ')}\n`;
-      }
-      
-      prompt += `\n`;
-      
-      // Add game state context if available
-      if (gameState && Object.keys(gameState).length > 0) {
-        prompt += `### GAME STATE CONTEXT\n`;
-        
-        if (gameState.currentLevel) {
-          prompt += `Current Level: ${gameState.currentLevel}\n`;
-        }
-        
-        if (gameState.progress) {
-          prompt += `Progress: ${gameState.progress}%\n`;
-        }
-        
-        if (gameState.streakCount) {
-          prompt += `Streak Count: ${gameState.streakCount}\n`;
-        }
-        
-        // Add recent challenges if available
-        if (gameState.recentChallenges && Array.isArray(gameState.recentChallenges) && gameState.recentChallenges.length > 0) {
-          prompt += `\nRecent Challenges:\n`;
-          gameState.recentChallenges.forEach((c, idx) => {
-            prompt += `${idx + 1}. ${c.title} (${c.challengeType || 'Unknown type'}, ${c.difficulty || 'Not specified'})\n`;
-          });
-        }
-        
-        // Add strengths and areas for improvement if available
-        if (gameState.strengths && Array.isArray(gameState.strengths) && gameState.strengths.length > 0) {
-          prompt += `\nUser Strengths: ${gameState.strengths.join(', ')}\n`;
-        }
-        
-        if (gameState.areasForImprovement && Array.isArray(gameState.areasForImprovement) && gameState.areasForImprovement.length > 0) {
-          prompt += `Areas for Improvement: ${gameState.areasForImprovement.join(', ')}\n`;
-        }
-        
-        prompt += `\n`;
-      }
-      
-      // Add creativity guidance
-      prompt += `### CREATIVITY GUIDANCE\n`;
-      prompt += `- Variation level: ${Math.floor(creativeVariation * 100)}%\n`;
-      
-      if (creativeVariation > 0.8) {
-        prompt += `- Generate a highly creative and unique challenge.\n`;
-      } else if (creativeVariation > 0.6) {
-        prompt += `- Balance creativity with structured learning.\n`;
-      } else {
-        prompt += `- Focus on foundational concepts with moderate creativity.\n`;
-      }
-      
-      if (options.allowDynamicTypes) {
-        prompt += `- You may create novel challenge types beyond the standard categories when appropriate.\n`;
-      }
-      
-      if (options.suggestNovelTypes) {
-        prompt += `- You are encouraged to suggest creative and unique challenge types tailored to this specific user.\n`;
-      }
-      
-      prompt += `\n`;
-      
-      // Add adaptation guidance based on game state
-      if (gameState && Object.keys(gameState).length > 0) {
-        prompt += `### ADAPTATION GUIDANCE\n`;
-        prompt += `- Create a challenge that builds on the user's strengths while addressing areas for improvement.\n`;
-        prompt += `- Avoid repeating challenge types the user has recently encountered.\n`;
-        
-        if (gameState.streakCount && gameState.streakCount > 2) {
-          prompt += `- The user is on a streak of ${gameState.streakCount} successfully completed challenges. Consider increasing difficulty slightly.\n`;
-        }
-        
-        if (gameState.recentChallenges && gameState.recentChallenges.length > 0) {
-          const recentFocusAreas = [...new Set(gameState.recentChallenges.map(c => c.focusArea).filter(Boolean))];
-          if (recentFocusAreas.length > 0 && !recentFocusAreas.includes(focusArea)) {
-            prompt += `- This is a shift to a new focus area (${focusArea}) from previous work in ${recentFocusAreas.join(', ')}. Provide context that bridges these areas.\n`;
-          }
-        }
-        
-        prompt += `\n`;
-      }
-      
-      // Add response format instructions
-      prompt += `### RESPONSE FORMAT\n`;
-      prompt += `Return the challenge as a JSON object with the following structure:\n\n`;
-      prompt += `{\n`;
-      prompt += `  "title": "Challenge title",\n`;
-      prompt += `  "content": {\n`;
-      prompt += `    "context": "Background information and context",\n`;
-      prompt += `    "scenario": "Specific scenario or problem statement",\n`;
-      prompt += `    "instructions": "What the user needs to do"\n`;
-      prompt += `  },\n`;
-      prompt += `  "questions": [\n`;
-      prompt += `    {\n`;
-      prompt += `      "id": "q1",\n`;
-      prompt += `      "text": "Question text",\n`;
-      prompt += `      "type": "open-ended | multiple-choice | reflection",\n`;
-      prompt += `      "options": ["Option 1", "Option 2", "Option 3"] // For multiple-choice only\n`;
-      prompt += `    }\n`;
-      prompt += `  ],\n`;
-      prompt += `  "evaluationCriteria": {\n`;
-      prompt += `    "criteria1": {\n`;
-      prompt += `      "description": "Description of criteria",\n`;
-      prompt += `      "weight": 0.5\n`;
-      prompt += `    }\n`;
-      prompt += `  },\n`;
-      prompt += `  "recommendedResources": [\n`;
-      prompt += `    {\n`;
-      prompt += `      "title": "Resource title",\n`;
-      prompt += `      "type": "article | video | book | tutorial",\n`;
-      prompt += `      "url": "URL if available",\n`;
-      prompt += `      "description": "Brief description of why this resource is helpful"\n`;
-      prompt += `    }\n`;
-      prompt += `  ]\n`;
-      prompt += `}\n\n`;
-      
-      // Add Responses API instruction
-      prompt += `\n\n${getResponsesApiInstruction()}`;
-      
-      // Ensure API standards are applied
+      // Combine sections and ensure API standards are applied
+      let prompt = promptSections.filter(Boolean).join('\n\n');
       prompt = appendApiStandards(prompt);
       
       // Build dynamic system message based on user context
@@ -253,6 +107,219 @@ class ChallengePromptBuilder {
   }
   
   /**
+   * Build the header section of the prompt
+   * @returns {string} The header section
+   * @private
+   */
+  static buildHeaderSection() {
+    return `### CHALLENGE GENERATION TASK\n\nGenerate a challenge for the user based on their profile and the specified parameters.`;
+  }
+  
+  /**
+   * Build the user profile section of the prompt
+   * @param {Object} user - User profile data
+   * @returns {string} The user profile section
+   * @private
+   */
+  static buildUserProfileSection(user) {
+    const section = ['### USER PROFILE'];
+    
+    section.push(`Name: ${user.fullName || 'Anonymous'}`);
+    section.push(`Professional Title: ${user.professionalTitle || 'Professional'}`);
+    
+    if (user.focusAreas && Array.isArray(user.focusAreas) && user.focusAreas.length > 0) {
+      section.push(`Focus Areas: ${user.focusAreas.join(', ')}`);
+    }
+    
+    if (user.dominantTraits && Array.isArray(user.dominantTraits) && user.dominantTraits.length > 0) {
+      section.push(`Dominant Traits: ${user.dominantTraits.join(', ')}`);
+    }
+    
+    if (user.skillLevel) {
+      section.push(`Skill Level: ${user.skillLevel}`);
+    }
+    
+    if (user.learningGoals && Array.isArray(user.learningGoals) && user.learningGoals.length > 0) {
+      section.push(`Learning Goals: ${user.learningGoals.join(', ')}`);
+    }
+    
+    return section.join('\n');
+  }
+  
+  /**
+   * Build the challenge parameters section of the prompt
+   * @param {Object} challengeParams - Challenge parameters
+   * @param {string} focusArea - The focus area
+   * @returns {string} The challenge parameters section
+   * @private
+   */
+  static buildChallengeParametersSection(challengeParams, focusArea) {
+    const section = ['### CHALLENGE PARAMETERS'];
+    
+    section.push(`Type: ${challengeParams.challengeType || challengeParams.challengeTypeCode || 'standard'}`);
+    section.push(`Format: ${challengeParams.formatType || challengeParams.formatTypeCode || 'open-ended'}`);
+    section.push(`Difficulty: ${challengeParams.difficulty || 'intermediate'}`);
+    section.push(`Focus Area: ${focusArea}`);
+    
+    if (challengeParams.topic) {
+      section.push(`Topic: ${challengeParams.topic}`);
+    }
+    
+    if (challengeParams.keywords && Array.isArray(challengeParams.keywords)) {
+      section.push(`Keywords: ${challengeParams.keywords.join(', ')}`);
+    }
+    
+    return section.join('\n');
+  }
+  
+  /**
+   * Build the game state section of the prompt
+   * @param {Object} gameState - Game state data
+   * @returns {string|null} The game state section or null if not applicable
+   * @private
+   */
+  static buildGameStateSection(gameState) {
+    if (!gameState || Object.keys(gameState).length === 0) {
+      return null;
+    }
+    
+    const section = ['### GAME STATE CONTEXT'];
+    
+    if (gameState.currentLevel) {
+      section.push(`Current Level: ${gameState.currentLevel}`);
+    }
+    
+    if (gameState.progress) {
+      section.push(`Progress: ${gameState.progress}%`);
+    }
+    
+    if (gameState.streakCount) {
+      section.push(`Streak Count: ${gameState.streakCount}`);
+    }
+    
+    // Add recent challenges if available
+    if (gameState.recentChallenges && Array.isArray(gameState.recentChallenges) && gameState.recentChallenges.length > 0) {
+      section.push(`\nRecent Challenges:`);
+      gameState.recentChallenges.forEach((c, idx) => {
+        section.push(`${idx + 1}. ${c.title} (${c.challengeType || 'Unknown type'}, ${c.difficulty || 'Not specified'})`);
+      });
+    }
+    
+    // Add strengths and areas for improvement if available
+    if (gameState.strengths && Array.isArray(gameState.strengths) && gameState.strengths.length > 0) {
+      section.push(`\nUser Strengths: ${gameState.strengths.join(', ')}`);
+    }
+    
+    if (gameState.areasForImprovement && Array.isArray(gameState.areasForImprovement) && gameState.areasForImprovement.length > 0) {
+      section.push(`Areas for Improvement: ${gameState.areasForImprovement.join(', ')}`);
+    }
+    
+    return section.join('\n');
+  }
+  
+  /**
+   * Build the creativity guidance section of the prompt
+   * @param {number} creativeVariation - The level of creative variation (0-1)
+   * @param {Object} options - Additional options
+   * @returns {string} The creativity guidance section
+   * @private
+   */
+  static buildCreativitySection(creativeVariation, options) {
+    const section = ['### CREATIVITY GUIDANCE'];
+    
+    section.push(`- Variation level: ${Math.floor(creativeVariation * 100)}%`);
+    
+    if (creativeVariation > 0.8) {
+      section.push(`- Generate a highly creative and unique challenge.`);
+    } else if (creativeVariation > 0.6) {
+      section.push(`- Balance creativity with structured learning.`);
+    } else {
+      section.push(`- Focus on foundational concepts with moderate creativity.`);
+    }
+    
+    if (options.allowDynamicTypes) {
+      section.push(`- You may create novel challenge types beyond the standard categories when appropriate.`);
+    }
+    
+    if (options.suggestNovelTypes) {
+      section.push(`- You are encouraged to suggest creative and unique challenge types tailored to this specific user.`);
+    }
+    
+    return section.join('\n');
+  }
+  
+  /**
+   * Build the adaptation guidance section of the prompt
+   * @param {Object} gameState - Game state data
+   * @returns {string|null} The adaptation guidance section or null if not applicable
+   * @private
+   */
+  static buildAdaptationSection(gameState) {
+    if (!gameState || Object.keys(gameState).length === 0) {
+      return null;
+    }
+    
+    const section = ['### ADAPTATION GUIDANCE'];
+    
+    section.push(`- Create a challenge that builds on the user's strengths while addressing areas for improvement.`);
+    section.push(`- Avoid repeating challenge types the user has recently encountered.`);
+    
+    if (gameState.streakCount && gameState.streakCount > 2) {
+      section.push(`- The user is on a streak of ${gameState.streakCount} successfully completed challenges. Consider increasing difficulty slightly.`);
+    }
+    
+    if (gameState.recentChallenges && gameState.recentChallenges.length > 0) {
+      const recentFocusAreas = [...new Set(gameState.recentChallenges.map(c => c.focusArea).filter(Boolean))];
+      if (recentFocusAreas.length > 0 && !recentFocusAreas.includes(gameState.focusArea)) {
+        section.push(`- This is a shift to a new focus area (${gameState.focusArea}) from previous work in ${recentFocusAreas.join(', ')}. Provide context that bridges these areas.`);
+      }
+    }
+    
+    return section.join('\n');
+  }
+  
+  /**
+   * Build the response format section of the prompt
+   * @returns {string} The response format section
+   * @private
+   */
+  static buildResponseFormatSection() {
+    return `### RESPONSE FORMAT
+Return the challenge as a JSON object with the following structure:
+
+{
+  "title": "Challenge title",
+  "content": {
+    "context": "Background information and context",
+    "scenario": "Specific scenario or problem statement",
+    "instructions": "What the user needs to do"
+  },
+  "questions": [
+    {
+      "id": "q1",
+      "text": "Question text",
+      "type": "open-ended | multiple-choice | reflection",
+      "options": ["Option 1", "Option 2", "Option 3"] // For multiple-choice only
+    }
+  ],
+  "evaluationCriteria": {
+    "criteria1": {
+      "description": "Description of criteria",
+      "weight": 0.5
+    }
+  },
+  "recommendedResources": [
+    {
+      "title": "Resource title",
+      "type": "article | video | book | tutorial",
+      "url": "URL if available",
+      "description": "Brief description of why this resource is helpful"
+    }
+  ]
+}`;
+  }
+  
+  /**
    * Build a dynamic system message based on user context
    * @param {string} challengeType - Type of challenge
    * @param {string} formatType - Format of challenge
@@ -265,64 +332,67 @@ class ChallengePromptBuilder {
    */
   static buildDynamicSystemMessage(challengeType, formatType, difficulty, user = {}, personalityProfile = {}, options = {}) {
     try {
-      // Start with base system message
-      let systemMsg = `You are an AI challenge creator specializing in ${challengeType} challenges `;
+      const messageParts = [];
+      
+      // Base message
+      messageParts.push(`You are an AI challenge creator specializing in ${challengeType} challenges `);
       
       // Add difficulty context
       if (difficulty === 'beginner') {
-        systemMsg += `that are accessible and instructive for beginners. `;
+        messageParts.push(`that are accessible and instructive for beginners. `);
       } else if (difficulty === 'intermediate') {
-        systemMsg += `with moderate complexity appropriate for intermediate learners. `;
+        messageParts.push(`with moderate complexity appropriate for intermediate learners. `);
       } else if (difficulty === 'advanced' || difficulty === 'expert') {
-        systemMsg += `that challenge and stretch advanced learners. `;
+        messageParts.push(`that challenge and stretch advanced learners. `);
       } else {
-        systemMsg += `of various difficulty levels. `;
+        messageParts.push(`of various difficulty levels. `);
       }
       
       // Add format context
       if (formatType === 'open-ended') {
-        systemMsg += `You excel at creating open-ended challenges that promote creative thinking. `;
+        messageParts.push(`You excel at creating open-ended challenges that promote creative thinking. `);
       } else if (formatType === 'scenario') {
-        systemMsg += `You excel at developing rich, realistic scenarios that require thoughtful analysis. `;
+        messageParts.push(`You excel at developing rich, realistic scenarios that require thoughtful analysis. `);
       } else if (formatType === 'multiple-choice') {
-        systemMsg += `You excel at crafting multiple-choice challenges with well-designed options. `;
+        messageParts.push(`You excel at crafting multiple-choice challenges with well-designed options. `);
       } else {
-        systemMsg += `You adapt your challenge format based on learning objectives. `;
+        messageParts.push(`You adapt your challenge format based on learning objectives. `);
       }
       
       // Adjust for user skill level
       if (user.skillLevel) {
-        if (user.skillLevel.toLowerCase() === 'beginner') {
-          systemMsg += `Create challenges that build confidence while teaching fundamentals. `;
-        } else if (user.skillLevel.toLowerCase() === 'intermediate') {
-          systemMsg += `Focus on application of concepts and moderate complexity. `;
-        } else if (user.skillLevel.toLowerCase() === 'expert' || user.skillLevel.toLowerCase() === 'advanced') {
-          systemMsg += `Design sophisticated challenges that push the boundaries of expertise. `;
+        const skillLevel = user.skillLevel.toLowerCase();
+        if (skillLevel === 'beginner') {
+          messageParts.push(`Create challenges that build confidence while teaching fundamentals. `);
+        } else if (skillLevel === 'intermediate') {
+          messageParts.push(`Focus on application of concepts and moderate complexity. `);
+        } else if (skillLevel === 'expert' || skillLevel === 'advanced') {
+          messageParts.push(`Design sophisticated challenges that push the boundaries of expertise. `);
         }
       }
       
       // Add personality context if available
       if (personalityProfile && Object.keys(personalityProfile).length > 0) {
         if (personalityProfile.communicationStyle) {
-          systemMsg += `Adapt your communication style to be ${personalityProfile.communicationStyle}. `;
+          messageParts.push(`Adapt your communication style to be ${personalityProfile.communicationStyle}. `);
         }
         
         if (personalityProfile.learningPreferences) {
-          systemMsg += `Consider the user's learning preferences: ${personalityProfile.learningPreferences}. `;
+          messageParts.push(`Consider the user's learning preferences: ${personalityProfile.learningPreferences}. `);
         }
       }
       
       // Add creative variation context
       if (options.creativeVariation) {
         const variationLevel = Math.floor(options.creativeVariation * 100);
-        systemMsg += `Vary your challenge creativity by approximately ${variationLevel}%. `;
+        messageParts.push(`Vary your challenge creativity by approximately ${variationLevel}%. `);
       }
       
       // Add format-specific instructions
-      systemMsg += `\nAlways return your challenge as a JSON object with all required fields. `;
-      systemMsg += `Format your response as valid, parsable JSON with no markdown formatting. `;
+      messageParts.push(`\nAlways return your challenge as a JSON object with all required fields. `);
+      messageParts.push(`Format your response as valid, parsable JSON with no markdown formatting. `);
       
-      return systemMsg;
+      return messageParts.join('');
     } catch (error) {
       log('error', 'Error building system message', { 
         error: error.message,
@@ -333,14 +403,6 @@ class ChallengePromptBuilder {
         originalError: error
       });
     }
-  }
-  
-  /**
-   * Factory method to create a builder with default settings
-   * @returns {Function} Configured build function
-   */
-  static createBuilder() {
-    return this.build.bind(this);
   }
 }
 

@@ -249,6 +249,56 @@ class PersonalityController {
       return next(error);
     }
   }
+
+  /**
+   * Submit personality assessment answers
+   * @param {Request} req - Express request object
+   * @param {Response} res - Express response object
+   */
+  async submitAssessment(req, res, next) {
+    try {
+      // Check if user is authenticated
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const { answers } = req.body;
+      
+      this.logger.debug('Submitting personality assessment', { 
+        userId: req.user.id,
+        answerCount: answers.length
+      });
+
+      // Process the assessment
+      const result = await this.personalityService.processAssessment(
+        req.user.id,
+        answers
+      );
+
+      this.logger.info('Personality assessment submitted', { 
+        userId: req.user.id,
+        resultId: result.id
+      });
+
+      // Return success response
+      return res.success(
+        { 
+          id: result.id,
+          status: result.status,
+          profileUpdated: result.profileUpdated 
+        }, 
+        'Personality assessment submitted successfully'
+      );
+    } catch (error) {
+      this.logger.error('Error submitting personality assessment', { 
+        error: error.message, 
+        userId: req.user?.id,
+        stack: error.stack
+      });
+      
+      return next(error);
+    }
+  }
 }
 
 module.exports = PersonalityController;

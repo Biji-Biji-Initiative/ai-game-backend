@@ -11,13 +11,13 @@ The `supabaseClient.js` file provides the standard implementation for Supabase d
 Import the client in your code:
 
 ```javascript
-const { supabaseClient } = require('path/to/core/infra/db/supabaseClient');
+const { supabaseClient } = require('../../infra/db/supabaseClient');
 ```
 
 If you need to use the admin client with service role permissions:
 
 ```javascript
-const { supabaseAdmin } = require('path/to/core/infra/db/supabaseClient');
+const { supabaseAdmin } = require('../../infra/db/supabaseClient');
 ```
 
 ### Standardization Note
@@ -25,14 +25,12 @@ const { supabaseAdmin } = require('path/to/core/infra/db/supabaseClient');
 As part of CODE-02 architecture ticket, all imports have been standardized to use this path:
 
 ```javascript
-// Correct import path
-const { supabaseClient } = require('../../core/infra/db/supabaseClient');
+// Correct absolute import path (from src/)
+const { supabaseClient } = require('core/infra/db/supabaseClient');
 
-// NOT this (deprecated)
-const supabase = require('../../lib/supabase');
+// Correct relative import path (adjust the path based on your file location)
+const { supabaseClient } = require('../../infra/db/supabaseClient');
 ```
-
-The compatibility layer at `src/lib/supabase/index.js` has been removed. Any file still using the old import path should be updated to use the standard path.
 
 ### Mock Client
 
@@ -43,7 +41,7 @@ In test and development environments, if no Supabase credentials are found, a mo
 If you need a custom Supabase client with specific options:
 
 ```javascript
-const { createSupabaseClient } = require('path/to/core/infra/db/supabaseClient');
+const { createSupabaseClient } = require('../../infra/db/supabaseClient');
 
 const customClient = createSupabaseClient({
   useServiceRole: true, // Use admin permissions

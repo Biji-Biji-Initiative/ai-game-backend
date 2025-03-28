@@ -1,61 +1,81 @@
 # API Tester UI
 
-This simple web interface allows developers to manually test the AI Fight Club backend API endpoints.
+A powerful and flexible UI for testing API endpoints in the AI Fight Club backend.
+
+## Features
+
+### Core Features
+- Dynamic loading of API endpoint definitions
+- Support for GET, POST, PUT, DELETE HTTP methods
+- Automatic token management and authentication
+- JSON response formatting with syntax highlighting
+- Real-time validation of input fields
+- Detailed request and response information
+
+### Advanced Features
+- **Request History and Replay**: Logs all API requests with timestamps, methods, and response data
+- **Parameter Presets**: Save and load predefined sets of parameters for quick testing
+- **Environment Switching**: Easily switch between development, staging, and production environments
+- **Enhanced JSON Editing**: Syntax highlighting and validation for JSON input fields
+- **Tabbed Response Viewing**: Formatted JSON, raw response, and headers in separate tabs
+- **Input Field Validation**: Real-time validation with error messages
+- **Responsive Design**: Works on desktop and mobile devices
+
+## How to Use
+
+### Getting Started
+1. Open the API Tester UI in your browser
+2. Use the "Quick User Setup" section to create or log in as a test user
+3. Once logged in, your authentication token is stored automatically
+
+### Making API Requests
+1. Navigate to the desired API endpoint section
+2. Fill in the required parameters
+3. Click "Send Request" to execute the API call
+4. View the formatted response in the "API Response" section
+
+### Using Presets
+1. Fill in the form with desired values
+2. Click "Save As..." to create a new preset
+3. Access your saved presets via the dropdown menu
+4. Manage presets using the "Presets" button
+
+### Replaying Previous Requests
+1. Click on any item in the "Request History" panel
+2. The form will be populated with the selected request's parameters
+3. Click "Send Request" to re-execute the API call
+
+## Adding New Endpoints
+
+New endpoints can be added by editing the `api-endpoints.js` file. Each endpoint should include:
+
+- A unique ID
+- Display name
+- Path
+- HTTP method
+- Input fields with types, validation rules, and default values
+
+Example:
+```javascript
+{
+  id: "getUser",
+  name: "Get User by ID",
+  path: "/users/:userId",
+  method: "GET",
+  fields: [
+    { id: "userId", label: "User ID:", type: "text", placeholder: "User ID", required: true }
+  ]
+}
+```
+
+## Technologies Used
+- Vanilla JavaScript (no external frameworks)
+- JSONEditor for enhanced JSON editing
+- LocalStorage for persisting settings and history
 
 ## Prerequisites
 
 1. The backend server must be running (`npm start` or `npm run dev`).
-
-## How to Use
-
-1. Start the backend server (e.g., `PORT=8765 npm run dev`).
-2. Open your web browser and navigate to `http://localhost:8765/tester` (adjust the port number if needed).
-3. **Create/Login User:** Use the "Quick User Setup" section to create a test user or login with an existing one.
-   - The form is pre-filled with default test user credentials.
-   - Click "Create or Login" to either create a new user (if the email doesn't exist) or login with an existing one.
-   - This handles authentication automatically without requiring a separate JWT token.
-4. **Fill Inputs:** Enter the required data into the relevant input fields for the endpoint you want to test.
-5. **Click Button:** Click the button corresponding to the API endpoint.
-6. **View Response:** The status of the request and the JSON response (or error) will appear in the "API Response" section below.
-
-## Key Features
-
-### Simple Test User Creation
-The UI provides a one-click solution to create and authenticate test users:
-- No need to manually obtain and paste JWT tokens
-- Creates users directly in your database if they don't exist
-- Handles authentication automatically
-
-### Comprehensive API Coverage
-The UI includes sections for all major API areas:
-- Challenges
-- Users
-- Personality
-- Focus Areas
-- Progress
-- Evaluations
-- Adaptive Learning
-- User Journey
-
-### Smart Data Flow
-The UI intelligently populates related fields to streamline testing:
-- When you create/login as a user, all email fields across the UI are automatically populated
-- When you generate a challenge, all challenge ID fields are updated
-- JSON fields in complex requests are pre-populated with the relevant IDs
-
-### Enhanced Request/Response Display
-- Both request details and response are shown
-- Auth tokens are masked for security
-- Full JSON formatting for better readability
-- "Clear Output" button to reset the display
-
-## How It Works
-
-The UI follows these steps for authentication:
-1. First attempts to login with the provided credentials
-2. If login fails, tries to create a new user with the credentials
-3. If both approaches fail, attempts to directly create a user through available endpoints
-4. Once authenticated, populates the user information in all relevant fields
 
 ## Development Notes
 

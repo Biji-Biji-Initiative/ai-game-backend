@@ -1,5 +1,192 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const responseOutput = document.getElementById('response-output');
+    // Initialize API sections
+    const apiSections = document.getElementById('api-sections');
+    
+    // Load API endpoints from the API_ENDPOINTS object
+    function initializeApiSections() {
+        if (!apiSections || !API_ENDPOINTS) {
+            console.error('API sections element or API_ENDPOINTS not found');
+            return;
+        }
+        
+        // Clear existing content
+        apiSections.innerHTML = '';
+        
+        // Add each section
+        Object.keys(API_ENDPOINTS).forEach(key => {
+            const sectionData = API_ENDPOINTS[key];
+            const section = createApiSection(sectionData.section, sectionData.endpoints);
+            apiSections.appendChild(section);
+        });
+    }
+    
+    // Create a section element with its endpoints
+    function createApiSection(sectionInfo, endpoints) {
+        const section = document.createElement('div');
+        section.className = 'api-section';
+        section.id = `section-${sectionInfo.id}`;
+        
+        const header = document.createElement('h2');
+        header.className = 'section-header';
+        header.textContent = sectionInfo.title;
+        section.appendChild(header);
+        
+        const endpointsContainer = document.createElement('div');
+        endpointsContainer.className = 'endpoints-container';
+        
+        endpoints.forEach(endpoint => {
+            const endpointElement = createEndpoint(endpoint);
+            endpointsContainer.appendChild(endpointElement);
+        });
+        
+        section.appendChild(endpointsContainer);
+        return section;
+    }
+    
+    // Create an endpoint element with its fields
+    function createEndpoint(endpoint) {
+        const endpointEl = document.createElement('div');
+        endpointEl.className = 'endpoint';
+        endpointEl.id = `endpoint-${endpoint.id}`;
+        
+        // Add title
+        const title = document.createElement('h3');
+        title.className = 'endpoint-title';
+        title.textContent = endpoint.name;
+        endpointEl.appendChild(title);
+        
+        // Add path and method
+        if (endpoint.path) {
+            const pathMethod = document.createElement('div');
+            pathMethod.className = 'endpoint-path-method';
+            pathMethod.innerHTML = `<span class="method ${endpoint.method.toLowerCase()}">${endpoint.method}</span> <span class="path">${endpoint.path}</span>`;
+            endpointEl.appendChild(pathMethod);
+        }
+        
+        // Add description if available
+        if (endpoint.description) {
+            const desc = document.createElement('div');
+            desc.className = 'endpoint-description';
+            desc.textContent = endpoint.description;
+            endpointEl.appendChild(desc);
+        }
+        
+        // Add form
+        const form = document.createElement('form');
+        form.className = 'endpoint-form';
+        form.id = `form-${endpoint.id}`;
+        
+        // Add fields
+        if (endpoint.fields && endpoint.fields.length > 0) {
+            const fieldsContainer = document.createElement('div');
+            fieldsContainer.className = 'fields-container';
+            
+            endpoint.fields.forEach(field => {
+                const fieldContainer = document.createElement('div');
+                fieldContainer.className = 'field-container';
+                
+                const label = document.createElement('label');
+                label.htmlFor = `${endpoint.id}-${field.id}`;
+                label.textContent = field.label;
+                fieldContainer.appendChild(label);
+                
+                let input;
+                if (field.type === 'textarea' || field.type === 'json') {
+                    input = document.createElement('textarea');
+                    input.rows = field.rows || 3;
+                } else if (field.type === 'select') {
+                    input = document.createElement('select');
+                    if (field.options && field.options.length > 0) {
+                        field.options.forEach(option => {
+                            const optionEl = document.createElement('option');
+                            optionEl.value = option.value;
+                            optionEl.textContent = option.label;
+                            input.appendChild(optionEl);
+                        });
+                    }
+                    if (field.defaultValue) {
+                        input.value = field.defaultValue;
+                    }
+                } else {
+                    input = document.createElement('input');
+                    input.type = field.type;
+                }
+                
+                input.id = `${endpoint.id}-${field.id}`;
+                input.name = field.id;
+                input.placeholder = field.placeholder || '';
+                if (field.defaultValue && field.type !== 'select') {
+                    input.value = field.defaultValue;
+                }
+                
+                fieldContainer.appendChild(input);
+                fieldsContainer.appendChild(fieldContainer);
+            });
+            
+            form.appendChild(fieldsContainer);
+        }
+        
+        // Add execute button
+        const submitBtn = document.createElement('button');
+        submitBtn.type = 'button';
+        submitBtn.className = 'btn-execute';
+        submitBtn.textContent = 'Execute';
+        submitBtn.id = `btn-${endpoint.id}`;
+        submitBtn.addEventListener('click', () => executeEndpoint(endpoint));
+        
+        form.appendChild(submitBtn);
+        endpointEl.appendChild(form);
+        
+        return endpointEl;
+    }
+    
+    // Execute an API endpoint
+    function executeEndpoint(endpoint) {
+        // Get form values
+        const form = document.getElementById(`form-${endpoint.id}`);
+        const formData = new FormData(form);
+        
+        const body = {};
+        let path = endpoint.path;
+        
+        // Special handling for path parameters and build body
+        formData.forEach((value, key) => {
+            if (path && path.includes(`:${key}`)) {
+                // Replace path parameter
+                path = path.replace(`:${key}`, encodeURIComponent(value));
+            } else if (key.endsWith('Body')) {
+                // Parse JSON body
+                try {
+                    body[key.replace('Body', '')] = JSON.parse(value);
+                } catch (e) {
+                    displayStatus(`Invalid JSON in ${key}`, true);
+                    return;
+                }
+            } else {
+                // Add to body
+                body[key] = value;
+            }
+        });
+        
+        // Special handling for specific endpoints
+        if (endpoint.id === 'createLoginUser') {
+            // Handle the special createOrLoginUser endpoint
+            const email = document.getElementById(`${endpoint.id}-email`).value;
+            const password = document.getElementById(`${endpoint.id}-password`).value;
+            const fullName = document.getElementById(`${endpoint.id}-fullName`).value;
+            
+            createOrLoginUser(email, password, fullName);
+            return;
+        }
+        
+        // Make API call
+        makeApiCall(endpoint.method, path, Object.keys(body).length > 0 ? body : null);
+    }
+    
+    // Initialize API sections
+    initializeApiSections();
+    
+    const responseOutput = document.getElementById('raw-output');
     const statusMessage = document.getElementById('status-message');
     
     // User status elements
@@ -122,7 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
             responseOutput.textContent = responseInfo + '\n---\nProcessing...';
             
             // Try login first
-            const loginResult = await makeApiCall('POST', '/auth/login', {
+            const loginResult = await makeApiCall('POST', '/v1/auth/login', {
                 email,
                 password
             }, false); // Don't use auth token for login
@@ -146,7 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
             responseInfo += `\nLogin failed. Attempting to create new user...`;
             responseOutput.textContent = responseInfo + '\n---\nProcessing...';
             
-            const signupResult = await makeApiCall('POST', '/auth/signup', {
+            const signupResult = await makeApiCall('POST', '/v1/auth/signup', {
                 email,
                 password,
                 fullName
@@ -172,7 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
             responseOutput.textContent = responseInfo + '\n---\nProcessing...';
             
             // Try creating user directly 
-            const createUserResult = await makeApiCall('POST', '/users', {
+            const createUserResult = await makeApiCall('POST', '/v1/users', {
                 email,
                 password,
                 fullName
@@ -180,7 +367,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (createUserResult) {
                 // If user created or already exists, try to get the user
-                const user = await makeApiCall('GET', `/users/email/${encodeURIComponent(email)}`, null, false);
+                const user = await makeApiCall('GET', `/v1/users/email/${encodeURIComponent(email)}`, null, false);
                 
                 if (user) {
                     // Manual login success
@@ -209,6 +396,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Function to execute an API call
     async function makeApiCall(method, endpoint, body = null, useAuthToken = true) {
         clearResponse();
         const headers = {
@@ -229,8 +417,13 @@ document.addEventListener('DOMContentLoaded', () => {
             options.body = JSON.stringify(body);
         }
 
+        // Ensure endpoint is formatted correctly
+        if (!endpoint.startsWith('/v1')) {
+            endpoint = `/v1${endpoint}`;
+        }
+
         // Construct full URL relative to the current host
-        const url = `/api${endpoint}`; // Assumes UI is served from root
+        const url = `/api${endpoint}`; // Use /api prefix for all requests
 
         // Display Request Info
         let requestInfo = `Request: ${method.toUpperCase()} ${url}\n`;
@@ -249,6 +442,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const fullResponseText = `--- Request ---\n${requestInfo}\n--- Response (${response.status} ${response.statusText}) ---\n${JSON.stringify(responseData, null, 2)}`;
 
+            // Update the JSON editor if available
+            const jsonEditor = document.getElementById('json-editor');
+            if (jsonEditor) {
+                try {
+                    // Clear previous content
+                    jsonEditor.innerHTML = '';
+                    
+                    // Create a new editor
+                    const editor = new JSONEditor(jsonEditor, {
+                        mode: 'view',
+                        mainMenuBar: false
+                    });
+                    
+                    // Set the data
+                    editor.set(responseData);
+                    
+                    // Expand the editor
+                    editor.expandAll();
+                } catch (e) {
+                    console.error('Error initializing JSON editor:', e);
+                }
+            }
+
             if (!response.ok) {
                 // Handle API errors (like 4xx, 5xx)
                 displayStatus(`Error: ${response.status} ${response.statusText} - ${responseData.message || 'Unknown API error'}`, true);
@@ -258,8 +474,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 displayStatus(`Success: ${response.status} ${response.statusText}`, false);
                 responseOutput.textContent = fullResponseText;
                 
+                // Save login/signup token
+                if (endpoint === '/v1/auth/login' || endpoint === '/v1/auth/signup') {
+                    if (responseData.token || responseData.data?.token) {
+                        authToken = responseData.token || responseData.data.token;
+                        
+                        // Also save current user if available
+                        if (responseData.user || responseData.data?.user) {
+                            currentUser = responseData.user || responseData.data.user;
+                            populateEmailFields(currentUser.email);
+                            updateUserStatus();
+                        }
+                    }
+                }
+                
                 // If this is user data, populate email fields
-                if (endpoint === '/users/me' && responseData.data?.user?.email) {
+                if (endpoint === '/v1/users/me' && responseData.data?.user?.email) {
                     populateEmailFields(responseData.data.user.email);
                     
                     // Also update current user
@@ -280,7 +510,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 
-                return responseData.data; // Return the 'data' part for chaining
+                return responseData.data || responseData; // Return the 'data' part for chaining
             }
         } catch (error) {
             // Handle network errors or failed fetch

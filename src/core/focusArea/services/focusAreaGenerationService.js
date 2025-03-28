@@ -9,7 +9,7 @@
  * @requires logger
  */
 
-const { focusAreaLogger } = require('../../../core/infra/logging/domainLogger');
+const { focusAreaLogger } = require('../../infrastructure/logging/domainLogger');
 const { FocusAreaGenerationError } = require('../errors/focusAreaErrors');
 
 /**
@@ -30,7 +30,7 @@ class FocusAreaGenerationService {
   constructor({ 
     openAIClient, 
     promptBuilder = require('../../prompt/promptBuilder'),
-    formatJson = require('../../../infra/openai/responseHandler').formatJson,
+    formatJson = require('../../infrastructure/openai/responseHandler').formatJson,
     FocusArea = require('../models/FocusArea'),
     MessageRole,
     openAIStateManager,

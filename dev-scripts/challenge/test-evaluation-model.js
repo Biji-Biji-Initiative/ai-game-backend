@@ -13,7 +13,7 @@ const evaluationRepository = require('./src/repositories/evaluationRepository');
 const logger = require('./src/utils/logger');
 
 // Get user and challenge IDs from database
-const supabase = require('./src/lib/supabase');
+const { supabaseClient: supabase } = require('./src/core/infra/db/supabaseClient');
 
 async function getTestIds() {
   try {

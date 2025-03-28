@@ -4,8 +4,8 @@
  * Handles HTTP requests related to user journey tracking.
  * Located within the userJourney domain following our DDD architecture.
  */
-const { logger } = require('../../../core/infra/logging/logger');
-const AppError = require('../../../core/infra/errors/AppError');
+const { logger } = require('../../infrastructure/logging/logger');
+const AppError = require('../../infrastructure/errors/AppError');
 
 class UserJourneyController {
   /**

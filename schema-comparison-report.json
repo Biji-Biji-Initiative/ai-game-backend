@@ -1,0 +1,49 @@
+{
+  "summary": {
+    "codeSchema": {
+      "tableCount": 10,
+      "typeCount": 2,
+      "functionCount": 3,
+      "triggerCount": 4
+    },
+    "supabaseSchema": {
+      "tableCount": 0,
+      "typeCount": 0
+    },
+    "discrepancies": {
+      "missingTableCount": 10,
+      "missingColumnCount": 0,
+      "differentColumnTypeCount": 0,
+      "missingTypeCount": 2,
+      "differentTypeValueCount": 0,
+      "unusedTableCount": 0,
+      "unusedColumnCount": 0
+    }
+  },
+  "discrepancies": {
+    "missingTables": [
+      "challenge_types",
+      "format_types",
+      "focus_areas",
+      "difficulty_levels",
+      "challenge_format_types",
+      "challenges",
+      "evaluation_categories",
+      "focus_area_category_mappings",
+      "trait_challenge_mappings",
+      "focus_area_challenge_mappings"
+    ],
+    "missingColumns": {},
+    "differentColumnTypes": {},
+    "missingTypes": [
+      "challenge_status",
+      "challenge_difficulty"
+    ],
+    "differentTypeValues": {},
+    "unusedTables": [],
+    "unusedColumns": {}
+  },
+  "codeReferences": {
+    "tablesWithNoReferences": []
+  }
+}

@@ -4,7 +4,7 @@
  * Handles HTTP requests related to focus areas.
  * Located within the focusArea domain following our DDD architecture.
  */
-const { logger } = require('../../../core/infra/logging/logger');
+const { logger } = require('../../infrastructure/logging/logger');
 const container = require('../../../config/container');
 const { 
   FocusAreaError, 

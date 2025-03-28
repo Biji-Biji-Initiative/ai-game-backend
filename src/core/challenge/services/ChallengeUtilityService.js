@@ -8,9 +8,22 @@ const { v4: uuidv4 } = require('uuid');
 const { logger } = require('../../../core/infra/logging/logger');
 const config = require('../../../config/config');
 
-class ChallengeUtils {
-  constructor(challengeTypeRepository) {
+class ChallengeUtilityService {
+  /**
+   * Create a new ChallengeUtilityService instance
+   * @param {Object} dependencies - Service dependencies
+   * @param {Object} dependencies.challengeTypeRepository - Challenge type repository
+   * @param {Object} dependencies.logger - Logger instance
+   */
+  constructor(dependencies = {}) {
+    const { challengeTypeRepository, logger: loggerInstance } = dependencies;
+    
+    if (!challengeTypeRepository) {
+      throw new Error('challengeTypeRepository is required for ChallengeUtilityService');
+    }
+    
     this.challengeTypeRepository = challengeTypeRepository;
+    this.logger = loggerInstance || logger;
   }
 
   /**
@@ -179,4 +192,4 @@ class ChallengeUtils {
   }
 }
 
-module.exports = ChallengeUtils; 
+module.exports = ChallengeUtilityService; 

@@ -9,6 +9,12 @@
 
 const { v4: uuidv4 } = require('uuid');
 const { DomainEvent, EventTypes } = require('../../common/events/domainEvents');
+const { ChallengeId, UserId, DifficultyLevel, FocusArea } = require('../../common/valueObjects');
+const { 
+  ChallengeInvalidStateError, 
+  ChallengeValidationError,
+  ChallengeResponseError
+} = require('../errors/ChallengeErrors');
 
 /**
  * Challenge class representing a learning challenge entity
@@ -25,9 +31,9 @@ class Challenge {
    * @param {Array} [data.recommendedResources] - Recommended resources for the challenge
    * @param {string} data.challengeType - Type of challenge (e.g., 'analysis', 'technical')
    * @param {string} data.formatType - Format of challenge (e.g., 'open-ended', 'multiple-choice')
-   * @param {string} data.difficulty - Difficulty level (e.g., 'beginner', 'intermediate', 'advanced')
-   * @param {string} data.focusArea - Focus area of the challenge
-   * @param {string} data.userId - User ID or email this challenge belongs to
+   * @param {string|DifficultyLevel} data.difficulty - Difficulty level (e.g., 'beginner', 'intermediate', 'advanced')
+   * @param {string|FocusArea} data.focusArea - Focus area of the challenge
+   * @param {string|UserId} data.userId - User ID or email this challenge belongs to
    * @param {Object} [data.typeMetadata] - Additional metadata for the challenge type
    * @param {Object} [data.formatMetadata] - Additional metadata for the format type
    * @param {Object} [data.metadata] - Additional challenge metadata
@@ -37,12 +43,12 @@ class Challenge {
    */
   constructor(data) {
     if (!data || typeof data !== 'object') {
-      throw new Error('Challenge data must be an object');
+      throw new ChallengeValidationError('Challenge data must be an object');
     }
     
     // Required fields
-    if (!data.title) throw new Error('Title is required for challenge creation');
-    if (!data.content) throw new Error('Content is required for challenge creation');
+    if (!data.title) throw new ChallengeValidationError('Title is required for challenge creation');
+    if (!data.content) throw new ChallengeValidationError('Content is required for challenge creation');
     
     // Core properties
     this.id = data.id || uuidv4();
@@ -55,11 +61,55 @@ class Challenge {
     // Classification properties
     this.challengeType = data.challengeType || 'standard';
     this.formatType = data.formatType || 'open-ended';
-    this.difficulty = data.difficulty || 'intermediate';
-    this.focusArea = data.focusArea || 'general';
     
-    // Ownership and relationships
-    this.userId = data.userId || data.userEmail || null;
+    // Convert difficulty to DifficultyLevel value object
+    if (data.difficulty instanceof DifficultyLevel) {
+      this._difficultyVO = data.difficulty;
+      this.difficulty = data.difficulty.value;
+    } else {
+      this.difficulty = data.difficulty || 'intermediate';
+      try {
+        this._difficultyVO = new DifficultyLevel(this.difficulty);
+      } catch (error) {
+        // If creation fails, we'll keep the string value but set the VO to null
+        this._difficultyVO = null;
+      }
+    }
+    
+    // Convert focusArea to FocusArea value object
+    if (data.focusArea instanceof FocusArea) {
+      this._focusAreaVO = data.focusArea;
+      this.focusArea = data.focusArea.code;
+    } else {
+      this.focusArea = data.focusArea || 'general';
+      try {
+        this._focusAreaVO = new FocusArea(this.focusArea);
+      } catch (error) {
+        // If creation fails, we'll keep the string value but set the VO to null
+        this._focusAreaVO = null;
+      }
+    }
+    
+    // Convert userId to UserId value object
+    if (data.userId instanceof UserId) {
+      this._userIdVO = data.userId;
+      this.userId = data.userId.value;
+    } else {
+      this.userId = data.userId || data.userEmail || null;
+      if (this.userId && UserId.isValid(this.userId)) {
+        this._userIdVO = new UserId(this.userId);
+      } else {
+        this._userIdVO = null;
+      }
+    }
+    
+    // Create ChallengeId value object
+    try {
+      this._idVO = new ChallengeId(this.id);
+    } catch (error) {
+      // If creation fails, we'll keep the string ID but set the VO to null
+      this._idVO = null;
+    }
     
     // Metadata
     this.typeMetadata = data.typeMetadata || {};
@@ -81,6 +131,112 @@ class Challenge {
     
     // Domain events collection
     this.domainEvents = [];
+    
+    // Enforce invariants on creation
+    this._enforceInvariants();
+  }
+  
+  /**
+   * Enforce invariants and throw domain-specific errors if violated
+   * @private
+   */
+  _enforceInvariants() {
+    // ID must be valid
+    if (!this.id) {
+      throw new ChallengeValidationError('Challenge must have a valid ID');
+    }
+    
+    // Title is required
+    if (!this.title) {
+      throw new ChallengeValidationError('Challenge must have a title');
+    }
+    
+    // Content is required
+    if (!this.content) {
+      throw new ChallengeValidationError('Challenge must have content');
+    }
+    
+    // Challenge type is required
+    if (!this.challengeType) {
+      throw new ChallengeValidationError('Challenge must have a challenge type');
+    }
+    
+    // Format type is required
+    if (!this.formatType) {
+      throw new ChallengeValidationError('Challenge must have a format type');
+    }
+    
+    // State transitions validation
+    if (this.status === 'completed' && !this.evaluation) {
+      throw new ChallengeInvalidStateError('Completed challenge must have an evaluation');
+    }
+    
+    if (this.status === 'submitted' && this.responses.length === 0) {
+      throw new ChallengeInvalidStateError('Submitted challenge must have at least one response');
+    }
+    
+    if (this.status === 'completed' && this.responses.length === 0) {
+      throw new ChallengeInvalidStateError('Completed challenge must have at least one response');
+    }
+    
+    // If there's an evaluation, challenge must be in completed state
+    if (this.evaluation && this.status !== 'completed') {
+      throw new ChallengeInvalidStateError('Challenge with evaluation must be in completed state');
+    }
+    
+    // If submittedAt is set, status must be submitted or completed
+    if (this.submittedAt && this.status !== 'submitted' && this.status !== 'completed') {
+      throw new ChallengeInvalidStateError('Challenge with submittedAt timestamp must be in submitted or completed state');
+    }
+    
+    // If completedAt is set, status must be completed
+    if (this.completedAt && this.status !== 'completed') {
+      throw new ChallengeInvalidStateError('Challenge with completedAt timestamp must be in completed state');
+    }
+  }
+  
+  /**
+   * Get id as a ChallengeId value object
+   * @returns {ChallengeId|null} ChallengeId value object or null if invalid
+   */
+  get idVO() {
+    if (!this._idVO && ChallengeId.isValid(this.id)) {
+      this._idVO = new ChallengeId(this.id);
+    }
+    return this._idVO;
+  }
+  
+  /**
+   * Get userId as a UserId value object
+   * @returns {UserId|null} UserId value object or null if invalid/not set
+   */
+  get userIdVO() {
+    if (!this._userIdVO && this.userId && UserId.isValid(this.userId)) {
+      this._userIdVO = new UserId(this.userId);
+    }
+    return this._userIdVO;
+  }
+  
+  /**
+   * Get difficulty as a DifficultyLevel value object
+   * @returns {DifficultyLevel|null} DifficultyLevel value object or null if invalid
+   */
+  get difficultyVO() {
+    if (!this._difficultyVO && DifficultyLevel.isValid(this.difficulty)) {
+      this._difficultyVO = new DifficultyLevel(this.difficulty);
+    }
+    return this._difficultyVO;
+  }
+  
+  /**
+   * Get focusArea as a FocusArea value object
+   * @returns {FocusArea|null} FocusArea value object or null if invalid
+   */
+  get focusAreaVO() {
+    if (!this._focusAreaVO && FocusArea.isValid(this.focusArea)) {
+      this._focusAreaVO = new FocusArea(this.focusArea);
+    }
+    return this._focusAreaVO;
   }
   
   /**
@@ -147,19 +303,38 @@ class Challenge {
     // Base time based on difficulty
     let baseTime = 10; // Default
     
-    switch (this.difficulty) {
-      case 'beginner':
-        baseTime = 5;
-        break;
-      case 'intermediate':
-        baseTime = 10;
-        break;
-      case 'advanced':
-        baseTime = 15;
-        break;
-      case 'expert':
-        baseTime = 25;
-        break;
+    // Use the difficultyVO if available for more accurate calculation
+    if (this.difficultyVO) {
+      switch (this.difficultyVO.numericValue) {
+        case 1: // easy/beginner
+          baseTime = 5;
+          break;
+        case 2: // medium/intermediate
+          baseTime = 10;
+          break;
+        case 3: // hard/advanced
+          baseTime = 15;
+          break;
+        case 4: // expert
+          baseTime = 25;
+          break;
+      }
+    } else {
+      // Fallback to string-based logic
+      switch (this.difficulty) {
+        case 'beginner':
+          baseTime = 5;
+          break;
+        case 'intermediate':
+          baseTime = 10;
+          break;
+        case 'advanced':
+          baseTime = 15;
+          break;
+        case 'expert':
+          baseTime = 25;
+          break;
+      }
     }
     
     // Adjust based on question count
@@ -252,19 +427,22 @@ class Challenge {
    * Submit responses to the challenge
    * @param {Array} responses - Array of response objects
    * @returns {Challenge} Updated challenge instance
-   * @throws {Error} If responses are invalid or challenge is already completed
+   * @throws {ChallengeInvalidStateError} If challenge is already completed
+   * @throws {ChallengeValidationError} If responses are invalid
    */
   submitResponses(responses) {
+    // Check challenge state before submission
     if (this.isCompleted()) {
-      throw new Error('Cannot submit responses to an already completed challenge');
+      throw new ChallengeInvalidStateError('Cannot submit responses to an already completed challenge');
     }
     
+    // Validate responses
     if (!Array.isArray(responses)) {
-      throw new Error('Responses must be provided as an array');
+      throw new ChallengeValidationError('Responses must be provided as an array');
     }
     
     if (responses.length === 0) {
-      throw new Error('At least one response must be provided');
+      throw new ChallengeValidationError('At least one response must be provided');
     }
     
     // Normalize responses to ensure they have required fields
@@ -276,7 +454,10 @@ class Challenge {
           questionId: this.questions[index]?.id || null,
           timestamp: new Date().toISOString()
         };
-      } else if (typeof resp === 'object') {
+      } else if (typeof resp === 'object' && resp !== null) {
+        if (!resp.response && !resp.content) {
+          throw new ChallengeValidationError(`Response at index ${index} must have content or response property`);
+        }
         return {
           id: resp.id || `r${index + 1}`,
           content: resp.response || resp.content,
@@ -284,10 +465,11 @@ class Challenge {
           timestamp: resp.timestamp || new Date().toISOString()
         };
       } else {
-        throw new Error(`Invalid response format at index ${index}`);
+        throw new ChallengeValidationError(`Invalid response format at index ${index}`);
       }
     });
     
+    // Update challenge state
     this.responses = normalizedResponses;
     this.status = 'submitted';
     this.submittedAt = new Date().toISOString();
@@ -301,6 +483,9 @@ class Challenge {
       responseCount: this.responses.length
     });
     
+    // Enforce invariants after state change
+    this._enforceInvariants();
+    
     return this;
   }
   
@@ -309,34 +494,42 @@ class Challenge {
    * @param {Object} evaluation - Evaluation data
    * @param {number} evaluation.score - Numeric score
    * @param {string} evaluation.feedback - Feedback text
-   * @param {Object} evaluation.criteria - Criteria-specific evaluations
+   * @param {Object} [evaluation.criteria] - Criteria-specific evaluations
    * @returns {Challenge} Updated challenge instance
-   * @throws {Error} If the challenge has no responses or is already completed
+   * @throws {ChallengeInvalidStateError} If challenge is in an invalid state for completion
+   * @throws {ChallengeValidationError} If evaluation data is invalid
    */
   complete(evaluation) {
+    // Check if already completed
     if (this.isCompleted()) {
-      throw new Error('Challenge is already completed');
+      throw new ChallengeInvalidStateError('Challenge is already completed');
     }
     
-    if (!this.isSubmitted() || this.responses.length === 0) {
-      throw new Error('Cannot complete a challenge without submitted responses');
+    // Check if responses are submitted before completion
+    if (!this.isSubmitted()) {
+      throw new ChallengeInvalidStateError('Cannot complete a challenge before responses are submitted');
     }
     
+    if (this.responses.length === 0) {
+      throw new ChallengeInvalidStateError('Cannot complete a challenge without responses');
+    }
+    
+    // Validate evaluation data
     if (!evaluation || typeof evaluation !== 'object') {
-      throw new Error('Evaluation data is required to complete a challenge');
+      throw new ChallengeValidationError('Evaluation data is required to complete a challenge');
     }
     
     const { score, feedback } = evaluation;
     
     if (typeof score !== 'number' || score < 0) {
-      throw new Error('Evaluation must include a valid numeric score');
+      throw new ChallengeValidationError('Evaluation must include a valid numeric score');
     }
     
     if (!feedback || typeof feedback !== 'string') {
-      throw new Error('Evaluation must include feedback text');
+      throw new ChallengeValidationError('Evaluation must include feedback text');
     }
     
-    // Set evaluation data
+    // Update challenge state
     this.evaluation = evaluation;
     this.status = 'completed';
     this.completedAt = new Date().toISOString();
@@ -349,6 +542,9 @@ class Challenge {
       focusArea: this.focusArea,
       difficulty: this.difficulty
     });
+    
+    // Enforce invariants after state change
+    this._enforceInvariants();
     
     return this;
   }
@@ -434,17 +630,42 @@ class Challenge {
   
   /**
    * Update the challenge with new data
+   * This method enforces domain rules for what can be updated and when
    * @param {Object} updates - Data to update
    * @returns {Challenge} Updated challenge instance
+   * @throws {ChallengeInvalidStateError} If update would violate invariants
    */
   update(updates) {
     if (!updates || typeof updates !== 'object') {
-      throw new Error('Update data must be an object');
+      throw new ChallengeValidationError('Update data must be an object');
     }
     
     // Prevent modification of core identifiers
     const protectedFields = ['id', 'createdAt'];
     
+    // Additional fields that can't be modified after submission
+    const lockedAfterSubmission = ['responses', 'submittedAt', 'completedAt'];
+    
+    // Check if attempting to modify locked fields after submission
+    if (this.isSubmitted()) {
+      for (const field of lockedAfterSubmission) {
+        if (updates[field] !== undefined) {
+          throw new ChallengeInvalidStateError(`Cannot modify ${field} after challenge has been submitted`);
+        }
+      }
+    }
+    
+    // Prevent state regression from completed to submitted or active
+    if (this.isCompleted() && updates.status && updates.status !== 'completed') {
+      throw new ChallengeInvalidStateError('Cannot change status of a completed challenge');
+    }
+    
+    // Prevent adding evaluation without completing the challenge
+    if (updates.evaluation && (!updates.status || updates.status !== 'completed')) {
+      updates.status = 'completed';
+    }
+    
+    // Apply updates
     Object.keys(updates).forEach(key => {
       if (!protectedFields.includes(key)) {
         this[key] = updates[key];
@@ -452,6 +673,10 @@ class Challenge {
     });
     
     this.updatedAt = new Date().toISOString();
+    
+    // Enforce invariants after update
+    this._enforceInvariants();
+    
     return this;
   }
   

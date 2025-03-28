@@ -16,36 +16,68 @@ class RouteFactory {
   }
 
   /**
+   * Mount all routes to the Express app
+   * @param {Object} app - Express app instance
+   * @returns {Object} The app with mounted routes
+   */
+  mountAll(app) {
+    if (!app || typeof app.use !== 'function') {
+      throw new Error('A valid Express app instance is required');
+    }
+
+    // Create all route handlers
+    const personalityRoutes = this.createPersonalityRoutes();
+    const adaptiveRoutes = this.createAdaptiveRoutes();
+    const authRoutes = this.createAuthRoutes();
+    const progressRoutes = this.createProgressRoutes();
+    const evaluationRoutes = this.createEvaluationRoutes();
+    const challengeRoutes = this.createChallengeRoutes();
+    const userJourneyRoutes = this.createUserJourneyRoutes();
+    
+    // Mount all routes with their prefixes
+    app.use('/api/personality', personalityRoutes);
+    app.use('/api/adaptive', adaptiveRoutes);
+    app.use('/api/auth', authRoutes);
+    app.use('/api/progress', progressRoutes);
+    app.use('/api/evaluation', evaluationRoutes);
+    app.use('/api/challenge', challengeRoutes);
+    app.use('/api/user-journey', userJourneyRoutes);
+
+    return app;
+  }
+
+  /**
    * Create personality routes
    * @returns {Object} Express router with personality routes
    */
   createPersonalityRoutes() {
     const router = require('express').Router();
-    const PersonalityController = require('../../personality/controllers/PersonalityController');
+    const PersonalityController = require('../../../personality/controllers/PersonalityController');
+    const personalityApiSchemas = require('../../../personality/schemas/personalityApiSchemas');
     const { authenticateUser } = require('../middleware/auth');
-    const { 
-      validateBody,
-      validateParams,
-      validateQuery 
-    } = require('../middleware/validation');
-    const { 
-      updatePersonalityTraitsSchema,
-      updateAIAttitudesSchema,
-      profileQuerySchema
-    } = require('../../personality/schemas/personalityApiSchemas');
+    const { validateBody } = require('../middleware/validation');
 
     // Create controller instance with dependencies
     const personalityController = new PersonalityController({
-      logger: this.container.get('logger'),
       personalityService: this.container.get('personalityService'),
-      errorHandler: this.container.get('errorHandler')
+      logger: this.container.get('logger')
     });
 
     // Define routes
     router.get('/profile', 
-      authenticateUser, 
-      validateQuery(profileQuerySchema),
-      personalityController.getProfile.bind(personalityController)
+      authenticateUser,
+      personalityController.getPersonalityProfile.bind(personalityController)
+    );
+
+    router.get('/recommendations', 
+      authenticateUser,
+      personalityController.getPersonalityProfile.bind(personalityController)
+    );
+
+    router.post('/assessment/submit', 
+      authenticateUser,
+      validateBody(personalityApiSchemas.submitAssessmentSchema),
+      personalityController.submitAssessment.bind(personalityController)
     );
 
     return router;
@@ -57,7 +89,7 @@ class RouteFactory {
    */
   createAdaptiveRoutes() {
     const router = require('express').Router();
-    const AdaptiveController = require('../../adaptive/controllers/AdaptiveController');
+    const AdaptiveController = require('../../../adaptive/controllers/AdaptiveController');
     const { authenticateUser } = require('../middleware/auth');
     const { validateBody } = require('../middleware/validation');
 
@@ -70,7 +102,7 @@ class RouteFactory {
     // Define routes
     router.get('/profile', 
       authenticateUser,
-      adaptiveController.getProfile.bind(adaptiveController)
+      adaptiveController.getRecommendations.bind(adaptiveController)
     );
 
     return router;
@@ -82,7 +114,7 @@ class RouteFactory {
    */
   createAuthRoutes() {
     const router = require('express').Router();
-    const AuthController = require('../../auth/controllers/AuthController');
+    const AuthController = require('../../../auth/controllers/AuthController');
     const { validateBody } = require('../middleware/validation');
 
     // Create controller instance with dependencies
@@ -106,7 +138,7 @@ class RouteFactory {
    */
   createProgressRoutes() {
     const router = require('express').Router();
-    const ProgressController = require('../../progress/controllers/ProgressController');
+    const ProgressController = require('../../../progress/controllers/ProgressController');
     const { authenticateUser } = require('../middleware/auth');
 
     // Create controller instance with dependencies
@@ -118,7 +150,7 @@ class RouteFactory {
     // Define routes
     router.get('/history', 
       authenticateUser,
-      progressController.getProgressHistory.bind(progressController)
+      progressController.getAllUserProgress.bind(progressController)
     );
 
     return router;
@@ -130,7 +162,7 @@ class RouteFactory {
    */
   createEvaluationRoutes() {
     const router = require('express').Router();
-    const EvaluationController = require('../../evaluation/controllers/EvaluationController');
+    const EvaluationController = require('../../../evaluation/controllers/EvaluationController');
     const { authenticateUser } = require('../middleware/auth');
 
     // Create controller instance with dependencies
@@ -144,7 +176,37 @@ class RouteFactory {
     // Define routes
     router.post('/submit', 
       authenticateUser,
-      evaluationController.submitEvaluation.bind(evaluationController)
+      evaluationController.createEvaluation.bind(evaluationController)
+    );
+
+    return router;
+  }
+
+  /**
+   * Create user routes
+   * @returns {Object} Express router with user routes
+   */
+  createUserRoutes() {
+    const router = require('express').Router();
+    const UserController = require('../../../user/controllers/UserController');
+    const { authenticateUser } = require('../middleware/auth');
+    const { validateBody } = require('../middleware/validation');
+
+    // Create controller instance with dependencies
+    const userController = new UserController({
+      userService: this.container.get('userService'),
+      logger: this.container.get('logger')
+    });
+
+    // Define routes
+    router.post('/register', 
+      validateBody({ name: 'string', email: 'string', password: 'string' }),
+      userController.register.bind(userController)
+    );
+
+    router.get('/me', 
+      authenticateUser, 
+      userController.getCurrentUser.bind(userController)
     );
 
     return router;
@@ -156,19 +218,24 @@ class RouteFactory {
    */
   createChallengeRoutes() {
     const router = require('express').Router();
-    const ChallengeController = require('../../challenge/controllers/ChallengeController');
+    const ChallengeController = require('../../../challenge/controllers/ChallengeController');
     const { authenticateUser } = require('../middleware/auth');
 
     // Create controller instance with dependencies
     const challengeController = new ChallengeController({
       challengeCoordinator: this.container.get('challengeCoordinator'),
-      logger: this.container.get('logger')
+      progressCoordinator: this.container.get('progressCoordinator')
     });
 
     // Define routes
-    router.get('/next', 
+    router.post('/generate', 
       authenticateUser,
-      challengeController.getNextChallenge.bind(challengeController)
+      challengeController.generateChallenge.bind(challengeController)
+    );
+
+    router.get('/:challengeId', 
+      authenticateUser,
+      challengeController.getChallengeById.bind(challengeController)
     );
 
     return router;
@@ -180,19 +247,48 @@ class RouteFactory {
    */
   createUserJourneyRoutes() {
     const router = require('express').Router();
-    const UserJourneyController = require('../../userJourney/controllers/UserJourneyController');
+    const UserJourneyController = require('../../../userJourney/controllers/UserJourneyController');
     const { authenticateUser } = require('../middleware/auth');
 
     // Create controller instance with dependencies
     const userJourneyController = new UserJourneyController({
-      userJourneyCoordinator: this.container.get('userJourneyCoordinator'),
-      userRepository: this.container.get('userRepository')
+      userJourneyService: this.container.get('userJourneyService'),
+      logger: this.container.get('logger')
     });
 
     // Define routes
-    router.get('/events', 
+    router.get('/current', 
       authenticateUser,
-      userJourneyController.getUserJourneyEvents.bind(userJourneyController)
+      userJourneyController.getCurrentJourney.bind(userJourneyController)
+    );
+
+    router.post('/start', 
+      authenticateUser,
+      userJourneyController.startJourney.bind(userJourneyController)
+    );
+
+    return router;
+  }
+
+  /**
+   * Create focus area routes
+   * @returns {Object} Express router with focus area routes
+   */
+  createFocusAreaRoutes() {
+    const router = require('express').Router();
+    const FocusAreaController = require('../../../focusArea/controllers/FocusAreaController');
+    const { authenticateUser } = require('../middleware/auth');
+
+    // Create controller instance with dependencies
+    const focusAreaController = new FocusAreaController({
+      focusAreaService: this.container.get('focusAreaService'),
+      logger: this.container.get('logger')
+    });
+
+    // Define routes
+    router.get('/', 
+      authenticateUser,
+      focusAreaController.getAllFocusAreas.bind(focusAreaController)
     );
 
     return router;

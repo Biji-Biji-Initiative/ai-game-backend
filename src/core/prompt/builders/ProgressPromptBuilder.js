@@ -17,6 +17,7 @@ const {
   getResponsesApiInstruction
 } = require('../common/apiStandards');
 const { validateProgressPromptParams } = require('../schemas/progressSchema');
+const { formatForResponsesApi } = require('../../../infra/openai/messageFormatter');
 
 /**
  * Helper function for logging if logger exists
@@ -40,7 +41,7 @@ class ProgressPromptBuilder {
    * @param {Array} [params.challengeAttempts] - History of user's challenge attempts
    * @param {Object} [params.skillProgress] - Progress in specific skills
    * @param {Object} [params.options] - Additional prompt options
-   * @returns {string} Generated progress assessment prompt
+   * @returns {Object} Object with input and instructions for Responses API
    * @throws {Error} If required parameters are missing
    */
   static build(params) {
@@ -308,8 +309,16 @@ class ProgressPromptBuilder {
       
       // Apply API standards
       prompt = appendApiStandards(prompt);
+
+      // Create system message based on the detail level and time range
+      const systemMessage = `You are an AI progress analyst specializing in learning journey assessment and personalized recommendations.
+Your analysis should be data-driven, balanced, and provide ${detailLevel} insights into the user's progress over the ${timeRange} time period.
+${includeRecommendations ? 'Include specific, actionable recommendations that align with their learning goals and current trajectory.' : ''}
+${includePredictions ? 'Include evidence-based predictions about their future growth based on current trends.' : ''}
+Ensure your response follows the exact JSON format specified in the instructions, with no extraneous text.`;
       
-      return prompt.trim();
+      // Format for Responses API and return
+      return formatForResponsesApi(prompt.trim(), systemMessage);
     } catch (error) {
       log('error', 'Error building progress assessment prompt', { 
         error: error.message,

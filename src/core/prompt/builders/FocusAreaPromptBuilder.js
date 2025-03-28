@@ -18,6 +18,7 @@ const {
 } = require('../common/apiStandards');
 const { validateFocusAreaPromptParams } = require('../schemas/focusAreaSchema');
 const { PromptConstructionError } = require('../common/errors');
+const { formatForResponsesApi } = require('../../../infra/openai/messageFormatter');
 
 /**
  * Helper function for logging if logger exists
@@ -42,7 +43,7 @@ class FocusAreaPromptBuilder {
    * @param {Object} [params.progressData] - User's learning progress data
    * @param {Object} [params.personalityProfile] - User's personality profile
    * @param {Object} [params.options] - Additional prompt options
-   * @returns {Object} Generated focus area prompt with system message
+   * @returns {Object} Formatted input and instructions for Responses API
    * @throws {PromptConstructionError} If required parameters are missing
    */
   static build(params) {
@@ -224,11 +225,8 @@ class FocusAreaPromptBuilder {
         options
       );
       
-      // Return both the prompt content and system message
-      return {
-        prompt: prompt.trim(),
-        systemMessage
-      };
+      // Format for the Responses API and return
+      return formatForResponsesApi(prompt.trim(), systemMessage);
     } catch (error) {
       log('error', 'Error building focus area prompt', { 
         error: error.message,

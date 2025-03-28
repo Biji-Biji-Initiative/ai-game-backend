@@ -6,7 +6,7 @@
  */
 
 require('dotenv').config();
-const { supabase } = require('./src/lib/supabase');
+const { supabaseClient: supabase } = require('./src/core/infra/db/supabaseClient');
 const { initializeChallengeConfig } = require('./src/core/challenge/config');
 const { challengeLogger } = require('./src/core/infra/logging/domainLogger');
 

@@ -7,8 +7,32 @@
  * @module Evaluation
  */
 
+/**
+ * IMPORTANT USAGE NOTE:
+ * 
+ * The synchronous mapFocusAreasToCategories method has been removed from this model.
+ * To map focus areas to categories, use the EvaluationDomainService.mapFocusAreasToCategories method
+ * and provide the resulting categories when creating an Evaluation instance:
+ * 
+ * Example:
+ * ```
+ * // Correctly map focus areas to categories using domain service
+ * const relevantCategories = await evaluationDomainService.mapFocusAreasToCategories(user.focusAreas);
+ * 
+ * // Create evaluation with mapped categories
+ * const evaluation = new Evaluation({
+ *   userId: user.id,
+ *   challengeId: challenge.id,
+ *   score: calculatedScore,
+ *   categoryScores: scores,
+ *   relevantCategories // Pass the mapped categories
+ * });
+ * ```
+ */
+
 const { v4: uuidv4 } = require('uuid');
-const evaluationCategoryRepository = require('../repositories/evaluationCategoryRepository');
+// Remove the direct repository dependency
+// const evaluationCategoryRepository = require('../repositories/evaluationCategoryRepository');
 
 /**
  * Enhanced Evaluation class representing comprehensive assessment of a user's challenge response
@@ -36,6 +60,7 @@ class Evaluation {
    * @param {Object} [data.growthMetrics] - Tracking metrics for user's growth over time
    * @param {Object} [data.metrics] - Additional evaluation metrics
    * @param {Object} [data.metadata] - Additional evaluation metadata
+   * @param {Array<string>} [data.relevantCategories] - Categories relevant to user's focus areas
    * @throws {Error} If required data is missing
    */
   constructor(data = {}) {
@@ -123,6 +148,9 @@ class Evaluation {
       difficulty: 'intermediate',
       categoryWeights: {}
     };
+
+    // Store relevant categories for focus areas, if provided
+    this.relevantCategories = data.relevantCategories || [];
     
     // Calculate metrics if we have enough data
     if (this.score > 0 && Object.keys(this.categoryScores).length > 0) {
@@ -206,11 +234,11 @@ class Evaluation {
     
     // Calculate focus area performance
     if (this.userContext?.focusAreas && Array.isArray(this.userContext.focusAreas)) {
-      const relevantCategories = this.mapFocusAreasToCategories(this.userContext.focusAreas);
+      // Use the provided relevant categories
       let totalFocusScore = 0;
       let countFocusCategories = 0;
       
-      relevantCategories.forEach(category => {
+      this.relevantCategories.forEach(category => {
         if (this.categoryScores[category] !== undefined) {
           focusAreaScores[category] = this.categoryScores[category];
           totalFocusScore += this.categoryScores[category];
@@ -237,16 +265,12 @@ class Evaluation {
     
     // Calculate relevance to focus areas if user context is available
     if (this.userContext?.focusAreas && Array.isArray(this.userContext.focusAreas)) {
-      const relevantCategories = this.mapFocusAreasToCategories(this.userContext.focusAreas);
-      
-      // Ensure relevantCategories is an array before using forEach
-      if (relevantCategories && Array.isArray(relevantCategories)) {
-        relevantCategories.forEach(category => {
-          if (this.categoryScores[category]) {
-            this.relevantScores[category] = this.categoryScores[category];
-          }
-        });
-      }
+      // Use the relevant categories provided by the domain service
+      this.relevantCategories.forEach(category => {
+        if (this.categoryScores[category]) {
+          this.relevantScores[category] = this.categoryScores[category];
+        }
+      });
     }
     
     return {
@@ -314,45 +338,6 @@ class Evaluation {
     }
     
     return metrics;
-  }
-  
-  /**
-   * Map focus areas to evaluation categories
-   * 
-   * NOTE: This is a synchronous implementation that returns a default set of categories.
-   * For accurate mapping that requires database access, use the EvaluationDomainService.mapFocusAreasToCategories method instead.
-   * 
-   * @private
-   * @param {Array} focusAreas - User focus areas
-   * @returns {Array} Default set of relevant evaluation categories
-   */
-  mapFocusAreasToCategories(focusAreas) {
-    // If no focus areas, return an empty array
-    if (!focusAreas || !Array.isArray(focusAreas) || focusAreas.length === 0) {
-      return [];
-    }
-    
-    // This is a simplified synchronous implementation
-    // Return default categories based on common focus areas
-    const defaultMappings = {
-      'ai_ethics': ['ethical_reasoning', 'comprehensiveness', 'balanced_view'],
-      'ai_literacy': ['conceptual_understanding', 'application', 'communication'],
-      'ai_capabilities': ['accuracy', 'technical_understanding', 'critical_thinking'],
-      'ai_limitations': ['critical_analysis', 'balanced_view', 'technical_understanding'],
-      'ai_impact': ['impact_analysis', 'stakeholder_consideration', 'systemic_thinking'],
-      'general': ['accuracy', 'clarity', 'reasoning', 'creativity']
-    };
-    
-    // Collect categories for all focus areas
-    const categories = [];
-    focusAreas.forEach(area => {
-      const normalizedArea = area.toLowerCase().replace(/\s+/g, '_');
-      const mappedCategories = defaultMappings[normalizedArea] || defaultMappings['general'];
-      categories.push(...mappedCategories);
-    });
-    
-    // Remove duplicates and return
-    return [...new Set(categories)];
   }
   
   /**
@@ -457,12 +442,10 @@ class Evaluation {
     
     // Add focus area relevance feedback
     if (this.userContext?.focusAreas && Array.isArray(this.userContext.focusAreas) && this.userContext.focusAreas.length > 0) {
-      // Use synchronous mapping function
-      const relevantCategories = this.mapFocusAreasToCategories(this.userContext.focusAreas);
-      
-      // Get scores for relevant categories
+      // Use the relevant categories provided by the domain service
       const relevantScores = {};
-      relevantCategories.forEach(category => {
+      
+      this.relevantCategories.forEach(category => {
         if (this.categoryScores[category]) {
           relevantScores[category] = this.categoryScores[category];
         }
@@ -521,7 +504,8 @@ class Evaluation {
         updates.strengthAnalysis !== undefined ||
         updates.areasForImprovement !== undefined ||
         updates.userContext !== undefined ||
-        updates.challengeContext !== undefined) {
+        updates.challengeContext !== undefined ||
+        updates.relevantCategories !== undefined) {
       this.metrics = this.calculateMetrics();
     }
     
@@ -606,6 +590,23 @@ class Evaluation {
       ...userContext
     };
     
+    this.metrics = this.calculateMetrics();
+    this.updatedAt = new Date().toISOString();
+    
+    return this;
+  }
+
+  /**
+   * Set relevant categories for focus areas
+   * @param {Array<string>} categories - Relevant evaluation categories
+   * @returns {Evaluation} Updated evaluation instance
+   */
+  setRelevantCategories(categories) {
+    if (!Array.isArray(categories)) {
+      throw new Error('Categories must be an array');
+    }
+    
+    this.relevantCategories = categories;
     this.metrics = this.calculateMetrics();
     this.updatedAt = new Date().toISOString();
     
@@ -700,7 +701,8 @@ class Evaluation {
       growth_metrics: this.growthMetrics,
       response_id: this.responseId,
       thread_id: this.threadId,
-      metadata: this.metadata
+      metadata: this.metadata,
+      relevant_categories: this.relevantCategories
     };
   }
   
@@ -737,7 +739,8 @@ class Evaluation {
       metrics: data.metrics || {},
       metadata: data.metadata || {},
       createdAt: data.created_at || data.createdAt,
-      updatedAt: data.updated_at || data.updatedAt
+      updatedAt: data.updated_at || data.updatedAt,
+      relevantCategories: data.relevant_categories || data.relevantCategories || []
     };
     
     return new Evaluation(mapped);

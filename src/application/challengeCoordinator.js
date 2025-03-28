@@ -27,10 +27,8 @@ class ChallengeCoordinator {
    * @param {Object} dependencies Injected dependencies
    * @param {UserService} dependencies.userService Service for user operations
    * @param {ChallengeService} dependencies.challengeService Service for challenge operations
-   * @param {ChallengeTypeRepository} dependencies.challengeTypeRepository Repository for challenge types
-   * @param {FormatTypeRepository} dependencies.formatTypeRepository Repository for format types
-   * @param {FocusAreaConfigRepository} dependencies.focusAreaConfigRepository Repository for focus areas
-   * @param {DifficultyLevelRepository} dependencies.difficultyLevelRepository Repository for difficulty levels
+   * @param {ChallengeConfigService} dependencies.challengeConfigService Service for challenge configuration
+   * @param {ChallengeFactory} dependencies.challengeFactory Factory for creating challenges
    * @param {ChallengeGenerationService} dependencies.challengeGenerationService Service for challenge generation
    * @param {ChallengeEvaluationService} dependencies.challengeEvaluationService Service for challenge evaluation
    * @param {OpenAIClient} dependencies.openAIClient OpenAI client for AI operations
@@ -40,10 +38,8 @@ class ChallengeCoordinator {
   constructor({ 
     userService,
     challengeService,
-    challengeTypeRepository,
-    formatTypeRepository,
-    focusAreaConfigRepository,
-    difficultyLevelRepository,
+    challengeConfigService,
+    challengeFactory,
     challengeGenerationService,
     challengeEvaluationService,
     openAIClient, 
@@ -52,10 +48,8 @@ class ChallengeCoordinator {
   }) {
     this.userService = userService;
     this.challengeService = challengeService;
-    this.challengeTypeRepository = challengeTypeRepository;
-    this.formatTypeRepository = formatTypeRepository;
-    this.focusAreaConfigRepository = focusAreaConfigRepository;
-    this.difficultyLevelRepository = difficultyLevelRepository;
+    this.challengeConfigService = challengeConfigService;
+    this.challengeFactory = challengeFactory;
     this.challengeGenerationService = challengeGenerationService;
     this.challengeEvaluationService = challengeEvaluationService;
     this.openAIClient = openAIClient;
@@ -93,70 +87,10 @@ class ChallengeCoordinator {
       // Get user's recent challenges for context
       const recentChallenges = await this.challengeService.getRecentChallengesForUser(userEmail, 3);
       
-      // Determine challenge parameters
-      let challengeParams = {};
-      
-      // If difficultyManager is provided and parameters are missing, get recommendations
-      if (difficultyManager && (!challengeType || !focusArea)) {
-        // Get user's challenge history
-        const userChallengeHistory = await this.challengeService.getChallengesForUser(userEmail);
-        
-        // Get optimal next challenge recommendation
-        const recommendation = difficultyManager.getNextChallengeRecommendation(user, userChallengeHistory);
-        
-        challengeParams = {
-          challengeTypeCode: challengeType || recommendation.challengeType,
-          focusArea: focusArea || recommendation.focusArea,
-          formatTypeCode: formatType || recommendation.formatType,
-          difficulty: difficulty || recommendation.difficulty
-        };
-        
-        // Calculate optimal difficulty if not explicitly provided
-        if (!difficulty && difficultyManager) {
-          challengeParams.difficultySettings = difficultyManager.calculateOptimalDifficulty(
-            user, 
-            userChallengeHistory, 
-            challengeParams.challengeTypeCode
-          );
-        }
-      } else {
-        // Use provided parameters or defaults
-        challengeParams = {
-          challengeTypeCode: challengeType || 'critical-analysis',
-          focusArea: focusArea || user.focusArea || 'AI Ethics',
-          formatTypeCode: formatType || 'scenario',
-          difficulty: difficulty || 'medium'
-        };
-        
-        // Set basic difficulty settings if not calculated by difficultyManager
-        if (!challengeParams.difficultySettings) {
-          const difficultyLevel = challengeParams.difficulty;
-          challengeParams.difficultySettings = {
-            level: difficultyLevel,
-            complexity: difficultyLevel === 'hard' ? 0.8 : difficultyLevel === 'medium' ? 0.6 : 0.4,
-            depth: difficultyLevel === 'hard' ? 0.8 : difficultyLevel === 'medium' ? 0.6 : 0.4
-          };
-        }
-      }
-      
-      // Validate parameters against config if provided
-      if (config) {
-        // Adapt legacy config validation to use challengeTypeCode
-        if (config.game && config.game.challengeTypes && 
-            !config.game.challengeTypes.some(type => type.id === challengeParams.challengeTypeCode)) {
-          throw new ChallengeGenerationError(`Invalid challenge type: ${challengeParams.challengeTypeCode}`);
-        }
-        
-        if (config.game && config.game.focusAreas &&
-            !config.game.focusAreas.includes(challengeParams.focusArea)) {
-          throw new ChallengeGenerationError(`Invalid focus area: ${challengeParams.focusArea}`);
-        }
-      }
-      
       this.logger.info(`Generating challenge for user: ${userEmail}`, { 
-        challengeTypeCode: challengeParams.challengeTypeCode, 
-        focusArea: challengeParams.focusArea,
-        difficulty: challengeParams.difficulty
+        challengeType, 
+        focusArea,
+        difficulty
       });
       
       // Find or create conversation state for challenge generation
@@ -169,10 +103,30 @@ class ChallengeCoordinator {
       // Get the last response ID for stateful conversation
       const lastResponseId = await this.openAIStateManager.getLastResponseId(conversationState.id);
       
-      // Generate challenge using the domain service
-      const challenge = await this.challengeGenerationService.generateChallenge(
+      // Use the factory to create the challenge with validated parameters
+      const challengeEntity = await this.challengeFactory.createChallenge({
+        user,
+        recentChallenges,
+        challengeTypeCode: challengeType,
+        formatTypeCode: formatType,
+        focusArea,
+        difficulty,
+        difficultyManager,
+        config
+      });
+      
+      // Generate challenge content using the domain service
+      const fullChallenge = await this.challengeGenerationService.generateChallenge(
         user, 
-        challengeParams, 
+        {
+          challengeTypeCode: challengeEntity.challengeType,
+          focusArea: challengeEntity.focusArea,
+          formatTypeCode: challengeEntity.formatType,
+          difficulty: challengeEntity.difficulty,
+          difficultySettings: challengeEntity.difficultySettings,
+          typeMetadata: challengeEntity.typeMetadata,
+          formatMetadata: challengeEntity.formatMetadata
+        }, 
         recentChallenges,
         { 
           stateId: conversationState.id,
@@ -182,15 +136,33 @@ class ChallengeCoordinator {
       );
       
       // Update the state with the new response ID if available
-      if (challenge.responseId) {
-        await this.openAIStateManager.updateLastResponseId(conversationState.id, challenge.responseId);
+      if (fullChallenge.responseId) {
+        await this.openAIStateManager.updateLastResponseId(conversationState.id, fullChallenge.responseId);
       }
       
-      // Persist the challenge using the repository
-      const savedChallenge = await this.challengeService.saveChallenge(challenge);
+      // Update the challenge entity with generated content
+      challengeEntity.title = fullChallenge.title || challengeEntity.title;
+      challengeEntity.description = fullChallenge.description;
+      challengeEntity.instructions = fullChallenge.instructions;
+      challengeEntity.content = fullChallenge.content;
+      challengeEntity.responseId = fullChallenge.responseId;
+      challengeEntity.evaluationCriteria = fullChallenge.evaluationCriteria;
       
-      // Update user's lastActive timestamp
-      await this.userService.updateUser(userEmail, { lastActive: new Date().toISOString() });
+      // Persist the challenge using the service
+      const savedChallenge = await this.challengeService.saveChallenge(challengeEntity);
+      
+      // Update user's lastActive timestamp asynchronously (non-blocking)
+      this.userService
+        .updateUser(userEmail, { lastActive: new Date().toISOString() })
+        .then(() => {
+          this.logger.debug(`Updated lastActive timestamp for user: ${userEmail}`);
+        })
+        .catch(updateError => {
+          this.logger.error('Error updating user lastActive timestamp:', { 
+            error: updateError.message,
+            userEmail
+          });
+        });
       
       return savedChallenge;
     } catch (error) {
@@ -254,8 +226,19 @@ class ChallengeCoordinator {
         { challengeId }
       );
       
+      this.logger.debug('Found or created conversation state for challenge evaluation', {
+        userEmail,
+        challengeId,
+        stateId: conversationState.id
+      });
+      
       // Get the last response ID for stateful conversation
       const lastResponseId = await this.openAIStateManager.getLastResponseId(conversationState.id);
+      
+      this.logger.debug('Retrieved last response ID for stateful conversation', {
+        stateId: conversationState.id,
+        hasResponseId: !!lastResponseId
+      });
       
       // Submit responses to the challenge using domain model method
       challenge.submitResponses(responses);
@@ -273,6 +256,11 @@ class ChallengeCoordinator {
       // Update the state with the new response ID if available
       if (evaluation.responseId) {
         await this.openAIStateManager.updateLastResponseId(conversationState.id, evaluation.responseId);
+        
+        this.logger.debug('Updated conversation state with new response ID', {
+          stateId: conversationState.id,
+          responseId: evaluation.responseId
+        });
       }
       
       // Complete the challenge with the evaluation using domain model method
@@ -283,46 +271,69 @@ class ChallengeCoordinator {
         challenge.id, 
         challenge.toDatabase()
       );
+
+      // Prepare secondary operations that can be performed in parallel
+      const secondaryOperations = [];
       
-      // Update user progress if service is provided
+      // Add user progress tracking operation if service is provided
       if (progressTrackingService && userEmail) {
-        try {
-          await progressTrackingService.updateProgressAfterChallenge(
+        const progressOperation = progressTrackingService
+          .updateProgressAfterChallenge(
             userEmail,
             challenge.focusArea,
             challengeId,
             evaluation
-          );
-          this.logger.info(`Updated progress for user: ${userEmail}`);
-        } catch (progressError) {
-          this.logger.error('Error updating user progress:', { error: progressError.message });
-          // Don't fail the whole operation if progress tracking fails
-        }
+          )
+          .then(() => {
+            this.logger.info(`Updated progress for user: ${userEmail}`);
+          })
+          .catch(progressError => {
+            this.logger.error('Error updating user progress:', { error: progressError.message });
+            // Don't throw to avoid failing the whole operation
+          });
+        
+        secondaryOperations.push(progressOperation);
       }
       
-      // Record user journey event if service is provided
+      // Add user journey event recording operation if service is provided
       if (userJourneyService && userEmail) {
-        try {
-          await userJourneyService.recordUserEvent(userEmail, 'challenge_completed', {
+        const journeyOperation = userJourneyService
+          .recordUserEvent(userEmail, 'challenge_completed', {
             challengeId,
             challengeType: challenge.challengeType,
             focusArea: challenge.focusArea,
             score: challenge.getScore() || 0
+          })
+          .then(() => {
+            this.logger.info(`Recorded journey event for user: ${userEmail}`);
+          })
+          .catch(journeyError => {
+            this.logger.error('Error recording user journey event:', { error: journeyError.message });
+            // Don't throw to avoid failing the whole operation
           });
-          this.logger.info(`Recorded journey event for user: ${userEmail}`);
-        } catch (journeyError) {
-          this.logger.error('Error recording user journey event:', { error: journeyError.message });
-          // Don't fail the whole operation if event recording fails
-        }
+        
+        secondaryOperations.push(journeyOperation);
       }
       
-      // Update user's lastActive timestamp
-      try {
-        await this.userService.updateUser(userEmail, { lastActive: new Date().toISOString() });
-      } catch (updateError) {
-        this.logger.error('Error updating user lastActive timestamp:', { error: updateError.message });
-        // Don't fail the whole operation if user update fails
-      }
+      // Add user lastActive timestamp update operation
+      const lastActiveOperation = this.userService
+        .updateUser(userEmail, { lastActive: new Date().toISOString() })
+        .catch(updateError => {
+          this.logger.error('Error updating user lastActive timestamp:', { error: updateError.message });
+          // Don't throw to avoid failing the whole operation
+        });
+      
+      secondaryOperations.push(lastActiveOperation);
+      
+      // Execute all secondary operations in parallel
+      // We're not awaiting the result as these are non-critical and shouldn't block the main response
+      Promise.all(secondaryOperations)
+        .then(() => {
+          this.logger.debug('All secondary operations completed successfully', { challengeId });
+        })
+        .catch(error => {
+          this.logger.error('Error in secondary operations:', { error: error.message });
+        });
       
       this.logger.info(`Challenge response processed successfully for challenge: ${challengeId}`, {
         userEmail,

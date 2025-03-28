@@ -3,263 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>API Tester UI</title>
+    <title>AI Fight Club - API Tester</title>
     <link rel="stylesheet" href="style.css">
+    <!-- JSON Editor library for better JSON editing -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.10.0/jsoneditor.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.10.0/jsoneditor.min.js"></script>
 </head>
 <body>
     <h1>AI Fight Club - API Tester</h1>
 
-    <div class="api-section auth-section">
-        <h2>Quick User Setup</h2>
-        <div class="endpoint">
-            <h3>Create/Login Test User</h3>
-            <label for="test-user-email">Email:</label>
-            <input type="text" id="test-user-email" placeholder="test@example.com" value="tester@example.com"><br>
-            <label for="test-user-password">Password:</label>
-            <input type="password" id="test-user-password" placeholder="Password" value="password123"><br>
-            <label for="test-user-name">Full Name (for signup):</label>
-            <input type="text" id="test-user-name" placeholder="Test User" value="Test User"><br>
-            <button id="btn-create-login-user">Create or Login</button>
-            <small>This will create a new user if the email doesn't exist, or log in if it does.</small>
+    <div class="toolbar">
+        <div class="environment-selector">
+            <label for="environment-select">Environment:</label>
+            <select id="environment-select">
+                <option value="development">Development</option>
+                <option value="staging">Staging</option>
+                <option value="production">Production</option>
+            </select>
         </div>
-        <div class="user-status">
-            <div>Status: <span id="user-status">Not logged in</span></div>
-            <div>Current User: <span id="current-user-email">None</span></div>
+        <div class="user-status-container">
+            <span>User Status: </span>
+            <span id="user-status">Not logged in</span>
+            <span> | </span>
+            <span>User: </span>
+            <span id="current-user-email">None</span>
         </div>
+        <button id="btn-clear-history" class="btn-secondary">Clear History</button>
     </div>
 
-    <hr>
+    <div class="main-container">
+        <div class="api-container">
+            <div id="api-sections">
+                <!-- Dynamically generated API sections will go here -->
+            </div>
+        </div>
 
-    <div class="api-section">
-        <h2>Challenges</h2>
-        <div class="endpoint">
-            <h3>Generate Challenge (POST /api/challenges/generate)</h3>
-            <label for="gen-challenge-email">User Email:</label>
-            <input type="text" id="gen-challenge-email" placeholder="user@example.com"><br>
-            <label for="gen-challenge-focus">Focus Area (Optional):</label>
-            <input type="text" id="gen-challenge-focus" placeholder="AI Ethics"><br>
-            <label for="gen-challenge-type">Challenge Type (Optional):</label>
-            <input type="text" id="gen-challenge-type" placeholder="scenario"><br>
-            <label for="gen-challenge-difficulty">Difficulty (Optional):</label>
-            <select id="gen-challenge-difficulty">
-                <option value="medium">Medium</option>
-                <option value="beginner">Beginner</option>
-                <option value="advanced">Advanced</option>
-                <option value="expert">Expert</option>
-            </select><br>
-            <button id="btn-generate-challenge">Generate Challenge</button>
-        </div>
-        <div class="endpoint">
-            <h3>Submit Response (POST /api/challenges/:challengeId/submit)</h3>
-            <label for="submit-challenge-id">Challenge ID:</label>
-            <input type="text" id="submit-challenge-id" placeholder="UUID of the challenge"><br>
-            <label for="submit-user-email">User Email:</label>
-            <input type="text" id="submit-user-email" placeholder="user@example.com"><br>
-            <label for="submit-response-text">Response Text:</label><br>
-            <textarea id="submit-response-text" rows="4" placeholder="User's response"></textarea><br>
-            <button id="btn-submit-response">Submit Response</button>
-        </div>
-         <div class="endpoint">
-            <h3>Get Challenge By ID (GET /api/challenges/:challengeId)</h3>
-            <label for="get-challenge-id">Challenge ID:</label>
-            <input type="text" id="get-challenge-id" placeholder="UUID of the challenge"><br>
-            <button id="btn-get-challenge">Get Challenge</button>
-        </div>
-        <div class="endpoint">
-            <h3>Get User Challenge History (GET /api/challenges/user/:email/history)</h3>
-            <label for="get-challenge-history-email">User Email:</label>
-            <input type="text" id="get-challenge-history-email" placeholder="user@example.com"><br>
-            <button id="btn-get-challenge-history">Get Challenge History</button>
+        <div class="sidebar">
+            <div class="history-panel">
+                <h2>Request History</h2>
+                <div class="history-list" id="history-list">
+                    <!-- History items will be dynamically added here -->
+                    <div class="empty-message">No requests made yet</div>
+                </div>
+            </div>
         </div>
     </div>
-
-    <hr>
-
-     <div class="api-section">
-        <h2>Users</h2>
-        <div class="endpoint">
-            <h3>Get Current User (GET /api/users/me)</h3>
-            <button id="btn-get-me">Get My Profile</button>
-        </div>
-         <div class="endpoint">
-            <h3>Update Current User (PUT /api/users/me)</h3>
-            <label for="update-user-body">Update Body (JSON):</label><br>
-            <textarea id="update-user-body" rows="4" placeholder='{ "professionalTitle": "Senior Dev" }'></textarea><br>
-            <button id="btn-update-me">Update My Profile</button>
-        </div>
-    </div>
-
-    <!-- Add more sections for Personality, Evaluation, FocusArea etc. following the pattern -->
-    <!-- Example for Personality -->
-    <hr>
-     <div class="api-section">
-        <h2>Personality</h2>
-        <div class="endpoint">
-            <h3>Get My Profile (GET /api/personality/profile)</h3>
-            <button id="btn-get-personality-profile">Get Personality Profile</button>
-        </div>
-         <div class="endpoint">
-            <h3>Update Traits (PUT /api/personality/traits)</h3>
-            <label for="update-traits-body">Traits Body (JSON):</label><br>
-            <textarea id="update-traits-body" rows="4" placeholder='{ "personalityTraits": { "analytical": 85 } }'></textarea><br>
-            <button id="btn-update-traits">Update Traits</button>
-        </div>
-         <div class="endpoint">
-            <h3>Update Attitudes (PUT /api/personality/attitudes)</h3>
-            <label for="update-attitudes-body">Attitudes Body (JSON):</label><br>
-            <textarea id="update-attitudes-body" rows="4" placeholder='{ "aiAttitudes": { "trust": 70 } }'></textarea><br>
-            <button id="btn-update-attitudes">Update Attitudes</button>
-        </div>
-         <div class="endpoint">
-            <h3>Generate Insights (GET /api/personality/insights)</h3>
-            <button id="btn-generate-insights">Generate Insights</button>
-        </div>
-    </div>
-
-    <hr>
-    <div class="api-section">
-        <h2>Focus Areas</h2>
-        <div class="endpoint">
-            <h3>Get All Focus Areas (GET /api/focus-areas)</h3>
-            <button id="btn-get-all-focus-areas">Get All Focus Areas</button>
-        </div>
-        <div class="endpoint">
-            <h3>Get User Focus Areas (GET /api/focus-areas/users/:email)</h3>
-            <label for="fa-get-email">User Email:</label>
-            <input type="text" id="fa-get-email" placeholder="user@example.com"><br>
-            <button id="btn-get-user-focus-areas">Get User Focus Areas</button>
-        </div>
-        <div class="endpoint">
-            <h3>Set User Focus Areas (PUT /api/focus-areas/users/:email)</h3>
-            <label for="fa-set-email">User Email:</label>
-            <input type="text" id="fa-set-email" placeholder="user@example.com"><br>
-            <label for="fa-set-body">Focus Areas Body (JSON):</label><br>
-            <textarea id="fa-set-body" rows="4" placeholder='{ "focusAreas": ["AI Ethics", "Prompt Engineering"] }'></textarea><br>
-            <button id="btn-set-user-focus-areas">Set Focus Areas</button>
-        </div>
-        <div class="endpoint">
-            <h3>Get Recommended Focus Areas (GET /api/focus-areas/users/:email/recommended)</h3>
-            <label for="fa-rec-email">User Email:</label>
-            <input type="text" id="fa-rec-email" placeholder="user@example.com"><br>
-            <button id="btn-get-recommended-focus-areas">Get Recommendations</button>
-        </div>
-    </div>
-
-    <hr>
-    <div class="api-section">
-        <h2>Progress</h2>
-        <div class="endpoint">
-            <h3>Get User Progress (GET /api/progress)</h3>
-            <button id="btn-get-progress">Get My Progress</button>
-        </div>
-        <div class="endpoint">
-            <h3>Get All Progress (GET /api/progress/all)</h3>
-            <button id="btn-get-all-progress">Get All Progress</button>
-        </div>
-        <div class="endpoint">
-            <h3>Get Challenge Progress (GET /api/progress/challenge/:challengeId)</h3>
-            <label for="progress-challenge-id">Challenge ID:</label>
-            <input type="text" id="progress-challenge-id" placeholder="UUID of the challenge"><br>
-            <button id="btn-get-challenge-progress">Get Challenge Progress</button>
-        </div>
-        <div class="endpoint">
-            <h3>Complete Challenge (POST /api/progress/complete)</h3>
-            <label for="complete-challenge-body">Complete Body (JSON):</label><br>
-            <textarea id="complete-challenge-body" rows="4" placeholder='{ "challengeId": "uuid", "score": 85, "completionTime": 300 }'></textarea><br>
-            <button id="btn-complete-challenge">Complete Challenge</button>
-        </div>
-        <div class="endpoint">
-            <h3>Update Skills (PUT /api/progress/skills)</h3>
-            <label for="update-skills-body">Skills Body (JSON):</label><br>
-            <textarea id="update-skills-body" rows="4" placeholder='{ "skillLevels": { "criticalThinking": 75, "creativity": 80 } }'></textarea><br>
-            <button id="btn-update-skills">Update Skills</button>
-        </div>
-    </div>
-
-    <hr>
-    <div class="api-section">
-        <h2>Evaluations</h2>
-        <div class="endpoint">
-            <h3>Get Evaluation (GET /api/evaluations/:id)</h3>
-            <label for="eval-id">Evaluation ID:</label>
-            <input type="text" id="eval-id" placeholder="UUID of the evaluation"><br>
-            <button id="btn-get-evaluation">Get Evaluation</button>
-        </div>
-        <div class="endpoint">
-            <h3>Get User Evaluations (GET /api/evaluations/user/:userId)</h3>
-            <label for="eval-user-id">User ID/Email:</label>
-            <input type="text" id="eval-user-id" placeholder="User ID or email"><br>
-            <button id="btn-get-user-evaluations">Get User Evaluations</button>
-        </div>
-        <div class="endpoint">
-            <h3>Get Challenge Evaluations (GET /api/evaluations/challenge/:challengeId)</h3>
-            <label for="eval-challenge-id">Challenge ID:</label>
-            <input type="text" id="eval-challenge-id" placeholder="UUID of the challenge"><br>
-            <button id="btn-get-challenge-evaluations">Get Challenge Evaluations</button>
-        </div>
-    </div>
-
-    <hr>
-    <div class="api-section">
-        <h2>Adaptive Learning</h2>
-        <div class="endpoint">
-            <h3>Get Recommendations (GET /api/adaptive/recommendations)</h3>
-            <button id="btn-get-adaptive-recommendations">Get Recommendations</button>
-        </div>
-        <div class="endpoint">
-            <h3>Generate Adaptive Challenge (GET /api/adaptive/challenge/generate)</h3>
-            <label for="adaptive-focus-area">Focus Area (Optional):</label>
-            <input type="text" id="adaptive-focus-area" placeholder="AI Ethics"><br>
-            <button id="btn-generate-adaptive-challenge">Generate Challenge</button>
-        </div>
-        <div class="endpoint">
-            <h3>Adjust Difficulty (POST /api/adaptive/difficulty/adjust)</h3>
-            <label for="adjust-difficulty-body">Adjust Body (JSON):</label><br>
-            <textarea id="adjust-difficulty-body" rows="4" placeholder='{ "challengeId": "uuid", "score": 85 }'></textarea><br>
-            <button id="btn-adjust-difficulty">Adjust Difficulty</button>
-        </div>
-    </div>
-
-    <hr>
-    <div class="api-section">
-        <h2>User Journey</h2>
-        <div class="endpoint">
-            <h3>Log User Event (POST /api/user-journey/events)</h3>
-            <label for="journey-event-body">Event Body (JSON):</label><br>
-            <textarea id="journey-event-body" rows="4" placeholder='{ "email": "user@example.com", "eventType": "challengeStarted", "eventData": { "challengeId": "uuid" } }'></textarea><br>
-            <button id="btn-log-user-event">Log Event</button>
-        </div>
-        <div class="endpoint">
-            <h3>Get User Events (GET /api/user-journey/users/:email/events)</h3>
-            <label for="journey-user-email">User Email:</label>
-            <input type="text" id="journey-user-email" placeholder="user@example.com"><br>
-            <button id="btn-get-user-events">Get User Events</button>
-        </div>
-        <div class="endpoint">
-            <h3>Get User Activity (GET /api/user-journey/users/:email/activity)</h3>
-            <label for="journey-activity-email">User Email:</label>
-            <input type="text" id="journey-activity-email" placeholder="user@example.com"><br>
-            <label for="journey-timeframe">Timeframe (Optional):</label>
-            <select id="journey-timeframe">
-                <option value="week">Last Week</option>
-                <option value="month">Last Month</option>
-                <option value="all">All Time</option>
-            </select><br>
-            <button id="btn-get-user-activity">Get User Activity</button>
-        </div>
-    </div>
-
-    <hr>
 
     <div class="response-section">
         <h2>API Response</h2>
+        <div class="response-tabs">
+            <button class="tab-button active" data-tab="formatted">Formatted JSON</button>
+            <button class="tab-button" data-tab="raw">Raw Response</button>
+            <button class="tab-button" data-tab="headers">Headers</button>
+        </div>
         <div class="controls">
             <button id="btn-clear-response">Clear Output</button>
         </div>
         <div id="status-message"></div>
-        <pre id="response-output">Click a button to make an API call...</pre>
+        
+        <div class="tab-content">
+            <div id="tab-formatted" class="tab-pane active">
+                <div id="json-editor" class="json-editor"></div>
+            </div>
+            <div id="tab-raw" class="tab-pane">
+                <pre id="raw-output">Click a button to make an API call...</pre>
+            </div>
+            <div id="tab-headers" class="tab-pane">
+                <pre id="headers-output">No headers to display yet</pre>
+            </div>
+        </div>
     </div>
 
+    <!-- Preset Manager Modal -->
+    <div id="preset-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <h2>Manage Presets</h2>
+            <div class="preset-manager">
+                <div class="preset-form">
+                    <label for="preset-name">Preset Name:</label>
+                    <input type="text" id="preset-name" placeholder="My Preset">
+                    <button id="btn-save-preset" class="btn-primary">Save Current Values as Preset</button>
+                </div>
+                <div class="preset-list-container">
+                    <h3>Saved Presets</h3>
+                    <div id="preset-list" class="preset-list">
+                        <!-- Preset items will go here -->
+                        <div class="empty-message">No presets saved yet</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="api-endpoints.js"></script>
     <script src="script.js"></script>
 </body>
 </html> 

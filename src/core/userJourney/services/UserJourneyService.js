@@ -5,7 +5,7 @@
  * user journey events. This service follows DDD principles with domain logic
  * isolated from infrastructure concerns.
  */
-const logger = require('../../../core/infra/logging/logger');
+const { logger } = require('../../infrastructure/logging/logger');
 const UserJourneyEvent = require('../models/UserJourneyEvent');
 const { v4: uuidv4 } = require('uuid');
 

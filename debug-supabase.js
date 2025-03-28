@@ -41,8 +41,8 @@ async function testDirectQuery() {
 }
 
 // Use the imported client from our codebase
-console.log('\nImporting Supabase client from src/lib/supabase...');
-const { supabase } = require('./src/lib/supabase');
+console.log('\nImporting Supabase client from src/core/infra/db/supabaseClient...');
+const { supabaseClient: supabase } = require('./src/core/infra/db/supabaseClient');
 
 console.log('Imported Supabase client properties:');
 console.log('- Is defined:', !!supabase);

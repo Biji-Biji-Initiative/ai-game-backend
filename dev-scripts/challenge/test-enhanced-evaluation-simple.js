@@ -6,7 +6,7 @@
 require('dotenv').config();
 const { v4: uuidv4 } = require('uuid');
 const Evaluation = require('./src/core/evaluation/models/Evaluation');
-const supabase = require('./src/lib/supabase');
+const supabase = require('../../src/core/infra/db/supabaseClient').supabaseClient;
 const { OpenAI } = require('openai');
 
 // Initialize OpenAI client

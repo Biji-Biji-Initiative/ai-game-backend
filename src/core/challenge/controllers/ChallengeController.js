@@ -1,285 +1,152 @@
 /**
  * Challenge Controller
  * 
- * Handles HTTP requests related to challenge operations.
- * Located within the challenge domain following our DDD architecture.
+ * HTTP Controller for challenge-related endpoints
+ * Follows Single Responsibility Principle by delegating domain logic to coordinators
+ * 
+ * @module ChallengeController
  */
-const { challengeLogger } = require('../../../core/infra/logging/domainLogger');
-const { 
-  ChallengeNotFoundError, 
-  ChallengeGenerationError, 
-  ChallengeResponseError 
-} = require('../errors/ChallengeErrors');
-const { 
-  validateBody, 
-  validateParams 
-} = require('../../../core/infra/http/middleware/validation');
-const {
-  generateChallengeSchema,
-  submitChallengeResponseSchema,
-  challengeIdSchema,
-  userEmailSchema
-} = require('../schemas/challengeApiSchemas');
+
+const AppError = require('../../infra/errors/AppError');
+const { logger } = require('../../infra/logging/logger');
 
 /**
- * Challenge Controller Class
+ * Controller responsible for handling challenge-related HTTP requests
  */
 class ChallengeController {
   /**
    * Create a new ChallengeController
-   * @param {Object} challengeCoordinator - Application-level challenge coordinator
-   * @param {Object} logger - Domain-specific logger
+   * @param {Object} dependencies - Injected dependencies
+   * @param {ChallengeCoordinator} dependencies.challengeCoordinator - Coordinator for challenge operations
+   * @param {ProgressCoordinator} dependencies.progressCoordinator - Coordinator for progress tracking
    */
-  constructor(challengeCoordinator, logger = null) {
+  constructor({ challengeCoordinator, progressCoordinator }) {
     this.challengeCoordinator = challengeCoordinator;
-    this.logger = logger || challengeLogger.child('controller');
+    this.progressCoordinator = progressCoordinator;
+    this.logger = logger.child({ controller: 'ChallengeController' });
   }
 
   /**
    * Generate a new challenge
+   * @param {Request} req - Express request
+   * @param {Response} res - Express response
+   * @param {Function} next - Express next function
    */
   async generateChallenge(req, res, next) {
     try {
-      const { email, focusArea, challengeType, difficulty } = req.body;
+      const { userEmail, focusArea, challengeType, formatType, difficulty } = req.body;
       
-      this.logger.debug('Generating new challenge', { email, focusArea, challengeType });
+      this.logger.info('Generating challenge', { userEmail, focusArea, challengeType });
       
-      const params = {
-        userEmail: email,
-        focusArea: focusArea || 'general',
-        challengeType: challengeType || 'critical-thinking',
-        difficulty: difficulty || 'medium'
-      };
-      
-      const challenge = await this.challengeCoordinator.generateAndPersistChallenge(params);
-      
-      this.logger.info('Successfully generated challenge', { 
-        email, 
-        challengeId: challenge.id 
-      });
-      
-      return res.status(201).json({
-        status: 'success',
-        data: {
-          challenge
-        }
-      });
-    } catch (error) {
-      this.logger.error('Error generating challenge', { 
-        error: error.message,
-        stack: error.stack
-      });
-      
-      if (error instanceof ChallengeGenerationError) {
-        return next(error);
+      // Basic validation
+      if (!userEmail) {
+        return next(new AppError('User email is required', 400, { 
+          errorCode: 'MISSING_PARAMETER',
+          metadata: { parameter: 'userEmail' }
+        }));
       }
       
-      next(new ChallengeGenerationError(error.message));
+      // Delegate to coordinator
+      const challenge = await this.challengeCoordinator.generateAndPersistChallenge({
+        userEmail,
+        focusArea,
+        challengeType,
+        formatType,
+        difficulty
+      });
+      
+      res.status(201).json({
+        success: true,
+        data: challenge
+      });
+    } catch (error) {
+      next(error);
     }
   }
 
   /**
    * Submit a response to a challenge
+   * @param {Request} req - Express request
+   * @param {Response} res - Express response
+   * @param {Function} next - Express next function
    */
   async submitChallengeResponse(req, res, next) {
     try {
       const { challengeId } = req.params;
       const { response, userEmail } = req.body;
       
-      this.logger.debug('Submitting challenge response', { 
-        challengeId, 
-        userEmail 
-      });
+      this.logger.info('Submitting challenge response', { challengeId, userEmail });
       
+      // Basic validation
+      if (!challengeId || !response) {
+        return next(new AppError('Challenge ID and response are required', 400, {
+          errorCode: 'MISSING_PARAMETER'
+        }));
+      }
+      
+      // Delegate to coordinator
       const result = await this.challengeCoordinator.submitChallengeResponse({
         challengeId,
         userEmail,
-        response
+        response,
+        progressTrackingService: this.progressCoordinator
       });
       
-      this.logger.info('Successfully submitted challenge response', {
-        challengeId,
-        userEmail
-      });
-      
-      return res.status(200).json({
-        status: 'success',
+      res.status(200).json({
+        success: true,
         data: result
       });
     } catch (error) {
-      this.logger.error('Error submitting challenge response', { 
-        error: error.message,
-        challengeId: req.params.challengeId,
-        stack: error.stack
-      });
-      
-      if (error instanceof ChallengeNotFoundError) {
-        return next(error);
-      }
-      
-      next(new ChallengeResponseError(error.message));
-    }
-  }
-
-  /**
-   * Submit a challenge response with streaming evaluation
-   */
-  async submitChallengeResponseStream(req, res, next) {
-    try {
-      const { challengeId } = req.params;
-      const { response, userEmail } = req.body;
-      
-      this.logger.debug('Setting up streaming response submission', { 
-        challengeId, 
-        userEmail 
-      });
-      
-      // Set up SSE
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      
-      // Subscribe to evaluation events
-      const onEvaluationProgress = (data) => {
-        res.write(`data: ${JSON.stringify(data)}\n\n`);
-      };
-      
-      // Start evaluation process
-      try {
-        const result = await this.challengeCoordinator.submitChallengeResponseWithStreaming({
-          challengeId,
-          userEmail,
-          response,
-          onProgress: onEvaluationProgress
-        });
-        
-        // Send final result
-        res.write(`data: ${JSON.stringify({ type: 'complete', result })}\n\n`);
-        res.end();
-      } catch (error) {
-        // Send error to client
-        res.write(`data: ${JSON.stringify({ type: 'error', message: error.message })}\n\n`);
-        res.end();
-        
-        this.logger.error('Error in streaming evaluation', { 
-          error: error.message,
-          challengeId
-        });
-      }
-    } catch (error) {
-      this.logger.error('Error setting up streaming response', { 
-        error: error.message,
-        challengeId: req.params.challengeId,
-        stack: error.stack
-      });
-      next(new ChallengeResponseError(error.message));
-    }
-  }
-
-  /**
-   * Get challenge history for a user
-   */
-  async getChallengeHistory(req, res, next) {
-    try {
-      const { email } = req.params;
-      
-      this.logger.debug('Getting challenge history', { email });
-      
-      const challenges = await this.challengeCoordinator.getChallengeHistoryForUser(email);
-      
-      return res.status(200).json({
-        status: 'success',
-        results: challenges.length,
-        data: {
-          challenges
-        }
-      });
-    } catch (error) {
-      this.logger.error('Error getting challenge history', { 
-        error: error.message,
-        email: req.params.email,
-        stack: error.stack
-      });
-      next(new ChallengeNotFoundError(error.message));
+      next(error);
     }
   }
 
   /**
    * Get a challenge by ID
+   * @param {Request} req - Express request
+   * @param {Response} res - Express response
+   * @param {Function} next - Express next function
    */
   async getChallengeById(req, res, next) {
     try {
       const { challengeId } = req.params;
       
-      this.logger.debug('Getting challenge by ID', { challengeId });
+      this.logger.info('Getting challenge by ID', { challengeId });
       
+      // Delegate to coordinator
       const challenge = await this.challengeCoordinator.getChallengeById(challengeId);
       
-      if (!challenge) {
-        throw new ChallengeNotFoundError(`Challenge with ID ${challengeId} not found`);
-      }
-      
-      return res.status(200).json({
-        status: 'success',
-        data: {
-          challenge
-        }
+      res.status(200).json({
+        success: true,
+        data: challenge
       });
     } catch (error) {
-      this.logger.error('Error getting challenge by ID', { 
-        error: error.message,
-        challengeId: req.params.challengeId,
-        stack: error.stack
-      });
-      
-      if (error instanceof ChallengeNotFoundError) {
-        return next(error);
-      }
-      
-      next(new ChallengeNotFoundError(error.message));
+      next(error);
     }
   }
-  
+
   /**
-   * Set up controller routes with validation middleware
-   * @param {Object} router - Express router object
+   * Get challenge history for a user
+   * @param {Request} req - Express request
+   * @param {Response} res - Express response
+   * @param {Function} next - Express next function
    */
-  setupRoutes(router) {
-    // Challenge generation route with body validation
-    router.post(
-      '/challenges/generate',
-      validateBody(generateChallengeSchema),
-      this.generateChallenge.bind(this)
-    );
-    
-    // Challenge response submission routes with validation
-    router.post(
-      '/challenges/:challengeId/submit',
-      validateParams(challengeIdSchema),
-      validateBody(submitChallengeResponseSchema),
-      this.submitChallengeResponse.bind(this)
-    );
-    
-    router.post(
-      '/challenges/:challengeId/submit-stream',
-      validateParams(challengeIdSchema),
-      validateBody(submitChallengeResponseSchema),
-      this.submitChallengeResponseStream.bind(this)
-    );
-    
-    // Challenge history route with validation
-    router.get(
-      '/challenges/user/:email/history',
-      validateParams(userEmailSchema),
-      this.getChallengeHistory.bind(this)
-    );
-    
-    // Get challenge by ID route with validation
-    router.get(
-      '/challenges/:challengeId',
-      validateParams(challengeIdSchema),
-      this.getChallengeById.bind(this)
-    );
+  async getChallengeHistory(req, res, next) {
+    try {
+      const { userEmail } = req.params;
+      
+      this.logger.info('Getting challenge history', { userEmail });
+      
+      // Delegate to coordinator
+      const challenges = await this.challengeCoordinator.getChallengeHistoryForUser(userEmail);
+      
+      res.status(200).json({
+        success: true,
+        data: challenges
+      });
+    } catch (error) {
+      next(error);
+    }
   }
 }
 

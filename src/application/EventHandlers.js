@@ -66,4 +66,26 @@ class ApplicationEventHandlers {
   }
 }
 
+/**
+ * Register application event handlers
+ * @param {Object} container - Dependency injection container
+ */
+function registerEventHandlers(container) {
+  const logger = container.get('logger');
+  logger.info('Initializing application event handlers');
+  
+  try {
+    const applicationEventHandlers = container.get('applicationEventHandlers');
+    applicationEventHandlers.registerEventHandlers();
+    logger.info('Application event handlers initialized successfully');
+  } catch (error) {
+    logger.error('Failed to initialize application event handlers', {
+      error: error.message,
+      stack: error.stack
+    });
+    throw error;
+  }
+}
+
 module.exports = ApplicationEventHandlers;
+module.exports.registerEventHandlers = registerEventHandlers;

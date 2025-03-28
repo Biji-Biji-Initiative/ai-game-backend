@@ -15,7 +15,7 @@ const { v4: uuidv4 } = require('uuid');
 const promptBuilder = require('../../prompt/promptBuilder');
 const { PROMPT_TYPES, getRecommendedModel } = require('../../prompt/promptTypes');
 const Evaluation = require('../models/Evaluation');
-const { formatForResponsesApi } = require('../../infra/openai/messageFormatter');
+const { formatForResponsesApi } = require('../../infrastructure/openai/messageFormatter');
 
 /**
  * Service for generating and processing evaluations
@@ -212,6 +212,29 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`
         completedChallengeCount: user.completedChallenges || 0
       };
       
+      // If the user has focus areas, map them to relevant categories using the domain service
+      let relevantCategories = [];
+      if (userContext.focusAreas && userContext.focusAreas.length > 0 && this.evaluationDomainService) {
+        try {
+          this.log('debug', 'Mapping focus areas to categories', { 
+            focusAreas: userContext.focusAreas 
+          });
+          
+          relevantCategories = await this.evaluationDomainService.mapFocusAreasToCategories(userContext.focusAreas);
+          
+          this.log('debug', 'Successfully mapped focus areas to categories', { 
+            focusAreas: userContext.focusAreas,
+            categoryCount: relevantCategories.length
+          });
+        } catch (error) {
+          this.log('warn', 'Error mapping focus areas to categories', { 
+            error: error.message,
+            focusAreas: userContext.focusAreas
+          });
+          // Continue with empty relevant categories
+        }
+      }
+      
       // Prepare growth metrics
       const growthMetrics = {
         scoreChange,
@@ -252,6 +275,8 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`
         growthMetrics: growthMetrics,
         responseId: response.responseId,
         threadId,
+        // Include mapped relevant categories
+        relevantCategories,
         metadata: {
           evaluationPromptLength: prompt.length,
           personalizationLevel: options.user ? 'personalized' : 'standard',
@@ -448,6 +473,35 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`
         overallScore = Math.round(totalPoints);
       }
       
+      // Map focus areas to categories if user context is available and contains focus areas
+      let relevantCategories = evaluationData.relevantCategories || [];
+      if (evaluationData.userContext && 
+          evaluationData.userContext.focusAreas && 
+          evaluationData.userContext.focusAreas.length > 0 && 
+          this.evaluationDomainService) {
+        try {
+          this.log('debug', 'Mapping focus areas to categories in processEvaluation', { 
+            focusAreas: evaluationData.userContext.focusAreas 
+          });
+          
+          // Use the domain service to map focus areas to categories
+          relevantCategories = await this.evaluationDomainService.mapFocusAreasToCategories(
+            evaluationData.userContext.focusAreas
+          );
+          
+          this.log('debug', 'Successfully mapped focus areas to categories', { 
+            categoryCount: relevantCategories.length 
+          });
+          
+          // Add the mapped categories to the evaluation data
+          evaluationData.relevantCategories = relevantCategories;
+        } catch (error) {
+          this.log('warn', 'Error mapping focus areas to categories in processEvaluation', { 
+            error: error.message 
+          });
+        }
+      }
+      
       // Enhance with user context if evaluationDomainService is available
       if (evaluationData.userContext && this.evaluationDomainService) {
         try {
@@ -458,7 +512,8 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`
             userId: evaluationData.userId || 'temp-user',
             challengeId: evaluationData.challengeId || 'temp-challenge',
             score: overallScore || 0,
-            categoryScores: evaluationData.categoryScores || {}
+            categoryScores: evaluationData.categoryScores || {},
+            relevantCategories
           });
           
           // Process user context with domain service
@@ -480,7 +535,8 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`
       // Create domain model instance
       const evaluation = new Evaluation({
         ...evaluationData,
-        score: overallScore
+        score: overallScore,
+        relevantCategories
       });
       
       return evaluation;
