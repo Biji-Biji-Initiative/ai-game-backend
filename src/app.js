@@ -62,6 +62,71 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Add test endpoints for the API Tester UI
+const inMemoryUsers = new Map(); // Simple in-memory user storage for testing
+
+app.post('/api/test/user', async (req, res) => {
+  try {
+    const { email, password, fullName } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Email is required'
+      });
+    }
+    
+    logger.debug('Creating/retrieving test user', { email });
+    
+    // Check if user already exists in memory
+    if (inMemoryUsers.has(email)) {
+      const existingUser = inMemoryUsers.get(email);
+      logger.info('User already exists in memory', { email });
+      
+      return res.status(200).json({
+        status: 'success',
+        data: {
+          user: existingUser,
+          token: 'test-token-for-existing-user'
+        },
+        message: 'User already exists'
+      });
+    }
+    
+    // Create a new user in memory
+    const newUser = {
+      id: require('uuid').v4(),
+      email,
+      fullName: fullName || 'Test User',
+      professionalTitle: 'Test Role',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: 'active',
+      roles: ['user']
+    };
+    
+    // Store in memory
+    inMemoryUsers.set(email, newUser);
+    
+    logger.info('Created new test user in memory', { email });
+    
+    return res.status(201).json({
+      status: 'success',
+      data: {
+        user: newUser,
+        token: 'test-token-for-new-user'
+      },
+      message: 'User created successfully'
+    });
+  } catch (error) {
+    logger.error('Error in test user endpoint', { error: error.message });
+    return res.status(500).json({
+      status: 'error',
+      message: `Error creating test user: ${error.message}`
+    });
+  }
+});
+
 // Serve the API Tester UI static files
 const testerUiPath = path.join(__dirname, '../api-tester-ui');
 app.use('/tester', express.static(testerUiPath));

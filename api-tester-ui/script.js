@@ -186,6 +186,28 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize API sections
     initializeApiSections();
     
+    // Initialize tabs
+    initializeTabs();
+    
+    function initializeTabs() {
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabPanes = document.querySelectorAll('.tab-pane');
+        
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const tabId = button.dataset.tab;
+                
+                // Remove active class from all buttons and panes
+                tabButtons.forEach(b => b.classList.remove('active'));
+                tabPanes.forEach(p => p.classList.remove('active'));
+                
+                // Add active class to clicked button and corresponding pane
+                button.classList.add('active');
+                document.getElementById(`tab-${tabId}`).classList.add('active');
+            });
+        });
+    }
+    
     const responseOutput = document.getElementById('raw-output');
     const statusMessage = document.getElementById('status-message');
     
@@ -304,6 +326,46 @@ document.addEventListener('DOMContentLoaded', () => {
         responseOutput.textContent = responseInfo + '\n---\nProcessing...';
         
         try {
+            // Try the test user endpoint first since it's more likely to work in development
+            responseInfo += `\nAttempting to create/login user via test endpoint...`;
+            responseOutput.textContent = responseInfo + '\n---\nProcessing...';
+            
+            const testEndpointResult = await fetch('/api/test/user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    email,
+                    password,
+                    fullName
+                })
+            });
+            
+            if (testEndpointResult.ok) {
+                const data = await testEndpointResult.json();
+                
+                // Set auth token and user
+                authToken = data.data.token;
+                currentUser = {
+                    email: email,
+                    ...data.data.user
+                };
+                
+                updateUserStatus();
+                populateEmailFields(email);
+                
+                displayStatus(`Successfully ${data.message.includes('already exists') ? 'logged in as' : 'created'} ${email}`, false);
+                
+                // Display the response
+                responseOutput.textContent = JSON.stringify(data, null, 2);
+                return;
+            }
+            
+            // If test endpoint fails, try normal auth endpoints
+            responseInfo += `\nTest endpoint failed. Trying normal auth endpoints...`;
+            responseOutput.textContent = responseInfo + '\n---\nProcessing...';
+            
             // First try to login
             responseInfo += `\nAttempting login...`;
             responseOutput.textContent = responseInfo + '\n---\nProcessing...';
