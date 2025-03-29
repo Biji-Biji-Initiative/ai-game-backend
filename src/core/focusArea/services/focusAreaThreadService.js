@@ -103,7 +103,7 @@ class FocusAreaThreadService {
    * @param {Object} metadata - Additional metadata for the thread
    * @returns {Promise<string>} Thread/State ID
    */
-  createThread(userId, metadata = {}) {
+  async createThread(userId, metadata = {}) {
     if (!userId) {
       throw new Error('User ID is required to create a focus area thread');
     }
@@ -154,7 +154,7 @@ class FocusAreaThreadService {
    * @param {Object} metadata - Additional metadata for the thread
    * @returns {Promise<string>} Thread/State ID
    */
-  findOrCreateThread(userId, metadata = {}) {
+  async findOrCreateThread(userId, metadata = {}) {
     if (!userId) {
       throw new Error('User ID is required');
     }
@@ -191,7 +191,7 @@ class FocusAreaThreadService {
    * @param {string} stateId - State/Thread ID to get last response from
    * @returns {Promise<string|null>} Last response ID or null
    */
-  getLastResponseId(stateId) {
+  async getLastResponseId(stateId) {
     if (!stateId) {
       throw new Error('State ID is required');
     }
@@ -219,7 +219,7 @@ class FocusAreaThreadService {
    * @param {string} responseId - Response ID to associate with the thread
    * @returns {Promise<boolean>} Success status
    */
-  updateWithResponseId(stateId, responseId) {
+  async updateWithResponseId(stateId, responseId) {
     if (!stateId || !responseId) {
       return false;
     }

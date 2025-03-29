@@ -406,7 +406,7 @@ class OpenAIClient {
   /**
    * Method sendMessage
    */
-  sendMessage(messages, options = {}) {
+  async sendMessage(messages, options = {}) {
     const model = options.model || this.config?.defaults?.model || 'gpt-4o';
     const temperature = options.temperature ?? this.config?.defaults?.temperature ?? 0.7;
     
@@ -488,7 +488,7 @@ class OpenAIClient {
   /**
    * Method sendJsonMessage
    */
-  sendJsonMessage(messages, options = {}) {
+  async sendJsonMessage(messages, options = {}) {
     try {
       // Add JSON format to options
       const jsonOptions = {
@@ -541,7 +541,7 @@ class OpenAIClient {
   /**
    * Method sendMessageWithTools
    */
-  sendMessageWithTools(messages, tools, options = {}) {
+  async sendMessageWithTools(messages, tools, options = {}) {
     if (!Array.isArray(tools) || tools.length === 0) {
       throw new OpenAIRequestError('Tools must be a non-empty array');
     }
@@ -566,7 +566,7 @@ class OpenAIClient {
   /**
    * Method submitToolResults
    */
-  submitToolResults(toolOutputs, userInput = null, options = {}) {
+  async submitToolResults(toolOutputs, userInput = null, options = {}) {
     if (!toolOutputs || !toolOutputs.tool_outputs || !Array.isArray(toolOutputs.tool_outputs)) {
       throw new OpenAIRequestError('Tool outputs must be a valid object with tool_outputs array');
     }
@@ -593,7 +593,7 @@ class OpenAIClient {
   /**
    * Method streamMessage
    */
-  streamMessage(messages, options = {}) {
+  async streamMessage(messages, options = {}) {
     const model = options.model || this.config?.defaults?.model || 'gpt-4o';
     const temperature = options.temperature ?? this.config?.defaults?.temperature ?? 0.7;
     
@@ -725,7 +725,7 @@ class OpenAIClient {
                   callback({
                     type: StreamEventType.FUNCTION_ARGS_DELTA,
                     item_id: toolCallItemId,
-                    delta: '{'location':'
+                    delta: '{"location":'
                   });
                 }, 380);
                 
@@ -733,7 +733,7 @@ class OpenAIClient {
                   callback({
                     type: StreamEventType.FUNCTION_ARGS_DELTA,
                     item_id: toolCallItemId,
-                    delta: ' 'San Francisco''
+                    delta: ' "San Francisco"'
                   });
                 }, 410);
                 
@@ -741,7 +741,7 @@ class OpenAIClient {
                   callback({
                     type: StreamEventType.FUNCTION_ARGS_DELTA,
                     item_id: toolCallItemId,
-                    delta: ', 'unit': 'celsius'}'
+                    delta: ', "unit": "celsius"}'
                   });
                 }, 440);
                 
@@ -750,7 +750,7 @@ class OpenAIClient {
                   callback({
                     type: StreamEventType.FUNCTION_ARGS_DONE,
                     item_id: toolCallItemId,
-                    arguments: '{'location': 'San Francisco', 'unit': 'celsius'}'
+                    arguments: '{"location": "San Francisco", "unit": "celsius"}'
                   });
                 }, 470);
                 
@@ -768,7 +768,7 @@ class OpenAIClient {
                         type: 'function',
                         function: {
                           name: 'get_weather',
-                          arguments: '{'location': 'San Francisco', 'unit': 'celsius'}'
+                          arguments: '{"location": "San Francisco", "unit": "celsius"}'
                         }
                       }
                     }
@@ -837,7 +837,7 @@ class OpenAIClient {
                       type: 'function',
                       function: {
                         name: 'get_weather',
-                        arguments: '{'location': 'San Francisco', 'unit': 'celsius'}'
+                        arguments: '{"location": "San Francisco", "unit": "celsius"}'
                       }
                     }
                   });
@@ -951,7 +951,7 @@ class OpenAIClient {
   /**
    * Method createStreamController
    */
-  createStreamController(messages, options = {}, callbacks = {}) {
+  async createStreamController(messages, options = {}, callbacks = {}) {
     const stream = await this.streamMessage(messages, options);
     
     // Create controller with callbacks and our logger
@@ -972,7 +972,7 @@ class OpenAIClient {
   /**
    * Method parseStream
    */
-  parseStream(stream, onEvent) {
+  async parseStream(stream, onEvent) {
     this.logger.warn('parseStream is deprecated, use createStreamController instead');
     
     // Use our new stream processor but with backward compatibility
@@ -1001,7 +1001,7 @@ class OpenAIClient {
    * Check the health of the OpenAI API connection
    * @returns {Promise<Object>} Health check result
    */
-  checkHealth() {
+  async checkHealth() {
     try {
       // Start timing
       const startTime = Date.now();

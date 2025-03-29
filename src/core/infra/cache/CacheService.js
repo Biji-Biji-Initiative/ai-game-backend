@@ -132,7 +132,7 @@ class CacheService {
    * @param {string} key - Cache key
    * @returns {Promise<*>} Cached value or null if not found
    */
-  get(key) {
+  async get(key) {
     if (!this.enabled) {
       return null;
     }
@@ -184,7 +184,7 @@ class CacheService {
    * @param {number} ttl - Time to live in seconds
    * @returns {Promise<boolean>} True if successfully set, false otherwise
    */
-  set(key, value, ttl) {
+  async set(key, value, ttl) {
     if (!this.enabled) {
       return false;
     }
@@ -221,7 +221,7 @@ class CacheService {
    * @param {string} key - Cache key
    * @returns {Promise<boolean>} True if successfully deleted, false otherwise
    */
-  del(key) {
+  async del(key) {
     if (!this.enabled) {
       return false;
     }
@@ -246,7 +246,7 @@ class CacheService {
    * @param {string} pattern - Cache key pattern
    * @returns {Promise<number>} Number of keys deleted
    */
-  delPattern(pattern) {
+  async delPattern(pattern) {
     if (!this.enabled) {
       return 0;
     }
@@ -273,7 +273,7 @@ class CacheService {
    * @param {number} ttl - Time to live in seconds
    * @returns {Promise<*>} Value from cache or factory function
    */
-  getOrSet(key, factory, ttl) {
+  async getOrSet(key, factory, ttl) {
     if (!this.enabled) {
       return factory();
     }
@@ -319,7 +319,7 @@ class CacheService {
    * @param {string} pattern - Cache key pattern
    * @returns {Promise<Array<string>>} Array of matching keys
    */
-  keys(pattern) {
+  async keys(pattern) {
     if (!this.enabled) {
       return [];
     }
@@ -340,7 +340,7 @@ class CacheService {
    * Clear all cache
    * @returns {Promise<boolean>} True if successfully cleared, false otherwise
    */
-  clear() {
+  async clear() {
     if (!this.enabled) {
       return false;
     }

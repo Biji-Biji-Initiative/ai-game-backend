@@ -1,89 +1,54 @@
+// ESLint v9 Configuration
 import js from '@eslint/js';
-import jsdoc from 'eslint-plugin-jsdoc';
+import globals from 'globals';
 
 export default [
+  // Use recommended JS rules with some customizations
   {
+    files: ['**/*.js'],
     ignores: [
       'node_modules/**',
       'tests/**',
       'test/**',
       '**/*.test.js',
-      '**/*test*/',
+      '**/*test*.js',
       'disabled_scripts/**',
       'reports/**',
       'logs/**',
       '.github/**',
       '.husky/**',
       'supabase/**',
-      'api-tester-ui/**'
-    ]
-  },
-  js.configs.recommended,
-  {
-    files: ["**/*.js", "**/*.mjs"],
+      'api-tester-ui/**',
+      'coverage/**',
+      'dist/**'
+    ],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',
       globals: {
-        // Node.js
-        require: 'readonly',
-        module: 'writable',
-        process: 'readonly',
-        __dirname: 'readonly',
-        // Testing
-        describe: 'readonly',
-        it: 'readonly',
-        expect: 'readonly',
-        beforeEach: 'readonly',
-        afterEach: 'readonly',
-        jest: 'readonly',
-        // Browser
-        console: 'readonly',
-        setTimeout: 'readonly',
-        clearTimeout: 'readonly',
-        setInterval: 'readonly',
-        clearInterval: 'readonly',
-        // Common globals
-        Promise: 'readonly',
-        Error: 'readonly',
+        ...globals.node,
+        ...globals.jest
       }
     },
-    plugins: {
-      jsdoc: jsdoc
+    linterOptions: {
+      reportUnusedDisableDirectives: 'off',
+      noInlineConfig: false
     },
     rules: {
-      // Error prevention settings - lenient during migration
-      'no-unused-vars': 'off',
+      // Relaxed rules to avoid too many errors during migration
+      'no-unused-vars': 'warn',
       'no-undef': 'warn',
-      'no-var': 'warn',
-      'prefer-const': 'warn',
-      'no-return-await': 'off',
-      'require-await': 'off',
-      'no-useless-escape': 'warn',
-      
-      // Code style
-      'max-len': ['warn', { 
-        code: 120, 
-        ignoreComments: true, 
-        ignoreStrings: true, 
-        ignoreTemplateLiterals: true 
-      }],
-      
-      // Documentation - recommend but don't enforce during migration
-      'jsdoc/require-jsdoc': ['warn', {
-        require: {
-          FunctionDeclaration: true,
-          MethodDefinition: true,
-          ClassDeclaration: true
-        }
-      }]
-    }
-  },
-  // Special handling for CommonJS files during migration
-  {
-    files: ["**/legacy/**/*.js"],
-    languageOptions: {
-      sourceType: 'commonjs',
+      'no-empty': 'warn',
+      'semi': 'warn',
+      'quotes': ['warn', 'single'],
+      'comma-dangle': 'off',
+      'no-console': 'off',
+      'no-multi-spaces': 'off',
+      'no-trailing-spaces': 'off',
+      'no-mixed-spaces-and-tabs': 'off',
+      'space-before-function-paren': 'off',
+      'key-spacing': 'off',
+      'indent': 'off'
     }
   }
 ]; 

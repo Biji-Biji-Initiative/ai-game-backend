@@ -80,7 +80,7 @@ async function publishUserProfileCompleted(userId, email) {
  */
 function registerUserEventHandlers() {
   // When personality insights are generated, update user profile
-  eventBus.subscribe(EventTypes.PERSONALITY_TRAIT_IDENTIFIED, event => {
+  eventBus.subscribe(EventTypes.PERSONALITY_TRAIT_IDENTIFIED, async (event) => {
     try {
       logger.debug('Handling personality trait identified event', {
         userId: event.payload.userId,
@@ -99,7 +99,7 @@ function registerUserEventHandlers() {
   });
 
   // When focus area is set, update user profile
-  eventBus.subscribe(EventTypes.USER_FOCUS_AREA_SET, event => {
+  eventBus.subscribe(EventTypes.USER_FOCUS_AREA_SET, async (event) => {
     try {
       logger.debug('Handling user focus area set event', {
         userId: event.payload.userId,

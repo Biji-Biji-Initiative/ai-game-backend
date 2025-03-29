@@ -89,7 +89,7 @@ class FocusAreaGenerationService {
   /**
    * Method generateFocusAreas
    */
-  generateFocusAreas(userData, challengeHistory = [], progressData = {}, options = {}) {
+  async generateFocusAreas(userData, challengeHistory = [], progressData = {}, options = {}) {
     // Extract user data
     const userId = userData.id || userData.email;
     if (!userId) {

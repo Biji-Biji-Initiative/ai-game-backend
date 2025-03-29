@@ -235,54 +235,81 @@ class ChallengeTypeRepository {
 
     const dbData = challengeTypeMapper.toPersistence(challengeType);
     
-    // Check if this is an update or insert
-    const existing = await this.findByCode(challengeType.code);
-    
-    let result;
-    if (existing) {
-      // Update
-      const { data, error } = await this.supabase
-        .from(this.tableName)
-        .update(dbData)
-        .eq('id', challengeType.id)
-        .select()
-        .single();
+    try {
+      // Check if this is an update or insert
+      const existing = await this.findByCode(challengeType.code);
+      
+      let result;
+      if (existing) {
+        // Update
+        const { data, error } = await this.supabase
+          .from(this.tableName)
+          .update(dbData)
+          .eq('id', challengeType.id)
+          .select()
+          .single();
 
-      if (error) {
-        this.logger.error('Error updating challenge type', { code: challengeType.code, error });
-        throw new DatabaseError(`Failed to update challenge type: ${error.message}`, {
-          cause: error,
-          entityType: this.domainName,
-          operation: 'save:update',
-          metadata: { id: challengeType.id, code: challengeType.code }
-        });
+        if (error) {
+          this.logger.error('Error updating challenge type', { code: challengeType.code, error });
+          throw new DatabaseError(`Failed to update challenge type: ${error.message}`, {
+            cause: error,
+            entityType: this.domainName,
+            operation: 'save:update',
+            metadata: { id: challengeType.id, code: challengeType.code }
+          });
+        }
+        result = data;
+      } else {
+        // Insert
+        const { data, error } = await this.supabase
+          .from(this.tableName)
+          .insert(dbData)
+          .select()
+          .single();
+
+        if (error) {
+          this.logger.error('Error inserting challenge type', { code: challengeType.code, error });
+          throw new DatabaseError(`Failed to insert challenge type: ${error.message}`, {
+            cause: error,
+            entityType: this.domainName,
+            operation: 'save:insert',
+            metadata: { code: challengeType.code }
+          });
+        }
+        result = data;
       }
-      result = data;
-    } else {
-      // Insert
-      const { data, error } = await this.supabase
-        .from(this.tableName)
-        .insert(dbData)
-        .select()
-        .single();
 
-      if (error) {
-        this.logger.error('Error inserting challenge type', { code: challengeType.code, error });
-        throw new DatabaseError(`Failed to insert challenge type: ${error.message}`, {
-          cause: error,
+      if (!result) {
+        throw new DatabaseError('No data returned after save operation', {
           entityType: this.domainName,
-          operation: 'save:insert',
+          operation: 'save',
           metadata: { code: challengeType.code }
         });
       }
-      result = data;
-    }
 
-    if (!result) {
-      throw new Error('No data returned after save operation');
+      return challengeTypeMapper.toDomain(result);
+    } catch (error) {
+      // If it's already one of our known error types, just rethrow it
+      if (error instanceof ValidationError || 
+          error instanceof DatabaseError || 
+          error instanceof EntityNotFoundError) {
+        throw error;
+      }
+      
+      // Otherwise, wrap it in a database error
+      this.logger.error('Unexpected error saving challenge type', { 
+        code: challengeType.code, 
+        error: error.message,
+        stack: error.stack
+      });
+      
+      throw new DatabaseError(`Failed to save challenge type: ${error.message}`, {
+        cause: error,
+        entityType: this.domainName,
+        operation: 'save',
+        metadata: { code: challengeType.code }
+      });
     }
-
-    return challengeTypeMapper.toDomain(result);
   }
 
   /**
@@ -337,12 +364,38 @@ class ChallengeTypeRepository {
       });
     }
     
-    const results = [];
-    for (const challengeType of challengeTypes) {
-      results.push(await this.save(challengeType));
+    try {
+      // Use Promise.all to run saves in parallel for better performance
+      const results = await Promise.all(
+        challengeTypes.map(challengeType => this.save(challengeType))
+      );
+      
+      this.logger.info('Successfully seeded challenge types', { 
+        count: results.length,
+        codes: results.map(ct => ct.code)
+      });
+      
+      return results;
+    } catch (error) {
+      // If it's already one of our known error types, just rethrow it
+      if (error instanceof ValidationError || 
+          error instanceof DatabaseError || 
+          error instanceof EntityNotFoundError) {
+        throw error;
+      }
+      
+      this.logger.error('Error seeding challenge types', {
+        error: error.message,
+        stack: error.stack,
+        count: challengeTypes.length
+      });
+      
+      throw new DatabaseError(`Failed to seed challenge types: ${error.message}`, {
+        cause: error,
+        entityType: this.domainName,
+        operation: 'seed'
+      });
     }
-    
-    return results;
   }
 }
 

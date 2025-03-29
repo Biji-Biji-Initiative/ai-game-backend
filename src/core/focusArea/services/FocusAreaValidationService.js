@@ -31,7 +31,7 @@ class FocusAreaValidationService {
    * @param {string} focusAreaCode - Focus area code to validate
    * @returns {Promise<boolean>} True if the focus area exists
    */
-  exists(focusAreaCode) {
+  async exists(focusAreaCode) {
     try {
       // First validate the format using the value object
       if (!focusAreaCode || !FocusArea.isValidFormat(focusAreaCode)) {
@@ -55,7 +55,7 @@ class FocusAreaValidationService {
    * @param {boolean} useCache - Whether to use cached results
    * @returns {Promise<Array<Object>>} List of available focus areas
    */
-  getAvailableFocusAreas(useCache = true) {
+  async getAvailableFocusAreas(useCache = true) {
     // Check cache first if enabled
     if (useCache && this.cachedFocusAreas && this.lastCacheTime) {
       const now = Date.now();
@@ -92,7 +92,7 @@ class FocusAreaValidationService {
    * @param {string} focusAreaCode - Focus area code to validate
    * @returns {Promise<Object>} Validation result with isValid flag and errors
    */
-  validate(focusAreaCode) {
+  async validate(focusAreaCode) {
     const result = {
       isValid: false,
       errors: []

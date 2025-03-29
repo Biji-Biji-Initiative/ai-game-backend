@@ -15,12 +15,14 @@ const {
   applyRepositoryErrorHandling,
   createErrorMapper
 } = require('../../../core/infra/errors/centralizedErrorUtils');
+const { EntityNotFoundError, ValidationError, DatabaseError } = require('../../infra/repositories/BaseRepository');
 
 // Import domain-specific error classes
 const {
   EvaluationError,
   EvaluationNotFoundError,
   EvaluationValidationError,
+  EvaluationRepositoryError
 } = require('../errors/EvaluationErrors');
 
 // Create an error mapper for repositories
@@ -28,7 +30,7 @@ const evaluationRepositoryErrorMapper = createErrorMapper(
   {
     EntityNotFoundError: EvaluationNotFoundError,
     ValidationError: EvaluationValidationError,
-    DatabaseError: EvaluationError,
+    DatabaseError: EvaluationRepositoryError,
   },
   EvaluationError
 );
@@ -48,16 +50,17 @@ class EvaluationCategoryRepository {
    */
   constructor(dependencies = {}) {
     if (!dependencies.supabase && !supabaseClient) {
-      throw new Error('Supabase client is required for EvaluationCategoryRepository');
+      throw new ValidationError('Supabase client is required for EvaluationCategoryRepository');
     }
     
     if (!dependencies.logger) {
-      throw new Error('Logger is required for EvaluationCategoryRepository');
+      throw new ValidationError('Logger is required for EvaluationCategoryRepository');
     }
     
     this.supabase = dependencies.supabase || supabaseClient;
     this.logger = dependencies.logger;
     
+    // Apply standardized error handling to methods
     applyRepositoryErrorHandling(this, evaluationRepositoryErrorMapper);
   }
 
@@ -76,11 +79,16 @@ class EvaluationCategoryRepository {
     
     if (error) {
       this.logger.error('Error fetching evaluation categories', { error });
-      throw new Error(`Failed to fetch evaluation categories: ${error.message}`);
+      throw new DatabaseError(`Failed to fetch evaluation categories: ${error.message}`, {
+        cause: error,
+        operation: 'getAllCategories'
+      });
     }
     
     if (!data || data.length === 0) {
-      throw new Error('No evaluation categories found in database');
+      throw new EntityNotFoundError('No evaluation categories found in database', {
+        entityType: 'evaluation_categories'
+      });
     }
     
     return data;
@@ -96,7 +104,10 @@ class EvaluationCategoryRepository {
    */
   async getCategoriesForFocusArea(focusArea) {
     if (!focusArea) {
-      throw new Error('Focus area is required');
+      throw new ValidationError('Focus area is required', {
+        entityType: 'evaluation_categories',
+        operation: 'getCategoriesForFocusArea'
+      });
     }
     
     const { data, error } = await this.supabase
@@ -115,11 +126,18 @@ class EvaluationCategoryRepository {
     
     if (error) {
       this.logger.error('Error fetching categories for focus area', { error, focusArea });
-      throw new Error(`Failed to fetch categories for focus area ${focusArea}: ${error.message}`);
+      throw new DatabaseError(`Failed to fetch categories for focus area ${focusArea}: ${error.message}`, {
+        cause: error,
+        operation: 'getCategoriesForFocusArea',
+        metadata: { focusArea }
+      });
     }
     
     if (!data || data.length === 0) {
-      throw new Error(`No category mappings found for focus area: ${focusArea}`);
+      throw new EntityNotFoundError(`No category mappings found for focus area: ${focusArea}`, {
+        entityType: 'focus_area_category_mappings',
+        entityId: focusArea
+      });
     }
     
     // Format the response to use the evaluation_categories data with the mapping weight
@@ -141,7 +159,10 @@ class EvaluationCategoryRepository {
    */
   async getCategoryWeightsForFocusArea(focusArea) {
     if (!focusArea) {
-      throw new Error('Focus area is required');
+      throw new ValidationError('Focus area is required', {
+        entityType: 'focus_area_category_mappings',
+        operation: 'getCategoryWeightsForFocusArea'
+      });
     }
     
     const { data, error } = await this.supabase
@@ -151,11 +172,18 @@ class EvaluationCategoryRepository {
     
     if (error) {
       this.logger.error('Error fetching category weights', { error, focusArea });
-      throw new Error(`Failed to fetch category weights for focus area ${focusArea}: ${error.message}`);
+      throw new DatabaseError(`Failed to fetch category weights for focus area ${focusArea}: ${error.message}`, {
+        cause: error,
+        operation: 'getCategoryWeightsForFocusArea',
+        metadata: { focusArea }
+      });
     }
     
     if (!data || data.length === 0) {
-      throw new Error(`No category weights found for focus area: ${focusArea}`);
+      throw new EntityNotFoundError(`No category weights found for focus area: ${focusArea}`, {
+        entityType: 'focus_area_category_mappings',
+        entityId: focusArea
+      });
     }
     
     // Convert array to object with category keys as properties and weights as values
@@ -177,7 +205,10 @@ class EvaluationCategoryRepository {
    */
   async getCategoryDescription(categoryKey) {
     if (!categoryKey) {
-      throw new Error('Category key is required');
+      throw new ValidationError('Category key is required', {
+        entityType: 'evaluation_categories',
+        operation: 'getCategoryDescription'
+      });
     }
     
     const { data, error } = await this.supabase
@@ -188,11 +219,18 @@ class EvaluationCategoryRepository {
     
     if (error) {
       this.logger.error('Error fetching category description', { error, categoryKey });
-      throw new Error(`Failed to fetch description for category ${categoryKey}: ${error.message}`);
+      throw new DatabaseError(`Failed to fetch description for category ${categoryKey}: ${error.message}`, {
+        cause: error,
+        operation: 'getCategoryDescription',
+        metadata: { categoryKey }
+      });
     }
     
     if (!data || !data.description) {
-      throw new Error(`No description found for category: ${categoryKey}`);
+      throw new EntityNotFoundError(`No description found for category: ${categoryKey}`, {
+        entityType: 'evaluation_categories',
+        entityId: categoryKey
+      });
     }
     
     return data.description;
@@ -212,11 +250,16 @@ class EvaluationCategoryRepository {
     
     if (error) {
       this.logger.error('Error fetching category descriptions', { error });
-      throw new Error(`Failed to fetch category descriptions: ${error.message}`);
+      throw new DatabaseError(`Failed to fetch category descriptions: ${error.message}`, {
+        cause: error,
+        operation: 'getCategoryDescriptions'
+      });
     }
     
     if (!data || data.length === 0) {
-      throw new Error('No category descriptions found in database');
+      throw new EntityNotFoundError('No category descriptions found in database', {
+        entityType: 'evaluation_categories'
+      });
     }
     
     // Convert array to object with category keys as properties and descriptions as values
@@ -238,7 +281,10 @@ class EvaluationCategoryRepository {
    */
   async mapFocusAreasToCategories(focusAreas) {
     if (!focusAreas || !Array.isArray(focusAreas) || focusAreas.length === 0) {
-      throw new Error('Valid focus areas array is required');
+      throw new ValidationError('Valid focus areas array is required', {
+        entityType: 'focus_area_category_mappings',
+        operation: 'mapFocusAreasToCategories'
+      });
     }
     
     // Build query to find any mapping for any of the focus areas
@@ -250,11 +296,18 @@ class EvaluationCategoryRepository {
     
     if (error) {
       this.logger.error('Error mapping focus areas to categories', { error, focusAreas });
-      throw new Error(`Failed to map focus areas to categories: ${error.message}`);
+      throw new DatabaseError(`Failed to map focus areas to categories: ${error.message}`, {
+        cause: error,
+        operation: 'mapFocusAreasToCategories',
+        metadata: { focusAreas }
+      });
     }
     
     if (!data || data.length === 0) {
-      throw new Error(`No category mappings found for focus areas: ${focusAreas.join(', ')}`);
+      throw new EntityNotFoundError(`No category mappings found for focus areas: ${focusAreas.join(', ')}`, {
+        entityType: 'focus_area_category_mappings',
+        entityIds: focusAreas
+      });
     }
     
     // Extract category keys and remove duplicates
