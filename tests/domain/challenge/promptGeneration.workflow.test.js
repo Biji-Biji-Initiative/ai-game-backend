@@ -27,7 +27,7 @@ describe('Integration: Prompt Generation Workflow', function() {
     skipIfMissingEnv(this, 'openai');
   });
 
-// Set longer timeout for API calls
+  // Set longer timeout for API calls
   this.timeout(30000);
   
   // Skip if API keys not available
@@ -51,7 +51,7 @@ describe('Integration: Prompt Generation Workflow', function() {
     // Create OpenAI client
     const { OpenAIClient } = require('../../src/infra/openai');
     openaiClient = new OpenAIClient({ apiKey: testEnv.getTestConfig().openai.apiKey
-     });
+    });
     
     // Create Supabase client
     const { createClient } = require('@supabase/supabase-js');
@@ -61,7 +61,13 @@ describe('Integration: Prompt Generation Workflow', function() {
     );
     
     // Create a simple Prompt class for this test
+    /**
+     *
+     */
     class Prompt {
+      /**
+       *
+       */
       constructor(data) {
         this.id = data.id || uuidv4();
         this.name = data.name;
@@ -77,7 +83,7 @@ describe('Integration: Prompt Generation Workflow', function() {
     
     // Create prompt repository that uses Supabase
     promptRepository = {
-      save: async (prompt) => {
+      save: async prompt => {
         try {
           console.log('Saving prompt with user_email:', prompt.user_email);
           
@@ -108,7 +114,7 @@ describe('Integration: Prompt Generation Workflow', function() {
         }
       },
       
-      findById: async (id) => {
+      findById: async id => {
         try {
           const { data, error } = await supabaseClient
             .from('prompts')
@@ -137,7 +143,7 @@ describe('Integration: Prompt Generation Workflow', function() {
         }
       },
       
-      delete: async (id) => {
+      delete: async id => {
         try {
           const { error } = await supabaseClient
             .from('prompts')
@@ -217,12 +223,12 @@ describe('Integration: Prompt Generation Workflow', function() {
       variables: An array of variable names that should be replaced in the template`;
       
       const completion = await openaiClient.responses.create({
-        model: "gpt-4o",
+        model: 'gpt-4o',
         messages: [
-          { role: "system", content: "You are an expert prompt engineer who specializes in creating effective prompts for AI systems." },
-          { role: "user", content: promptText }
+          { role: 'system', content: 'You are an expert prompt engineer who specializes in creating effective prompts for AI systems.' },
+          { role: 'user', content: promptText }
         ],
-        response_format: { type: "json_object" }
+        response_format: { type: 'json_object' }
       });
       
       const responseText = completion.choices[0].message.content;

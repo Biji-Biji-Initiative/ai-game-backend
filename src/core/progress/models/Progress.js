@@ -1,17 +1,26 @@
+'use strict';
+
 /**
  * Progress Domain Model
- * 
+ *
  * This model represents a user's learning progress across challenges,
  * focus areas, and skills within the system.
  */
 
-const domainEvents = require('../../common/events/domainEvents');
 const { v4: uuidv4 } = require('uuid');
+// Renamed to _domainEvents since we're not using it directly anymore
+const _domainEvents = require('../../common/events/domainEvents');
 
+/**
+ *
+ */
 class Progress {
   /**
    * Create a progress instance
    * @param {Object} data - Progress data
+   */
+  /**
+   * Method constructor
    */
   constructor(data = {}) {
     this.id = data.id || uuidv4();
@@ -30,22 +39,58 @@ class Progress {
       highestScore: 0,
       averageCompletionTime: 0,
       streakDays: 0,
-      lastActive: null
+      lastActive: null,
     };
     this.status = data.status || 'active';
     this.createdAt = data.createdAt || data.created_at || new Date().toISOString();
     this.updatedAt = data.updatedAt || data.updated_at || new Date().toISOString();
+    
+    // Initialize domain events collection
+    this._domainEvents = [];
+  }
+
+  /**
+   * Add a domain event to the collection
+   * @param {string} type - Event type
+   * @param {Object} data - Event data
+   */
+  addDomainEvent(type, data) {
+    if (!type) {
+      throw new Error('Event type is required');
+    }
+    
+    this._domainEvents.push({ type, data });
+  }
+  
+  /**
+   * Get collected domain events
+   * @returns {Array} Collection of domain events
+   */
+  getDomainEvents() {
+    return this._domainEvents;
+  }
+  
+  /**
+   * Clear collected domain events
+   */
+  clearDomainEvents() {
+    this._domainEvents = [];
   }
 
   /**
    * Validate the progress model
    * @returns {Object} Validation result with isValid and errors properties
    */
+  /**
+   * Method validate
+   */
   validate() {
     const errors = [];
 
     // Required fields
-    if (!this.userId) errors.push('User ID is required');
+    if (!this.userId) {
+      errors.push('User ID is required');
+    }
 
     // Validate score if present
     if (this.score !== null && (isNaN(this.score) || this.score < 0 || this.score > 100)) {
@@ -58,15 +103,17 @@ class Progress {
     }
 
     // Validate skill levels
-    if (Object.entries(this.skillLevels).some(([_, level]) => 
-      isNaN(level) || level < 0 || level > 100
-    )) {
+    if (
+      Object.entries(this.skillLevels).some(
+        ([_, level]) => isNaN(level) || level < 0 || level > 100
+      )
+    ) {
       errors.push('Skill levels must be numbers between 0 and 100');
     }
 
     return {
       isValid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
@@ -76,6 +123,9 @@ class Progress {
    * @param {number} score - Score achieved (0-100)
    * @param {number} completionTime - Time taken to complete in seconds
    * @param {Object} evaluationData - Additional evaluation data
+   */
+  /**
+   * Method recordChallengeCompletion
    */
   recordChallengeCompletion(challengeId, score, completionTime, evaluationData = {}) {
     if (!challengeId) {
@@ -100,7 +150,7 @@ class Progress {
       id: challengeId,
       score,
       completionTime,
-      completedAt: new Date().toISOString()
+      completedAt: new Date().toISOString(),
     };
 
     // Don't add duplicates
@@ -108,7 +158,7 @@ class Progress {
       this.completedChallenges.push(completedChallenge);
     } else {
       // Update existing entry
-      this.completedChallenges = this.completedChallenges.map(c => 
+      this.completedChallenges = this.completedChallenges.map(c =>
         c.id === challengeId ? completedChallenge : c
       );
     }
@@ -117,8 +167,12 @@ class Progress {
     this.updateStatistics();
 
     // Extract strengths and weaknesses if provided
-    if (evaluationData.strengths) this.strengths = evaluationData.strengths;
-    if (evaluationData.weaknesses) this.weaknesses = evaluationData.weaknesses;
+    if (evaluationData.strengths) {
+      this.strengths = evaluationData.strengths;
+    }
+    if (evaluationData.weaknesses) {
+      this.weaknesses = evaluationData.weaknesses;
+    }
 
     // Set skill levels if provided
     if (evaluationData.skillLevels && typeof evaluationData.skillLevels === 'object') {
@@ -127,19 +181,22 @@ class Progress {
 
     this.updatedAt = new Date().toISOString();
 
-    // Publish domain event
-    domainEvents.publish('ChallengeProgressRecorded', {
+    // Add domain event instead of publishing directly
+    this.addDomainEvent('ChallengeProgressRecorded', {
       userId: this.userId,
       challengeId,
       score,
       completionTime,
-      skillLevels: this.skillLevels
+      skillLevels: this.skillLevels,
     });
   }
 
   /**
    * Update skill levels
    * @param {Object} newSkillLevels - New skill levels to merge with existing ones
+   */
+  /**
+   * Method updateSkillLevels
    */
   updateSkillLevels(newSkillLevels) {
     // Validate skill levels
@@ -152,24 +209,27 @@ class Progress {
     // Merge skill levels
     this.skillLevels = {
       ...this.skillLevels,
-      ...newSkillLevels
+      ...newSkillLevels,
     };
 
     this.updatedAt = new Date().toISOString();
 
-    // Publish domain event
-    domainEvents.publish('SkillLevelsUpdated', {
+    // Add domain event instead of publishing directly
+    this.addDomainEvent('SkillLevelsUpdated', {
       userId: this.userId,
-      skillLevels: this.skillLevels
+      skillLevels: this.skillLevels,
     });
   }
 
   /**
    * Update progress statistics
    */
+  /**
+   * Method updateStatistics
+   */
   updateStatistics() {
     const totalChallenges = this.completedChallenges.length;
-    
+
     if (totalChallenges === 0) {
       return;
     }
@@ -177,14 +237,15 @@ class Progress {
     // Calculate statistics
     const scores = this.completedChallenges.map(c => c.score);
     const completionTimes = this.completedChallenges.map(c => c.completionTime);
-    
+
     const averageScore = scores.reduce((sum, score) => sum + score, 0) / totalChallenges;
     const highestScore = Math.max(...scores);
-    const averageCompletionTime = completionTimes.reduce((sum, time) => sum + time, 0) / totalChallenges;
-    
+    const averageCompletionTime =
+      completionTimes.reduce((sum, time) => sum + time, 0) / totalChallenges;
+
     // Get last activity date
     const lastActive = new Date().toISOString();
-    
+
     // Calculate streak days (simplified version)
     // In a real implementation, this would check consecutive days
     const streakDays = this.statistics.streakDays || 0;
@@ -195,7 +256,7 @@ class Progress {
       highestScore,
       averageCompletionTime,
       streakDays,
-      lastActive
+      lastActive,
     };
   }
 
@@ -203,39 +264,19 @@ class Progress {
    * Set the focus area for this progress
    * @param {string} focusArea - Focus area name
    */
+  /**
+   * Method setFocusArea
+   */
   setFocusArea(focusArea) {
     this.focusArea = focusArea;
     this.updatedAt = new Date().toISOString();
-    
-    // Publish domain event
-    domainEvents.publish('ProgressFocusAreaSet', {
-      userId: this.userId,
-      focusArea
-    });
-  }
 
-  /**
-   * Convert progress data to format suitable for database storage
-   * @returns {Object} Database-formatted progress data
-   */
-  toDatabase() {
-    return {
-      id: this.id,
-      user_id: this.userId,
-      focus_area: this.focusArea,
-      challenge_id: this.challengeId,
-      score: this.score,
-      completion_time: this.completionTime,
-      skill_levels: this.skillLevels,
-      strengths: this.strengths,
-      weaknesses: this.weaknesses,
-      completed_challenges: this.completedChallenges,
-      statistics: this.statistics,
-      status: this.status,
-      created_at: this.createdAt,
-      updated_at: this.updatedAt
-    };
+    // Add domain event instead of publishing directly
+    this.addDomainEvent('ProgressFocusAreaSet', {
+      userId: this.userId,
+      focusArea,
+    });
   }
 }
 
-module.exports = Progress; 
+module.exports = Progress;

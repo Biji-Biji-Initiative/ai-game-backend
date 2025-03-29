@@ -1,25 +1,35 @@
+'use strict';
+
 /**
  * Recommendation Domain Model
- * 
+ *
  * This model represents personalized challenge and learning recommendations
  * based on user performance, profile, and learning history.
  */
 
-const domainEvents = require('../../common/events/domainEvents');
-const { v4: uuidv4 } = require('uuid');
+const Entity = require('../../common/models/Entity');
 
-class Recommendation {
+/**
+ * Class representing a recommendation for user learning
+ * @extends Entity
+ */
+class Recommendation extends Entity {
   /**
    * Create a recommendation instance
    * @param {Object} data - Recommendation data
    */
+  /**
+   * Method constructor
+   */
   constructor(data = {}) {
-    this.id = data.id || uuidv4();
+    super(data.id);
     this.userId = data.userId || data.user_id || null;
     this.createdAt = data.createdAt || data.created_at || new Date().toISOString();
     this.recommendedFocusAreas = data.recommendedFocusAreas || data.recommended_focus_areas || [];
-    this.recommendedChallengeTypes = data.recommendedChallengeTypes || data.recommended_challenge_types || [];
-    this.suggestedLearningResources = data.suggestedLearningResources || data.suggested_learning_resources || [];
+    this.recommendedChallengeTypes =
+      data.recommendedChallengeTypes || data.recommended_challenge_types || [];
+    this.suggestedLearningResources =
+      data.suggestedLearningResources || data.suggested_learning_resources || [];
     this.challengeParameters = data.challengeParameters || data.challenge_parameters || null;
     this.strengths = data.strengths || [];
     this.weaknesses = data.weaknesses || [];
@@ -30,11 +40,16 @@ class Recommendation {
    * Validate the recommendation model
    * @returns {Object} Validation result with isValid and errors properties
    */
+  /**
+   * Method validate
+   */
   validate() {
     const errors = [];
 
     // Required fields
-    if (!this.userId) errors.push('User ID is required');
+    if (!this.userId) {
+      errors.push('User ID is required');
+    }
 
     // Validate arrays
     if (!Array.isArray(this.recommendedFocusAreas)) {
@@ -51,7 +66,7 @@ class Recommendation {
 
     return {
       isValid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
@@ -59,18 +74,21 @@ class Recommendation {
    * Set recommended focus areas
    * @param {Array} focusAreas - Array of focus areas
    */
+  /**
+   * Method setRecommendedFocusAreas
+   */
   setRecommendedFocusAreas(focusAreas) {
     if (!Array.isArray(focusAreas)) {
       throw new Error('Focus areas must be an array');
     }
 
     this.recommendedFocusAreas = focusAreas;
-    
-    // Publish domain event
+
+    // Add domain event instead of directly publishing
     if (this.userId) {
-      domainEvents.publish('FocusAreasRecommended', {
+      this.addDomainEvent('FocusAreasRecommended', {
         userId: this.userId,
-        focusAreas: this.recommendedFocusAreas
+        focusAreas: this.recommendedFocusAreas,
       });
     }
   }
@@ -79,18 +97,21 @@ class Recommendation {
    * Set recommended challenge types
    * @param {Array} challengeTypes - Array of challenge types
    */
+  /**
+   * Method setRecommendedChallengeTypes
+   */
   setRecommendedChallengeTypes(challengeTypes) {
     if (!Array.isArray(challengeTypes)) {
       throw new Error('Challenge types must be an array');
     }
 
     this.recommendedChallengeTypes = challengeTypes;
-    
-    // Publish domain event
+
+    // Add domain event instead of directly publishing
     if (this.userId) {
-      domainEvents.publish('ChallengeTypesRecommended', {
+      this.addDomainEvent('ChallengeTypesRecommended', {
         userId: this.userId,
-        challengeTypes: this.recommendedChallengeTypes
+        challengeTypes: this.recommendedChallengeTypes,
       });
     }
   }
@@ -98,6 +119,9 @@ class Recommendation {
   /**
    * Set suggested learning resources
    * @param {Array} resources - Array of learning resources
+   */
+  /**
+   * Method setSuggestedLearningResources
    */
   setSuggestedLearningResources(resources) {
     if (!Array.isArray(resources)) {
@@ -111,18 +135,21 @@ class Recommendation {
    * Set challenge parameters
    * @param {Object} parameters - Challenge parameters
    */
+  /**
+   * Method setChallengeParameters
+   */
   setChallengeParameters(parameters) {
     if (!parameters || typeof parameters !== 'object') {
       throw new Error('Challenge parameters must be an object');
     }
 
     this.challengeParameters = parameters;
-    
-    // Publish domain event
+
+    // Add domain event instead of directly publishing
     if (this.userId) {
-      domainEvents.publish('ChallengeParametersGenerated', {
+      this.addDomainEvent('ChallengeParametersGenerated', {
         userId: this.userId,
-        challengeParameters: this.challengeParameters
+        challengeParameters: this.challengeParameters,
       });
     }
   }
@@ -131,6 +158,9 @@ class Recommendation {
    * Set strengths and weaknesses
    * @param {Array} strengths - Areas of strength
    * @param {Array} weaknesses - Areas of weakness
+   */
+  /**
+   * Method setStrengthsAndWeaknesses
    */
   setStrengthsAndWeaknesses(strengths, weaknesses) {
     if (strengths && !Array.isArray(strengths)) {
@@ -150,6 +180,9 @@ class Recommendation {
    * @param {string} key - Metadata key
    * @param {any} value - Metadata value
    */
+  /**
+   * Method addMetadata
+   */
   addMetadata(key, value) {
     if (!key) {
       throw new Error('Metadata key is required');
@@ -157,25 +190,6 @@ class Recommendation {
 
     this.metadata[key] = value;
   }
-
-  /**
-   * Convert recommendation data to format suitable for database storage
-   * @returns {Object} Database-formatted recommendation data
-   */
-  toDatabase() {
-    return {
-      id: this.id,
-      user_id: this.userId,
-      created_at: this.createdAt,
-      recommended_focus_areas: this.recommendedFocusAreas,
-      recommended_challenge_types: this.recommendedChallengeTypes,
-      suggested_learning_resources: this.suggestedLearningResources,
-      challenge_parameters: this.challengeParameters,
-      strengths: this.strengths,
-      weaknesses: this.weaknesses,
-      metadata: this.metadata
-    };
-  }
 }
 
-module.exports = Recommendation; 
+module.exports = Recommendation;

@@ -38,6 +38,9 @@ if (!fs.existsSync(LOG_DIR)) {
 }
 
 // Helper to log test actions
+/**
+ *
+ */
 function logTestAction(action, data) {
   const timestamp = new Date().toISOString();
   const logFile = path.join(LOG_DIR, `challenge_evaluation_test_${timestamp.replace(/[:.]/g, '-')}.json`);
@@ -58,7 +61,7 @@ describe('Integration: Challenge-Evaluation Cross-Domain Flow', function() {
     skipIfMissingEnv(this, 'openai');
   });
 
-// Set longer timeout for API calls (2 minutes)
+  // Set longer timeout for API calls (2 minutes)
   this.timeout(120000);
   
   // Skip if API keys not available
@@ -104,7 +107,7 @@ describe('Integration: Challenge-Evaluation Cross-Domain Flow', function() {
         // Create OpenAI client
         const { OpenAIClient } = require('../../src/infra/openai');
         openaiClient = new OpenAIClient({ apiKey: testEnv.getTestConfig().openai.apiKey
-         });
+        });
         
         // Use environment variables if available, otherwise use our obtained credentials
         const supabaseUrl = testEnv.getTestConfig().supabase.url || 'https://dvmfpddmnzaxjmxxpupk.supabase.co';
@@ -122,7 +125,13 @@ describe('Integration: Challenge-Evaluation Cross-Domain Flow', function() {
         );
         
         // Create a simple Challenge model
+        /**
+         *
+         */
         class Challenge {
+          /**
+           *
+           */
           constructor(data) {
             this.id = data.id || uuidv4();
             this.user_email = data.user_email || 'permanent-test-user@example.com';
@@ -141,7 +150,13 @@ describe('Integration: Challenge-Evaluation Cross-Domain Flow', function() {
         }
         
         // Create a simple Evaluation model
+        /**
+         *
+         */
         class Evaluation {
+          /**
+           *
+           */
           constructor(data) {
             this.id = data.id || uuidv4();
             this.challenge_id = data.challenge_id;
@@ -162,7 +177,7 @@ describe('Integration: Challenge-Evaluation Cross-Domain Flow', function() {
         
         // Challenge Repository
         challengeRepository = {
-          save: async (challenge) => {
+          save: async challenge => {
             try {
               // Log what we're about to insert
               logTestAction('ChallengeToSave', { 
@@ -216,7 +231,7 @@ describe('Integration: Challenge-Evaluation Cross-Domain Flow', function() {
             }
           },
           
-          findById: async (id) => {
+          findById: async id => {
             try {
               const { data, error } = await supabaseClient
                 .from('challenges')
@@ -253,7 +268,7 @@ describe('Integration: Challenge-Evaluation Cross-Domain Flow', function() {
         
         // Evaluation Repository
         evaluationRepository = {
-          save: async (evaluation) => {
+          save: async evaluation => {
             try {
               // Log what we're about to insert
               logTestAction('EvaluationToSave', { 
@@ -308,7 +323,7 @@ describe('Integration: Challenge-Evaluation Cross-Domain Flow', function() {
             }
           },
           
-          findById: async (id) => {
+          findById: async id => {
             try {
               const { data, error } = await supabaseClient
                 .from('evaluations')
@@ -343,7 +358,7 @@ describe('Integration: Challenge-Evaluation Cross-Domain Flow', function() {
             }
           },
           
-          findByChallengeId: async (challengeId) => {
+          findByChallengeId: async challengeId => {
             try {
               const { data, error } = await supabaseClient
                 .from('evaluations')
@@ -391,12 +406,12 @@ describe('Integration: Challenge-Evaluation Cross-Domain Flow', function() {
             evaluation_criteria: An array of criteria to evaluate responses by`;
             
             const completion = await openaiClient.responses.create({
-              model: "gpt-4o",
+              model: 'gpt-4o',
               messages: [
-                { role: "system", content: "You are an expert in creating challenging cognitive exercises that test human skills." },
-                { role: "user", content: prompt }
+                { role: 'system', content: 'You are an expert in creating challenging cognitive exercises that test human skills.' },
+                { role: 'user', content: prompt }
               ],
-              response_format: { type: "json_object" }
+              response_format: { type: 'json_object' }
             });
             
             const responseText = completion.choices[0].message.content;
@@ -418,7 +433,7 @@ describe('Integration: Challenge-Evaluation Cross-Domain Flow', function() {
             });
           },
           
-          simulateResponse: async (challenge) => {
+          simulateResponse: async challenge => {
             const prompt = `
             You are presented with the following challenge:
             
@@ -429,10 +444,10 @@ describe('Integration: Challenge-Evaluation Cross-Domain Flow', function() {
             Please provide a thoughtful, well-reasoned response to this challenge.`;
             
             const completion = await openaiClient.responses.create({
-              model: "gpt-4o",
+              model: 'gpt-4o',
               messages: [
-                { role: "system", content: "You are a participant in a cognitive challenge, responding as a human would." },
-                { role: "user", content: prompt }
+                { role: 'system', content: 'You are a participant in a cognitive challenge, responding as a human would.' },
+                { role: 'user', content: prompt }
               ]
             });
             
@@ -459,12 +474,12 @@ describe('Integration: Challenge-Evaluation Cross-Domain Flow', function() {
             category_scores: An object with scores for clarity (1-10), reasoning (1-10), and originality (1-10)`;
             
             const completion = await openaiClient.responses.create({
-              model: "gpt-4o",
+              model: 'gpt-4o',
               messages: [
-                { role: "system", content: "You are an expert evaluator for cognitive challenges." },
-                { role: "user", content: prompt }
+                { role: 'system', content: 'You are an expert evaluator for cognitive challenges.' },
+                { role: 'user', content: prompt }
               ],
-              response_format: { type: "json_object" }
+              response_format: { type: 'json_object' }
             });
             
             const responseJson = completion.choices[0].message.content;

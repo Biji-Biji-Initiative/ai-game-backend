@@ -35,6 +35,9 @@ if (!fs.existsSync(LOG_DIR)) {
 }
 
 // Helper to log test actions
+/**
+ *
+ */
 function logTestAction(action, data) {
   const timestamp = new Date().toISOString();
   const logFile = path.join(LOG_DIR, `prompt_test_${timestamp.replace(/[:.]/g, '-')}.json`);
@@ -55,7 +58,7 @@ describe('Integration: Prompt Flow', function() {
     skipIfMissingEnv(this, 'openai');
   });
 
-// Set longer timeout for API calls
+  // Set longer timeout for API calls
   this.timeout(30000);
   
   // Skip if API keys not available
@@ -97,7 +100,7 @@ describe('Integration: Prompt Flow', function() {
         // Create OpenAI client
         const { OpenAIClient } = require('../../src/infra/openai');
         openaiClient = new OpenAIClient({ apiKey: testEnv.getTestConfig().openai.apiKey
-         });
+        });
         
         // Use environment variables if available, otherwise use our obtained credentials
         const supabaseUrl = testEnv.getTestConfig().supabase.url || 'https://dvmfpddmnzaxjmxxpupk.supabase.co';
@@ -115,7 +118,13 @@ describe('Integration: Prompt Flow', function() {
         );
         
         // Create a simple Prompt model
+        /**
+         *
+         */
         class Prompt {
+          /**
+           *
+           */
           constructor(data) {
             this.id = data.id || uuidv4();
             this.name = data.name;
@@ -131,7 +140,7 @@ describe('Integration: Prompt Flow', function() {
         
         // Create a simple repository that uses Supabase
         promptRepository = {
-          save: async (prompt) => {
+          save: async prompt => {
             try {
               // Log what we're about to insert
               logTestAction('PromptToSave', { 
@@ -181,7 +190,7 @@ describe('Integration: Prompt Flow', function() {
             }
           },
           
-          findById: async (id) => {
+          findById: async id => {
             try {
               const { data, error } = await supabaseClient
                 .from('prompts')
@@ -226,12 +235,12 @@ describe('Integration: Prompt Flow', function() {
             variables: An array of variable names that should be replaced in the template`;
             
             const completion = await openaiClient.responses.create({
-              model: "gpt-4o",
+              model: 'gpt-4o',
               messages: [
-                { role: "system", content: "You are an expert prompt engineer who specializes in creating effective prompts for AI systems." },
-                { role: "user", content: prompt }
+                { role: 'system', content: 'You are an expert prompt engineer who specializes in creating effective prompts for AI systems.' },
+                { role: 'user', content: prompt }
               ],
-              response_format: { type: "json_object" }
+              response_format: { type: 'json_object' }
             });
             
             const responseText = completion.choices[0].message.content;

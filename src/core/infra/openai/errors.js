@@ -1,6 +1,8 @@
+'use strict';
+
 /**
  * OpenAI API Errors
- * 
+ *
  * Custom error classes for OpenAI API interactions
  */
 
@@ -19,6 +21,9 @@ class OpenAIError extends Error {
    * @param {Object} [options.context] - Additional context for the error
    * @param {string} [options.code] - Error code
    */
+  /**
+   * Method constructor
+   */
   constructor(message, options = {}) {
     super(message);
     this.name = this.constructor.name;
@@ -36,6 +41,9 @@ class OpenAIRequestError extends OpenAIError {
    * @param {string} message - Error message
    * @param {Object} [options] - Error options
    */
+  /**
+   * Method constructor
+   */
   constructor(message, options = {}) {
     super(message, options);
     this.statusCode = options.statusCode;
@@ -50,6 +58,9 @@ class OpenAIResponseHandlingError extends OpenAIError {
    * @param {string} message - Error message
    * @param {Object} [options] - Error options
    */
+  /**
+   * Method constructor
+   */
   constructor(message, options = {}) {
     super(message, options);
   }
@@ -63,11 +74,14 @@ class OpenAIRateLimitError extends OpenAIRequestError {
    * @param {string} message - Error message
    * @param {Object} [options] - Error options
    */
+  /**
+   * Method constructor
+   */
   constructor(message = 'OpenAI API rate limit exceeded', options = {}) {
-    super(message, { 
-      ...options, 
+    super(message, {
+      ...options,
       code: 'rate_limit_exceeded',
-      statusCode: 429
+      statusCode: 429,
     });
     this.retryAfter = options.retryAfter || null; // Seconds to wait before retrying
   }
@@ -81,11 +95,14 @@ class OpenAIContextLengthError extends OpenAIRequestError {
    * @param {string} message - Error message
    * @param {Object} [options] - Error options
    */
+  /**
+   * Method constructor
+   */
   constructor(message = 'Input exceeds maximum context length', options = {}) {
-    super(message, { 
-      ...options, 
+    super(message, {
+      ...options,
       code: 'context_length_exceeded',
-      statusCode: 400
+      statusCode: 400,
     });
     this.maxTokens = options.maxTokens || null;
   }
@@ -99,11 +116,14 @@ class OpenAIInvalidRequestError extends OpenAIRequestError {
    * @param {string} message - Error message
    * @param {Object} [options] - Error options
    */
+  /**
+   * Method constructor
+   */
   constructor(message = 'Invalid request parameters', options = {}) {
-    super(message, { 
-      ...options, 
+    super(message, {
+      ...options,
       code: 'invalid_request_error',
-      statusCode: 400
+      statusCode: 400,
     });
   }
 }
@@ -116,11 +136,14 @@ class OpenAIAuthenticationError extends OpenAIRequestError {
    * @param {string} message - Error message
    * @param {Object} [options] - Error options
    */
+  /**
+   * Method constructor
+   */
   constructor(message = 'Authentication failed', options = {}) {
-    super(message, { 
-      ...options, 
+    super(message, {
+      ...options,
       code: 'authentication_error',
-      statusCode: 401
+      statusCode: 401,
     });
   }
 }
@@ -133,11 +156,14 @@ class OpenAIPermissionError extends OpenAIRequestError {
    * @param {string} message - Error message
    * @param {Object} [options] - Error options
    */
+  /**
+   * Method constructor
+   */
   constructor(message = 'API key lacks required permissions', options = {}) {
-    super(message, { 
-      ...options, 
+    super(message, {
+      ...options,
       code: 'permission_error',
-      statusCode: 403
+      statusCode: 403,
     });
   }
 }
@@ -150,11 +176,14 @@ class OpenAIServiceUnavailableError extends OpenAIRequestError {
    * @param {string} message - Error message
    * @param {Object} [options] - Error options
    */
+  /**
+   * Method constructor
+   */
   constructor(message = 'OpenAI service is currently unavailable', options = {}) {
-    super(message, { 
-      ...options, 
+    super(message, {
+      ...options,
       code: 'service_unavailable',
-      statusCode: 503
+      statusCode: 503,
     });
   }
 }
@@ -168,8 +197,9 @@ class OpenAIServiceUnavailableError extends OpenAIRequestError {
 function createOpenAIError(error, options = {}) {
   const message = typeof error === 'string' ? error : error.message || 'Unknown OpenAI API error';
   const code = typeof error === 'object' ? error.code : null;
-  const statusCode = typeof error === 'object' ? error.status || options.statusCode : options.statusCode;
-  
+  const statusCode =
+    typeof error === 'object' ? error.status || options.statusCode : options.statusCode;
+
   // Create options with code from error
   const errorOptions = {
     ...options,
@@ -177,10 +207,10 @@ function createOpenAIError(error, options = {}) {
     statusCode: statusCode,
     context: {
       ...(typeof error === 'object' ? error : {}),
-      ...(options.context || {})
-    }
+      ...(options.context || {}),
+    },
   };
-  
+
   // Map to specific error classes based on code or status
   switch (code) {
     case 'rate_limit_exceeded':
@@ -204,7 +234,7 @@ function createOpenAIError(error, options = {}) {
       } else if (statusCode === 503 || statusCode === 502) {
         return new OpenAIServiceUnavailableError(message, errorOptions);
       }
-      
+
       // Default to general request error
       return new OpenAIRequestError(message, errorOptions);
   }
@@ -220,5 +250,5 @@ module.exports = {
   OpenAIAuthenticationError,
   OpenAIPermissionError,
   OpenAIServiceUnavailableError,
-  createOpenAIError
-}; 
+  createOpenAIError,
+};

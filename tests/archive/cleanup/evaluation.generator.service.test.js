@@ -16,7 +16,7 @@ describe('Evaluation Generator Service', function() {
   // Set longer timeout for API calls
   this.timeout(30000);
 
-let sandbox;
+  let sandbox;
   let challengeRepository;
   let evaluationRepository;
   let openAIMock;
@@ -36,16 +36,16 @@ let sandbox;
         message: {
           content: JSON.stringify({
             overall_score: 8,
-            feedback: "This is a well-reasoned response that demonstrates good critical thinking skills. The solution is systematic and addresses most of the constraints in the puzzle.",
+            feedback: 'This is a well-reasoned response that demonstrates good critical thinking skills. The solution is systematic and addresses most of the constraints in the puzzle.',
             strengths: [
-              "Clear logical approach",
-              "Step-by-step reasoning",
-              "Correctly identified constraints"
+              'Clear logical approach',
+              'Step-by-step reasoning',
+              'Correctly identified constraints'
             ],
             areas_for_improvement: [
-              "Minor inconsistency in the initial reasoning",
-              "Could be more concise",
-              "Some redundant analysis"
+              'Minor inconsistency in the initial reasoning',
+              'Could be more concise',
+              'Some redundant analysis'
             ],
             category_scores: {
               clarity: 8,
@@ -83,18 +83,18 @@ let sandbox;
         
         // Make the completion call to OpenAI
         const completion = await openAIMock.responses.create({
-          model: "gpt-4",
+          model: 'gpt-4',
           messages: [
             {
-              role: "system",
-              content: "You are an evaluator for critical thinking challenges. Provide an assessment of the user's solution with constructive feedback."
+              role: 'system',
+              content: 'You are an evaluator for critical thinking challenges. Provide an assessment of the user\'s solution with constructive feedback.'
             },
             {
-              role: "user",
+              role: 'user',
               content: promptText
             }
           ],
-          response_format: { type: "json_object" }
+          response_format: { type: 'json_object' }
         });
         
         // Get the response and parse it
@@ -121,11 +121,11 @@ let sandbox;
         return evaluation;
       },
       
-      getEvaluationById: async (id) => {
+      getEvaluationById: async id => {
         return await evaluationRepository.findById(id);
       },
       
-      getEvaluationsByChallengeId: async (challengeId) => {
+      getEvaluationsByChallengeId: async challengeId => {
         return await evaluationRepository.findByChallengeId(challengeId);
       }
     };
@@ -209,9 +209,9 @@ let sandbox;
           message: {
             content: JSON.stringify({
               overall_score: 6,
-              feedback: "The response shows some understanding but lacks depth of analysis.",
-              strengths: ["Good attempt", "Some valid points"],
-              areas_for_improvement: ["Deepen analysis", "Consider more alternatives", "Provide evidence"],
+              feedback: 'The response shows some understanding but lacks depth of analysis.',
+              strengths: ['Good attempt', 'Some valid points'],
+              areas_for_improvement: ['Deepen analysis', 'Consider more alternatives', 'Provide evidence'],
               category_scores: {
                 clarity: 5,
                 reasoning: 6,
@@ -231,7 +231,7 @@ let sandbox;
         }
       };
       
-      const userResponse = "Autonomous vehicles raise ethical concerns about decision-making in unavoidable accident scenarios.";
+      const userResponse = 'Autonomous vehicles raise ethical concerns about decision-making in unavoidable accident scenarios.';
       
       // Save challenge to repository
       await challengeRepository.save(challenge);

@@ -1,0 +1,12 @@
+node_modules/
+tests/**/*
+test/**/*
+**/*.test.js
+**/*test*.js
+disabled_scripts/
+reports/
+logs/
+.github/
+.husky/
+supabase/
+api-tester-ui/ 

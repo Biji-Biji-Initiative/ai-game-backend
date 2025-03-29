@@ -25,11 +25,20 @@ const testEnv = require('../loadEnv');
 const { skipIfMissingEnv } = require('../helpers/testHelpers');
 // Mock challenge generation service - we'll replace this with the real one when available
 // This is just to simulate what the real service would do in production
+/**
+ *
+ */
 class ChallengeService {
+  /**
+   *
+   */
   constructor(challengeRepository) {
     this.challengeRepository = challengeRepository;
   }
   
+  /**
+   *
+   */
   async generateChallenge(userId, focusArea, options = {}) {
     // Create a challenge with our domain model
     const challenge = new Challenge({
@@ -55,6 +64,9 @@ class ChallengeService {
     return await this.challengeRepository.save(challenge);
   }
   
+  /**
+   *
+   */
   async completeChallenge(challengeId, userId, response, score) {
     // Get the challenge
     const challenge = await this.challengeRepository.findById(challengeId);
@@ -84,7 +96,13 @@ class ChallengeService {
 }
 
 // Simplified evaluation service for testing
+/**
+ *
+ */
 class EvaluationService {
+  /**
+   *
+   */
   async evaluateResponse(challenge, userResponse) {
     // In a real implementation, this would call the evaluation prompt builder
     // and the responses API to evaluate the response
@@ -117,7 +135,7 @@ describe('Challenge Workflow with Real APIs', function() {
     skipIfMissingEnv(this, 'openai');
   });
 
-// Set longer timeout for real API calls
+  // Set longer timeout for real API calls
   this.timeout(30000);
   
   let testUser;
@@ -142,7 +160,7 @@ describe('Challenge Workflow with Real APIs', function() {
     evaluationService = new EvaluationService();
     
     // Register domain event handler to test cross-domain communication
-    domainEvents.registerHandler('FocusAreaCompleted', async (event) => {
+    domainEvents.registerHandler('FocusAreaCompleted', async event => {
       focusAreaCompletedHandlerCalled = true;
       console.log('FocusAreaCompleted event received:', event.data);
     });

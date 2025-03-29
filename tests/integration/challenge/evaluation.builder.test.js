@@ -60,7 +60,7 @@ describe('Evaluation Prompt with Responses API Integration', () => {
   // Set longer timeout for API calls
   this.timeout(30000);
 
-beforeEach(() => {
+  beforeEach(() => {
     // Reset mock history
     sinon.resetHistory();
     

@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Challenge Type Repository
  * 
@@ -8,7 +10,7 @@
  * @requires logger
  */
 
-const AppError = require('../../infra/errors/AppError');
+const { AppError } = require('../../common/errors/AppError');
 const { logger } = require('../../infra/logging/logger');
 
 /**
@@ -32,7 +34,7 @@ class ChallengeTypeRepository {
    * @param {string} code - Challenge type code
    * @returns {Promise<Object>} Challenge type data
    */
-  async findByCode(code) {
+  findByCode(code) {
     try {
       this.logger.debug('Finding challenge type by code', { code });
       
@@ -64,7 +66,7 @@ class ChallengeTypeRepository {
    * Get all available challenge types
    * @returns {Promise<Array>} List of challenge types
    */
-  async findAll() {
+  findAll() {
     try {
       this.logger.debug('Finding all challenge types');
       
@@ -94,7 +96,7 @@ class ChallengeTypeRepository {
    * @param {Object} challengeType - Challenge type data
    * @returns {Promise<Object>} Created challenge type
    */
-  async create(challengeType) {
+  create(challengeType) {
     try {
       this.logger.debug('Creating new challenge type', { 
         code: challengeType.code,
@@ -138,7 +140,7 @@ class ChallengeTypeRepository {
    * @param {Object} updates - Challenge type updates
    * @returns {Promise<Object>} Updated challenge type
    */
-  async update(code, updates) {
+  update(code, updates) {
     try {
       this.logger.debug('Updating challenge type', { code });
       
@@ -159,6 +161,38 @@ class ChallengeTypeRepository {
       return data;
     } catch (error) {
       this.logger.error('Error updating challenge type', {
+        error: error.message,
+        code
+      });
+      
+      throw error;
+    }
+  }
+  
+  /**
+   * Delete a challenge type
+   * @param {string} code - Challenge type code
+   * @returns {Promise<boolean>} Success status
+   */
+  delete(code) {
+    try {
+      this.logger.debug('Deleting challenge type', { code });
+      
+      const { error } = await this.db
+        .from(this.tableName)
+        .delete()
+        .eq('code', code);
+      
+      if (error) {
+        throw new AppError(`Database error: ${error.message}`, 500, {
+          errorCode: 'DATABASE_ERROR',
+          metadata: { operation: 'delete', code }
+        });
+      }
+      
+      return true;
+    } catch (error) {
+      this.logger.error('Error deleting challenge type', {
         error: error.message,
         code
       });

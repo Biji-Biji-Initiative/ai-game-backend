@@ -277,7 +277,7 @@ describe.only('Evaluation Repository with Zod Validation', () => {
       sandbox.stub(evaluationRepository, 'getEvaluationById').resolves(null);
       
       // Mock createEvaluation to succeed
-      sandbox.stub(evaluationRepository, 'createEvaluation').callsFake((data) => {
+      sandbox.stub(evaluationRepository, 'createEvaluation').callsFake(data => {
         return Promise.resolve(new Evaluation(data));
       });
     });

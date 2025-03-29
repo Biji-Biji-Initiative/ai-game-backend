@@ -1,12 +1,45 @@
+'use strict';
+
 /**
  * Traits Analysis Service
  * 
  * Domain service that provides utilities for analyzing personality traits and AI attitudes.
  * Centralizes all personality analytics functions in the personality domain.
  */
-const { personalityLogger } = require('../../infra/logging/domainLogger');
+const {
+  applyRepositoryErrorHandling,
+  applyServiceErrorHandling,
+  applyControllerErrorHandling,
+  createErrorMapper
+} = require('../../../core/infra/errors/centralizedErrorUtils');
 
+// Import domain-specific error classes
+const {
+  PersonalityError,
+  PersonalityNotFoundError,
+  PersonalityValidationError,
+  PersonalityProcessingError,
+} = require('../errors/PersonalityErrors');
+
+// Create an error mapper for services
+const personalityServiceErrorMapper = createErrorMapper(
+  {
+    PersonalityNotFoundError: PersonalityNotFoundError,
+    PersonalityValidationError: PersonalityValidationError,
+    PersonalityProcessingError: PersonalityProcessingError,
+    Error: PersonalityError,
+  },
+  PersonalityError
+);
+const { personalityLogger } = require('../../../core/infra/logging/domainLogger');
+
+/**
+ *
+ */
 class TraitsAnalysisService {
+  /**
+   * Constructor
+   */
   constructor(personalityRepository) {
     this.personalityRepository = personalityRepository;
     this.logger = personalityLogger.child('traitsAnalysis');
@@ -106,7 +139,9 @@ class TraitsAnalysisService {
       const categoryScores = {};
       Object.entries(categories).forEach(([category, attitudes]) => {
         const relevantAttitudes = attitudes.filter(a => aiAttitudes[a] !== undefined);
-        if (relevantAttitudes.length === 0) return;
+        if (relevantAttitudes.length === 0) {
+          return;
+        }
         
         const sum = relevantAttitudes.reduce((acc, att) => acc + aiAttitudes[att], 0);
         categoryScores[category] = Math.round(sum / relevantAttitudes.length);
@@ -120,8 +155,12 @@ class TraitsAnalysisService {
       
       // Determine overall stance
       let stance = 'neutral';
-      if (overall >= 70) stance = 'positive';
-      else if (overall <= 30) stance = 'cautious';
+      if (overall >= 70) {
+        stance = 'positive';
+      }
+      else if (overall <= 30) {
+        stance = 'cautious';
+      }
       
       return {
         overall: stance,
@@ -151,9 +190,11 @@ class TraitsAnalysisService {
       .sort((a, b) => b[1] - a[1])
       .shift();
     
-    if (!highestCategory) return 'No significant AI attitude patterns detected';
+    if (!highestCategory) {
+      return 'No significant AI attitude patterns detected';
+    }
     
-    const [category, score] = highestCategory;
+    const [category, _score] = highestCategory;
     
     const summaries = {
       positive: {
@@ -181,10 +222,10 @@ class TraitsAnalysisService {
    * @param {string} userId - User ID
    * @returns {Promise<Object>} Personality profile with computed insights
    */
-  async getEnrichedProfile(userId) {
+  getEnrichedProfile(userId) {
     try {
       // Get or create personality profile
-      let profile = await this.personalityRepository.findByUserId(userId);
+      const profile = await this.personalityRepository.findByUserId(userId);
       
       if (!profile) {
         return {
@@ -199,7 +240,9 @@ class TraitsAnalysisService {
       }
       
       // Compute insights if needed
-      if (Object.keys(profile.personalityTraits).length > 0 && 
+      if (Object.keys(profile.personalityTraits) {
+  .length > 0 && 
+}
           (!profile.dominantTraits || profile.dominantTraits.length === 0)) {
         
         const dominantTraits = this.computeDominantTraits(profile.personalityTraits);
@@ -212,7 +255,9 @@ class TraitsAnalysisService {
       }
       
       // Compute AI attitude profile if needed
-      if (Object.keys(profile.aiAttitudes).length > 0 && 
+      if (Object.keys(profile.aiAttitudes) {
+  .length > 0 && 
+}
           (!profile.aiAttitudeProfile || Object.keys(profile.aiAttitudeProfile).length === 0)) {
         
         const aiAttitudeProfile = this.analyzeAiAttitudes(profile.aiAttitudes);

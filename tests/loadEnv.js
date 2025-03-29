@@ -74,7 +74,7 @@ module.exports = {
    * @param {string} testType - Type of test ('openai', 'supabase', etc.)
    * @returns {boolean} - Whether all required variables are present
    */
-  hasRequiredVars: (testType) => {
+  hasRequiredVars: testType => {
     switch (testType) {
       case 'openai':
         return !!process.env.OPENAI_API_KEY;

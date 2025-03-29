@@ -28,7 +28,7 @@ describe('Integration: OpenAI to Supabase Workflow', function() {
     skipIfMissingEnv(this, 'openai');
   });
 
-// Set longer timeout for API calls
+  // Set longer timeout for API calls
   this.timeout(30000);
   
   // Skip if API keys not available
@@ -52,7 +52,7 @@ describe('Integration: OpenAI to Supabase Workflow', function() {
     // Create OpenAI client
     const { OpenAIClient } = require('../../src/infra/openai');
     openaiClient = new OpenAIClient({ apiKey: testEnv.getTestConfig().openai.apiKey
-     });
+    });
     
     // Create Supabase client
     const { createClient } = require('@supabase/supabase-js');
@@ -62,7 +62,13 @@ describe('Integration: OpenAI to Supabase Workflow', function() {
     );
     
     // Create a simple Challenge class for this test
+    /**
+     *
+     */
     class Challenge {
+      /**
+       *
+       */
       constructor(data) {
         this.id = data.id || uuidv4();
         this.title = data.title;
@@ -80,7 +86,7 @@ describe('Integration: OpenAI to Supabase Workflow', function() {
     
     // Create challenge repository that uses Supabase
     challengeRepository = {
-      save: async (challenge) => {
+      save: async challenge => {
         try {
           console.log('Saving challenge with user_email:', challenge.user_email);
           
@@ -113,7 +119,7 @@ describe('Integration: OpenAI to Supabase Workflow', function() {
         }
       },
       
-      findById: async (id) => {
+      findById: async id => {
         try {
           const { data, error } = await supabaseClient
             .from('challenges')
@@ -139,7 +145,7 @@ describe('Integration: OpenAI to Supabase Workflow', function() {
         }
       },
       
-      delete: async (id) => {
+      delete: async id => {
         try {
           const { error } = await supabaseClient
             .from('challenges')
@@ -165,7 +171,7 @@ describe('Integration: OpenAI to Supabase Workflow', function() {
   
   it('should generate a challenge and save it to Supabase', async function() {
     // 1. ARRANGE
-    const category = "logical-reasoning";
+    const category = 'logical-reasoning';
     let challenge = null;
     
     try {
@@ -215,12 +221,12 @@ describe('Integration: OpenAI to Supabase Workflow', function() {
         difficulty: The difficulty level (easy, medium, or hard)`;
       
       const completion = await openaiClient.responses.create({
-        model: "gpt-4o",
+        model: 'gpt-4o',
         messages: [
-          { role: "system", content: "You are an expert at creating engaging cognitive challenges that test problem-solving abilities." },
-          { role: "user", content: prompt }
+          { role: 'system', content: 'You are an expert at creating engaging cognitive challenges that test problem-solving abilities.' },
+          { role: 'user', content: prompt }
         ],
-        response_format: { type: "json_object" }
+        response_format: { type: 'json_object' }
       });
       
       const responseText = completion.choices[0].message.content;

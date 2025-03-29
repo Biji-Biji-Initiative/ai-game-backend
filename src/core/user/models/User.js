@@ -1,23 +1,26 @@
+'use strict';
+
 /**
  * User domain model
- * 
+ *
  * This model represents a user in the system and encapsulates user-specific behavior.
  * Uses Zod for data validation to ensure integrity.
  * Personality data is now managed by the personality domain.
  */
 
-const { EventTypes, eventBus } = require('../../common/events/domainEvents');
-const { userSchema, toDatabase } = require('../schemas/userSchema');
+const { EventTypes } = require('../../common/events/domainEvents');
+const { userSchema } = require('../schemas/userSchema');
 const { Email, FocusArea } = require('../../common/valueObjects');
-const {
-  UserValidationError,
-  UserInvalidStateError
-} = require('../errors/UserErrors');
+const { UserValidationError, UserInvalidStateError } = require('../errors/UserErrors');
 
+/**
+ * User domain entity
+ */
 class User {
   /**
    * Create a user instance
-   * @param {Object} data - User data
+   * @param {Object} data - User data including id, email, fullName, and other user properties
+   * @throws {UserValidationError} If the provided data fails validation
    */
   constructor(data = {}) {
     const userData = {
@@ -39,12 +42,12 @@ class User {
       status: data.status || 'active',
       roles: data.roles || ['user'],
       onboardingCompleted: data.onboarding_completed || data.onboardingCompleted || false,
-      lastLoginAt: data.last_login_at || data.lastLoginAt || null
+      lastLoginAt: data.last_login_at || data.lastLoginAt || null,
     };
 
     // Parse and validate with zod, using safeParse to handle errors
     const result = userSchema.safeParse(userData);
-    
+
     if (result.success) {
       Object.assign(this, result.data);
     } else {
@@ -52,24 +55,55 @@ class User {
       const errorMessage = `User data validation failed: ${result.error.message}`;
       throw new UserValidationError(errorMessage);
     }
-    
+
     // Convert email to Email value object if valid
     if (this.email && Email.isValid(this.email)) {
       this._emailVO = new Email(this.email);
     }
-    
+
     // Convert focusArea to FocusArea value object if valid
     if (this.focusArea && FocusArea.isValid(this.focusArea)) {
       this._focusAreaVO = new FocusArea(this.focusArea);
     }
-    
-    // Subscribe to relevant personality domain events
-    this._subscribeToPersonalityEvents();
-    
+
+    // Initialize domain events array
+    this._domainEvents = [];
+
     // Enforce invariants on creation
     this._enforceInvariants();
   }
-  
+
+  /**
+   * Add a domain event to be published later
+   * @param {string} eventType - Event type from EventTypes enum
+   * @param {Object} eventData - Event data payload associated with the event
+   */
+  addDomainEvent(eventType, eventData) {
+    if (!this._domainEvents) {
+      this._domainEvents = [];
+    }
+
+    this._domainEvents.push({
+      eventType,
+      eventData,
+    });
+  }
+
+  /**
+   * Get all collected domain events
+   * @returns {Array} Array of domain events
+   */
+  getDomainEvents() {
+    return this._domainEvents || [];
+  }
+
+  /**
+   * Clear all collected domain events
+   */
+  clearDomainEvents() {
+    this._domainEvents = [];
+  }
+
   /**
    * Enforce domain invariants
    * @private
@@ -79,7 +113,7 @@ class User {
     if (!this.email) {
       throw new UserValidationError('User must have an email address');
     }
-    
+
     if (!this._emailVO) {
       try {
         this._emailVO = new Email(this.email);
@@ -87,23 +121,23 @@ class User {
         throw new UserValidationError(`Invalid email address: ${this.email}`);
       }
     }
-    
+
     // User must have a valid status
     const validStatuses = ['active', 'inactive', 'suspended', 'pending'];
     if (!validStatuses.includes(this.status)) {
       throw new UserValidationError(`Invalid user status: ${this.status}`);
     }
-    
+
     // User must have valid roles array
     if (!Array.isArray(this.roles) || this.roles.length === 0) {
       throw new UserValidationError('User must have at least one role');
     }
-    
+
     // If onboarding is completed, focus area must be set
     if (this.onboardingCompleted && !this.focusArea) {
       throw new UserInvalidStateError('User with completed onboarding must have a focus area');
     }
-    
+
     // User with inactive status should not have lastActive time in the future
     if (this.status === 'inactive' && this.lastActive) {
       const lastActiveDate = new Date(this.lastActive);
@@ -113,7 +147,7 @@ class User {
       }
     }
   }
-  
+
   /**
    * Get email as a value object
    * @returns {Email|null} Email value object or null if invalid
@@ -124,7 +158,7 @@ class User {
     }
     return this._emailVO || null;
   }
-  
+
   /**
    * Get focus area as a value object
    * @returns {FocusArea|null} FocusArea value object or null if invalid/not set
@@ -140,15 +174,6 @@ class User {
     }
     return this._focusAreaVO || null;
   }
-  
-  /**
-   * Subscribe to personality domain events
-   * @private
-   */
-  _subscribeToPersonalityEvents() {
-    // No need to do anything here as the User service will handle the events
-    // This method is kept as a placeholder for documentation purposes
-  }
 
   /**
    * Validate the user model
@@ -156,21 +181,19 @@ class User {
    */
   validate() {
     const result = userSchema.safeParse(this);
-    
+
     if (result.success) {
       return {
         isValid: true,
-        errors: []
+        errors: [],
       };
     } else {
       // Extract error messages from Zod validation result
-      const errorMessages = result.error.errors.map(err => 
-        `${err.path.join('.')}: ${err.message}`
-      );
-      
+      const errorMessages = result.error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
+
       return {
         isValid: false,
-        errors: errorMessages
+        errors: errorMessages,
       };
     }
   }
@@ -197,32 +220,29 @@ class User {
    * @throws {UserInvalidStateError} If user cannot complete onboarding
    */
   completeOnboarding() {
-    // Cannot complete onboarding without a focus area
+    // Check if we can set onboarding as completed
     if (!this.focusArea) {
-      throw new UserInvalidStateError('Cannot complete onboarding without setting a focus area');
+      throw new UserInvalidStateError('Cannot complete onboarding without a focus area');
     }
-    
+
     this.onboardingCompleted = true;
     this.updatedAt = new Date().toISOString();
-    
-    // Publish domain event for onboarding completion
+
+    // Record domain event for onboarding completion
     if (this.id) {
-      eventBus.publishEvent(EventTypes.USER_ONBOARDING_COMPLETED, {
+      this.addDomainEvent(EventTypes.USER_ONBOARDING_COMPLETED, {
         userId: this.id,
-        timestamp: this.updatedAt
+        timestamp: this.updatedAt,
       });
     }
-    
-    // Enforce invariants after state change
-    this._enforceInvariants();
-    
+
     return this;
   }
 
   /**
-   * Check if the user has a specific role
+   * Check if user has a specific role
    * @param {string} role - Role to check
-   * @returns {boolean} True if the user has the role
+   * @returns {boolean} True if user has the role
    */
   hasRole(role) {
     return Array.isArray(this.roles) && this.roles.includes(role);
@@ -238,25 +258,25 @@ class User {
     if (!role || typeof role !== 'string') {
       throw new UserValidationError('Role must be a non-empty string');
     }
-    
+
     if (!Array.isArray(this.roles)) {
       this.roles = [];
     }
-    
+
     if (!this.roles.includes(role)) {
       this.roles.push(role);
       this.updatedAt = new Date().toISOString();
-      
-      // Publish domain event for role assignment
+
+      // Record domain event for role assignment
       if (this.id) {
-        eventBus.publishEvent(EventTypes.USER_ROLE_ASSIGNED, {
+        this.addDomainEvent(EventTypes.USER_ROLE_ASSIGNED, {
           userId: this.id,
           role,
-          timestamp: this.updatedAt
+          timestamp: this.updatedAt,
         });
       }
     }
-    
+
     return this;
   }
 
@@ -270,26 +290,26 @@ class User {
     if (!Array.isArray(this.roles)) {
       return this;
     }
-    
+
     // Prevent removing the last role
     if (this.roles.length === 1 && this.roles.includes(role)) {
       throw new UserInvalidStateError('Cannot remove the only role from a user');
     }
-    
+
     if (this.roles.includes(role)) {
       this.roles = this.roles.filter(r => r !== role);
       this.updatedAt = new Date().toISOString();
-      
-      // Publish domain event for role removal
+
+      // Record domain event for role removal
       if (this.id) {
-        eventBus.publishEvent(EventTypes.USER_ROLE_REMOVED, {
+        this.addDomainEvent(EventTypes.USER_ROLE_REMOVED, {
           userId: this.id,
           role,
-          timestamp: this.updatedAt
+          timestamp: this.updatedAt,
         });
       }
     }
-    
+
     return this;
   }
 
@@ -310,20 +330,20 @@ class User {
       const previousStatus = this.status;
       this.status = 'active';
       this.updatedAt = new Date().toISOString();
-      
-      // Publish domain event for account activation
+
+      // Record domain event for account activation
       if (this.id) {
-        eventBus.publishEvent(EventTypes.USER_ACTIVATED, {
+        this.addDomainEvent(EventTypes.USER_ACTIVATED, {
           userId: this.id,
           previousStatus,
-          timestamp: this.updatedAt
+          timestamp: this.updatedAt,
         });
       }
     }
-    
+
     // Enforce invariants after state change
     this._enforceInvariants();
-    
+
     return this;
   }
 
@@ -336,20 +356,20 @@ class User {
       const previousStatus = this.status;
       this.status = 'inactive';
       this.updatedAt = new Date().toISOString();
-      
-      // Publish domain event for account deactivation
+
+      // Record domain event for account deactivation
       if (this.id) {
-        eventBus.publishEvent(EventTypes.USER_DEACTIVATED, {
+        this.addDomainEvent(EventTypes.USER_DEACTIVATED, {
           userId: this.id,
           previousStatus,
-          timestamp: this.updatedAt
+          timestamp: this.updatedAt,
         });
       }
     }
-    
+
     // Enforce invariants after state change
     this._enforceInvariants();
-    
+
     return this;
   }
 
@@ -363,19 +383,19 @@ class User {
     if (!this.isActive()) {
       throw new UserInvalidStateError('Cannot record login for inactive user');
     }
-    
+
     this.lastLoginAt = new Date().toISOString();
     this.lastActive = this.lastLoginAt;
     this.updatedAt = this.lastLoginAt;
-    
-    // Publish domain event for user login
+
+    // Record domain event for user login
     if (this.id) {
-      eventBus.publishEvent(EventTypes.USER_LOGGED_IN, {
+      this.addDomainEvent(EventTypes.USER_LOGGED_IN, {
         userId: this.id,
-        timestamp: this.lastLoginAt
+        timestamp: this.lastLoginAt,
       });
     }
-    
+
     return this;
   }
 
@@ -390,14 +410,23 @@ class User {
     if (!key || typeof key !== 'string') {
       throw new UserValidationError('Preference key must be a non-empty string');
     }
-    
+
     if (!this.preferences) {
       this.preferences = {};
     }
-    
+
     this.preferences[key] = value;
     this.updatedAt = new Date().toISOString();
-    
+
+    // Record domain event for preference update
+    if (this.id) {
+      this.addDomainEvent(EventTypes.USER_PREFERENCES_UPDATED, {
+        userId: this.id,
+        key,
+        timestamp: this.updatedAt,
+      });
+    }
+
     return this;
   }
 
@@ -405,177 +434,139 @@ class User {
    * Get user preference
    * @param {string} key - Preference key
    * @param {any} defaultValue - Default value if preference not found
-   * @returns {any} Preference value or default
+   * @returns {any} Preference value or defaultValue if not found
    */
   getPreference(key, defaultValue = null) {
-    if (!this.preferences || !this.preferences[key]) {
+    if (!key || !this.preferences) {
       return defaultValue;
     }
-    
-    return this.preferences[key];
+
+    return this.preferences[key] !== undefined ? this.preferences[key] : defaultValue;
   }
 
   /**
    * Update AI interaction preferences
-   * @param {Object} aiInteractionPreferences - The AI interaction preferences to set
+   * @param {Object} aiInteractionPreferences - AI interaction preferences
    * @returns {User} This user instance for chaining
-   * @throws {UserValidationError} If preferences are invalid
    */
   updateAIPreferences(aiInteractionPreferences) {
     if (!aiInteractionPreferences || typeof aiInteractionPreferences !== 'object') {
-      throw new UserValidationError('AI interaction preferences must be a valid object');
+      return this;
     }
-    
-    // Initialize preferences object if it doesn't exist
+
     if (!this.preferences) {
       this.preferences = {};
     }
-    
-    // Initialize AI interaction preferences if they don't exist
-    if (!this.preferences.aiInteraction) {
-      this.preferences.aiInteraction = {};
+
+    if (!this.preferences.ai) {
+      this.preferences.ai = {};
     }
-    
-    // Update AI interaction preferences
-    this.preferences.aiInteraction = {
-      ...this.preferences.aiInteraction,
-      ...aiInteractionPreferences
+
+    // Update AI preferences
+    this.preferences.ai = {
+      ...this.preferences.ai,
+      ...aiInteractionPreferences,
     };
-    
+
     this.updatedAt = new Date().toISOString();
-    
-    // Publish domain event for preference update
+
+    // Record domain event for AI preferences update
     if (this.id) {
-      eventBus.publishEvent(EventTypes.USER_PREFERENCES_UPDATED, {
+      this.addDomainEvent(EventTypes.USER_AI_PREFERENCES_UPDATED, {
         userId: this.id,
-        preferencesUpdated: 'aiInteraction',
-        timestamp: this.updatedAt
+        timestamp: this.updatedAt,
       });
     }
-    
+
     return this;
   }
 
   /**
-   * Convert user data to format suitable for database storage
-   * @returns {Object} Database-formatted user data
-   */
-  toDatabase() {
-    return toDatabase(this);
-  }
-
-  /**
-   * Update user activity timestamp
+   * Update user's last activity timestamp
    * @returns {User} This user instance for chaining
    */
   updateActivity() {
     this.lastActive = new Date().toISOString();
-    this.updatedAt = new Date().toISOString();
+    this.updatedAt = this.lastActive;
     return this;
   }
 
   /**
    * Set user's focus area
-   * @param {string|FocusArea} focusArea - The focus area to set
-   * @param {string} threadId - Optional thread ID for the focus area generation
+   * @param {string} focusArea - Focus area code
+   * @param {string} threadId - Thread ID for focus area conversation
    * @returns {User} This user instance for chaining
-   * @throws {UserValidationError} If focus area is invalid
    */
   setFocusArea(focusArea, threadId = null) {
-    const previousFocusArea = this.focusArea;
-    
-    // Handle FocusArea value object or string
-    if (focusArea instanceof FocusArea) {
-      this.focusArea = focusArea.code;
-      this._focusAreaVO = focusArea;
-    } else {
-      try {
-        const focusAreaVO = new FocusArea(focusArea);
-        this.focusArea = focusAreaVO.code;
-        this._focusAreaVO = focusAreaVO;
-      } catch (error) {
-        throw new UserValidationError(`Invalid focus area: ${focusArea}`);
+    if (!focusArea) {
+      return this;
+    }
+
+    try {
+      // Validate focus area using value object
+      const focusAreaVO = new FocusArea(focusArea);
+
+      const previousFocusArea = this.focusArea;
+      this.focusArea = focusAreaVO.code;
+      this._focusAreaVO = focusAreaVO;
+
+      if (threadId) {
+        this.focusAreaThreadId = threadId;
       }
+
+      this.updatedAt = new Date().toISOString();
+
+      // Record domain event for focus area change
+      if (this.id && this.focusArea !== previousFocusArea) {
+        this.addDomainEvent(EventTypes.USER_FOCUS_AREA_CHANGED, {
+          userId: this.id,
+          previousFocusArea,
+          newFocusArea: this.focusArea,
+          timestamp: this.updatedAt,
+        });
+      }
+    } catch (error) {
+      throw new UserValidationError(`Invalid focus area: ${error.message}`);
     }
-    
-    if (threadId) this.focusAreaThreadId = threadId;
-    this.updatedAt = new Date().toISOString();
-    
-    // Publish domain event for focus area change
-    if (this.id && this.focusArea !== previousFocusArea) {
-      eventBus.publishEvent(EventTypes.USER_FOCUS_AREA_SET, {
-        userId: this.id,
-        previousFocusArea,
-        newFocusArea: this.focusArea,
-        threadId: this.focusAreaThreadId
-      });
-    }
-    
-    // Enforce invariants after state change
-    this._enforceInvariants();
-    
+
     return this;
   }
-  
+
   /**
-   * Update user profile information
-   * @param {Object} updates - The profile updates to apply
+   * Update user profile
+   * @param {Object} updates - Profile updates
    * @returns {User} This user instance for chaining
-   * @throws {UserValidationError} If updates are invalid
    */
   updateProfile(updates = {}) {
-    if (!updates || typeof updates !== 'object') {
-      throw new UserValidationError('Profile updates must be an object');
-    }
-    
-    // Apply updates to user fields only
-    const allowedFields = [
-      'fullName', 'professionalTitle', 'location', 'country', 
-      'focusArea', 'focusAreaThreadId', 'challengeThreadId',
-      'evaluationThreadId', 'personalityThreadId',
-      'preferences'
-    ];
-    
-    const filteredUpdates = {};
-    allowedFields.forEach(field => {
-      if (updates[field] !== undefined) {
-        filteredUpdates[field] = updates[field];
-      }
-    });
-    
-    // Map API fields to domain model fields
-    if (updates.name) filteredUpdates.fullName = updates.name;
-      
-    // Special handling for focus area
-    if (filteredUpdates.focusArea) {
-      try {
-        const focusAreaVO = new FocusArea(filteredUpdates.focusArea);
-        filteredUpdates.focusArea = focusAreaVO.code;
-        this._focusAreaVO = focusAreaVO;
-      } catch (error) {
-        throw new UserValidationError(`Invalid focus area: ${filteredUpdates.focusArea}`);
+    // Only allow updating specific fields
+    const allowedUpdates = ['fullName', 'professionalTitle', 'location', 'country'];
+
+    let hasChanges = false;
+
+    // Apply allowed updates
+    for (const field of allowedUpdates) {
+      if (updates[field] !== undefined && updates[field] !== this[field]) {
+        this[field] = updates[field];
+        hasChanges = true;
       }
     }
-    
-    // Apply updates
-    Object.assign(this, filteredUpdates);
-    
-    this.updatedAt = new Date().toISOString();
-    
-    // Publish domain event for profile update
-    if (this.id) {
-      eventBus.publishEvent(EventTypes.USER_UPDATED, {
-        userId: this.id,
-        updatedFields: Object.keys(filteredUpdates)
-      });
+
+    if (hasChanges) {
+      this.updatedAt = new Date().toISOString();
+
+      // Record domain event for profile update
+      if (this.id) {
+        this.addDomainEvent(EventTypes.USER_PROFILE_UPDATED, {
+          userId: this.id,
+          updatedFields: Object.keys(updates).filter(k => allowedUpdates.includes(k)),
+          timestamp: this.updatedAt,
+        });
+      }
     }
-    
-    // Enforce invariants after state change
-    this._enforceInvariants();
-    
+
     return this;
   }
-  
+
   /**
    * Create a User instance from database data
    * @param {Object} data - User data from database
@@ -586,9 +577,9 @@ class User {
     if (!data) {
       throw new UserValidationError('Database data is required to create User instance');
     }
-    
+
     return new User(data);
   }
 }
 
-module.exports = User; 
+module.exports = User;

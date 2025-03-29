@@ -16,6 +16,9 @@ try {
 } catch (error) {
   console.warn('Could not import User model, creating test version');
   User = class User {
+    /**
+     *
+     */
     constructor(data = {}) {
       this.id = data.id || uuidv4();
       this.email = data.email;
@@ -59,7 +62,7 @@ describe('Domain: User Lifecycle', function() {
     mockUserRepository = {
       users: new Map(),
       
-      create: sandbox.stub().callsFake(async (userData) => {
+      create: sandbox.stub().callsFake(async userData => {
         const user = new User({
           ...userData,
           id: uuidv4(),
@@ -86,7 +89,7 @@ describe('Domain: User Lifecycle', function() {
         return updatedUser;
       }),
       
-      findById: sandbox.stub().callsFake(async (id) => {
+      findById: sandbox.stub().callsFake(async id => {
         const user = mockUserRepository.users.get(id);
         if (!user) {
           return null;
@@ -94,7 +97,7 @@ describe('Domain: User Lifecycle', function() {
         return user;
       }),
       
-      findByEmail: sandbox.stub().callsFake(async (email) => {
+      findByEmail: sandbox.stub().callsFake(async email => {
         for (const user of mockUserRepository.users.values()) {
           if (user.email === email) {
             return user;
@@ -103,7 +106,7 @@ describe('Domain: User Lifecycle', function() {
         return null;
       }),
       
-      delete: sandbox.stub().callsFake(async (id) => {
+      delete: sandbox.stub().callsFake(async id => {
         if (!mockUserRepository.users.has(id)) {
           return false;
         }
@@ -114,7 +117,7 @@ describe('Domain: User Lifecycle', function() {
     
     // Create user service
     userService = {
-      createUser: async (userData) => {
+      createUser: async userData => {
         // Check if user with email already exists
         const existingUser = await mockUserRepository.findByEmail(userData.email);
         if (existingUser) {
@@ -135,7 +138,7 @@ describe('Domain: User Lifecycle', function() {
         });
       },
       
-      getUserById: async (id) => {
+      getUserById: async id => {
         const user = await mockUserRepository.findById(id);
         if (!user) {
           throw new Error(`User with ID ${id} not found`);
@@ -143,7 +146,7 @@ describe('Domain: User Lifecycle', function() {
         return user;
       },
       
-      deleteUser: async (id) => {
+      deleteUser: async id => {
         return mockUserRepository.delete(id);
       }
     };

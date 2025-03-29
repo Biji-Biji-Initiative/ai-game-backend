@@ -1,12 +1,17 @@
+'use strict';
+
 /**
  * Difficulty Level Model
- * 
+ *
  * Represents a difficulty level for challenges (e.g., beginner, intermediate, advanced).
  * This is a configuration entity that defines the complexity of challenges.
  */
 
 const { v4: uuidv4 } = require('uuid');
 
+/**
+ * Difficulty Level domain entity
+ */
 class DifficultyLevel {
   /**
    * Create a new DifficultyLevel
@@ -24,6 +29,9 @@ class DifficultyLevel {
    * @param {boolean} [data.isActive] - Whether this difficulty level is active
    * @param {string} [data.createdAt] - Creation timestamp
    * @param {string} [data.updatedAt] - Last update timestamp
+   */
+  /**
+   * Method constructor
    */
   constructor(data = {}) {
     this.id = data.id || uuidv4();
@@ -45,6 +53,9 @@ class DifficultyLevel {
    * Get standard time in minutes
    * @returns {number} Time in minutes
    */
+  /**
+   * Method getStandardTimeInMinutes
+   */
   getStandardTimeInMinutes() {
     return Math.round(this.standardTime / 60);
   }
@@ -54,6 +65,9 @@ class DifficultyLevel {
    * @param {DifficultyLevel} otherLevel - Other difficulty level
    * @returns {boolean} True if this is harder
    */
+  /**
+   * Method isHarderThan
+   */
   isHarderThan(otherLevel) {
     return this.sortOrder > otherLevel.sortOrder;
   }
@@ -62,11 +76,14 @@ class DifficultyLevel {
    * Get difficulty settings for AI generation
    * @returns {Object} Settings object
    */
+  /**
+   * Method getGenerationSettings
+   */
   getGenerationSettings() {
     return {
       questionCount: this.questionCount,
       contextComplexity: this.contextComplexity,
-      standardTime: this.standardTime
+      standardTime: this.standardTime,
     };
   }
 
@@ -75,66 +92,31 @@ class DifficultyLevel {
    * @param {Object} updates - Fields to update
    * @returns {DifficultyLevel} Updated difficulty level
    */
+  /**
+   * Method update
+   */
   update(updates) {
     const allowedFields = [
-      'name', 'description', 'questionCount', 'contextComplexity',
-      'standardTime', 'sortOrder', 'requirements', 'metadata', 'isActive'
+      'name',
+      'description',
+      'questionCount',
+      'contextComplexity',
+      'standardTime',
+      'sortOrder',
+      'requirements',
+      'metadata',
+      'isActive',
     ];
-    
+
     for (const field of allowedFields) {
       if (updates[field] !== undefined) {
         this[field] = updates[field];
       }
     }
-    
+
     this.updatedAt = new Date().toISOString();
     return this;
   }
-
-  /**
-   * Convert to database format
-   * @returns {Object} Database representation
-   */
-  toDatabase() {
-    return {
-      id: this.id,
-      code: this.code,
-      name: this.name,
-      description: this.description,
-      question_count: this.questionCount,
-      context_complexity: this.contextComplexity,
-      standard_time: this.standardTime,
-      sort_order: this.sortOrder,
-      requirements: this.requirements,
-      metadata: this.metadata,
-      is_active: this.isActive,
-      created_at: this.createdAt,
-      updated_at: this.updatedAt
-    };
-  }
-
-  /**
-   * Create from database record
-   * @param {Object} data - Database record
-   * @returns {DifficultyLevel} DifficultyLevel instance
-   */
-  static fromDatabase(data) {
-    return new DifficultyLevel({
-      id: data.id,
-      code: data.code,
-      name: data.name,
-      description: data.description,
-      questionCount: data.question_count || data.questionCount || 1,
-      contextComplexity: data.context_complexity || data.contextComplexity || 0.5,
-      standardTime: data.standard_time || data.standardTime || 300,
-      sortOrder: data.sort_order || data.sortOrder || 0,
-      requirements: data.requirements || {},
-      metadata: data.metadata || {},
-      isActive: data.is_active !== undefined ? data.is_active : (data.isActive || true),
-      createdAt: data.created_at || data.createdAt,
-      updatedAt: data.updated_at || data.updatedAt
-    });
-  }
 }
 
-module.exports = DifficultyLevel; 
+module.exports = DifficultyLevel;

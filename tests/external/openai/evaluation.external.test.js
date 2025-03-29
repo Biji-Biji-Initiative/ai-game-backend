@@ -19,7 +19,7 @@ describe('External: OpenAI Evaluation Integration', function() {
     skipIfMissingEnv(this, 'openai');
   });
 
-// Configure longer timeout for external API calls
+  // Configure longer timeout for external API calls
   this.timeout(30000);
   
   let openaiClient;
@@ -33,7 +33,7 @@ describe('External: OpenAI Evaluation Integration', function() {
     
     // Initialize OpenAI client
     openaiClient = new OpenAIClient({ apiKey: testEnv.getTestConfig().openai.apiKey
-     });
+    });
   });
   
   it('should generate evaluation of challenge response using OpenAI', async function() {
@@ -88,18 +88,18 @@ describe('External: OpenAI Evaluation Integration', function() {
     
     // Call OpenAI API
     const completion = await openaiClient.responses.create({
-      model: "gpt-4o",
+      model: 'gpt-4o',
       messages: [
         {
-          role: "system",
-          content: "You are an evaluator for critical thinking challenges. Provide an assessment of the user's solution with constructive feedback."
+          role: 'system',
+          content: 'You are an evaluator for critical thinking challenges. Provide an assessment of the user\'s solution with constructive feedback.'
         },
         {
-          role: "user",
+          role: 'user',
           content: promptText
         }
       ],
-      response_format: { type: "json_object" }
+      response_format: { type: 'json_object' }
     });
     
     // Verify the OpenAI response
@@ -133,7 +133,7 @@ describe('External: OpenAI Evaluation Integration', function() {
       }
     };
     
-    const poorResponse = "AI in hiring is good but can be bad too.";
+    const poorResponse = 'AI in hiring is good but can be bad too.';
     
     const promptText = `Evaluate the following response to a critical thinking challenge.
     
@@ -158,18 +158,18 @@ describe('External: OpenAI Evaluation Integration', function() {
     
     // Call OpenAI API
     const completion = await openaiClient.responses.create({
-      model: "gpt-4o",
+      model: 'gpt-4o',
       messages: [
         {
-          role: "system",
-          content: "You are an evaluator for critical thinking challenges. Provide an assessment of the user's solution with constructive feedback."
+          role: 'system',
+          content: 'You are an evaluator for critical thinking challenges. Provide an assessment of the user\'s solution with constructive feedback.'
         },
         {
-          role: "user",
+          role: 'user',
           content: promptText
         }
       ],
-      response_format: { type: "json_object" }
+      response_format: { type: 'json_object' }
     });
     
     // Parse the response

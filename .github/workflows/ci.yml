@@ -6,9 +6,18 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+# Define default permissions for all jobs
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    
+    # Define if we're in a secure context (not a PR from a fork)
+    # This is crucial because fork PRs don't have access to secrets for security reasons
+    env:
+      SECURE_CONTEXT: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
     
     strategy:
       matrix:
@@ -26,13 +35,37 @@ jobs:
     - name: Install dependencies
       run: npm ci
       
-    - name: Create .env file
+    # Only create a .env file with secrets in secure contexts
+    - name: Create .env file for secure context
+      if: env.SECURE_CONTEXT == 'true'
       run: |
         echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
         echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env
         echo "SUPABASE_KEY=${{ secrets.SUPABASE_KEY }}" >> .env
         echo "NODE_ENV=test" >> .env
         echo "LOG_LEVEL=error" >> .env
+    
+    # Create a placeholder .env file for non-secure contexts
+    - name: Create .env file for non-secure context
+      if: env.SECURE_CONTEXT != 'true'
+      run: |
+        echo "OPENAI_API_KEY=dummy-key" >> .env
+        echo "SUPABASE_URL=https://example.com" >> .env
+        echo "SUPABASE_KEY=dummy-key" >> .env
+        echo "NODE_ENV=test" >> .env
+        echo "LOG_LEVEL=error" >> .env
+    
+    # Set environment variables for tests
+    # Check both if we have secrets AND if we're in a secure context
+    - name: Set environment variables
+      id: set_env
+      run: |
+        if [[ "${{ env.SECURE_CONTEXT }}" == "true" && -n "${{ secrets.OPENAI_API_KEY }}" && -n "${{ secrets.SUPABASE_URL }}" && -n "${{ secrets.SUPABASE_KEY }}" ]]; then
+          echo "HAVE_API_SECRETS=true" >> $GITHUB_OUTPUT
+        else
+          echo "HAVE_API_SECRETS=false" >> $GITHUB_OUTPUT
+          echo "Note: API tests will be skipped because we're either in a PR from a fork or secrets are not available"
+        fi
     
     # Run schema validation and domain model tests that don't require API calls
     - name: Run unit tests
@@ -44,13 +77,31 @@ jobs:
       
     # Run real API tests if secrets are available
     - name: Run real API tests
-      if: "${{ env.OPENAI_API_KEY != '' && env.SUPABASE_URL != '' && env.SUPABASE_KEY != '' }}"
+      if: steps.set_env.outputs.HAVE_API_SECRETS == 'true'
       run: npm run test:real-api
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+    
+    # Skip API tests in non-secure contexts with an informative message
+    - name: Skip real API tests
+      if: steps.set_env.outputs.HAVE_API_SECRETS != 'true'
+      run: echo "Skipping real API tests in pull requests from forks for security reasons"
     
     # Run end-to-end tests
     - name: Run E2E tests
-      if: "${{ env.OPENAI_API_KEY != '' && env.SUPABASE_URL != '' && env.SUPABASE_KEY != '' }}"
+      if: steps.set_env.outputs.HAVE_API_SECRETS == 'true'
       run: npm run test:e2e
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+    
+    # Skip E2E tests in non-secure contexts with an informative message
+    - name: Skip E2E tests
+      if: steps.set_env.outputs.HAVE_API_SECRETS != 'true'
+      run: echo "Skipping E2E tests in pull requests from forks for security reasons"
 
   lint:
     runs-on: ubuntu-latest

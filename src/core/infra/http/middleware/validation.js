@@ -1,23 +1,25 @@
+'use strict';
+
 /**
  * HTTP Request Validation Middleware
- * 
- * Provides middleware functions to validate request bodies, 
+ *
+ * Provides middleware functions to validate request bodies,
  * query parameters, and URL parameters using Zod schemas.
- * 
+ *
  * @module validation
  * @requires zod
  */
 
-const AppError = require('../../errors/AppError');
+// const AppError = require('../../core/infra/errors/AppError');
 
 /**
  * Creates a middleware function that validates request body
  * against the provided Zod schema
- * 
+ *
  * @param {import('zod').ZodSchema} schema - Zod schema to validate against
  * @returns {Function} Express middleware function
  */
-const validateBody = (schema) => {
+const validateBody = schema => {
   return (req, res, next) => {
     try {
       const validatedData = schema.parse(req.body);
@@ -27,13 +29,13 @@ const validateBody = (schema) => {
     } catch (error) {
       // Format Zod validation errors
       if (error.errors) {
-        const formattedErrors = error.errors.map(err => 
-          `${err.path.join('.')}: ${err.message}`
-        ).join('; ');
-        
+        const formattedErrors = error.errors
+          .map(err => `${err.path.join('.')}: ${err.message}`)
+          .join('; ');
+
         return next(new AppError(formattedErrors, 400));
       }
-      
+
       next(new AppError('Validation error', 400));
     }
   };
@@ -42,11 +44,11 @@ const validateBody = (schema) => {
 /**
  * Creates a middleware function that validates request query parameters
  * against the provided Zod schema
- * 
+ *
  * @param {import('zod').ZodSchema} schema - Zod schema to validate against
  * @returns {Function} Express middleware function
  */
-const validateQuery = (schema) => {
+const validateQuery = schema => {
   return (req, res, next) => {
     try {
       const validatedData = schema.parse(req.query);
@@ -56,13 +58,13 @@ const validateQuery = (schema) => {
     } catch (error) {
       // Format Zod validation errors
       if (error.errors) {
-        const formattedErrors = error.errors.map(err => 
-          `Query parameter ${err.path.join('.')}: ${err.message}`
-        ).join('; ');
-        
+        const formattedErrors = error.errors
+          .map(err => `Query parameter ${err.path.join('.')}: ${err.message}`)
+          .join('; ');
+
         return next(new AppError(formattedErrors, 400));
       }
-      
+
       next(new AppError('Invalid query parameters', 400));
     }
   };
@@ -71,11 +73,11 @@ const validateQuery = (schema) => {
 /**
  * Creates a middleware function that validates request URL parameters
  * against the provided Zod schema
- * 
+ *
  * @param {import('zod').ZodSchema} schema - Zod schema to validate against
  * @returns {Function} Express middleware function
  */
-const validateParams = (schema) => {
+const validateParams = schema => {
   return (req, res, next) => {
     try {
       const validatedData = schema.parse(req.params);
@@ -85,13 +87,13 @@ const validateParams = (schema) => {
     } catch (error) {
       // Format Zod validation errors
       if (error.errors) {
-        const formattedErrors = error.errors.map(err => 
-          `URL parameter ${err.path.join('.')}: ${err.message}`
-        ).join('; ');
-        
+        const formattedErrors = error.errors
+          .map(err => `URL parameter ${err.path.join('.')}: ${err.message}`)
+          .join('; ');
+
         return next(new AppError(formattedErrors, 400));
       }
-      
+
       next(new AppError('Invalid URL parameters', 400));
     }
   };
@@ -100,5 +102,5 @@ const validateParams = (schema) => {
 module.exports = {
   validateBody,
   validateQuery,
-  validateParams
-}; 
+  validateParams,
+};

@@ -36,10 +36,10 @@ describe('OpenAI API', function() {
     
     // Make a simple completion request using v3 syntax
     const response = await openai.createChatCompletion({
-      model: "gpt-3.5-turbo",
+      model: 'gpt-3.5-turbo',
       messages: [
-        { role: "system", content: "You are a helpful assistant." },
-        { role: "user", content: "Hello world" }
+        { role: 'system', content: 'You are a helpful assistant.' },
+        { role: 'user', content: 'Hello world' }
       ]
     });
     

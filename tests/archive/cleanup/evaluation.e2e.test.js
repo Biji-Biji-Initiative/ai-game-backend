@@ -29,11 +29,11 @@ describe('E2E: Evaluation Flow', function() {
   // Set longer timeout for API calls
   this.timeout(30000);
 
-before(function() {
+  before(function() {
     skipIfMissingEnv(this, 'openai');
   });
 
-// Configure longer timeout for E2E tests
+  // Configure longer timeout for E2E tests
   this.timeout(API_TIMEOUT);
   
   // Skip if API keys not available
@@ -133,7 +133,7 @@ before(function() {
       challengeId = challengeResponse.data.data.id;
       
       // Step 2: Submit a response to the challenge
-      const responseText = "Automated decision making using AI raises several ethical concerns. First, there's the issue of bias in the training data which can perpetuate discrimination. Second, there's lack of transparency when decisions are made by complex algorithms that even their creators may not fully understand. Third, accountability becomes unclear when an AI makes a harmful decision. To address these issues, organizations should: 1) Ensure diverse and representative training data, 2) Implement explainable AI techniques, 3) Maintain human oversight for critical decisions, and 4) Establish clear accountability frameworks that assign responsibility for AI-driven outcomes.";
+      const responseText = 'Automated decision making using AI raises several ethical concerns. First, there\'s the issue of bias in the training data which can perpetuate discrimination. Second, there\'s lack of transparency when decisions are made by complex algorithms that even their creators may not fully understand. Third, accountability becomes unclear when an AI makes a harmful decision. To address these issues, organizations should: 1) Ensure diverse and representative training data, 2) Implement explainable AI techniques, 3) Maintain human oversight for critical decisions, and 4) Establish clear accountability frameworks that assign responsibility for AI-driven outcomes.';
       
       const evaluationRequestData = {
         challengeId: challengeId,

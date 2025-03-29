@@ -16,7 +16,7 @@ describe('FocusArea Service Domain Tests', function() {
   // Set longer timeout for API calls
   this.timeout(30000);
 
-let sandbox;
+  let sandbox;
   let focusAreaRepository;
   let openAIMock;
   let focusAreaService;
@@ -30,24 +30,24 @@ let sandbox;
     
     // Set up mock OpenAI response for focus area recommendation using the new Responses API format
     openAIMock.responses.create.resolves({
-      id: "resp_123mock",
-      object: "response",
+      id: 'resp_123mock',
+      object: 'response',
       created_at: Date.now() / 1000,
-      status: "completed",
-      model: "gpt-4o",
+      status: 'completed',
+      model: 'gpt-4o',
       output: [
         {
-          type: "message",
-          id: "msg_123mock",
-          status: "completed",
-          role: "assistant",
+          type: 'message',
+          id: 'msg_123mock',
+          status: 'completed',
+          role: 'assistant',
           content: [
             {
-              type: "output_text",
+              type: 'output_text',
               text: JSON.stringify({
-                name: "AI Ethics",
-                description: "As a Product Manager with interests in AI ethics, this focus area will help you understand ethical considerations in AI product development.",
-                skills: ["Ethical Framework Development", "Bias Identification", "Privacy-Preserving Techniques", "Responsible AI Practices"]
+                name: 'AI Ethics',
+                description: 'As a Product Manager with interests in AI ethics, this focus area will help you understand ethical considerations in AI product development.',
+                skills: ['Ethical Framework Development', 'Bias Identification', 'Privacy-Preserving Techniques', 'Responsible AI Practices']
               }),
               annotations: []
             }
@@ -62,7 +62,13 @@ let sandbox;
     });
     
     // Create FocusArea model (simplified version for testing)
+    /**
+     *
+     */
     class FocusArea {
+      /**
+       *
+       */
       constructor(data) {
         this.id = data.id || uuidv4();
         this.name = data.name;
@@ -77,14 +83,14 @@ let sandbox;
     
     // Create a simplified service for testing
     focusAreaService = {
-      recommendFocusArea: async (userProfile) => {
+      recommendFocusArea: async userProfile => {
         try {
           // Call OpenAI to get recommendations
           const completion = await openAIMock.responses.create({
-            model: "gpt-4o",
+            model: 'gpt-4o',
             input: {
-              type: "message",
-              role: "user",
+              type: 'message',
+              role: 'user',
               content: `Based on the following user profile, recommend a focus area for their AI skills development:
               
               Professional Title: ${userProfile.professionalTitle}
@@ -96,10 +102,10 @@ let sandbox;
               description: A detailed description of why this focus area is appropriate for the user
               skills: An array of 3-5 specific skills to develop in this focus area`
             },
-            instructions: "You are an expert career advisor specializing in AI skill development.",
+            instructions: 'You are an expert career advisor specializing in AI skill development.',
             text: {
               format: {
-                type: "json_object"
+                type: 'json_object'
               }
             }
           });
@@ -133,11 +139,11 @@ let sandbox;
         }
       },
       
-      getFocusAreaById: async (id) => {
+      getFocusAreaById: async id => {
         return await focusAreaRepository.findById(id);
       },
       
-      getFocusAreasByUserId: async (userId) => {
+      getFocusAreasByUserId: async userId => {
         return await focusAreaRepository.findByUserId(userId);
       }
     };

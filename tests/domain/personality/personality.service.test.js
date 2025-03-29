@@ -23,7 +23,7 @@ describe('Personality Service Domain Tests', function() {
   // Set longer timeout for API calls
   this.timeout(30000);
 
-let sandbox;
+  let sandbox;
   let personalityRepository;
   let userRepository;
   let personalityService;
@@ -95,12 +95,12 @@ let sandbox;
         
         // Use OpenAI to generate insights
         const response = await openAIMock.responses.create({
-          model: "gpt-4",
+          model: 'gpt-4',
           messages: [
-            { role: "system", content: "You are a personality insight analyzer." },
-            { role: "user", content: `Analyze these traits: ${JSON.stringify(profile.personalityTraits || {})}` }
+            { role: 'system', content: 'You are a personality insight analyzer.' },
+            { role: 'user', content: `Analyze these traits: ${JSON.stringify(profile.personalityTraits || {})}` }
           ],
-          response_format: { type: "json_object" }
+          response_format: { type: 'json_object' }
         });
         
         const insights = JSON.parse(response.choices[0].message.content);

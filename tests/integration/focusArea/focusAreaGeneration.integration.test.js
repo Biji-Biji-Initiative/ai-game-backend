@@ -20,7 +20,7 @@ describe('FocusAreaGenerationService Integration', function() {
   // Set longer timeout for API calls
   this.timeout(30000);
 
-// Configure longer timeout for API calls
+  // Configure longer timeout for API calls
   this.timeout(TEST_TIMEOUT);
   
   let focusAreaGenerationService;
@@ -34,14 +34,14 @@ describe('FocusAreaGenerationService Integration', function() {
         data: {
           focusAreas: [
             {
-              name: "Building Resilience",
-              description: "Developing the ability to recover from setbacks and adapt to challenges.",
-              priorityLevel: "high",
-              rationale: "Your personality profile indicates a tendency to get discouraged when facing obstacles.",
+              name: 'Building Resilience',
+              description: 'Developing the ability to recover from setbacks and adapt to challenges.',
+              priorityLevel: 'high',
+              rationale: 'Your personality profile indicates a tendency to get discouraged when facing obstacles.',
               improvementStrategies: [
-                "Identify personal strengths that contribute to resilience",
-                "Practice positive self-talk during difficult situations",
-                "Develop strategies for managing stress effectively"
+                'Identify personal strengths that contribute to resilience',
+                'Practice positive self-talk during difficult situations',
+                'Develop strategies for managing stress effectively'
               ]
             }
           ]
@@ -126,14 +126,14 @@ describe('FocusAreaGenerationService Integration', function() {
       data: {
         focusAreas: [
           {
-            name: "Advanced Data Analysis",
-            description: "Mastering complex data patterns and insights.",
-            priorityLevel: "high",
-            rationale: "Your analytical mindset and professional background suggest a focus on data skills.",
+            name: 'Advanced Data Analysis',
+            description: 'Mastering complex data patterns and insights.',
+            priorityLevel: 'high',
+            rationale: 'Your analytical mindset and professional background suggest a focus on data skills.',
             improvementStrategies: [
-              "Practice with complex datasets",
-              "Learn advanced statistical methods",
-              "Work on data visualization techniques"
+              'Practice with complex datasets',
+              'Learn advanced statistical methods',
+              'Work on data visualization techniques'
             ]
           }
         ]

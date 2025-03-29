@@ -17,6 +17,9 @@ const { expect } = require('chai');
 
 // Import or create a mock FocusArea class
 const FocusArea = class FocusArea {
+  /**
+   *
+   */
   constructor(data) {
     Object.assign(this, data);
   }

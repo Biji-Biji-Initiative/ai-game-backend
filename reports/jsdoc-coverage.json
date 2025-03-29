@@ -1,0 +1,252 @@
+{
+  "summary": {
+    "functionCoverage": 3.482587064676617,
+    "classCoverage": 50,
+    "methodCoverage": 33.33333333333333,
+    "totalCoverage": 5.213270142180095,
+    "totalFiles": 232,
+    "filesWithIssues": 60
+  },
+  "filesMissingDocs": [
+    {
+      "filePath": "src/config/container/repositories.js",
+      "missingDocs": 13
+    },
+    {
+      "filePath": "src/config/container/services.js",
+      "missingDocs": 12
+    },
+    {
+      "filePath": "src/config/container/routes.js",
+      "missingDocs": 11
+    },
+    {
+      "filePath": "src/config/container/controllers.js",
+      "missingDocs": 10
+    },
+    {
+      "filePath": "src/application/ChallengeCoordinator.js",
+      "missingDocs": 9
+    },
+    {
+      "filePath": "src/config/container/infrastructure.js",
+      "missingDocs": 9
+    },
+    {
+      "filePath": "src/config/container/coordinators.js",
+      "missingDocs": 8
+    },
+    {
+      "filePath": "src/core/evaluation/services/userContextService.js",
+      "missingDocs": 8
+    },
+    {
+      "filePath": "src/core/evaluation/models/Evaluation.js",
+      "missingDocs": 7
+    },
+    {
+      "filePath": "src/core/progress/repositories/ProgressRepository.js",
+      "missingDocs": 6
+    },
+    {
+      "filePath": "src/core/infra/errors/errorStandardization.js",
+      "missingDocs": 5
+    },
+    {
+      "filePath": "src/server.js",
+      "missingDocs": 5
+    },
+    {
+      "filePath": "src/core/evaluation/services/dynamicPromptService.js",
+      "missingDocs": 4
+    },
+    {
+      "filePath": "src/core/personality/services/TraitsAnalysisService.js",
+      "missingDocs": 4
+    },
+    {
+      "filePath": "src/core/prompt/builders/FocusAreaPromptBuilder.js",
+      "missingDocs": 4
+    },
+    {
+      "filePath": "src/core/prompt/builders/ProgressPromptBuilder.js",
+      "missingDocs": 4
+    },
+    {
+      "filePath": "src/core/userJourney/repositories/UserJourneyRepository.js",
+      "missingDocs": 4
+    },
+    {
+      "filePath": "src/application/focusArea/FocusAreaGenerationCoordinator.js",
+      "missingDocs": 3
+    },
+    {
+      "filePath": "src/application/progress/ProgressCoordinator.js",
+      "missingDocs": 3
+    },
+    {
+      "filePath": "src/core/common/valueObjects/DifficultyLevel.js",
+      "missingDocs": 3
+    },
+    {
+      "filePath": "src/core/common/valueObjects/TraitScore.js",
+      "missingDocs": 3
+    },
+    {
+      "filePath": "src/core/evaluation/controllers/EvaluationController.js",
+      "missingDocs": 3
+    },
+    {
+      "filePath": "src/core/infra/cache/RedisCacheProvider.js",
+      "missingDocs": 3
+    },
+    {
+      "filePath": "src/core/infra/http/middleware/validation.js",
+      "missingDocs": 3
+    },
+    {
+      "filePath": "src/core/infra/openai/streamProcessor.js",
+      "missingDocs": 3
+    },
+    {
+      "filePath": "src/core/infra/repositories/BaseRepository.js",
+      "missingDocs": 3
+    },
+    {
+      "filePath": "src/core/personality/schemas/personalitySchema.js",
+      "missingDocs": 3
+    },
+    {
+      "filePath": "src/core/prompt/builders/PersonalityPromptBuilder.js",
+      "missingDocs": 3
+    },
+    {
+      "filePath": "src/core/user/repositories/UserRepository.js",
+      "missingDocs": 3
+    },
+    {
+      "filePath": "src/app.js",
+      "missingDocs": 2
+    },
+    {
+      "filePath": "src/core/evaluation/repositories/evaluationCategoryRepository.js",
+      "missingDocs": 2
+    },
+    {
+      "filePath": "src/core/focusArea/models/FocusArea.js",
+      "missingDocs": 2
+    },
+    {
+      "filePath": "src/core/focusArea/repositories/focusAreaRepository.js",
+      "missingDocs": 2
+    },
+    {
+      "filePath": "src/core/infra/http/responseFormatter.js",
+      "missingDocs": 2
+    },
+    {
+      "filePath": "src/core/infra/http/routes/index.js",
+      "missingDocs": 2
+    },
+    {
+      "filePath": "src/core/infra/logging/appLogger.js",
+      "missingDocs": 2
+    },
+    {
+      "filePath": "src/core/infra/services/OpenAIInsightGenerator.js",
+      "missingDocs": 2
+    },
+    {
+      "filePath": "src/core/prompt/builders/EvaluationPromptBuilder.js",
+      "missingDocs": 2
+    },
+    {
+      "filePath": "src/core/userJourney/services/UserJourneyService.js",
+      "missingDocs": 2
+    },
+    {
+      "filePath": "src/application/BaseCoordinator.js",
+      "missingDocs": 1
+    },
+    {
+      "filePath": "src/application/EventHandlers.js",
+      "missingDocs": 1
+    },
+    {
+      "filePath": "src/application/focusArea/FocusAreaManagementCoordinator.js",
+      "missingDocs": 1
+    },
+    {
+      "filePath": "src/core/adaptive/repositories/AdaptiveRepository.js",
+      "missingDocs": 1
+    },
+    {
+      "filePath": "src/core/adaptive/schemas/RecommendationSchema.js",
+      "missingDocs": 1
+    },
+    {
+      "filePath": "src/core/common/events/domainEvents.js",
+      "missingDocs": 1
+    },
+    {
+      "filePath": "src/core/evaluation/repositories/evaluationRepository.js",
+      "missingDocs": 1
+    },
+    {
+      "filePath": "src/core/evaluation/schemas/EvaluationSchema.js",
+      "missingDocs": 1
+    },
+    {
+      "filePath": "src/core/infra/di/DIContainer.js",
+      "missingDocs": 1
+    },
+    {
+      "filePath": "src/core/infra/logging/logger.js",
+      "missingDocs": 1
+    },
+    {
+      "filePath": "src/core/infra/openai/functionTools.js",
+      "missingDocs": 1
+    },
+    {
+      "filePath": "src/core/infra/openai/responseHandler.js",
+      "missingDocs": 1
+    },
+    {
+      "filePath": "src/core/progress/models/Progress.js",
+      "missingDocs": 1
+    },
+    {
+      "filePath": "src/core/prompt/builders/ChallengePromptBuilder.js",
+      "missingDocs": 1
+    },
+    {
+      "filePath": "src/core/prompt/promptBuilder.js",
+      "missingDocs": 1
+    },
+    {
+      "filePath": "src/core/prompt/schemas/adaptiveChallengeSelectionSchema.js",
+      "missingDocs": 1
+    },
+    {
+      "filePath": "src/core/prompt/schemas/difficultyCalibratonSchema.js",
+      "missingDocs": 1
+    },
+    {
+      "filePath": "src/core/prompt/schemas/engagementOptimizationSchema.js",
+      "missingDocs": 1
+    },
+    {
+      "filePath": "src/core/prompt/schemas/personalizedLearningPathSchema.js",
+      "missingDocs": 1
+    },
+    {
+      "filePath": "src/core/user/schemas/userSchema.js",
+      "missingDocs": 1
+    },
+    {
+      "filePath": "src/core/userJourney/schemas/UserJourneyEventSchema.js",
+      "missingDocs": 1
+    }
+  ]
+}

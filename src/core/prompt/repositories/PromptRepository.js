@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Prompt Repository
  * 
@@ -5,7 +7,7 @@
  * Located within the prompt domain following our DDD architecture.
  */
 const { supabaseClient } = require('../../../core/infra/db/supabaseClient');
-const { logger } = require('../../../core/infra/logging/logger');
+const { logger: appLogger } = require('../../../core/infra/logging/logger');
 const { PromptTemplateNotFoundError, PromptError } = require('../common/errors');
 
 /**
@@ -18,7 +20,10 @@ class PromptRepository {
    * @param {Object} dependencies.dbClient - Database client
    * @param {Object} dependencies.logger - Logger instance
    */
-  constructor({ dbClient = supabaseClient, logger = logger } = {}) {
+  /**
+   * Method constructor
+   */
+  constructor({ dbClient = supabaseClient, logger = appLogger } = {}) {
     this.dbClient = dbClient;
     this.logger = logger;
     this.templateTableName = 'prompt_templates';

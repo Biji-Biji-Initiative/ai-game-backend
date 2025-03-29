@@ -1,20 +1,19 @@
+'use strict';
+
 /**
  * Focus Area Model
- * 
+ *
  * Represents a personalized focus area for AI communication training
  * Focus areas are specific communication skills or topics that users
  * can practice to improve their interaction with AI systems.
- * 
+ *
  * @module FocusArea
  */
 
-const Entity = require('../../common/models/Entity');
+// const Entity = require('../../common/models/Entity');
 const { EventTypes } = require('../../common/events/domainEvents');
 const { v4: uuidv4 } = require('uuid');
-const { 
-  focusAreaSchema, 
-  validate 
-} = require('../schemas/focusAreaValidation');
+const { focusAreaSchema, validate } = require('../schemas/focusAreaValidation');
 
 /**
  * Focus Area class representing a communication focus area
@@ -38,20 +37,23 @@ class FocusArea extends Entity {
     description = '',
     active = true,
     priority = 1,
-    metadata = {}
+    metadata = {},
   }) {
     super(id);
 
     // Validate using Zod schema
-    const validatedData = validate({ 
-      id, 
-      userId, 
-      name, 
-      description, 
-      active, 
-      priority, 
-      metadata 
-    }, focusAreaSchema);
+    const validatedData = validate(
+      {
+        id,
+        userId,
+        name,
+        description,
+        active,
+        priority,
+        metadata,
+      },
+      focusAreaSchema
+    );
 
     this.userId = validatedData.userId;
     this.name = validatedData.name;
@@ -61,46 +63,56 @@ class FocusArea extends Entity {
     this.metadata = validatedData.metadata;
     this.createdAt = new Date().toISOString();
     this.updatedAt = this.createdAt;
-    
+
     // Add domain event for creation (to be published after persistence)
     this.addDomainEvent(EventTypes.FOCUS_AREA_CREATED, {
       userId: this.userId,
       name: this.name,
-      priority: this.priority
+      priority: this.priority,
     });
   }
 
   /**
    * Deactivate this focus area
    */
+  /**
+   * Method deactivate
+   */
   deactivate() {
-    if (this.active === false) return; // No-op if already inactive
-    
+    if (this.active === false) {
+      return;
+    } // No-op if already inactive
+
     this.active = false;
     this.updatedAt = new Date().toISOString();
-    
+
     // Add domain event for update (to be published after persistence)
     this.addDomainEvent(EventTypes.FOCUS_AREA_UPDATED, {
       userId: this.userId,
       name: this.name,
-      active: this.active
+      active: this.active,
     });
   }
 
   /**
    * Activate this focus area
    */
+  /**
+   * Method activate
+   */
   activate() {
-    if (this.active === true) return; // No-op if already active
-    
+    if (this.active === true) {
+      return;
+    } // No-op if already active
+
     this.active = true;
     this.updatedAt = new Date().toISOString();
-    
+
     // Add domain event for update (to be published after persistence)
     this.addDomainEvent(EventTypes.FOCUS_AREA_UPDATED, {
       userId: this.userId,
       name: this.name,
-      active: this.active
+      active: this.active,
     });
   }
 
@@ -108,35 +120,35 @@ class FocusArea extends Entity {
    * Update focus area properties
    * @param {Object} updates Properties to update
    */
+  /**
+   * Method update
+   */
   update(updates) {
     const allowedUpdates = ['name', 'description', 'priority', 'metadata', 'active'];
     const validUpdates = {};
-    
+
     Object.keys(updates).forEach(key => {
       if (allowedUpdates.includes(key)) {
         validUpdates[key] = updates[key];
       }
     });
-    
+
     // Validate updates
     if (Object.keys(validUpdates).length > 0) {
-      const validatedUpdates = validate(
-        { ...this.toObject(), ...validUpdates },
-        focusAreaSchema
-      );
-      
+      const validatedUpdates = validate({ ...this.toObject(), ...validUpdates }, focusAreaSchema);
+
       // Apply validated updates
       Object.keys(validUpdates).forEach(key => {
         this[key] = validatedUpdates[key];
       });
-      
+
       this.updatedAt = new Date().toISOString();
-      
+
       // Add domain event for update (to be published after persistence)
       this.addDomainEvent(EventTypes.FOCUS_AREA_UPDATED, {
         userId: this.userId,
         name: this.name,
-        ...validUpdates
+        ...validUpdates,
       });
     }
   }
@@ -144,6 +156,9 @@ class FocusArea extends Entity {
   /**
    * Convert focus area to plain object
    * @returns {Object} Plain object representation
+   */
+  /**
+   * Method toObject
    */
   toObject() {
     return {
@@ -155,7 +170,7 @@ class FocusArea extends Entity {
       priority: this.priority,
       metadata: this.metadata,
       createdAt: this.createdAt,
-      updatedAt: this.updatedAt
+      updatedAt: this.updatedAt,
     };
   }
 
@@ -172,9 +187,9 @@ class FocusArea extends Entity {
       description: record.description || '',
       active: record.active === undefined ? true : record.active,
       priority: record.priority || 1,
-      metadata: record.metadata || {}
+      metadata: record.metadata || {},
     });
   }
 }
 
-module.exports = FocusArea; 
+module.exports = FocusArea;

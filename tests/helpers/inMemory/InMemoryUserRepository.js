@@ -8,7 +8,13 @@
 const { v4: uuidv4 } = require('uuid');
 const User = require('../../core/user/models/User');
 
+/**
+ *
+ */
 class InMemoryUserRepository {
+  /**
+   *
+   */
   constructor(initialUsers = []) {
     // Initialize with empty Map or seed data
     this.users = new Map();
@@ -99,8 +105,8 @@ class InMemoryUserRepository {
       const sortOrder = direction === 'desc' ? -1 : 1;
       
       results.sort((a, b) => {
-        if (a[field] < b[field]) return -1 * sortOrder;
-        if (a[field] > b[field]) return 1 * sortOrder;
+        if (a[field] < b[field]) {return -1 * sortOrder;}
+        if (a[field] > b[field]) {return 1 * sortOrder;}
         return 0;
       });
     }

@@ -18,7 +18,7 @@ describe('Domain: Challenge AI Generator', function() {
   // Set longer timeout for API calls
   this.timeout(30000);
 
-// Test setup
+  // Test setup
   let challengeService;
   let mockOpenAI;
   let mockRepository;
@@ -58,7 +58,7 @@ describe('Domain: Challenge AI Generator', function() {
     // Create challenge generation service
     // This is a simplified version for testing - adapt based on your actual implementation
     challengeService = {
-      generateChallenge: async (category) => {
+      generateChallenge: async category => {
         const prompt = `Generate a cognitive challenge in the ${category} category. 
         The challenge should test critical thinking and problem-solving abilities.
         Format the response as a JSON object with these properties:
@@ -67,12 +67,12 @@ describe('Domain: Challenge AI Generator', function() {
         difficulty: The difficulty level (easy, medium, or hard)`;
         
         const completion = await mockOpenAI.responses.create({
-          model: "gpt-4o",
+          model: 'gpt-4o',
           messages: [
-            { role: "system", content: "You are an expert at creating engaging cognitive challenges that test problem-solving abilities." },
-            { role: "user", content: prompt }
+            { role: 'system', content: 'You are an expert at creating engaging cognitive challenges that test problem-solving abilities.' },
+            { role: 'user', content: prompt }
           ],
-          response_format: { type: "json_object" }
+          response_format: { type: 'json_object' }
         });
         
         const responseText = completion.choices[0].message.content;

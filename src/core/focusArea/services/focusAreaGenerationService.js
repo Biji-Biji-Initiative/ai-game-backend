@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Focus Area Generation Service
  * 
@@ -9,8 +11,17 @@
  * @requires logger
  */
 
-const { focusAreaLogger } = require('../../infrastructure/logging/domainLogger');
+const { focusAreaLogger } = require('../../core/infra/logging/domainLogger');
 const { FocusAreaGenerationError } = require('../errors/focusAreaErrors');
+const {
+  withServiceErrorHandling,
+  createErrorMapper
+} = require('../../core/infra/errors/errorStandardization');
+
+// Create an error mapper for the focus area generation service
+const focusAreaGenerationErrorMapper = createErrorMapper({
+  'FocusAreaGenerationError': FocusAreaGenerationError
+}, FocusAreaGenerationError);
 
 /**
  * Service that generates personalized focus areas for users
@@ -30,7 +41,7 @@ class FocusAreaGenerationService {
   constructor({ 
     openAIClient, 
     promptBuilder = require('../../prompt/promptBuilder'),
-    formatJson = require('../../infrastructure/openai/responseHandler').formatJson,
+    formatJson = require('../../core/infra/openai/responseHandler').formatJson,
     FocusArea = require('../models/FocusArea'),
     MessageRole,
     openAIStateManager,
@@ -52,6 +63,14 @@ class FocusAreaGenerationService {
     this.MessageRole = MessageRole;
     this.openAIStateManager = openAIStateManager;
     this.logger = logger || focusAreaLogger.child('generation');
+    
+    // Apply standardized error handling to methods
+    this.generateFocusAreas = withServiceErrorHandling(this.generateFocusAreas.bind(this), {
+      methodName: 'generateFocusAreas',
+      domainName: 'focusArea',
+      logger: this.logger,
+      errorMapper: focusAreaGenerationErrorMapper
+    });
   }
 
   /**
@@ -67,7 +86,10 @@ class FocusAreaGenerationService {
    * @returns {Promise<Array<FocusArea>>} Generated focus areas
    * @throws {FocusAreaGenerationError} If there's an issue with the generation
    */
-  async generateFocusAreas(userData, challengeHistory = [], progressData = {}, options = {}) {
+  /**
+   * Method generateFocusAreas
+   */
+  generateFocusAreas(userData, challengeHistory = [], progressData = {}, options = {}) {
     // Extract user data
     const userId = userData.id || userData.email;
     if (!userId) {
@@ -85,138 +107,125 @@ class FocusAreaGenerationService {
       hasTraits: Object.keys(userData.personality_traits || {}).length > 0
     });
 
-    try {
-      // Get or create a conversation state for this focus area thread
-      const conversationState = await this.openAIStateManager.findOrCreateConversationState(
-        userId, 
-        `focus_area_${threadId}`,
-        { createdAt: new Date().toISOString() }
-      );
-      
-      // Get the previous response ID for conversation continuity
-      const previousResponseId = await this.openAIStateManager.getLastResponseId(conversationState.id);
+    // Get or create a conversation state for this focus area thread
+    const conversationState = await this.openAIStateManager.findOrCreateConversationState(
+      userId, 
+      `focus_area_${threadId}`,
+      { createdAt: new Date().toISOString() }
+    );
+    
+    // Get the previous response ID for conversation continuity
+    const previousResponseId = await this.openAIStateManager.getLastResponseId(conversationState.id);
 
-      // Extract user traits data
-      const userTraits = {
-        traits: userData.personality_traits || {},
-        attitudes: userData.ai_attitudes || {},
-        professional_title: userData.professional_title || '',
-        location: userData.location || ''
-      };
-      
-      // Configure additional options
-      const promptOptions = {
-        count: options.count || 3,
-        creativeVariation: options.creativeVariation || 0.7,
-        includeRationale: options.includeRationale !== false,
-        includeStrategies: options.includeStrategies !== false,
-        threadId,
-        previousResponseId: previousResponseId
-      };
-      
-      // Use the prompt builder to create a focus area prompt
-      const { prompt, systemMessage } = await this.promptBuilder.buildPrompt('focus-area', {
-        user: userTraits,
-        challengeHistory,
-        progressData,
-        options: promptOptions
-      });
-      
-      this.logger.debug('Generated focus area prompt', { 
-        promptLength: prompt.length, 
-        hasSystemMessage: !!systemMessage,
-        userId
-      });
-      
-      // Configure API call options for Responses API
-      const apiOptions = {
-        model: options.model || 'gpt-4o',
-        temperature: options.temperature || 0.8,
-        responseFormat: 'json',
-        previousResponseId: previousResponseId
-      };
-      
-      // Create messages for the Responses API
-      const messages = [
-        {
-          role: this.MessageRole.SYSTEM,
-          content: systemMessage || `You are an AI communication coach specializing in personalized focus area generation. 
-Always return your response as a JSON object with a "focusAreas" array containing the focus areas. 
+    // Extract user traits data
+    const userTraits = {
+      traits: userData.personality_traits || {},
+      attitudes: userData.ai_attitudes || {},
+      professional_title: userData.professional_title || '',
+      location: userData.location || ''
+    };
+    
+    // Configure additional options
+    const promptOptions = {
+      count: options.count || 3,
+      creativeVariation: options.creativeVariation || 0.7,
+      includeRationale: options.includeRationale !== false,
+      includeStrategies: options.includeStrategies !== false,
+      threadId,
+      previousResponseId: previousResponseId
+    };
+    
+    // Use the prompt builder to create a focus area prompt
+    const { prompt, systemMessage } = await this.promptBuilder.buildPrompt('focus-area', {
+      user: userTraits,
+      challengeHistory,
+      progressData,
+      options: promptOptions
+    });
+    
+    this.logger.debug('Generated focus area prompt', { 
+      promptLength: prompt.length, 
+      hasSystemMessage: !!systemMessage,
+      userId
+    });
+    
+    // Configure API call options for Responses API
+    const apiOptions = {
+      model: options.model || 'gpt-4o',
+      temperature: options.temperature || 0.8,
+      responseFormat: 'json',
+      previousResponseId: previousResponseId
+    };
+    
+    // Create messages for the Responses API
+    const messages = [
+      {
+        role: this.MessageRole.SYSTEM,
+        content: systemMessage || `You are an AI communication coach specializing in personalized focus area generation. 
+Always return your response as a JSON object with a 'focusAreas' array containing the focus areas. 
 Each focus area should have name, description, priorityLevel, rationale, and improvementStrategies.
 Format your entire response as valid, parsable JSON with no markdown formatting.`
-        },
-        {
-          role: this.MessageRole.USER,
-          content: prompt
-        }
-      ];
-      
-      // Call the OpenAI Responses API for focus area generation
-      this.logger.debug('Calling OpenAI Responses API', { 
-        userId, 
-        threadId 
-      });
-      
-      // Send the request to the OpenAI client
-      const response = await this.openAIClient.sendJsonMessage(messages, apiOptions);
-      
-      // Update the conversation state with the new response ID
-      await this.openAIStateManager.updateLastResponseId(conversationState.id, response.responseId);
-      
-      // Validate and process the response
-      if (!response || !response.data) {
-        throw new FocusAreaGenerationError('Invalid response format from OpenAI API');
+      },
+      {
+        role: this.MessageRole.USER,
+        content: prompt
       }
-      
-      // Format the response using the JSON formatter
-      const responseData = this.formatJson(response.data);
-      
-      // Validate the focus areas data
-      if (!responseData.focusAreas || !Array.isArray(responseData.focusAreas)) {
-        throw new FocusAreaGenerationError('Generated focus areas missing required fields');
-      }
-      
-      const focusAreas = responseData.focusAreas;
-      
-      // Convert to domain objects
-      const result = focusAreas.map((area, index) => {
-        // Create priorityLevel from 1-3 based on high/medium/low
-        const priorityLevel = area.priorityLevel === 'high' ? 1 : 
-                             area.priorityLevel === 'medium' ? 2 : 3;
-        
-        // Create domain model instance
-        return new this.FocusArea({
-          userId,
-          name: area.name,
-          description: area.description || '',
-          priority: priorityLevel,
-          metadata: {
-            responseId: response.responseId,
-            rationale: area.rationale,
-            improvementStrategies: area.improvementStrategies || [],
-            recommendedChallengeTypes: area.recommendedChallengeTypes || []
-          }
-        });
-      });
-      
-      this.logger.info('Successfully generated personalized focus areas', {
-        count: result.length,
-        userId
-      });
-
-      return result;
-    } catch (error) {
-      this.logger.error('Error generating focus areas', { 
-        error: error.message,
-        userId
-      });
-      
-      if (error instanceof FocusAreaGenerationError) {
-        throw error;
-      }
-      
-      throw new FocusAreaGenerationError(`Generation failed: ${error.message}`);
+    ];
+    
+    // Call the OpenAI Responses API for focus area generation
+    this.logger.debug('Calling OpenAI Responses API', { 
+      userId, 
+      threadId 
+    });
+    
+    // Send the request to the OpenAI client
+    const response = await this.openAIClient.sendJsonMessage(messages, apiOptions);
+    
+    // Update the conversation state with the new response ID
+    await this.openAIStateManager.updateLastResponseId(conversationState.id, response.responseId);
+    
+    // Validate and process the response
+    if (!response || !response.data) {
+      throw new FocusAreaGenerationError('Invalid response format from OpenAI API');
     }
+    
+    // Format the response using the JSON formatter
+    const responseData = this.formatJson(response.data);
+    
+    // Validate the focus areas data
+    if (!responseData.focusAreas || !Array.isArray(responseData.focusAreas)) {
+      throw new FocusAreaGenerationError('Generated focus areas missing required fields');
+    }
+    
+    const focusAreas = responseData.focusAreas;
+    
+    // Convert to domain objects
+    const result = focusAreas.map((area, index) => {
+      // Create priorityLevel from 1-3 based on high/medium/low
+      const priorityLevel = area.priorityLevel === 'high' ? 1 : 
+                           area.priorityLevel === 'medium' ? 2 : 3;
+      
+      // Create domain model instance
+      return new this.FocusArea({
+        userId,
+        name: area.name,
+        description: area.description || '',
+        priority: priorityLevel,
+        metadata: {
+          responseId: response.responseId,
+          rationale: area.rationale,
+          improvementStrategies: area.improvementStrategies || [],
+          recommendedChallengeTypes: area.recommendedChallengeTypes || []
+        }
+      });
+    });
+    
+    this.logger.info('Successfully generated personalized focus areas', {
+      count: result.length,
+      userId
+    });
+
+    return result;
   }
 }
 

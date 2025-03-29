@@ -15,7 +15,7 @@ describe('Integration: Challenge-Evaluation Workflow', function() {
   // Set longer timeout for API calls
   this.timeout(30000);
 
-let sandbox;
+  let sandbox;
   let challengeRepository;
   let evaluationRepository;
   let openAIMock;
@@ -31,7 +31,7 @@ let sandbox;
     openAIMock = setup.openAIClient;
     
     // Set up mock OpenAI responses for different requests
-    openAIMock.responses.create.callsFake((params) => {
+    openAIMock.responses.create.callsFake(params => {
       // Determine request type based on content
       const content = params.messages?.[1]?.content || '';
       
@@ -41,14 +41,14 @@ let sandbox;
           choices: [{
             message: {
               content: JSON.stringify({
-                title: "Ethical Decision Making in AI Development",
+                title: 'Ethical Decision Making in AI Development',
                 content: {
-                  description: "You are leading a team developing an AI system that will help make lending decisions for a bank. You discover that the historical data used for training shows bias against certain demographic groups. How would you address this issue while maintaining the system's performance and meeting business requirements?"
+                  description: 'You are leading a team developing an AI system that will help make lending decisions for a bank. You discover that the historical data used for training shows bias against certain demographic groups. How would you address this issue while maintaining the system\'s performance and meeting business requirements?'
                 },
                 evaluation_criteria: [
-                  "Understanding of ethical implications",
-                  "Technical feasibility of solution",
-                  "Balance between fairness and performance"
+                  'Understanding of ethical implications',
+                  'Technical feasibility of solution',
+                  'Balance between fairness and performance'
                 ]
               })
             }
@@ -59,7 +59,7 @@ let sandbox;
         return Promise.resolve({
           choices: [{
             message: {
-              content: "To address the bias in the historical data, I would take a multi-faceted approach:\n\n1. Data Analysis and Transparency: First, I would thoroughly analyze the data to identify the specific biases present. Understanding the nature and extent of the bias is crucial before attempting to mitigate it.\n\n2. Data Preprocessing: I would implement preprocessing techniques to rebalance the training data, such as oversampling underrepresented groups or applying statistical methods to reduce the impact of biased features.\n\n3. Algorithmic Fairness: I would incorporate fairness constraints directly into the model development process, ensuring that predictions are consistent across different demographic groups while maintaining performance metrics.\n\n4. Regular Auditing: Implementing a system of regular audits to catch any bias that emerges over time, with clear processes for addressing issues that are discovered.\n\n5. Regulatory Compliance: Ensure all solutions comply with relevant regulations like the Fair Lending Act and ECOA.\n\nThis approach aims to balance ethical considerations with performance requirements, recognizing that bias mitigation is an ongoing process rather than a one-time fix."
+              content: 'To address the bias in the historical data, I would take a multi-faceted approach:\n\n1. Data Analysis and Transparency: First, I would thoroughly analyze the data to identify the specific biases present. Understanding the nature and extent of the bias is crucial before attempting to mitigate it.\n\n2. Data Preprocessing: I would implement preprocessing techniques to rebalance the training data, such as oversampling underrepresented groups or applying statistical methods to reduce the impact of biased features.\n\n3. Algorithmic Fairness: I would incorporate fairness constraints directly into the model development process, ensuring that predictions are consistent across different demographic groups while maintaining performance metrics.\n\n4. Regular Auditing: Implementing a system of regular audits to catch any bias that emerges over time, with clear processes for addressing issues that are discovered.\n\n5. Regulatory Compliance: Ensure all solutions comply with relevant regulations like the Fair Lending Act and ECOA.\n\nThis approach aims to balance ethical considerations with performance requirements, recognizing that bias mitigation is an ongoing process rather than a one-time fix.'
             }
           }]
         });
@@ -70,14 +70,14 @@ let sandbox;
             message: {
               content: JSON.stringify({
                 overall_score: 8,
-                feedback: "This is a well-reasoned response that shows good understanding of the ethical implications. The proposed solution is technically feasible and balances fairness with performance requirements.",
+                feedback: 'This is a well-reasoned response that shows good understanding of the ethical implications. The proposed solution is technically feasible and balances fairness with performance requirements.',
                 strengths: [
-                  "Strong understanding of ethical implications",
-                  "Practical approach to bias mitigation"
+                  'Strong understanding of ethical implications',
+                  'Practical approach to bias mitigation'
                 ],
                 areas_for_improvement: [
-                  "Could provide more technical details",
-                  "Limited discussion of regulatory compliance"
+                  'Could provide more technical details',
+                  'Limited discussion of regulatory compliance'
                 ],
                 category_scores: {
                   clarity: 8,
@@ -93,7 +93,7 @@ let sandbox;
         return Promise.resolve({
           choices: [{
             message: {
-              content: "Default mock response"
+              content: 'Default mock response'
             }
           }]
         });
@@ -113,12 +113,12 @@ let sandbox;
         evaluation_criteria: An array of criteria to evaluate responses by`;
         
         const completion = await openAIMock.responses.create({
-          model: "gpt-4",
+          model: 'gpt-4',
           messages: [
-            { role: "system", content: "You are an expert in creating challenging cognitive exercises that test human skills." },
-            { role: "user", content: prompt }
+            { role: 'system', content: 'You are an expert in creating challenging cognitive exercises that test human skills.' },
+            { role: 'user', content: prompt }
           ],
-          response_format: { type: "json_object" }
+          response_format: { type: 'json_object' }
         });
         
         const responseText = completion.choices[0].message.content;
@@ -145,7 +145,7 @@ let sandbox;
         return challenge;
       },
       
-      simulateResponse: async (challenge) => {
+      simulateResponse: async challenge => {
         const prompt = `
         You are presented with the following challenge:
         
@@ -156,17 +156,17 @@ let sandbox;
         Please provide a thoughtful, well-reasoned response to this challenge.`;
         
         const completion = await openAIMock.responses.create({
-          model: "gpt-4",
+          model: 'gpt-4',
           messages: [
-            { role: "system", content: "You are a participant in a cognitive challenge, responding as a human would." },
-            { role: "user", content: prompt }
+            { role: 'system', content: 'You are a participant in a cognitive challenge, responding as a human would.' },
+            { role: 'user', content: prompt }
           ]
         });
         
         return completion.choices[0].message.content;
       },
       
-      getChallengeById: async (id) => {
+      getChallengeById: async id => {
         return await challengeRepository.findById(id);
       }
     };
@@ -190,12 +190,12 @@ let sandbox;
         category_scores: An object with scores for clarity (1-10), reasoning (1-10), and originality (1-10)`;
         
         const completion = await openAIMock.responses.create({
-          model: "gpt-4",
+          model: 'gpt-4',
           messages: [
-            { role: "system", content: "You are an expert evaluator for cognitive challenges." },
-            { role: "user", content: prompt }
+            { role: 'system', content: 'You are an expert evaluator for cognitive challenges.' },
+            { role: 'user', content: prompt }
           ],
-          response_format: { type: "json_object" }
+          response_format: { type: 'json_object' }
         });
         
         const responseJson = completion.choices[0].message.content;
@@ -223,7 +223,7 @@ let sandbox;
         return evaluation;
       },
       
-      getEvaluationsByChallengeId: async (challengeId) => {
+      getEvaluationsByChallengeId: async challengeId => {
         return await evaluationRepository.findByChallengeId(challengeId);
       }
     };
@@ -286,8 +286,8 @@ let sandbox;
       const challenge = await challengeService.generateChallenge('AI Ethics', 'medium');
       
       // 2. Generate multiple responses and evaluations
-      const response1 = "First response to the challenge about ethical AI.";
-      const response2 = "Second response with different content about addressing bias.";
+      const response1 = 'First response to the challenge about ethical AI.';
+      const response2 = 'Second response with different content about addressing bias.';
       
       // 3. Evaluate both responses
       const evaluation1 = await evaluationService.evaluateResponse(challenge, response1);

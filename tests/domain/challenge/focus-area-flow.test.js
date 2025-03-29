@@ -35,6 +35,9 @@ if (!fs.existsSync(LOG_DIR)) {
 }
 
 // Helper to log test actions
+/**
+ *
+ */
 function logTestAction(action, data) {
   const timestamp = new Date().toISOString();
   const logFile = path.join(LOG_DIR, `focus_area_test_${timestamp.replace(/[:.]/g, '-')}.json`);
@@ -55,7 +58,7 @@ describe('Integration: FocusArea Flow', function() {
     skipIfMissingEnv(this, 'openai');
   });
 
-// Set longer timeout for API calls
+  // Set longer timeout for API calls
   this.timeout(30000);
   
   // Skip if API keys not available
@@ -97,7 +100,7 @@ describe('Integration: FocusArea Flow', function() {
         // Create OpenAI client
         const { OpenAIClient } = require('../../src/infra/openai');
         openaiClient = new OpenAIClient({ apiKey: testEnv.getTestConfig().openai.apiKey
-         });
+        });
         
         // Use environment variables if available, otherwise use our obtained credentials
         const supabaseUrl = testEnv.getTestConfig().supabase.url || 'https://dvmfpddmnzaxjmxxpupk.supabase.co';
@@ -115,7 +118,13 @@ describe('Integration: FocusArea Flow', function() {
         );
         
         // Create a simple FocusArea model
+        /**
+         *
+         */
         class FocusArea {
+          /**
+           *
+           */
           constructor(data) {
             this.id = data.id || uuidv4();
             this.name = data.name;
@@ -130,7 +139,7 @@ describe('Integration: FocusArea Flow', function() {
         
         // Create a simple repository that uses Supabase
         focusAreaRepository = {
-          save: async (focusArea) => {
+          save: async focusArea => {
             try {
               // Log what we're about to insert
               logTestAction('FocusAreaToSave', { 
@@ -179,7 +188,7 @@ describe('Integration: FocusArea Flow', function() {
             }
           },
           
-          findById: async (id) => {
+          findById: async id => {
             try {
               const { data, error } = await supabaseClient
                 .from('focus_areas')
@@ -211,7 +220,7 @@ describe('Integration: FocusArea Flow', function() {
         
         // Create a simple service that recommends focus areas using OpenAI
         focusAreaService = {
-          recommendFocusArea: async (userProfile) => {
+          recommendFocusArea: async userProfile => {
             const prompt = `Based on the following user profile, recommend a focus area for their AI skills development:
             
             Professional Title: ${userProfile.professionalTitle}
@@ -224,12 +233,12 @@ describe('Integration: FocusArea Flow', function() {
             skills: An array of 3-5 specific skills to develop in this focus area`;
             
             const completion = await openaiClient.responses.create({
-              model: "gpt-4o",
+              model: 'gpt-4o',
               messages: [
-                { role: "system", content: "You are an expert career advisor specializing in AI skill development." },
-                { role: "user", content: prompt }
+                { role: 'system', content: 'You are an expert career advisor specializing in AI skill development.' },
+                { role: 'user', content: prompt }
               ],
-              response_format: { type: "json_object" }
+              response_format: { type: 'json_object' }
             });
             
             const responseText = completion.choices[0].message.content;

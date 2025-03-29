@@ -1,12 +1,14 @@
+'use strict';
+
 /**
  * Supabase Client for Database Access
- * 
+ *
  * Infrastructure service for database operations using Supabase.
  * Moved from utilities to follow Domain-Driven Design principles.
  */
 
 const { createClient } = require('@supabase/supabase-js');
-const { logger } = require('../logging/logger');
+const { logger } = require('../core/infra/logging/logger');
 
 /**
  * Creates and configures a Supabase client
@@ -16,9 +18,9 @@ const { logger } = require('../logging/logger');
 function createSupabaseClient(options = {}) {
   // Get Supabase credentials from environment variables or options
   const SUPABASE_URL = options.url || process.env.SUPABASE_URL;
-  const SUPABASE_KEY = options.useServiceRole 
-    ? (options.key || process.env.SUPABASE_SERVICE_ROLE_KEY)
-    : (options.key || process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY);
+  const SUPABASE_KEY = options.useServiceRole
+    ? options.key || process.env.SUPABASE_SERVICE_ROLE_KEY
+    : options.key || process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY;
 
   // Log the environment variables for debugging (redact actual keys for security)
   console.log('Supabase configuration:', {
@@ -29,8 +31,8 @@ function createSupabaseClient(options = {}) {
       SUPABASE_URL: process.env.SUPABASE_URL ? 'set' : 'missing',
       SUPABASE_KEY: process.env.SUPABASE_KEY ? 'set' : 'missing',
       SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY ? 'set' : 'missing',
-      SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'set' : 'missing'
-    }
+      SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'set' : 'missing',
+    },
   });
 
   // Check that we have the necessary credentials
@@ -40,9 +42,9 @@ function createSupabaseClient(options = {}) {
       logger.warn('Supabase credentials not found, using mock client (development/test mode)');
       return createMockSupabaseClient();
     }
-    
-    logger.error('Supabase credentials not found in environment variables', { 
-      namespace: 'app'
+
+    logger.error('Supabase credentials not found in environment variables', {
+      namespace: 'app',
     });
     throw new Error('Supabase credentials not found in environment variables');
   }
@@ -51,11 +53,11 @@ function createSupabaseClient(options = {}) {
     // Create the Supabase client with the provided credentials
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY, {
       auth: { persistSession: false },
-      ...options.clientOptions
+      ...options.clientOptions,
     });
-    
-    logger.info('Supabase client initialized successfully', { 
-      isServiceRole: options.useServiceRole 
+
+    logger.info('Supabase client initialized successfully', {
+      isServiceRole: options.useServiceRole,
     });
     return supabaseClient;
   } catch (error) {
@@ -71,15 +73,18 @@ const supabaseClient = createSupabaseClient();
 const supabaseAdmin = createSupabaseClient({ useServiceRole: true });
 
 // Add this function to create a mock client
+/**
+ *
+ */
 function createMockSupabaseClient() {
   // Create a simple mock client that won't fail tests
   return {
     auth: {
       signUp: () => Promise.resolve({ data: { user: { id: 'mock-user-id' } }, error: null }),
       signIn: () => Promise.resolve({ data: { user: { id: 'mock-user-id' } }, error: null }),
-      signOut: () => Promise.resolve({ error: null })
+      signOut: () => Promise.resolve({ error: null }),
     },
-    from: (table) => ({
+    from: table => ({
       select: () => ({
         eq: () => ({
           single: () => Promise.resolve({ data: { id: 'mock-data-id' }, error: null }),
@@ -118,5 +123,5 @@ function createMockSupabaseClient() {
 module.exports = {
   supabaseClient,
   supabaseAdmin,
-  createSupabaseClient
-}; 
+  createSupabaseClient,
+};

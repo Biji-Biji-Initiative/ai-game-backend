@@ -19,7 +19,7 @@ describe('External: Challenge OpenAI Integration', function() {
     skipIfMissingEnv(this, 'openai');
   });
 
-// Skip if API keys not available
+  // Skip if API keys not available
   before(function() {
     if (!testEnv.getTestConfig().openai.apiKey) {
       console.warn('OPENAI_API_KEY not found, skipping external OpenAI tests');
@@ -36,7 +36,7 @@ describe('External: Challenge OpenAI Integration', function() {
     // Create OpenAI client
     const { OpenAIClient } = require('../../src/infra/openai');
     openaiClient = new OpenAIClient({ apiKey: testEnv.getTestConfig().openai.apiKey
-     });
+    });
   });
   
   it('should generate a challenge using OpenAI API', async function() {
@@ -51,12 +51,12 @@ describe('External: Challenge OpenAI Integration', function() {
     
     // 2. ACT
     const completion = await openaiClient.responses.create({
-      model: "gpt-4o",
+      model: 'gpt-4o',
       messages: [
-        { role: "system", content: "You are an expert at creating engaging cognitive challenges that test problem-solving abilities." },
-        { role: "user", content: prompt }
+        { role: 'system', content: 'You are an expert at creating engaging cognitive challenges that test problem-solving abilities.' },
+        { role: 'user', content: prompt }
       ],
-      response_format: { type: "json_object" }
+      response_format: { type: 'json_object' }
     });
     
     // Parse the response
@@ -87,12 +87,12 @@ describe('External: Challenge OpenAI Integration', function() {
       difficulty: The difficulty level (easy, medium, or hard)`;
     
     const completion = await openaiClient.responses.create({
-      model: "gpt-4o",
+      model: 'gpt-4o',
       messages: [
-        { role: "system", content: "You are an expert at creating engaging cognitive challenges that test problem-solving abilities." },
-        { role: "user", content: prompt }
+        { role: 'system', content: 'You are an expert at creating engaging cognitive challenges that test problem-solving abilities.' },
+        { role: 'user', content: prompt }
       ],
-      response_format: { type: "json_object" }
+      response_format: { type: 'json_object' }
     });
     
     // Parse the response

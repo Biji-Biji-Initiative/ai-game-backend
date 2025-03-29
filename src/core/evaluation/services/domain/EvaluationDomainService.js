@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Evaluation Domain Service
  * 
@@ -8,7 +10,32 @@
  * @requires evaluationCategoryRepository
  */
 
-const evaluationCategoryRepository = require('../../repositories/evaluationCategoryRepository');
+const {
+  applyRepositoryErrorHandling,
+  applyServiceErrorHandling,
+  applyControllerErrorHandling,
+  createErrorMapper
+} = require('../../../core/infra/errors/centralizedErrorUtils');
+
+// Import domain-specific error classes
+const {
+  EvaluationError,
+  EvaluationNotFoundError,
+  EvaluationValidationError,
+  EvaluationProcessingError,
+} = require('../errors/EvaluationErrors');
+
+// Create an error mapper for services
+const evaluationServiceErrorMapper = createErrorMapper(
+  {
+    EvaluationNotFoundError: EvaluationNotFoundError,
+    EvaluationValidationError: EvaluationValidationError,
+    EvaluationProcessingError: EvaluationProcessingError,
+    Error: EvaluationError,
+  },
+  EvaluationError
+);
+// const evaluationCategoryRepository = require('../../repositories/evaluationCategoryRepository');
 
 /**
  * Domain service for Evaluation entities
@@ -26,6 +53,7 @@ class EvaluationDomainService {
   }) {
     this.evaluationCategoryRepository = evaluationCategoryRepository;
     this.logger = logger;
+    applyServiceErrorHandling(this, evaluationServiceErrorMappings);
   }
 
   /**
@@ -33,6 +61,9 @@ class EvaluationDomainService {
    * @param {Array} focusAreas - User focus areas
    * @returns {Promise<Array>} Relevant evaluation categories
    * @throws {Error} If mapping fails or no mappings found
+   */
+  /**
+   * Method mapFocusAreasToCategories
    */
   async mapFocusAreasToCategories(focusAreas) {
     try {
@@ -55,6 +86,9 @@ class EvaluationDomainService {
    * @param {string} focusArea - Focus area to get weights for
    * @returns {Promise<Object>} Mapping of category keys to weights
    */
+  /**
+   * Method getCategoryWeightsForFocusArea
+   */
   async getCategoryWeightsForFocusArea(focusArea) {
     try {
       return await this.evaluationCategoryRepository.getCategoryWeightsForFocusArea(focusArea);
@@ -70,6 +104,9 @@ class EvaluationDomainService {
   /**
    * Get descriptions for all categories
    * @returns {Promise<Object>} Mapping of category keys to descriptions
+   */
+  /**
+   * Method getCategoryDescriptions
    */
   async getCategoryDescriptions() {
     try {
@@ -87,6 +124,9 @@ class EvaluationDomainService {
    * Enriches the user context with mapped categories and relevance data
    * @param {Object} evaluation - Evaluation object
    * @returns {Promise<Object>} Enriched user context
+   */
+  /**
+   * Method processUserContext
    */
   async processUserContext(evaluation) {
     try {

@@ -28,7 +28,7 @@ describe('Domain Events Integration', function() {
     };
     
     // Register a handler for challenge completion that calls the focus area service
-    const handlerId = domainEvents.registerHandler('ChallengeCompleted', async (event) => {
+    const handlerId = domainEvents.registerHandler('ChallengeCompleted', async event => {
       const { data } = event;
       
       if (data.focusArea) {
@@ -86,17 +86,17 @@ describe('Domain Events Integration', function() {
     const userService = { updateLastActive: sinon.stub().resolves() };
     
     // Register all handlers for the user login event
-    domainEvents.registerHandler('UserLoggedIn', async (event) => {
+    domainEvents.registerHandler('UserLoggedIn', async event => {
       const { data } = event;
       await notificationService.sendNotification(data.userId, 'Welcome back!');
     });
     
-    domainEvents.registerHandler('UserLoggedIn', async (event) => {
+    domainEvents.registerHandler('UserLoggedIn', async event => {
       const { data } = event;
       await analyticsService.trackEvent('login', { userId: data.userId });
     });
     
-    domainEvents.registerHandler('UserLoggedIn', async (event) => {
+    domainEvents.registerHandler('UserLoggedIn', async event => {
       const { data } = event;
       await userService.updateLastActive(data.userId);
     });

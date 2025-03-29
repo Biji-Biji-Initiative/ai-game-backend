@@ -1,25 +1,66 @@
 /**
- * Adaptive Service
+ * AdaptiveService
  * 
  * Manages adaptive learning features and personalization.
  * Provides methods to generate recommendations, adjust difficulty,
  * and create personalized learning experiences.
  */
 
+const { createErrorMapper, withServiceErrorHandling } = require('../../../core/infra/errors/errorStandardization');
+const { AdaptiveError } = require('../errors/adaptiveErrors');
 const { v4: uuidv4 } = require('uuid');
 
+/**
+ * Service for handling adaptive learning operations
+ */
 class AdaptiveService {
   /**
-   * Create a new AdaptiveService
-   * @param {Object} options - Service configuration
-   * @param {Object} options.adaptiveRepository - Repository for adaptive data
-   * @param {Object} options.logger - Logger instance
-   * @param {Object} options.cacheService - Cache service for optimizing data access
+   * Constructor
+   * @param {Object} dependencies - Service dependencies
+   * @param {Object} dependencies.adaptiveRepository - Repository for adaptive data
+   * @param {Object} dependencies.logger - Logger instance
+   * @param {Object} dependencies.cacheService - Cache service for optimizing data access
    */
-  constructor(options = {}) {
-    this.repository = options.adaptiveRepository;
-    this.logger = options.logger || console;
-    this.cache = options.cacheService;
+  constructor(dependencies = {}) {
+    const { adaptiveRepository, logger, cacheService } = dependencies;
+    
+    this.repository = adaptiveRepository;
+    this.logger = logger || console;
+    this.cache = cacheService;
+    
+    // Create error mapper for adaptive service
+    const errorMapper = createErrorMapper(
+      {
+        Error: AdaptiveError
+      },
+      AdaptiveError
+    );
+    
+    // Apply standardized error handling to methods
+    this.getRecommendations = withServiceErrorHandling(
+      this.getRecommendations.bind(this),
+      { methodName: 'getRecommendations', domainName: 'adaptive', logger: this.logger, errorMapper }
+    );
+    
+    this.generateChallenge = withServiceErrorHandling(
+      this.generateChallenge.bind(this),
+      { methodName: 'generateChallenge', domainName: 'adaptive', logger: this.logger, errorMapper }
+    );
+    
+    this.adjustDifficulty = withServiceErrorHandling(
+      this.adjustDifficulty.bind(this),
+      { methodName: 'adjustDifficulty', domainName: 'adaptive', logger: this.logger, errorMapper }
+    );
+    
+    this.calculateDifficulty = withServiceErrorHandling(
+      this.calculateDifficulty.bind(this),
+      { methodName: 'calculateDifficulty', domainName: 'adaptive', logger: this.logger, errorMapper }
+    );
+    
+    this.invalidateUserCaches = withServiceErrorHandling(
+      this.invalidateUserCaches.bind(this),
+      { methodName: 'invalidateUserCaches', domainName: 'adaptive', logger: this.logger, errorMapper }
+    );
   }
 
   /**
@@ -28,41 +69,32 @@ class AdaptiveService {
    * @param {Object} options - Additional options
    * @returns {Promise<Array>} Array of recommendations
    */
-  async getRecommendations(userId, options = {}) {
+  getRecommendations(userId, options = {}) {
     if (!userId) {
       throw new Error('User ID is required for recommendations');
     }
     
-    try {
-      this.logger.info('Getting personalized recommendations', { userId });
-      
-      // Cache key if caching is enabled
-      if (this.cache) {
-        const cacheKey = `recommendations:user:${userId}:${JSON.stringify(options)}`;
-        return this.cache.getOrSet(cacheKey, async () => {
-          return this.generateRecommendations(userId, options);
-        }, 300); // Cache for 5 minutes
-      }
-      
-      return this.generateRecommendations(userId, options);
-    } catch (error) {
-      this.logger.error('Error getting recommendations', {
-        error: error.message,
-        stack: error.stack,
-        userId
-      });
-      throw error;
+    this.logger.info('Getting personalized recommendations', { userId });
+    
+    // Cache key if caching is enabled
+    if (this.cache) {
+      const cacheKey = `recommendations:user:${userId}:${JSON.stringify(options)}`;
+      return this.cache.getOrSet(cacheKey, () => {
+        return this.generateRecommendations(userId, options);
+      }, 300); // Cache for 5 minutes
     }
+    
+    return this.generateRecommendations(userId, options);
   }
   
   /**
    * Helper method to generate recommendations
-   * @param {string} userId - User ID
-   * @param {Object} options - Options
+   * @param {string} _userId - User ID
+   * @param {Object} _options - Options
    * @returns {Promise<Array>} Array of recommendations
    * @private
    */
-  async generateRecommendations(userId, options) {
+  generateRecommendations(_userId, _options) {
     // Basic implementation - would normally fetch data from repository
     // and run recommendation algorithms
     return [
@@ -89,31 +121,21 @@ class AdaptiveService {
    * @param {Object} options - Challenge generation options
    * @returns {Promise<Object>} Generated challenge
    */
-  async generateChallenge(userId, options = {}) {
+  generateChallenge(userId, options = {}) {
     if (!userId) {
       throw new Error('User ID is required for challenge generation');
     }
     
-    try {
-      this.logger.info('Generating personalized challenge', { userId, options });
-      
-      // Placeholder - would integrate with challengeCoordinator in practice
-      return {
-        id: uuidv4(),
-        title: 'Personalized Challenge',
-        difficulty: options.difficulty || 'intermediate',
-        focusArea: options.focusArea || 'ai-ethics',
-        status: 'generated'
-      };
-    } catch (error) {
-      this.logger.error('Error generating challenge', {
-        error: error.message,
-        stack: error.stack,
-        userId,
-        options
-      });
-      throw error;
-    }
+    this.logger.info('Generating personalized challenge', { userId, options });
+    
+    // Placeholder - would integrate with challengeCoordinator in practice
+    return {
+      id: uuidv4(),
+      title: 'Personalized Challenge',
+      difficulty: options.difficulty || 'intermediate',
+      focusArea: options.focusArea || 'ai-ethics',
+      status: 'generated'
+    };
   }
 
   /**
@@ -122,7 +144,7 @@ class AdaptiveService {
    * @param {Object} performanceData - User performance data
    * @returns {Promise<Object>} Updated difficulty settings
    */
-  async adjustDifficulty(userId, performanceData) {
+  adjustDifficulty(userId, performanceData) {
     if (!userId) {
       throw new Error('User ID is required for difficulty adjustment');
     }
@@ -131,41 +153,32 @@ class AdaptiveService {
       throw new Error('Performance data is required and must be an object');
     }
     
-    try {
-      this.logger.info('Adjusting difficulty', { userId, performanceData });
-      
-      // Simple placeholder implementation
-      const currentLevel = performanceData.currentLevel || 'intermediate';
-      const score = performanceData.score || 75;
-      
-      let newLevel = currentLevel;
-      if (score > 90) {
-        newLevel = 'advanced';
-      } else if (score < 50) {
-        newLevel = 'beginner';
-      }
-      
-      const result = {
-        previousLevel: currentLevel,
-        newLevel,
-        adjustmentReason: `Performance score: ${score}`
-      };
-      
-      // Update cache if caching is enabled
-      if (this.cache) {
-        const cacheKey = `user:${userId}:difficulty`;
-        this.cache.set(cacheKey, result, 1800); // 30 minutes
-      }
-      
-      return result;
-    } catch (error) {
-      this.logger.error('Error adjusting difficulty', {
-        error: error.message,
-        stack: error.stack,
-        userId
-      });
-      throw error;
+    this.logger.info('Adjusting difficulty', { userId, performanceData });
+    
+    // Simple placeholder implementation
+    const currentLevel = performanceData.currentLevel || 'intermediate';
+    const score = performanceData.score || 75;
+    
+    let newLevel = currentLevel;
+    if (score > 90) {
+      newLevel = 'advanced';
+    } else if (score < 50) {
+      newLevel = 'beginner';
     }
+    
+    const result = {
+      previousLevel: currentLevel,
+      newLevel,
+      adjustmentReason: `Performance score: ${score}`
+    };
+    
+    // Update cache if caching is enabled
+    if (this.cache) {
+      const cacheKey = `user:${userId}:difficulty`;
+      this.cache.set(cacheKey, result, 1800); // 30 minutes
+    }
+    
+    return result;
   }
 
   /**
@@ -173,45 +186,36 @@ class AdaptiveService {
    * @param {string} userId - User ID
    * @returns {Promise<Object>} Optimal difficulty settings
    */
-  async calculateDifficulty(userId) {
+  calculateDifficulty(userId) {
     if (!userId) {
       throw new Error('User ID is required for difficulty calculation');
     }
     
-    try {
-      this.logger.info('Calculating optimal difficulty', { userId });
-      
-      // Use cache if available
-      if (this.cache) {
-        const cacheKey = `user:${userId}:optimalDifficulty`;
-        return this.cache.getOrSet(cacheKey, async () => {
-          // Placeholder implementation
-          return {
-            level: 'intermediate',
-            customSettings: {
-              contextComplexity: 0.6,
-              questionCount: 2
-            }
-          };
-        }, 1800); // Cache for 30 minutes
-      }
-      
-      // Placeholder implementation
-      return {
-        level: 'intermediate',
-        customSettings: {
-          contextComplexity: 0.6,
-          questionCount: 2
-        }
-      };
-    } catch (error) {
-      this.logger.error('Error calculating optimal difficulty', {
-        error: error.message,
-        stack: error.stack,
-        userId
-      });
-      throw error;
+    this.logger.info('Calculating optimal difficulty', { userId });
+    
+    // Use cache if available
+    if (this.cache) {
+      const cacheKey = `user:${userId}:optimalDifficulty`;
+      return this.cache.getOrSet(cacheKey, () => {
+        // Placeholder implementation
+        return {
+          level: 'intermediate',
+          customSettings: {
+            contextComplexity: 0.6,
+            questionCount: 2
+          }
+        };
+      }, 1800); // Cache for 30 minutes
     }
+    
+    // Placeholder implementation
+    return {
+      level: 'intermediate',
+      customSettings: {
+        contextComplexity: 0.6,
+        questionCount: 2
+      }
+    };
   }
   
   /**
@@ -219,7 +223,7 @@ class AdaptiveService {
    * @param {string} userId - User ID
    * @returns {Promise<void>}
    */
-  async invalidateUserCaches(userId) {
+  invalidateUserCaches(userId) {
     if (!userId || !this.cache) {
       return;
     }
@@ -242,8 +246,9 @@ class AdaptiveService {
         error: error.message,
         userId
       });
+      // Don't rethrow - this is a non-critical operation
     }
   }
 }
 
-module.exports = AdaptiveService; 
+module.exports = AdaptiveService;

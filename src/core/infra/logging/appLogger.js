@@ -1,6 +1,8 @@
+'use strict';
+
 /**
  * Application Logger
- * 
+ *
  * Specialized logger for application layer.
  * Follows domain-driven logging practices.
  */
@@ -15,7 +17,7 @@ const logLevel = process.env.LOG_LEVEL || 'info';
 const domainFormat = format.printf(info => {
   // Build basic log message
   let logMessage = `${info.timestamp} ${info.level}: ${info.message}`;
-  
+
   // Format metadata (excluding level, message, timestamp, domain)
   const metaFields = { ...info };
   delete metaFields.level;
@@ -23,26 +25,20 @@ const domainFormat = format.printf(info => {
   delete metaFields.timestamp;
   delete metaFields.domain;
   delete metaFields.component;
-  
+
   // Add metadata if present
   if (Object.keys(metaFields).length > 0) {
     logMessage += ` ${JSON.stringify(metaFields)}`;
   }
-  
+
   return logMessage;
 });
 
 // Create a base logger
 const baseLogger = createLogger({
   level: logLevel,
-  format: format.combine(
-    format.timestamp(),
-    format.colorize(),
-    domainFormat
-  ),
-  transports: [
-    new transports.Console()
-  ]
+  format: format.combine(format.timestamp(), format.colorize(), domainFormat),
+  transports: [new transports.Console()],
 });
 
 // Create application domain logger
@@ -51,18 +47,22 @@ const appLogger = {
   info: (message, meta = {}) => baseLogger.info(message, { domain: 'application', ...meta }),
   warn: (message, meta = {}) => baseLogger.warn(message, { domain: 'application', ...meta }),
   error: (message, meta = {}) => baseLogger.error(message, { domain: 'application', ...meta }),
-  
+
   // Create a child logger for specific components
-  child: (component) => {
+  child: component => {
     return {
-      debug: (message, meta = {}) => baseLogger.debug(message, { domain: 'application', component, ...meta }),
-      info: (message, meta = {}) => baseLogger.info(message, { domain: 'application', component, ...meta }),
-      warn: (message, meta = {}) => baseLogger.warn(message, { domain: 'application', component, ...meta }),
-      error: (message, meta = {}) => baseLogger.error(message, { domain: 'application', component, ...meta })
+      debug: (message, meta = {}) =>
+        baseLogger.debug(message, { domain: 'application', component, ...meta }),
+      info: (message, meta = {}) =>
+        baseLogger.info(message, { domain: 'application', component, ...meta }),
+      warn: (message, meta = {}) =>
+        baseLogger.warn(message, { domain: 'application', component, ...meta }),
+      error: (message, meta = {}) =>
+        baseLogger.error(message, { domain: 'application', component, ...meta }),
     };
-  }
+  },
 };
 
 module.exports = {
-  appLogger
-}; 
+  appLogger,
+};

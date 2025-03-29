@@ -8,7 +8,13 @@
 const { v4: uuidv4 } = require('uuid');
 const Challenge = require('../../core/challenge/models/Challenge');
 
+/**
+ *
+ */
 class InMemoryChallengeRepository {
+  /**
+   *
+   */
   constructor(initialChallenges = []) {
     // Initialize with empty Map or seed data
     this.challenges = new Map();
@@ -154,8 +160,8 @@ class InMemoryChallengeRepository {
       const sortOrder = direction === 'desc' ? -1 : 1;
       
       results.sort((a, b) => {
-        if (a[field] < b[field]) return -1 * sortOrder;
-        if (a[field] > b[field]) return 1 * sortOrder;
+        if (a[field] < b[field]) {return -1 * sortOrder;}
+        if (a[field] > b[field]) {return 1 * sortOrder;}
         return 0;
       });
     } else {

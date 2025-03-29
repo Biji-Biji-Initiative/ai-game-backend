@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Challenge Generation Service
  * 
@@ -9,10 +11,9 @@
  * @requires logger
  */
 
-const { logger } = require('../../../core/infra/logging/logger');
-const promptBuilder = require('../../prompt/promptBuilder');
-const { formatForResponsesApi } = require('../../../infra/openai/messageFormatter');
-const Challenge = require('../models/Challenge');
+// const promptBuilder = require('../../prompt/promptBuilder');
+const { formatForResponsesApi } = require('../../../core/infra/openai/messageFormatter');
+// const Challenge = require('../models/Challenge');
 
 /**
  * Service for generating personalized challenges
@@ -34,11 +35,15 @@ class ChallengeGenerationService {
     openAIConfig, 
     logger 
   }) {
+    if (!logger) {
+      throw new Error('Logger is required for ChallengeGenerationService');
+    }
+    
     this.openAIClient = openAIClient;
     this.openAIStateManager = openAIStateManager;
     this.personalityRepository = personalityRepository;
     this.openAIConfig = openAIConfig;
-    this.logger = logger || logger;
+    this.logger = logger;
   }
   
   /**
@@ -51,8 +56,6 @@ class ChallengeGenerationService {
   log(level, message, meta = {}) {
     if (this.logger && typeof this.logger[level] === 'function') {
       this.logger[level](message, meta);
-    } else if (logger && typeof logger[level] === 'function') {
-      logger[level](message, meta);
     } else {
       console[level === 'error' ? 'error' : 'log'](message, meta);
     }
@@ -184,6 +187,7 @@ ${systemMessage || ''}`
       
       // Construct the challenge domain model
       const challenge = new Challenge({
+        id: Challenge.createNewId(),
         title: challengeData.title,
         content: challengeData.content,
         questions: challengeData.questions || [],
@@ -309,6 +313,7 @@ ${systemMessage || ''}`
       
       // Construct the variation domain model
       const variation = new Challenge({
+        id: Challenge.createNewId(),
         title: variationData.title,
         content: variationData.content,
         questions: variationData.questions || [],

@@ -1,6 +1,8 @@
+'use strict';
+
 /**
  * API Response Formatter
- * 
+ *
  * Standardizes API responses across all controllers.
  * Located in the infrastructure layer as a cross-cutting concern.
  */
@@ -17,7 +19,7 @@ const formatSuccess = (data, message = 'Success', statusCode = 200) => {
     status: 'success',
     message,
     statusCode,
-    data
+    data,
   };
 };
 
@@ -39,8 +41,8 @@ const formatPaginated = (data, page, limit, total) => {
       page,
       limit,
       total,
-      pages: Math.ceil(total / limit)
-    }
+      pages: Math.ceil(total / limit),
+    },
   };
 };
 
@@ -52,17 +54,17 @@ const responseFormatterMiddleware = (req, res, next) => {
   res.success = (data, message, statusCode = 200) => {
     return res.status(statusCode).json(formatSuccess(data, message, statusCode));
   };
-  
+
   // Add paginated response method
   res.paginated = (data, page, limit, total) => {
     return res.status(200).json(formatPaginated(data, page, limit, total));
   };
-  
+
   next();
 };
 
 module.exports = {
   formatSuccess,
   formatPaginated,
-  responseFormatterMiddleware
-}; 
+  responseFormatterMiddleware,
+};

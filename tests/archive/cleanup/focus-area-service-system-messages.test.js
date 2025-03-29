@@ -30,7 +30,7 @@ describe('FocusAreaGenerationService System Message Integration', () => {
   // Set longer timeout for API calls
   this.timeout(30000);
 
-let focusAreaGenerationService;
+  let focusAreaGenerationService;
   let mockOpenAIClient;
   
   beforeEach(() => {

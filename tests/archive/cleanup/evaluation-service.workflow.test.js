@@ -18,7 +18,7 @@ describe('Integration: Evaluation Service with Responses API', function() {
     skipIfMissingEnv(this, 'openai');
   });
 
-// Set longer timeout for API tests
+  // Set longer timeout for API tests
   this.timeout(10000);
   
   let sandbox;

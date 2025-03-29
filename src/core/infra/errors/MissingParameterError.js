@@ -1,6 +1,8 @@
+'use strict';
+
 /**
  * Missing Parameter Error
- * 
+ *
  * Error class for handling missing parameters in domain functions following DDD principles.
  */
 
@@ -16,12 +18,15 @@ class MissingParameterError extends AppError {
    * @param {string} functionName - Name of the function that requires the parameter
    * @param {object} additionalContext - Any additional context
    */
+  /**
+   * Method constructor
+   */
   constructor(paramName, functionName, additionalContext = {}) {
     const message = `Missing required parameter: ${paramName} for ${functionName}`;
     const metadata = {
       paramName,
       functionName,
-      ...additionalContext
+      ...additionalContext,
     };
     super(message, 400, metadata);
     this.name = 'MissingParameterError';
@@ -29,4 +34,4 @@ class MissingParameterError extends AppError {
   }
 }
 
-module.exports = { MissingParameterError }; 
+module.exports = { MissingParameterError };

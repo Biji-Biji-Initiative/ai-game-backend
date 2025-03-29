@@ -1,162 +1,427 @@
- /**
+'use strict';
+
+/**
  * Focus Area Repository
  * Handles database operations for focus areas
  * 
  * @module focusAreaRepository
- * @requires supabaseClient
- * @requires logger
+ * @requires FocusArea
+ * @requires BaseRepository
  */
 
-const { supabaseClient } = require('../../../core/infra/db/supabaseClient');
-const { logger } = require('../../../core/infra/logging/logger');
 const FocusArea = require('../models/FocusArea');
-const {
-  FocusAreaNotFoundError,
-  FocusAreaPersistenceError
+const { 
+  FocusAreaNotFoundError, 
+  FocusAreaPersistenceError,
+  FocusAreaValidationError
 } = require('../errors/focusAreaErrors');
-const { eventBus } = require('../../common/events/domainEvents');
+const { eventBus, EventTypes } = require('../../common/events/domainEvents');
+const { supabaseClient } = require('../../core/infra/db/supabaseClient');
+const { 
+  BaseRepository, 
+  EntityNotFoundError, 
+  ValidationError, 
+  DatabaseError 
+} = require('../../core/infra/repositories/BaseRepository');
+const { _focusAreaSchema } = require('../schemas/focusAreaValidation');
 
 /**
- * Class representing a Focus Area Repository
+ * Repository for focus area data access
+ * @extends BaseRepository
  */
-class FocusAreaRepository {
+class FocusAreaRepository extends BaseRepository {
   /**
-   * Create a new FocusAreaRepository instance
-   * @param {Object} supabase - Supabase client instance
-   * @param {Object} eventBus - Event bus for domain events
+   * Create a new FocusAreaRepository
+   * @param {Object} options - Repository options
+   * @param {Object} options.db - Database client
+   * @param {Object} options.logger - Logger instance
+   * @param {Object} options.eventBus - Event bus for domain events
    */
-  constructor(supabase, eventBus) {
-    this.supabase = supabase || supabaseClient;
-    this.eventBus = eventBus || require('../../common/events/domainEvents').eventBus;
-    this._log = logger.child({ service: 'focusAreaRepository' });
+  constructor(options = {}) {
+    super({
+      db: options.db || supabaseClient,
+      tableName: 'focus_areas',
+      domainName: 'focusArea',
+      logger: options.logger,
+      maxRetries: 3
+    });
+    
+    this.eventBus = options.eventBus || eventBus;
+    this.validateUuids = true;
   }
 
   /**
-   * Log a message with the repository logger
-   * @param {string} level - Log level
-   * @param {string} message - Log message
-   * @param {Object} meta - Additional metadata
-   * @private
+   * Find a focus area by its ID
+   * @param {string} id - Focus area ID
+   * @param {boolean} throwIfNotFound - Whether to throw an error if not found
+   * @returns {Promise<FocusArea|null>} Focus area object or null if not found
+   * @throws {FocusAreaNotFoundError} If focus area not found and throwIfNotFound is true
+   * @throws {FocusAreaPersistenceError} If database operation fails
    */
-  _log(level, message, meta = {}) {
-    if (this._log && typeof this._log[level] === 'function') {
-      this._log[level](message, meta);
-    } else {
-      console[level === 'error' ? 'error' : 'log'](message, meta);
+  findById(id, throwIfNotFound = false) {
+    try {
+      // Validate ID
+      this._validateId(id);
+      
+      return await this._withRetry(async () => {
+        this._log('debug', 'Finding focus area by ID', { id });
+        
+        const { data, error } = await this.db
+          .from(this.tableName)
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+  
+        if (error) {
+          throw new DatabaseError(`Failed to fetch focus area: ${error.message}`, {
+            cause: error,
+            entityType: this.domainName,
+            operation: 'findById',
+            metadata: { id }
+          });
+        }
+        
+        if (!data) {
+          this._log('debug', 'Focus area not found', { id });
+          
+          if (throwIfNotFound) {
+            throw new EntityNotFoundError(`Focus area with ID ${id} not found`, {
+              entityId: id,
+              entityType: this.domainName
+            });
+          }
+          
+          return null;
+        }
+        
+        return FocusArea.fromDatabase(data);
+      }, 'findById', { id });
+    } catch (error) {
+      // Map generic repository errors to domain-specific errors
+      if (error instanceof EntityNotFoundError) {
+        throw new FocusAreaNotFoundError(id);
+      }
+      
+      if (error instanceof ValidationError) {
+        throw new FocusAreaValidationError(error.message);
+      }
+      
+      if (error instanceof DatabaseError) {
+        throw new FocusAreaPersistenceError(error.message);
+      }
+      
+      // For any other error
+      if (!(error instanceof FocusAreaPersistenceError)) {
+        this._log('error', 'Error in findById', { 
+          id, 
+          error: error.message,
+          stack: error.stack 
+        });
+        
+        throw new FocusAreaPersistenceError(`Failed to find focus area: ${error.message}`);
+      }
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Find focus areas by user ID
+   * @param {string} userId - User ID
+   * @param {Object} options - Query options
+   * @param {number} options.limit - Maximum number of results
+   * @param {number} options.offset - Offset for pagination
+   * @param {boolean} options.activeOnly - Filter by active status
+   * @param {string} options.sortBy - Field to sort by
+   * @param {string} options.sortDir - Sort direction (asc/desc)
+   * @returns {Promise<Array<FocusArea>>} Array of focus areas
+   * @throws {FocusAreaPersistenceError} If database operation fails
+   */
+  findByUserId(userId, options = {}) {
+    try {
+      // Validate userId
+      this._validateRequiredParams({ userId }, ['userId']);
+      
+      // Process options with defaults
+      const { 
+        limit = 20, 
+        offset = 0, 
+        activeOnly = false, 
+        sortBy = 'priority', 
+        sortDir = 'asc' 
+      } = options;
+      
+      return await this._withRetry(async () => {
+        this._log('debug', 'Finding focus areas by user ID', { userId, options });
+        
+        // Start building the query
+        let query = this.db
+          .from(this.tableName)
+          .select('*')
+          .eq('user_id', userId);
+        
+        // Add active filter if provided
+        if (activeOnly) {
+          query = query.eq('active', true);
+        }
+        
+        // Convert camelCase to snake_case for database fields
+        const dbSortBy = this._camelToSnakeField(sortBy);
+        
+        // Add sorting and pagination
+        query = query
+          .order(dbSortBy, { ascending: sortDir === 'asc' })
+          .range(offset, offset + limit - 1);
+        
+        const { data, error } = await query;
+  
+        if (error) {
+          throw new DatabaseError(`Failed to fetch focus areas by user ID: ${error.message}`, {
+            cause: error,
+            entityType: this.domainName,
+            operation: 'findByUserId',
+            metadata: { userId, options }
+          });
+        }
+        
+        // Convert data to domain objects
+        return (data || []).map(record => FocusArea.fromDatabase(record));
+      }, 'findByUserId', { userId, options });
+    } catch (error) {
+      // Map errors to domain-specific errors
+      if (error instanceof ValidationError) {
+        throw new FocusAreaValidationError(error.message);
+      }
+      
+      if (error instanceof DatabaseError) {
+        throw new FocusAreaPersistenceError(error.message);
+      }
+      
+      // For any other error
+      if (!(error instanceof FocusAreaPersistenceError)) {
+        this._log('error', 'Error in findByUserId', { 
+          userId, 
+          options,
+          error: error.message,
+          stack: error.stack 
+        });
+        
+        throw new FocusAreaPersistenceError(`Failed to find focus areas by user ID: ${error.message}`);
+      }
+      
+      throw error;
     }
   }
 
   /**
    * Create a new focus area
    * @param {Object} focusAreaData - Focus area data
-   * @param {string} focusAreaData.userId - User ID
-   * @param {string} focusAreaData.name - Focus area name
-   * @param {string} [focusAreaData.description] - Focus area description
-   * @param {number} [focusAreaData.priority] - Priority (1-5, 1 being highest)
-   * @returns {Promise<Object>} Created focus area
+   * @returns {Promise<FocusArea>} Created focus area
+   * @throws {FocusAreaValidationError} If focus area data is invalid
+   * @throws {FocusAreaPersistenceError} If database operation fails
    */
-  async createFocusArea(focusAreaData) {
+  createFocusArea(focusAreaData) {
     try {
-      var { userId, name, description = '', priority = 1 } = focusAreaData;
+      // Validate required parameters
+      this._validateRequiredParams(focusAreaData, ['userId', 'name']);
       
-      if (!userId || !name) {
-        throw new FocusAreaPersistenceError('User ID and name are required for focus area creation');
-      }
-      
-      // Create a focus area domain object first (to validate)
+      // Create a focus area domain object (this will validate the data)
       const focusArea = new FocusArea({
-        userId,
-        name,
-        description,
-        priority,
+        userId: focusAreaData.userId,
+        name: focusAreaData.name,
+        description: focusAreaData.description || '',
+        priority: focusAreaData.priority || 1,
         metadata: focusAreaData.metadata || {}
       });
       
-      // Insert into database
-      const { data, error } = await this.supabase
-      .from('focus_areas')
-      .insert([
-        {
-          id: focusArea.id,
-          user_id: focusArea.userId,
-          name: focusArea.name,
-          description: focusArea.description,
-          priority: focusArea.priority,
-          active: focusArea.active,
-          metadata: focusArea.metadata || {}
-        }
-      ])
-      .select('*')
-      .single();
-    
-    if (error) {
-      this._log('error', 'Error creating focus area', {
-        error: error.message,
-        userId,
-        name
-      });
-      throw new FocusAreaPersistenceError(error.message);
-    }
-    
-    // Process and publish domain events
-    const domainEvents = focusArea.getDomainEvents();
-    focusArea.clearDomainEvents(); // Clear to prevent duplicate publishing
-    
-    // Publish collected events
-    for (const event of domainEvents) {
-      await this.eventBus.publishEvent(event.type, event.data);
-    }
-    
-    this._log('info', 'Created new focus area', {
-      userId,
-      focusAreaId: data.id,
-      name,
-      eventsPublished: domainEvents.length
-    });
-    
-    return FocusArea.fromDatabase(data);
+      // Save to database
+      return await this.save(focusArea);
     } catch (error) {
-      if (error instanceof FocusAreaPersistenceError) {
+      // Pass through specific domain errors
+      if (error instanceof FocusAreaValidationError ||
+          error instanceof FocusAreaPersistenceError) {
         throw error;
       }
       
-      this._log('error', 'Error in createFocusArea', {
+      // For validation errors
+      if (error instanceof ValidationError) {
+        throw new FocusAreaValidationError(error.message);
+      }
+      
+      this._log('error', 'Error creating focus area', { 
+        focusAreaData, 
         error: error.message,
-        focusAreaData
+        stack: error.stack 
       });
       
-      throw new FocusAreaPersistenceError(error.message);
+      throw new FocusAreaPersistenceError(`Failed to create focus area: ${error.message}`);
     }
   }
 
   /**
-   * Create multiple focus areas at once
-   * @param {string} userId - User ID
-   * @param {Array<FocusArea|Object|string>} focusAreas - Array of focus areas, objects, or strings
-   * @returns {Promise<Array>} Created focus areas
+   * Save a focus area to the database
+   * @param {FocusArea} focusArea - Focus area to save
+   * @returns {Promise<FocusArea>} Saved focus area
+   * @throws {FocusAreaValidationError} If focus area fails validation
+   * @throws {FocusAreaPersistenceError} If database operation fails
    */
-  async save(userId, focusAreas) {
+  save(focusArea) {
     try {
-      this._log('info', 'Saving focus areas for user', {
-        userId,
-        count: focusAreas ? focusAreas.length : 0
+      // Validate that we have a FocusArea instance
+      if (!(focusArea instanceof FocusArea)) {
+        throw new ValidationError('Can only save FocusArea instances', {
+          entityType: this.domainName
+        });
+      }
+      
+      // Collect domain events for publishing after successful save
+      const domainEvents = focusArea.getDomainEvents ? focusArea.getDomainEvents() : [];
+      
+      // Clear the events from the entity to prevent double-publishing
+      if (domainEvents.length > 0 && focusArea.clearDomainEvents) {
+        focusArea.clearDomainEvents();
+      }
+      
+      return await this._withRetry(async () => {
+        // Check if this is a new focus area or an update
+        const existingFocusArea = await this.findById(focusArea.id).catch(() => null);
+        const isUpdate = existingFocusArea !== null;
+        
+        // Convert to database schema (camelCase to snake_case)
+        const focusAreaData = this._camelToSnake(focusArea.toObject());
+        
+        let result;
+        
+        if (isUpdate) {
+          // Update existing focus area
+          this._log('debug', 'Updating existing focus area', { id: focusArea.id });
+          
+          const { data, error } = await this.db
+            .from(this.tableName)
+            .update(focusAreaData)
+            .eq('id', focusArea.id)
+            .select()
+            .single();
+          
+          if (error) {
+            throw new DatabaseError(`Failed to update focus area: ${error.message}`, {
+              cause: error,
+              entityType: this.domainName,
+              operation: 'update',
+              metadata: { focusAreaId: focusArea.id }
+            });
+          }
+          
+          result = data;
+        } else {
+          // Insert new focus area
+          this._log('debug', 'Creating new focus area', { id: focusArea.id });
+          
+          const { data, error } = await this.db
+            .from(this.tableName)
+            .insert(focusAreaData)
+            .select()
+            .single();
+          
+          if (error) {
+            throw new DatabaseError(`Failed to create focus area: ${error.message}`, {
+              cause: error,
+              entityType: this.domainName,
+              operation: 'create',
+              metadata: { focusAreaId: focusArea.id }
+            });
+          }
+          
+          result = data;
+        }
+        
+        this._log('debug', 'Saved focus area', { 
+          id: focusArea.id, 
+          name: focusArea.name 
+        });
+        
+        // Create domain object from database result
+        const savedFocusArea = FocusArea.fromDatabase(result);
+        
+        // Publish any collected domain events AFTER successful persistence
+        if (domainEvents.length > 0) {
+          try {
+            this._log('debug', 'Publishing collected domain events', {
+              id: savedFocusArea.id,
+              eventCount: domainEvents.length
+            });
+            
+            // Publish the events one by one in sequence (maintaining order)
+            for (const event of domainEvents) {
+              await this.eventBus.publish(event);
+            }
+          } catch (eventError) {
+            // Log event publishing error but don't fail the save operation
+            this._log('error', 'Error publishing domain events', { 
+              id: savedFocusArea.id, 
+              error: eventError.message 
+            });
+          }
+        }
+        
+        return savedFocusArea;
+      }, 'save', { focusAreaId: focusArea.id });
+    } catch (error) {
+      // Map generic repository errors to domain-specific errors
+      if (error instanceof ValidationError) {
+        throw new FocusAreaValidationError(error.message);
+      }
+      
+      if (error instanceof DatabaseError) {
+        throw new FocusAreaPersistenceError(error.message);
+      }
+      
+      // Don't rewrap domain-specific errors
+      if (error instanceof FocusAreaValidationError ||
+          error instanceof FocusAreaPersistenceError) {
+        throw error;
+      }
+      
+      // For any other error
+      this._log('error', 'Error in save', { 
+        focusAreaId: focusArea.id, 
+        error: error.message,
+        stack: error.stack 
       });
       
-      if (!userId || !Array.isArray(focusAreas) || focusAreas.length === 0) {
-        throw new FocusAreaPersistenceError('User ID and focus areas array are required');
+      throw new FocusAreaPersistenceError(`Failed to save focus area: ${error.message}`);
+    }
+  }
+
+  /**
+   * Save multiple focus areas in a batch operation
+   * @param {string} userId - User ID
+   * @param {Array<FocusArea|Object|string>} focusAreas - Array of focus areas
+   * @param {Object} _trx - Transaction object (optional)
+   * @returns {Promise<Array<FocusArea>>} - Array of saved focus areas
+   * @throws {FocusAreaValidationError} If validation fails
+   * @throws {FocusAreaPersistenceError} If database operation fails
+   */
+  saveBatch(userId, focusAreas, _trx = null) {
+    try {
+      // Validate inputs
+      this._validateRequiredParams({ userId }, ['userId']);
+      
+      if (!Array.isArray(focusAreas) || focusAreas.length === 0) {
+        throw new ValidationError('Focus areas must be a non-empty array', {
+          entityType: this.domainName
+        });
       }
-    
-      // Process input into domain objects and database records
-      var focusAreaEntities = [];
-      var dbRecords = [];
-    
-      // Transform different input types into domain objects and database records
-      for (const area of focusAreas) {
-        let focusAreaEntity;
-        
+      
+      this._log('info', 'Saving batch of focus areas', { 
+        userId, 
+        count: focusAreas.length 
+      });
+      
+      // Process different input types into FocusArea domain objects
+      const focusAreaEntities = focusAreas.map(area => {
         if (typeof area === 'string') {
-          // Create from string name
-          focusAreaEntity = new FocusArea({
+          return new FocusArea({
             userId,
             name: area,
             description: '',
@@ -165,11 +430,9 @@ class FocusAreaRepository {
             metadata: {}
           });
         } else if (area instanceof FocusArea) {
-          // Already a domain object
-          focusAreaEntity = area;
+          return area;
         } else if (typeof area === 'object') {
-          // Create from object properties
-          focusAreaEntity = new FocusArea({
+          return new FocusArea({
             userId,
             name: area.name,
             description: area.description || '',
@@ -178,174 +441,88 @@ class FocusAreaRepository {
             metadata: area.metadata || {}
           });
         } else {
-          throw new FocusAreaPersistenceError('Invalid focus area format');
+          throw new ValidationError('Invalid focus area format', {
+            entityType: this.domainName
+          });
         }
-      
-        // Store the domain object
-        focusAreaEntities.push(focusAreaEntity);
-        
-        // Create database record from domain object
-        dbRecords.push({
-          id: focusAreaEntity.id,
-          user_id: focusAreaEntity.userId,
-          name: focusAreaEntity.name,
-          description: focusAreaEntity.description || '',
-          active: focusAreaEntity.active,
-          priority: focusAreaEntity.priority || 1,
-          metadata: focusAreaEntity.metadata || {}
-        });
-      }
-      
-      this._log('debug', 'Formatted focus areas for insertion', {
-        userId,
-        count: dbRecords.length
       });
-    
-      // Insert all records into database
-      const { data, error } = await this.supabase
-        .from('focus_areas')
-        .insert(dbRecords)
-        .select('*');
-    
-      if (error) {
-        this._log('error', 'Error creating multiple focus areas', {
-          error: error.message,
+      
+      // Use transaction to ensure all-or-nothing behavior
+      return await this.withTransaction(async _trx => {
+        // Save each focus area individually, tracking domain events
+        const savedAreas = [];
+        const allDomainEvents = [];
+        
+        for (const entity of focusAreaEntities) {
+          // Collect domain events
+          const entityEvents = entity.getDomainEvents ? entity.getDomainEvents() : [];
+          if (entityEvents.length > 0 && entity.clearDomainEvents) {
+            entity.clearDomainEvents();
+          }
+          allDomainEvents.push(...entityEvents);
+          
+          // Convert to database format
+          const dbData = this._camelToSnake(entity.toObject());
+          
+          // Save to database
+          const { data, error } = await this.db
+            .from(this.tableName)
+            .upsert(dbData)
+            .select()
+            .single();
+          
+          if (error) {
+            throw new DatabaseError(`Failed to save focus area in batch: ${error.message}`, {
+              cause: error,
+              entityType: this.domainName,
+              operation: 'saveBatch',
+              metadata: { 
+                focusAreaId: entity.id,
+                userId 
+              }
+            });
+          }
+          
+          savedAreas.push(FocusArea.fromDatabase(data));
+        }
+        
+        // Publish collected domain events after all saves succeed
+        for (const event of allDomainEvents) {
+          await this.eventBus.publish(event);
+        }
+        
+        this._log('info', 'Successfully saved batch of focus areas', {
           userId,
-          count: focusAreas.length
+          count: savedAreas.length,
+          eventsPublished: allDomainEvents.length
         });
-        throw new FocusAreaPersistenceError(error.message);
-      }
-    
-      // Collect and process all domain events
-      const allDomainEvents = [];
-      for (const entity of focusAreaEntities) {
-        allDomainEvents.push(...entity.getDomainEvents());
-        entity.clearDomainEvents(); // Clear to prevent duplicate publishing
-      }
-    
-      // Publish collected events
-      for (const event of allDomainEvents) {
-        await eventBus.publishEvent(event.type, event.data);
-      }
-      
-      this._log('info', 'Created multiple focus areas', {
-        userId,
-        count: data.length,
-        eventsPublished: allDomainEvents.length
-      });
-    
-      return data.map(fa => FocusArea.fromDatabase(fa));
-    } catch (error) {
-      if (error instanceof FocusAreaPersistenceError) {
-        throw error;
-      }
-      
-      this._log('error', 'Error in save', {
-        error: error.message,
-        userId,
-        focusAreasCount: focusAreas?.length
-      });
-      
-      throw new FocusAreaPersistenceError(error.message);
-    }
-  }
-
-  /**
-   * Find all focus areas for a user
-   * @param {string} userId - User ID
-   * @param {Object} [options] - Query options
-   * @param {boolean} [options.activeOnly=true] - Only return active focus areas
-   * @param {string} [options.orderBy='priority'] - Field to order by
-   * @returns {Promise<Array<FocusArea>>} User's focus areas
-   */
-  async findByUserId(userId, options = {}) {
-    try {
-      if (!userId) {
-        throw new FocusAreaPersistenceError('User ID is required to get focus areas');
-      }
-    
-      var { activeOnly = true, orderBy = 'priority' } = options;
-      
-      let query = this.supabase
-        .from('focus_areas')
-        .select('*')
-        .eq('user_id', userId);
-    
-      if (activeOnly) {
-        query = query.eq('active', true);
-      }
-      
-      if (orderBy) {
-        query = query.order(orderBy, { ascending: true });
-      }
-      
-      const { data, error } = await query;
-    
-      if (error) {
-        this._log('error', 'Error getting focus areas for user', {
-          error: error.message,
-          userId
-        });
-        throw new FocusAreaPersistenceError(error.message);
-      }
-    
-      return (data || []).map(fa => FocusArea.fromDatabase(fa));
-    } catch (error) {
-      if (error instanceof FocusAreaPersistenceError) {
-        throw error;
-      }
-      
-      this._log('error', 'Error in findByUserId', {
-        error: error.message,
-        userId
-      });
-      
-      throw new FocusAreaPersistenceError(error.message);
-    }
-  }
-
-  /**
-   * Find a focus area by ID
-   * @param {string} id - Focus area ID
-   * @returns {Promise<FocusArea|null>} Focus area or null if not found
-   */
-  async findById(id) {
-    try {
-      if (!id) {
-        throw new FocusAreaPersistenceError('Focus area ID is required');
-      }
-    
-      var { data, error } = await this.supabase
-        .from('focus_areas')
-        .select('*')
-        .eq('id', id)
-        .single();
-    
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // Not found error
-          return null;
-        }
         
-        this._log('error', 'Error getting focus area by ID', {
-          error: error.message,
-          id
-        });
+        return savedAreas;
+      });
+    } catch (error) {
+      // Map errors appropriately
+      if (error instanceof ValidationError) {
+        throw new FocusAreaValidationError(error.message);
+      }
+      
+      if (error instanceof DatabaseError) {
         throw new FocusAreaPersistenceError(error.message);
       }
-    
-      return FocusArea.fromDatabase(data);
-    } catch (error) {
-      if (error instanceof FocusAreaPersistenceError) {
+      
+      // Don't rewrap domain-specific errors
+      if (error instanceof FocusAreaValidationError ||
+          error instanceof FocusAreaPersistenceError) {
         throw error;
       }
       
-      this._log('error', 'Error in findById', {
+      this._log('error', 'Error in saveBatch', {
+        userId,
+        count: focusAreas?.length,
         error: error.message,
-        id
+        stack: error.stack
       });
       
-      throw new FocusAreaPersistenceError(error.message);
+      throw new FocusAreaPersistenceError(`Failed to save focus areas batch: ${error.message}`);
     }
   }
 
@@ -354,205 +531,225 @@ class FocusAreaRepository {
    * @param {string} id - Focus area ID
    * @param {Object} updateData - Data to update
    * @returns {Promise<FocusArea>} Updated focus area
+   * @throws {FocusAreaNotFoundError} If focus area not found
+   * @throws {FocusAreaValidationError} If update data fails validation
+   * @throws {FocusAreaPersistenceError} If database operation fails
    */
-  async update(id, updateData) {
-  try {
-    if (!id) {
-      throw new FocusAreaPersistenceError('Focus area ID is required for update');
-    }
-    
-      // Find the existing focus area
-      const existingFocusArea = await this.findById(id);
-      if (!existingFocusArea) {
-        throw new FocusAreaNotFoundError(id);
-      }
-    
-      // Update the domain object
-      existingFocusArea.update(updateData);
+  update(id, updateData) {
+    try {
+      // Validate ID
+      this._validateId(id);
       
-      // Update in database
-      const { data, error } = await this.supabase
-        .from('focus_areas')
-        .update({
-          name: existingFocusArea.name,
-          description: existingFocusArea.description,
-          active: existingFocusArea.active,
-          priority: existingFocusArea.priority,
-          metadata: existingFocusArea.metadata,
-          updated_at: existingFocusArea.updatedAt
-        })
-        .eq('id', id)
-        .select('*')
-        .single();
+      // Get existing focus area
+      const focusArea = await this.findById(id, true);
       
-      if (error) {
-        this._log('error', 'Error updating focus area', {
-          error: error.message,
-          id,
-          updateData
-        });
-        throw new FocusAreaPersistenceError(error.message);
-      }
-    
-      // Process and publish domain events
-      const domainEvents = existingFocusArea.getDomainEvents();
-      existingFocusArea.clearDomainEvents(); // Clear to prevent duplicate publishing
+      // Update the domain object with new data
+      focusArea.update(updateData);
       
-      // Publish collected events
-      for (const event of domainEvents) {
-        await this.eventBus.publishEvent(event.type, event.data);
-      }
-      
-      this._log('info', 'Updated focus area', {
-        id,
-        name: data.name,
-        eventsPublished: domainEvents.length
-      });
-      
-      return FocusArea.fromDatabase(data);
+      // Save the updated focus area
+      return await this.save(focusArea);
     } catch (error) {
-      if (error instanceof FocusAreaPersistenceError || error instanceof FocusAreaNotFoundError) {
+      // Pass through domain-specific errors
+      if (error instanceof FocusAreaNotFoundError ||
+          error instanceof FocusAreaValidationError ||
+          error instanceof FocusAreaPersistenceError) {
         throw error;
       }
       
-      this._log('error', 'Error in update', {
+      this._log('error', 'Error updating focus area', { 
+        id, 
+        updateData,
         error: error.message,
-        id,
-        updateData
+        stack: error.stack 
       });
       
-      throw new FocusAreaPersistenceError(error.message);
+      throw new FocusAreaPersistenceError(`Failed to update focus area: ${error.message}`);
+    }
+  }
+
+  /**
+   * Delete a focus area
+   * @param {string} id - Focus area ID
+   * @returns {Promise<boolean>} True if focus area was deleted
+   * @throws {FocusAreaNotFoundError} If focus area not found
+   * @throws {FocusAreaPersistenceError} If database operation fails
+   */
+  deleteById(id) {
+    try {
+      // Validate ID
+      this._validateId(id);
+      
+      // Check if focus area exists
+      const focusArea = await this.findById(id, true);
+      
+      return await this._withRetry(async () => {
+        this._log('debug', 'Deleting focus area', { id });
+        
+        const { error } = await this.db
+          .from(this.tableName)
+          .delete()
+          .eq('id', id);
+        
+        if (error) {
+          throw new DatabaseError(`Failed to delete focus area: ${error.message}`, {
+            cause: error,
+            entityType: this.domainName,
+            operation: 'delete',
+            metadata: { id }
+          });
+        }
+        
+        // Create and publish deletion event
+        try {
+          const deletionEvent = {
+            type: EventTypes.FOCUS_AREA_DELETED,
+            payload: {
+              focusAreaId: id,
+              userId: focusArea.userId,
+              name: focusArea.name
+            },
+            timestamp: new Date().toISOString()
+          };
+          
+          await this.eventBus.publish(deletionEvent);
+        } catch (eventError) {
+          // Log event publishing error but don't fail the delete operation
+          this._log('error', 'Error publishing deletion event', { 
+            id, 
+            error: eventError.message 
+          });
+        }
+        
+        return true;
+      }, 'deleteById', { id });
+    } catch (error) {
+      // Map generic repository errors to domain-specific errors
+      if (error instanceof EntityNotFoundError) {
+        throw new FocusAreaNotFoundError(id);
+      }
+      
+      if (error instanceof ValidationError) {
+        throw new FocusAreaValidationError(error.message);
+      }
+      
+      if (error instanceof DatabaseError) {
+        throw new FocusAreaPersistenceError(error.message);
+      }
+      
+      // Pass through domain-specific errors
+      if (error instanceof FocusAreaNotFoundError ||
+          error instanceof FocusAreaPersistenceError) {
+        throw error;
+      }
+      
+      this._log('error', 'Error deleting focus area', { 
+        id, 
+        error: error.message,
+        stack: error.stack 
+      });
+      
+      throw new FocusAreaPersistenceError(`Failed to delete focus area: ${error.message}`);
     }
   }
 
   /**
    * Delete all focus areas for a user
    * @param {string} userId - User ID
-   * @returns {Promise<boolean>} True if successful
+   * @returns {Promise<number>} Number of deleted focus areas
+   * @throws {FocusAreaPersistenceError} If database operation fails
    */
-  async deleteAllForUser(userId) {
+  deleteAllForUser(userId) {
     try {
-      if (!userId) {
-        throw new FocusAreaPersistenceError('User ID is required to delete focus areas');
-      }
-    
-      // First get all focus areas to track events
-      const focusAreas = await this.findByUserId(userId, { activeOnly: false });
-    
-      // Mark all as deactivated
-      for (const focusArea of focusAreas) {
-        focusArea.deactivate();
+      // Validate userId
+      this._validateRequiredParams({ userId }, ['userId']);
+      
+      return await this._withRetry(async () => {
+        this._log('debug', 'Deleting all focus areas for user', { userId });
+        
+        // First, get the list of focus areas to create deletion events
+        const focusAreas = await this.findByUserId(userId);
+        
+        // Delete all focus areas
+        const { error, count } = await this.db
+          .from(this.tableName)
+          .delete()
+          .eq('user_id', userId)
+          .select('count');
+        
+        if (error) {
+          throw new DatabaseError(`Failed to delete focus areas for user: ${error.message}`, {
+            cause: error,
+            entityType: this.domainName,
+            operation: 'deleteAllForUser',
+            metadata: { userId }
+          });
+        }
+        
+        // Publish deletion events
+        try {
+          for (const focusArea of focusAreas) {
+            const deletionEvent = {
+              type: EventTypes.FOCUS_AREA_DELETED,
+              payload: {
+                focusAreaId: focusArea.id,
+                userId: focusArea.userId,
+                name: focusArea.name
+              },
+              timestamp: new Date().toISOString()
+            };
+            
+            await this.eventBus.publish(deletionEvent);
+          }
+        } catch (eventError) {
+          // Log event publishing error but don't fail the operation
+          this._log('error', 'Error publishing focus area deletion events', { 
+            userId, 
+            error: eventError.message 
+          });
+        }
+        
+        return count || focusAreas.length;
+      }, 'deleteAllForUser', { userId });
+    } catch (error) {
+      // Map errors appropriately
+      if (error instanceof ValidationError) {
+        throw new FocusAreaValidationError(error.message);
       }
       
-      // Delete from database
-      const { error } = await this.supabase
-        .from('focus_areas')
-        .delete()
-        .eq('user_id', userId);
-    
-      if (error) {
-        this._log('error', 'Error deleting focus areas for user', {
-          error: error.message,
-          userId
-        });
+      if (error instanceof DatabaseError) {
         throw new FocusAreaPersistenceError(error.message);
       }
-    
-      // Collect all events
-      const allDomainEvents = [];
-      for (const entity of focusAreas) {
-        allDomainEvents.push(...entity.getDomainEvents());
-        entity.clearDomainEvents(); // Clear to prevent duplicate publishing
-      }
       
-      // Publish collected events
-      for (const event of allDomainEvents) {
-        await this.eventBus.publishEvent(event.type, event.data);
-      }
-      
-      this._log('info', 'Deleted all focus areas for user', { 
-        userId,
-        count: focusAreas.length,
-        eventsPublished: allDomainEvents.length
-      });
-      return true;
-    } catch (error) {
+      // Don't rewrap domain-specific errors
       if (error instanceof FocusAreaPersistenceError) {
         throw error;
       }
       
-      this._log('error', 'Error in deleteAllForUser', {
+      this._log('error', 'Error deleting all focus areas for user', { 
+        userId, 
         error: error.message,
-        userId
+        stack: error.stack 
       });
       
-      throw new FocusAreaPersistenceError(error.message);
+      throw new FocusAreaPersistenceError(`Failed to delete all focus areas for user: ${error.message}`);
     }
   }
 
   /**
-   * Delete a focus area by ID
-   * @param {string} id - Focus area ID
-   * @returns {Promise<boolean>} True if successful
+   * Helper method to convert camelCase field name to snake_case
+   * @param {string} field - Field name in camelCase
+   * @returns {string} Field name in snake_case
+   * @private
    */
-  async deleteById(id) {
-    try {
-      if (!id) {
-        throw new FocusAreaPersistenceError('Focus area ID is required for deletion');
-      }
-    
-      // First get the focus area to track events
-      const focusArea = await this.findById(id);
-      if (!focusArea) {
-        // Not found, return success since it's already deleted
-        return true;
-      }
-    
-      // Mark as deactivated
-      focusArea.deactivate();
-      
-      // Delete from database
-      const { error } = await this.supabase
-        .from('focus_areas')
-        .delete()
-        .eq('id', id);
-    
-      if (error) {
-        this._log('error', 'Error deleting focus area', {
-          error: error.message,
-          id
-        });
-        throw new FocusAreaPersistenceError(error.message);
-      }
-    
-      // Process and publish domain events
-      const domainEvents = focusArea.getDomainEvents();
-      focusArea.clearDomainEvents(); // Clear to prevent duplicate publishing
-      
-      // Publish collected events
-      for (const event of domainEvents) {
-        await this.eventBus.publishEvent(event.type, event.data);
-      }
-      
-      this._log('info', 'Deleted focus area', { 
-        id,
-        eventsPublished: domainEvents.length
-      });
-      return true;
-    } catch (error) {
-      if (error instanceof FocusAreaPersistenceError) {
-        throw error;
-      }
-      
-      this._log('error', 'Error in deleteById', {
-        error: error.message,
-        id
-      });
-      
-      throw new FocusAreaPersistenceError(error.message);
-    }
+  _camelToSnakeField(field) {
+    return field.replace(/([A-Z])/g, '_$1').toLowerCase();
   }
-
 }
 
-module.exports = FocusAreaRepository; 
+// Export a singleton instance and the class
+const focusAreaRepository = new FocusAreaRepository();
+
+module.exports = {
+  FocusAreaRepository,
+  focusAreaRepository
+}; 

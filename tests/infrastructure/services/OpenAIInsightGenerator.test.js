@@ -13,7 +13,7 @@ describe('OpenAI Insight Generator', () => {
   // Set longer timeout for API calls
   this.timeout(30000);
 
-let openAIInsightGenerator;
+  let openAIInsightGenerator;
   let openaiClientMock;
   let promptBuilderMock;
   let loggerStub;

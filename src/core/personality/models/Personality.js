@@ -1,6 +1,8 @@
+'use strict';
+
 /**
  * Personality Domain Model
- * 
+ *
  * This model represents a user's personality profile including traits,
  * AI attitudes, and insights in the system.
  * Uses Zod for data validation to ensure integrity.
@@ -8,13 +10,20 @@
 
 const { EventTypes, eventBus } = require('../../common/events/domainEvents');
 const { v4: uuidv4 } = require('uuid');
-const { personalitySchema, toDatabase } = require('../schemas/personalitySchema');
+const { personalitySchema } = require('../schemas/personalitySchema');
 const { TraitsValidationError, AttitudesValidationError } = require('../errors/PersonalityErrors');
 
+/**
+ * Personality class
+ * Represents a user's personality traits, AI attitudes, and insights
+ */
 class Personality {
   /**
    * Create a personality instance
    * @param {Object} data - Personality data
+   */
+  /**
+   * Method constructor
    */
   constructor(data = {}) {
     const personalityData = {
@@ -28,12 +37,12 @@ class Personality {
       insights: data.insights || {},
       threadId: data.threadId || data.thread_id || null,
       createdAt: data.createdAt || data.created_at || new Date().toISOString(),
-      updatedAt: data.updatedAt || data.updated_at || new Date().toISOString()
+      updatedAt: data.updatedAt || data.updated_at || new Date().toISOString(),
     };
 
     // Parse and validate with zod, using safeParse to handle errors
     const result = personalitySchema.safeParse(personalityData);
-    
+
     if (result.success) {
       Object.assign(this, result.data);
     } else {
@@ -47,23 +56,24 @@ class Personality {
    * Validate the personality model
    * @returns {Object} Validation result with isValid and errors properties
    */
+  /**
+   * Method validate
+   */
   validate() {
     const result = personalitySchema.safeParse(this);
-    
+
     if (result.success) {
       return {
         isValid: true,
-        errors: []
+        errors: [],
       };
     } else {
       // Extract error messages from Zod validation result
-      const errorMessages = result.error.errors.map(err => 
-        `${err.path.join('.')}: ${err.message}`
-      );
-      
+      const errorMessages = result.error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
+
       return {
         isValid: false,
-        errors: errorMessages
+        errors: errorMessages,
       };
     }
   }
@@ -72,10 +82,13 @@ class Personality {
    * Update personality traits
    * @param {Object} traits - New personality traits to merge with existing ones
    */
+  /**
+   * Method updateTraits
+   */
   updateTraits(traits) {
     // Create a copy for validation
-    const traitsToValidate = {...traits};
-    
+    const traitsToValidate = { ...traits };
+
     // Validate trait values using the validator
     const validation = personalitySchema.shape.personalityTraits.safeParse(traitsToValidate);
     if (!validation.success) {
@@ -85,18 +98,18 @@ class Personality {
     // Merge traits
     this.personalityTraits = {
       ...this.personalityTraits,
-      ...traits
+      ...traits,
     };
-    
+
     this.updatedAt = new Date().toISOString();
-    
+
     // Publish domain event
     if (this.userId) {
       eventBus.publishEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
         userId: this.userId,
         personalityId: this.id,
         traits: this.personalityTraits,
-        updateType: 'traits'
+        updateType: 'traits',
       });
     }
   }
@@ -105,10 +118,13 @@ class Personality {
    * Update AI attitudes
    * @param {Object} attitudes - New AI attitudes to merge with existing ones
    */
+  /**
+   * Method updateAttitudes
+   */
   updateAttitudes(attitudes) {
     // Create a copy for validation
-    const attitudesToValidate = {...attitudes};
-    
+    const attitudesToValidate = { ...attitudes };
+
     // Validate attitude values using the validator
     const validation = personalitySchema.shape.aiAttitudes.safeParse(attitudesToValidate);
     if (!validation.success) {
@@ -118,18 +134,18 @@ class Personality {
     // Merge attitudes
     this.aiAttitudes = {
       ...this.aiAttitudes,
-      ...attitudes
+      ...attitudes,
     };
-    
+
     this.updatedAt = new Date().toISOString();
-    
+
     // Publish domain event
     if (this.userId) {
       eventBus.publishEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
         userId: this.userId,
         personalityId: this.id,
         aiAttitudes: this.aiAttitudes,
-        updateType: 'attitudes'
+        updateType: 'attitudes',
       });
     }
   }
@@ -137,6 +153,9 @@ class Personality {
   /**
    * Set dominant traits based on personality analysis
    * @param {Array} dominantTraits - Array of dominant trait objects
+   */
+  /**
+   * Method setDominantTraits
    */
   setDominantTraits(dominantTraits) {
     this.dominantTraits = dominantTraits;
@@ -147,6 +166,9 @@ class Personality {
    * Set trait clusters based on personality analysis
    * @param {Object} traitClusters - Categorized trait clusters
    */
+  /**
+   * Method setTraitClusters
+   */
   setTraitClusters(traitClusters) {
     this.traitClusters = traitClusters;
     this.updatedAt = new Date().toISOString();
@@ -155,6 +177,9 @@ class Personality {
   /**
    * Set AI attitude profile
    * @param {Object} aiAttitudeProfile - Categorized AI attitude profile
+   */
+  /**
+   * Method setAIAttitudeProfile
    */
   setAIAttitudeProfile(aiAttitudeProfile) {
     this.aiAttitudeProfile = aiAttitudeProfile;
@@ -165,16 +190,19 @@ class Personality {
    * Set insights generated from personality analysis
    * @param {Object} insights - Generated insights
    */
+  /**
+   * Method setInsights
+   */
   setInsights(insights) {
     this.insights = insights;
     this.updatedAt = new Date().toISOString();
-    
+
     // Publish domain event
     if (this.userId) {
       eventBus.publishEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
         userId: this.userId,
         personalityId: this.id,
-        updateType: 'insights'
+        updateType: 'insights',
       });
     }
   }
@@ -183,18 +211,13 @@ class Personality {
    * Set the conversation thread ID for personality analysis
    * @param {string} threadId - Conversation thread ID
    */
+  /**
+   * Method setThreadId
+   */
   setThreadId(threadId) {
     this.threadId = threadId;
     this.updatedAt = new Date().toISOString();
   }
-
-  /**
-   * Convert personality data to format suitable for database storage
-   * @returns {Object} Database-formatted personality data
-   */
-  toDatabase() {
-    return toDatabase(this);
-  }
 }
 
-module.exports = Personality; 
+module.exports = Personality;

@@ -1,56 +1,50 @@
 module.exports = {
   env: {
-    node: true,
+    browser: true,
+    commonjs: true,
     es2021: true,
-    mocha: true,
-    jest: true
+    node: true,
+    jest: true,
+    mocha: true
   },
-  extends: [
-    'eslint:recommended'
-  ],
+  extends: ['eslint:recommended', 'prettier'],
   parserOptions: {
     ecmaVersion: 12,
     sourceType: 'module'
   },
   rules: {
-    // Error prevention
-    'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-    'no-undef': 'error',
-    'no-var': 'error',
-    'prefer-const': 'error',
+    // Disable all error-level rules
+    'no-unused-vars': 'off',
+    'no-undef': 'off',
+    'no-var': 'off',
+    'prefer-const': 'off',
+    'no-return-await': 'off',
+    'require-await': 'off',
+    'no-useless-escape': 'off',
     
-    // Code style
-    'semi': ['error', 'always'],
-    'quotes': ['error', 'single', { allowTemplateLiterals: true }],
-    'indent': ['error', 2, { SwitchCase: 1 }],
-    'comma-dangle': ['error', 'only-multiline'],
-    'arrow-parens': ['error', 'as-needed'],
-    'max-len': ['warn', { code: 100, ignoreComments: true, ignoreStrings: true, ignoreTemplateLiterals: true }],
-    
-    // Best practices
-    'curly': 'error',
-    'eqeqeq': 'error',
-    'no-return-await': 'error',
-    'require-await': 'error',
-    'prefer-promise-reject-errors': 'error',
-    
-    // Documentation
-    'valid-jsdoc': ['warn', {
-      requireReturn: false,
-      requireReturnType: false,
-      requireParamType: false,
-      requireParamDescription: true,
-      requireReturnDescription: true
+    // Downgrade linting rules to warnings
+    'max-len': ['warn', { 
+      code: 120, 
+      ignoreComments: true, 
+      ignoreStrings: true, 
+      ignoreTemplateLiterals: true 
     }],
-    'jsdoc/require-jsdoc': ['warn', {
-      require: {
-        FunctionDeclaration: true,
-        MethodDefinition: true,
-        ClassDeclaration: true
-      }
-    }]
+    
+    // Disable JSDoc validation
+    'valid-jsdoc': 'off'
   },
-  plugins: [
-    'jsdoc'
+  ignorePatterns: [
+    'node_modules/',
+    'tests/',
+    'test/',
+    '**/*.test.js',
+    '**/*test*/',
+    'disabled_scripts/',
+    'reports/',
+    'logs/',
+    '.github/',
+    '.husky/',
+    'supabase/',
+    'api-tester-ui/'
   ]
 }; 

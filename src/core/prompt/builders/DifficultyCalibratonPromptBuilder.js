@@ -1,52 +1,68 @@
+'use strict';
+
 /**
  * Difficulty Calibration Prompt Builder
- * 
+ *
  * Builds prompts for calibrating difficulty levels across challenges
  * to ensure consistent user experience and appropriate progression paths.
- * 
+ *
  * @module DifficultyCalibratonPromptBuilder
  * @requires logger
  */
 
 const { z } = require('zod');
 const { logger } = require('../../../core/infra/logging/logger');
-const { appendApiInstructions } = require('../common/apiStandards');
-const { formatForResponsesApi } = require('../../../infra/openai/messageFormatter');
+const { _appendApiInstructions } = require('../common/apiStandards');
+const { formatForResponsesApi } = require('../../core/infra/openai/messageFormatter');
 
 // Schema definition for difficulty calibration prompt parameters
 const difficultyCalibratonSchema = z.object({
-  challenges: z.array(z.object({
-    id: z.string(),
-    title: z.string(),
-    description: z.string(),
-    currentDifficulty: z.string(),
-    completionStats: z.object({
-      totalAttempts: z.number(),
-      successRate: z.number(),
-      averageScore: z.number().optional(),
-      averageTimeToComplete: z.number().optional()
-    }).optional()
-  })),
-  skillLevels: z.array(z.object({
-    level: z.string(),
-    description: z.string(),
-    expectedSuccessRate: z.number().optional()
-  })).optional(),
-  targetAudience: z.object({
-    skillLevel: z.string(),
-    technicalBackground: z.array(z.string()).optional(),
-    priorKnowledge: z.array(z.string()).optional()
-  }).optional(),
-  difficultyLevels: z.array(z.object({
-    level: z.string(),
-    description: z.string(),
-    targetSuccessRate: z.number().optional()
-  })),
-  calibrationGoals: z.object({
-    ensureProgression: z.boolean().default(true),
-    normalizeRatings: z.boolean().default(true),
-    balanceSuccessRates: z.boolean().default(true)
-  }).optional()
+  challenges: z.array(
+    z.object({
+      id: z.string(),
+      title: z.string(),
+      description: z.string(),
+      currentDifficulty: z.string(),
+      completionStats: z
+        .object({
+          totalAttempts: z.number(),
+          successRate: z.number(),
+          averageScore: z.number().optional(),
+          averageTimeToComplete: z.number().optional(),
+        })
+        .optional(),
+    })
+  ),
+  skillLevels: z
+    .array(
+      z.object({
+        level: z.string(),
+        description: z.string(),
+        expectedSuccessRate: z.number().optional(),
+      })
+    )
+    .optional(),
+  targetAudience: z
+    .object({
+      skillLevel: z.string(),
+      technicalBackground: z.array(z.string()).optional(),
+      priorKnowledge: z.array(z.string()).optional(),
+    })
+    .optional(),
+  difficultyLevels: z.array(
+    z.object({
+      level: z.string(),
+      description: z.string(),
+      targetSuccessRate: z.number().optional(),
+    })
+  ),
+  calibrationGoals: z
+    .object({
+      ensureProgression: z.boolean().default(true),
+      normalizeRatings: z.boolean().default(true),
+      balanceSuccessRates: z.boolean().default(true),
+    })
+    .optional(),
 });
 
 /**
@@ -61,7 +77,7 @@ function validateDifficultyCalibratonPromptParams(params) {
   } catch (error) {
     logger.error('Invalid difficulty calibration parameters', {
       error: error.message,
-      params
+      params,
     });
     throw new Error(`Invalid difficulty calibration parameters: ${error.message}`);
   }
@@ -72,66 +88,91 @@ function validateDifficultyCalibratonPromptParams(params) {
  * @param {Object} params - Parameters for the prompt
  * @returns {string} The constructed prompt
  */
-async function build(params) {
+function build(params) {
   // Validate parameters
   const validatedParams = validateDifficultyCalibratonPromptParams(params);
-  
+
   logger.debug('Building difficulty calibration prompt', {
-    challengeCount: validatedParams.challenges.length
+    challengeCount: validatedParams.challenges.length,
   });
-  
+
   // Extract key information
-  const { challenges, skillLevels, targetAudience, difficultyLevels, calibrationGoals } = validatedParams;
-  
+  const { challenges, skillLevels, targetAudience, difficultyLevels, calibrationGoals } =
+    validatedParams;
+
   // Default calibration goals if not provided
   const goals = calibrationGoals || {
     ensureProgression: true,
     normalizeRatings: true,
-    balanceSuccessRates: true
+    balanceSuccessRates: true,
   };
-  
+
   // Build the system message
   const systemMessage = `
 You are a learning difficulty calibration system specialized in ensuring appropriate and consistent challenge difficulty levels.
 Your task is to evaluate and calibrate the difficulty ratings of a set of challenges to ensure proper progression paths.
 
 CURRENT CHALLENGES:
-${challenges.map(challenge => `
+${challenges
+    .map(
+      challenge => `
 - ID: ${challenge.id}
   Title: ${challenge.title}
   Current Difficulty: ${challenge.currentDifficulty}
-  ${challenge.completionStats ? `
+  ${
+  challenge.completionStats
+    ? `
   Stats:
     Total Attempts: ${challenge.completionStats.totalAttempts}
     Success Rate: ${challenge.completionStats.successRate}%
     ${challenge.completionStats.averageScore ? `Average Score: ${challenge.completionStats.averageScore}/100` : ''}
     ${challenge.completionStats.averageTimeToComplete ? `Average Completion Time: ${challenge.completionStats.averageTimeToComplete} minutes` : ''}
-  ` : ''}
+  `
+    : ''
+}
   Description: ${challenge.description}
-`).join('')}
+`
+    )
+    .join('')}
 
 DIFFICULTY LEVELS:
-${difficultyLevels.map(level => `
+${difficultyLevels
+    .map(
+      level => `
 - Level: ${level.level}
   Description: ${level.description}
   ${level.targetSuccessRate ? `Target Success Rate: ${level.targetSuccessRate}%` : ''}
-`).join('')}
+`
+    )
+    .join('')}
 
-${skillLevels ? `
+${
+  skillLevels
+    ? `
 SKILL LEVELS:
-${skillLevels.map(skill => `
+${skillLevels
+    .map(
+      skill => `
 - Level: ${skill.level}
   Description: ${skill.description}
   ${skill.expectedSuccessRate ? `Expected Success Rate: ${skill.expectedSuccessRate}%` : ''}
-`).join('')}
-` : ''}
+`
+    )
+    .join('')}
+`
+    : ''
+}
 
-${targetAudience ? `
+${
+  targetAudience
+    ? `
 TARGET AUDIENCE:
 - Skill Level: ${targetAudience.skillLevel}
 ${targetAudience.technicalBackground ? `- Technical Background: ${targetAudience.technicalBackground.join(', ')}` : ''}
 ${targetAudience.priorKnowledge ? `- Prior Knowledge: ${targetAudience.priorKnowledge.join(', ')}` : ''}
-` : ''}
+`
+    : ''
+}
 
 CALIBRATION GOALS:
 ${goals.ensureProgression ? '- Ensure clear progression path from easier to harder challenges' : ''}
@@ -148,50 +189,43 @@ INSTRUCTIONS:
 
 YOUR RESPONSE SHOULD BE FORMATTED IN THIS JSON STRUCTURE:
 {
-  "calibratedChallenges": [
+  'calibratedChallenges': [
     {
-      "id": "challenge-id",
-      "currentDifficulty": "current-level",
-      "recommendedDifficulty": "recommended-level",
-      "justification": "Reason for the recommendation",
-      "expectedSuccessRate": 75
+      'id': 'challenge-id',
+      'currentDifficulty': 'current-level',
+      'recommendedDifficulty': 'recommended-level',
+      'justification': 'Reason for the recommendation',
+      'expectedSuccessRate': 75
     }
   ],
-  "difficultyDistribution": {
-    "beginner": 30,
-    "intermediate": 40,
-    "advanced": 20,
-    "expert": 10
+  'difficultyDistribution': {
+    'beginner': 30,
+    'intermediate': 40,
+    'advanced': 20,
+    'expert': 10
   },
-  "progressionPaths": [
+  'progressionPaths': [
     {
-      "name": "Path name (e.g., 'Core Concepts')",
-      "challengeSequence": ["challenge-id-1", "challenge-id-2"]
+      'name': 'Path name (e.g., 'Core Concepts')',
+      'challengeSequence': ['challenge-id-1', 'challenge-id-2']
     }
   ],
-  "calibrationSummary": "Overall assessment of the difficulty distribution"
+  'calibrationSummary': 'Overall assessment of the difficulty distribution'
 }`;
 
   // Create a user prompt summarizing the request
   const userPrompt = `Please calibrate the difficulty levels for ${challenges.length} challenges according to the specified difficulty levels and goals. Ensure consistent progression and appropriate challenge levels based on the provided statistics and descriptions.`;
-  
-  // Format for Responses API
-  const formattedPrompt = formatForResponsesApi(
-    userPrompt,
-    systemMessage
-  );
-  
-  // Append API usage instructions
-  const finalPrompt = appendApiInstructions(formattedPrompt);
-  
+
+  // Log success
   logger.debug('Successfully built difficulty calibration prompt', {
-    promptLength: finalPrompt.length
+    challengeCount: challenges.length,
   });
-  
-  return finalPrompt;
+
+  // Return formatted for Responses API
+  return formatForResponsesApi(userPrompt, systemMessage);
 }
 
 module.exports = {
   build,
-  validateDifficultyCalibratonPromptParams
-}; 
+  validateDifficultyCalibratonPromptParams,
+};

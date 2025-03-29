@@ -14,12 +14,21 @@ const testEnv = require('../../loadEnv');
 
 const { skipIfMissingEnv } = require('../../helpers/testHelpers');
 // Create a simplified EvaluationService for testing
+/**
+ *
+ */
 class EvaluationService {
+  /**
+   *
+   */
   constructor({ openAIClient, MessageRole }) {
     this.openAIClient = openAIClient;
     this.MessageRole = MessageRole;
   }
   
+  /**
+   *
+   */
   async evaluateResponse(userResponse, challenge) {
     try {
       // Create messages for evaluation
@@ -73,11 +82,11 @@ describe('Evaluation Service Responses API Integration', function() {
   // Set longer timeout for API calls
   this.timeout(30000);
 
-before(function() {
+  before(function() {
     skipIfMissingEnv(this, 'openai');
   });
 
-// Configure longer timeout for API calls
+  // Configure longer timeout for API calls
   this.timeout(TEST_TIMEOUT);
   
   let evaluationService;

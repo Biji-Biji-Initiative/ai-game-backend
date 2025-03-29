@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Enhanced Evaluation Prompt Builder
  * Specialized class for generating comprehensive evaluation prompts with user context
@@ -16,7 +18,7 @@ const {
 } = require('../common/apiStandards');
 const { validateEvaluationPromptParams } = require('../schemas/evaluationSchema');
 const { PromptConstructionError } = require('../common/errors');
-const { formatForResponsesApi } = require('../../../infra/openai/messageFormatter');
+const { formatForResponsesApi } = require('../../core/infra/openai/messageFormatter');
 
 /**
  * Helper function for logging if logger exists
@@ -202,13 +204,17 @@ class EvaluationPromptBuilder {
     }
     
     if (evaluationHistory.consistentStrengths && 
-        Array.isArray(evaluationHistory.consistentStrengths) && 
+        Array.isArray(evaluationHistory.consistentStrengths) {
+  && 
+}
         evaluationHistory.consistentStrengths.length > 0) {
       section.push(`Consistent Strengths: ${evaluationHistory.consistentStrengths.join(', ')}`);
     }
     
     if (evaluationHistory.persistentWeaknesses && 
-        Array.isArray(evaluationHistory.persistentWeaknesses) && 
+        Array.isArray(evaluationHistory.persistentWeaknesses) {
+  && 
+}
         evaluationHistory.persistentWeaknesses.length > 0) {
       section.push(`Areas Needing Improvement: ${evaluationHistory.persistentWeaknesses.join(', ')}`);
     }
@@ -315,55 +321,55 @@ Based on the user's context, provide:
 Provide your evaluation as a JSON object with the following structure:
 
 {
-  "categoryScores": {
-${Object.keys(categoryWeights).map(cat => `    "${cat}": 25`).join(',\n')}
+  'categoryScores': {
+${Object.keys(categoryWeights).map(cat => `    '${cat}': 25`).join(',\n')}
   },
-  "overallScore": 85,
-  "overallFeedback": "Comprehensive evaluation of the entire response...",
-  "strengths": [
-    "Strength 1",
-    "Strength 2"
+  'overallScore': 85,
+  'overallFeedback': 'Comprehensive evaluation of the entire response...',
+  'strengths': [
+    'Strength 1',
+    'Strength 2'
   ],
-  "strengthAnalysis": [
+  'strengthAnalysis': [
     {
-      "strength": "Strength 1",
-      "analysis": "Detailed explanation of why this is effective...",
-      "impact": "How this contributes to overall quality..."
+      'strength': 'Strength 1',
+      'analysis': 'Detailed explanation of why this is effective...',
+      'impact': 'How this contributes to overall quality...'
     }
   ],
-  "areasForImprovement": [
-    "Area for improvement 1",
-    "Area for improvement 2"
+  'areasForImprovement': [
+    'Area for improvement 1',
+    'Area for improvement 2'
   ],
-  "improvementPlans": [
+  'improvementPlans': [
     {
-      "area": "Area for improvement 1",
-      "importance": "Why improving this is important...",
-      "actionItems": ["Specific action 1", "Specific action 2"],
-      "resources": ["Suggested resource or exercise"]
+      'area': 'Area for improvement 1',
+      'importance': 'Why improving this is important...',
+      'actionItems': ['Specific action 1', 'Specific action 2'],
+      'resources': ['Suggested resource or exercise']
     }
   ],
-  "growthInsights": {
-    "improvements": ["Specific improvements since last evaluation"],
-    "persistentStrengths": ["Strengths maintained across evaluations"],
-    "developmentAreas": ["Areas that still need focus"],
-    "growthSummary": "Overall assessment of growth trajectory..."
+  'growthInsights': {
+    'improvements': ['Specific improvements since last evaluation'],
+    'persistentStrengths': ['Strengths maintained across evaluations'],
+    'developmentAreas': ['Areas that still need focus'],
+    'growthSummary': 'Overall assessment of growth trajectory...'
   },
-  "recommendations": {
-    "nextSteps": "Personalized next steps for improvement...",
-    "resources": [
+  'recommendations': {
+    'nextSteps': 'Personalized next steps for improvement...',
+    'resources': [
       {
-        "title": "Resource Title",
-        "type": "article|video|course",
-        "url": "URL if available",
-        "relevance": "Why this is relevant"
+        'title': 'Resource Title',
+        'type': 'article|video|course',
+        'url': 'URL if available',
+        'relevance': 'Why this is relevant'
       }
     ],
-    "recommendedChallenges": [
+    'recommendedChallenges': [
       {
-        "title": "Challenge Type",
-        "description": "Brief description",
-        "relevance": "Why this would help growth"
+        'title': 'Challenge Type',
+        'description': 'Brief description',
+        'relevance': 'Why this would help growth'
       }
     ]
   }
@@ -574,46 +580,46 @@ ${Object.keys(categoryWeights).map(cat => `    "${cat}": 25`).join(',\n')}
   static getCategoryDescription(category) {
     const descriptions = {
       // Common categories
-      accuracy: "Evaluate factual correctness, depth of knowledge, and absence of misconceptions",
-      clarity: "Assess organization, clarity of expression, and logical flow of ideas",
-      reasoning: "Evaluate logical connections, critical thinking, and soundness of arguments",
-      creativity: "Judge originality of ideas, innovative thinking, and novel approaches",
+      accuracy: 'Evaluate factual correctness, depth of knowledge, and absence of misconceptions',
+      clarity: 'Assess organization, clarity of expression, and logical flow of ideas',
+      reasoning: 'Evaluate logical connections, critical thinking, and soundness of arguments',
+      creativity: 'Judge originality of ideas, innovative thinking, and novel approaches',
       
       // Specialized categories
-      critical_thinking: "Assess depth of analysis, consideration of alternatives, and avoidance of cognitive biases",
-      insight: "Evaluate the presence of meaningful, non-obvious observations and connections",
-      problem_solving: "Judge the effectiveness of solutions, considering constraints and trade-offs",
-      application: "Assess how well concepts are applied to specific situations or problems",
-      communication: "Evaluate clarity, precision, and effectiveness of communication",
-      thoroughness: "Judge comprehensiveness of research, addressing all relevant aspects",
-      methodology: "Evaluate appropriateness and rigor of methods used",
-      critical_analysis: "Assess ability to evaluate sources, identify biases, and synthesize information",
-      presentation: "Judge organization, clarity, and effective use of evidence",
-      originality: "Evaluate uniqueness and novelty of ideas and approach",
-      effectiveness: "Assess how well the response achieves its intended purpose",
-      elaboration: "Evaluate depth, detail, and development of ideas",
-      relevance: "Judge how well the response addresses the challenge requirements",
-      technical_accuracy: "Evaluate technical correctness and precision",
-      implementation: "Assess the quality and effectiveness of implementation details",
-      explanation: "Evaluate clarity and completeness of explanations for technical choices",
-      best_practices: "Judge adherence to established standards and best practices",
+      critical_thinking: 'Assess depth of analysis, consideration of alternatives, and avoidance of cognitive biases',
+      insight: 'Evaluate the presence of meaningful, non-obvious observations and connections',
+      problem_solving: 'Judge the effectiveness of solutions, considering constraints and trade-offs',
+      application: 'Assess how well concepts are applied to specific situations or problems',
+      communication: 'Evaluate clarity, precision, and effectiveness of communication',
+      thoroughness: 'Judge comprehensiveness of research, addressing all relevant aspects',
+      methodology: 'Evaluate appropriateness and rigor of methods used',
+      critical_analysis: 'Assess ability to evaluate sources, identify biases, and synthesize information',
+      presentation: 'Judge organization, clarity, and effective use of evidence',
+      originality: 'Evaluate uniqueness and novelty of ideas and approach',
+      effectiveness: 'Assess how well the response achieves its intended purpose',
+      elaboration: 'Evaluate depth, detail, and development of ideas',
+      relevance: 'Judge how well the response addresses the challenge requirements',
+      technical_accuracy: 'Evaluate technical correctness and precision',
+      implementation: 'Assess the quality and effectiveness of implementation details',
+      explanation: 'Evaluate clarity and completeness of explanations for technical choices',
+      best_practices: 'Judge adherence to established standards and best practices',
       
       // Ethics-focused categories
-      ethical_reasoning: "Evaluate depth and nuance of ethical analysis and reasoning",
-      comprehensiveness: "Assess coverage of relevant ethical dimensions and perspectives",
-      practical_application: "Judge how well ethical principles are applied to concrete situations",
+      ethical_reasoning: 'Evaluate depth and nuance of ethical analysis and reasoning',
+      comprehensiveness: 'Assess coverage of relevant ethical dimensions and perspectives',
+      practical_application: 'Judge how well ethical principles are applied to concrete situations',
       
       // AI literacy categories
-      conceptual_understanding: "Evaluate understanding of core AI concepts and principles",
-      critical_perspective: "Assess ability to critically evaluate AI technologies and claims",
+      conceptual_understanding: 'Evaluate understanding of core AI concepts and principles',
+      critical_perspective: 'Assess ability to critically evaluate AI technologies and claims',
       
       // Impact categories
-      impact_analysis: "Evaluate depth and breadth of impact analysis across domains",
-      stakeholder_consideration: "Assess identification and consideration of affected stakeholders",
-      systemic_thinking: "Evaluate understanding of complex systemic interactions and dynamics"
+      impact_analysis: 'Evaluate depth and breadth of impact analysis across domains',
+      stakeholder_consideration: 'Assess identification and consideration of affected stakeholders',
+      systemic_thinking: 'Evaluate understanding of complex systemic interactions and dynamics'
     };
     
-    return descriptions[category.toLowerCase()] || "Evaluate this aspect of the response";
+    return descriptions[category.toLowerCase()] || 'Evaluate this aspect of the response';
   }
 }
 

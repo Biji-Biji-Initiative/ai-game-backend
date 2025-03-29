@@ -28,11 +28,11 @@ describe('E2E: Challenge-Evaluation Flow', function() {
   // Set longer timeout for API calls
   this.timeout(30000);
 
-before(function() {
+  before(function() {
     skipIfMissingEnv(this, 'openai');
   });
 
-// Configure longer timeout for E2E tests
+  // Configure longer timeout for E2E tests
   this.timeout(API_TIMEOUT);
   
   // Skip if API keys not available
@@ -130,7 +130,7 @@ before(function() {
       expect(getChallengeResponse.data.data.id).to.equal(challengeId);
       
       // Step 3: Submit a response to the challenge
-      const responseText = "This is a test response to the challenge. To address ethical issues in AI, I would implement regular bias audits, ensure diverse training data, and establish an ethics review board for oversight.";
+      const responseText = 'This is a test response to the challenge. To address ethical issues in AI, I would implement regular bias audits, ensure diverse training data, and establish an ethics review board for oversight.';
       
       const evaluationRequestData = {
         challengeId: challengeId,

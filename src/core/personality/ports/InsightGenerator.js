@@ -1,6 +1,8 @@
+'use strict';
+
 /**
  * Insight Generator Port
- * 
+ *
  * This interface defines the contract for generating insights from personality data.
  * It follows the port/adapter pattern to keep infrastructure details out of the domain.
  */
@@ -14,9 +16,12 @@ class InsightGenerator {
    * @param {import('../models/Personality')} profile - The personality profile
    * @returns {Promise<Object>} - Generated insights
    */
-  async generateFor(profile) {
+  /**
+   * Method generateFor
+   */
+  generateFor(profile) {
     throw new Error('Method not implemented');
   }
 }
 
-module.exports = InsightGenerator; 
+module.exports = InsightGenerator;

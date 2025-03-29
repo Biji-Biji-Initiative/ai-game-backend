@@ -1,12 +1,17 @@
+'use strict';
+
 /**
  * Format Type Model
- * 
+ *
  * Represents a format type for challenges (e.g., scenario, case-study, debate).
  * This is a configuration entity that defines how challenges are structured.
  */
 
 const { v4: uuidv4 } = require('uuid');
 
+/**
+ * Format Type domain entity
+ */
 class FormatType {
   /**
    * Create a new FormatType
@@ -22,6 +27,9 @@ class FormatType {
    * @param {boolean} [data.isActive] - Whether this format type is active
    * @param {string} [data.createdAt] - Creation timestamp
    * @param {string} [data.updatedAt] - Last update timestamp
+   */
+  /**
+   * Method constructor
    */
   constructor(data = {}) {
     this.id = data.id || uuidv4();
@@ -42,6 +50,9 @@ class FormatType {
    * @param {string} criterion - Criterion to check
    * @returns {boolean} True if criterion is used
    */
+  /**
+   * Method usesCriterion
+   */
   usesCriterion(criterion) {
     return this.evaluationCriteria.includes(criterion);
   }
@@ -50,6 +61,9 @@ class FormatType {
    * Get all evaluation criteria
    * @returns {Array<string>} Array of criteria
    */
+  /**
+   * Method getAllCriteria
+   */
   getAllCriteria() {
     return [...this.evaluationCriteria];
   }
@@ -57,6 +71,9 @@ class FormatType {
   /**
    * Get prompt structure components
    * @returns {Array<string>} Array of structure components
+   */
+  /**
+   * Method getPromptStructureComponents
    */
   getPromptStructureComponents() {
     return this.promptStructure.split('-');
@@ -67,62 +84,29 @@ class FormatType {
    * @param {Object} updates - Fields to update
    * @returns {FormatType} Updated format type
    */
+  /**
+   * Method update
+   */
   update(updates) {
     const allowedFields = [
-      'name', 'description', 'promptStructure', 'responseFormat',
-      'evaluationCriteria', 'metadata', 'isActive'
+      'name',
+      'description',
+      'promptStructure',
+      'responseFormat',
+      'evaluationCriteria',
+      'metadata',
+      'isActive',
     ];
-    
+
     for (const field of allowedFields) {
       if (updates[field] !== undefined) {
         this[field] = updates[field];
       }
     }
-    
+
     this.updatedAt = new Date().toISOString();
     return this;
   }
-
-  /**
-   * Convert to database format
-   * @returns {Object} Database representation
-   */
-  toDatabase() {
-    return {
-      id: this.id,
-      code: this.code,
-      name: this.name,
-      description: this.description,
-      prompt_structure: this.promptStructure,
-      response_format: this.responseFormat,
-      evaluation_criteria: this.evaluationCriteria,
-      metadata: this.metadata,
-      is_active: this.isActive,
-      created_at: this.createdAt,
-      updated_at: this.updatedAt
-    };
-  }
-
-  /**
-   * Create from database record
-   * @param {Object} data - Database record
-   * @returns {FormatType} FormatType instance
-   */
-  static fromDatabase(data) {
-    return new FormatType({
-      id: data.id,
-      code: data.code,
-      name: data.name,
-      description: data.description,
-      promptStructure: data.prompt_structure || data.promptStructure || '',
-      responseFormat: data.response_format || data.responseFormat || '',
-      evaluationCriteria: data.evaluation_criteria || data.evaluationCriteria || [],
-      metadata: data.metadata || {},
-      isActive: data.is_active !== undefined ? data.is_active : (data.isActive || true),
-      createdAt: data.created_at || data.createdAt,
-      updatedAt: data.updated_at || data.updatedAt
-    });
-  }
 }
 
-module.exports = FormatType; 
+module.exports = FormatType;

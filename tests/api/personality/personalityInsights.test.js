@@ -22,7 +22,7 @@ describe('Personality Insights API', () => {
   // Set longer timeout for API calls
   this.timeout(30000);
 
-let app;
+  let app;
   let personalityServiceMock;
   
   beforeEach(() => {
@@ -47,7 +47,7 @@ let app;
     // Register response formatter middleware
     app.use((req, res, next) => {
       // Simple mock of the response formatter middleware
-      res.success = (data) => res.json({ success: true, data });
+      res.success = data => res.json({ success: true, data });
       res.error = (message, code = 400) => res.status(code).json({ success: false, error: message });
       next();
     });

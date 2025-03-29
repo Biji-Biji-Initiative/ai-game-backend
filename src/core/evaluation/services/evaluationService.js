@@ -1,21 +1,46 @@
+'use strict';
+
 /**
  * Advanced Evaluation Service
  * 
  * Core business logic for generating deeply personalized evaluations
- * using OpenAI Responses API with comprehensive user context and growth tracking.
+ * using AI services with comprehensive user context and growth tracking.
  * Integrates with the prompt builder architecture for consistent prompt generation.
  * 
  * @module evaluationService
  * @requires promptBuilder
- * @requires responsesApiClient
+ * @requires aiClient
  * @requires logger
  */
 
 const { v4: uuidv4 } = require('uuid');
 const promptBuilder = require('../../prompt/promptBuilder');
-const { PROMPT_TYPES, getRecommendedModel } = require('../../prompt/promptTypes');
+const { PROMPT_TYPES } = require('../../prompt/promptTypes');
 const Evaluation = require('../models/Evaluation');
-const { formatForResponsesApi } = require('../../infrastructure/openai/messageFormatter');
+const { formatForResponsesApi } = require('../../core/infra/openai/messageFormatter');
+
+// Import domain-specific error classes
+const {
+  EvaluationError,
+  EvaluationNotFoundError,
+  EvaluationValidationError,
+  EvaluationProcessingError,
+} = require('../errors/EvaluationErrors');
+
+const {
+  createErrorMapper
+} = require('../../../core/infra/errors/errorStandardization');
+
+// Create an error mapper for services
+const evaluationServiceErrorMapper = createErrorMapper(
+  {
+    EvaluationNotFoundError: EvaluationNotFoundError,
+    EvaluationValidationError: EvaluationValidationError,
+    EvaluationProcessingError: EvaluationProcessingError,
+    Error: EvaluationError,
+  },
+  EvaluationError
+);
 
 /**
  * Service for generating and processing evaluations
@@ -24,36 +49,77 @@ class EvaluationService {
   /**
    * Create a new EvaluationService
    * @param {Object} dependencies - Injected dependencies
-   * @param {Object} dependencies.responsesApiClient - Client for Responses API calls
+   * @param {Object} dependencies.aiClient - AI client port interface
    * @param {Object} dependencies.logger - Logger instance
-   * @param {Object} dependencies.openAIStateManager - Manager for OpenAI conversation state
+   * @param {Object} dependencies.evaluationRepository - Repository for evaluations
+   * @param {Object} dependencies.evaluationCategoryRepository - Repository for evaluation categories
+   * @param {Object} dependencies.aiStateManager - AI state manager port interface
    * @param {Object} dependencies.evaluationDomainService - Domain service for evaluations
+   * @param {Object} dependencies.eventBus - Event bus for publishing domain events
    */
   constructor({ 
-    responsesApiClient, 
+    aiClient, 
     logger, 
-    openAIStateManager,
-    evaluationDomainService 
+    evaluationRepository,
+    evaluationCategoryRepository,
+    aiStateManager,
+    evaluationDomainService,
+    eventBus
   }) {
-    this.responsesApiClient = responsesApiClient;
+    if (!aiClient) {
+      throw new Error('aiClient is required for EvaluationService');
+    }
+    
+    this.aiClient = aiClient;
     this.logger = logger;
-    this.openAIStateManager = openAIStateManager;
+    this.evaluationRepository = evaluationRepository;
+    this.evaluationCategoryRepository = evaluationCategoryRepository;
+    this.aiStateManager = aiStateManager;
     this.evaluationDomainService = evaluationDomainService;
+    this.eventBus = eventBus;
+    
+    // Apply standardized error handling
+    this.evaluateResponse = this._wrapWithErrorHandling('evaluateResponse');
+    this.streamEvaluation = this._wrapWithErrorHandling('streamEvaluation');
   }
 
   /**
-   * Log a message with context
-   * @param {string} level - Log level
-   * @param {string} message - Log message
-   * @param {Object} meta - Additional metadata
+   * Helper method to wrap service methods with standardized error handling
+   * @param {string} methodName - Name of the method to wrap
+   * @returns {Function} Wrapped method
    * @private
    */
-  log(level, message, meta = {}) {
-    if (this.logger && typeof this.logger[level] === 'function') {
-      this.logger[level](message, meta);
-    } else {
-      console[level === 'error' ? 'error' : 'log'](message, meta);
-    }
+  _wrapWithErrorHandling(methodName) {
+    const originalMethod = this[methodName];
+    
+    return async (...args) => {
+      try {
+        return await originalMethod.apply(this, args);
+      } catch (error) {
+        this.logger.error(`Error in evaluation service ${methodName}`, {
+          error: error.message,
+          stack: error.stack,
+          methodName,
+          args: JSON.stringify(
+            args.map(arg => {
+              // Don't log potentially large objects/arrays in full
+              if (typeof arg === 'object' && arg !== null) {
+                return Object.keys(arg);
+              }
+              return arg;
+            })
+          ),
+        });
+
+        // Map error to domain-specific error
+        const mappedError = evaluationServiceErrorMapper(error, {
+          methodName,
+          domainName: 'evaluation',
+          args,
+        });
+        throw mappedError;
+      }
+    };
   }
 
   /**
@@ -69,560 +135,221 @@ class EvaluationService {
    * @returns {Promise<Evaluation>} Personalized evaluation results
    */
   async evaluateResponse(challenge, userResponse, options = {}) {
-    try {
-      if (!challenge) {
-        throw new Error('Challenge is required for evaluation');
-      }
-      
-      if (!userResponse) {
-        throw new Error('User response is required for evaluation');
-      }
-      
-      const threadId = options.threadId;
-      if (!threadId) {
-        throw new Error('Thread ID is required for evaluation');
-      }
+    if (!challenge) {
+      throw new Error('Challenge is required for evaluation');
+    }
+    
+    if (!userResponse) {
+      throw new Error('User response is required for evaluation');
+    }
+    
+    const threadId = options.threadId;
+    if (!threadId) {
+      throw new Error('Thread ID is required for evaluation');
+    }
 
-      // Extract user ID from challenge or options
-      const userId = challenge.userEmail || challenge.userId || options.user?.email || options.user?.id;
-      if (!userId) {
-        throw new Error('User ID or email is required for evaluation');
-      }
-      
-      // Get or create a conversation state for this evaluation thread
-      const conversationState = await this.openAIStateManager.findOrCreateConversationState(
-        userId, 
-        `evaluation_${threadId}`,
-        { createdAt: new Date().toISOString() }
-      );
-      
-      // Get the previous response ID for conversation continuity
-      const previousResponseId = await this.openAIStateManager.getLastResponseId(conversationState.id);
+    // Extract user ID from challenge or options
+    const userId = challenge.userEmail || challenge.userId || options.user?.email || options.user?.id;
+    if (!userId) {
+      throw new Error('User ID or email is required for evaluation');
+    }
+    
+    // Get or create a conversation state for this evaluation thread
+    const conversationState = await this.aiStateManager.findOrCreateConversationState(
+      userId, 
+      `evaluation_${threadId}`,
+      { createdAt: new Date().toISOString() }
+    );
+    
+    // Get the previous response ID for conversation continuity
+    const previousResponseId = await this.aiStateManager.getLastResponseId(conversationState.id);
 
-      // Gather user and history data for personalization
-      const user = options.user || { email: userId };
-      const evaluationHistory = options.evaluationHistory || {};
-      
-      // Get challenge type name for more accurate evaluation
-      const challengeTypeName = challenge.getChallengeTypeName ? 
-        challenge.getChallengeTypeName() : 
-        (challenge.typeMetadata?.name || challenge.challengeTypeCode || challenge.challengeType || 'standard');
-      
-      // Get format type name for more accurate evaluation
-      const formatTypeName = challenge.getFormatTypeName ? 
-        challenge.getFormatTypeName() : 
-        (challenge.formatMetadata?.name || challenge.formatTypeCode || challenge.formatType || 'standard');
-      
-      // Get focus area for more accurate evaluation
-      const focusArea = challenge.focusArea || options.focusArea || 'general';
-      
-      // Add type information to prompt options
-      const promptOptions = {
-        challengeTypeName,
-        formatTypeName,
-        focusArea,
-        typeMetadata: challenge.typeMetadata || {},
-        formatMetadata: challenge.formatMetadata || {},
-        evaluationHistory,
-        threadId,
-        previousResponseId: previousResponseId
-      };
-      
-      // Use the prompt builder to create a personalized evaluation prompt
-      this.log('debug', 'Generating personalized evaluation prompt', { challengeId: challenge.id });
-      
-      const { prompt, systemMessage } = await promptBuilder.buildPrompt(PROMPT_TYPES.EVALUATION, {
-        challenge,
-        userResponse,
-        user,
-        evaluationHistory,
-        options: promptOptions
-      });
-      
-      this.log('debug', 'Generated personalized evaluation prompt', { 
-        promptLength: prompt.length, 
-        challengeId: challenge.id,
-        hasUserContext: !!options.user,
-        hasEvaluationHistory: !!options.evaluationHistory
-      });
-      
-      // Format messages for Responses API
-      const messages = formatForResponsesApi(
-        prompt,
-        `You are an AI evaluation expert specializing in providing personalized feedback on ${challengeTypeName} challenges.
+    // Gather user and history data for personalization
+    const user = options.user || { email: userId };
+    const evaluationHistory = options.evaluationHistory || {};
+    
+    // Get challenge type name for more accurate evaluation
+    const challengeTypeName = challenge.getChallengeTypeName ? 
+      challenge.getChallengeTypeName() : 
+      (challenge.typeMetadata?.name || challenge.challengeTypeCode || challenge.challengeType || 'standard');
+    
+    // Get format type name for more accurate evaluation
+    const formatTypeName = challenge.getFormatTypeName ? 
+      challenge.getFormatTypeName() : 
+      (challenge.formatMetadata?.name || challenge.formatTypeCode || challenge.formatType || 'standard');
+    
+    // Get focus area for more accurate evaluation
+    const focusArea = challenge.focusArea || options.focusArea || 'general';
+    
+    // Add type information to prompt options
+    const promptOptions = {
+      challengeTypeName,
+      formatTypeName,
+      focusArea,
+      typeMetadata: challenge.typeMetadata || {},
+      formatMetadata: challenge.formatMetadata || {},
+      evaluationHistory,
+      threadId,
+      previousResponseId: previousResponseId
+    };
+    
+    // Use the prompt builder to create a personalized evaluation prompt
+    this.logger.debug('Generating personalized evaluation prompt', { challengeId: challenge.id });
+    
+    const { prompt } = await promptBuilder.buildPrompt(PROMPT_TYPES.EVALUATION, {
+      challenge,
+      userResponse,
+      user,
+      evaluationHistory,
+      options: promptOptions
+    });
+    
+    this.logger.debug('Generated personalized evaluation prompt', { 
+      promptLength: prompt.length, 
+      challengeId: challenge.id,
+      hasUserContext: !!options.user,
+      hasEvaluationHistory: !!options.evaluationHistory
+    });
+    
+    // Format messages for OpenAI API
+    const messages = formatForResponsesApi(
+      prompt,
+      `You are an AI evaluation expert specializing in providing personalized feedback on ${challengeTypeName} challenges.
 Always return your evaluation as a JSON object with category scores, overall score, detailed feedback, strengths with analysis, and personalized insights.
 Format your response as valid, parsable JSON with no markdown formatting.
 This is a ${formatTypeName} type challenge in the ${focusArea} focus area, so adapt your evaluation criteria accordingly.
 ${promptOptions.typeMetadata.evaluationNote || ''}
 ${promptOptions.formatMetadata.evaluationNote || ''}`
-      );
-      
-      // Configure API call options for Responses API
-      const apiOptions = {
-        model: options.model || 'gpt-4o',
-        temperature: options.temperature || 0.4, // Lower temperature for more consistent evaluations
-        responseFormat: 'json',
-        previousResponseId: previousResponseId
-      };
-      
-      // Call the OpenAI Responses API for evaluation
-      this.log('debug', 'Calling OpenAI Responses API for personalized evaluation', { 
-        challengeId: challenge.id, 
-        threadId 
-      });
-      
-      const response = await this.responsesApiClient.sendJsonMessage(messages, apiOptions);
-      
-      // Update the conversation state with the new response ID
-      await this.openAIStateManager.updateLastResponseId(conversationState.id, response.responseId);
-      
-      // Validate and process the response
-      if (!response || !response.data) {
-        throw new Error('Invalid evaluation response format from OpenAI Responses API');
-      }
-      
-      // Extract evaluation data from response
-      const evaluationData = response.data;
-      
-      // Calculate overall score if not provided but category scores are
-      let overallScore = evaluationData.overallScore || evaluationData.score;
-      if (!overallScore && evaluationData.categoryScores) {
-        // Calculate weighted average based on the category scores
-        const categoryScores = evaluationData.categoryScores;
-        const totalPoints = Object.values(categoryScores).reduce((sum, score) => sum + score, 0);
-        overallScore = Math.round(totalPoints);
-      }
-      
-      // Calculate score changes if we have history
-      const previousScore = evaluationHistory.previousScores?.overall;
-      const scoreChange = previousScore !== undefined ? (overallScore - previousScore) : 0;
-      
-      // Calculate category score changes
-      const categoryScoreChanges = this.getCategoryScoreChanges(
-        evaluationData.categoryScores || {},
-        evaluationHistory.previousScores || {}
-      );
-      
-      // Prepare user context from available data
-      const userContext = {
-        skillLevel: user.skillLevel || 'intermediate',
-        focusAreas: user.focusAreas || [],
-        learningGoals: user.learningGoals || [],
-        previousScores: evaluationHistory.previousScores || {},
-        completedChallengeCount: user.completedChallenges || 0
-      };
-      
-      // If the user has focus areas, map them to relevant categories using the domain service
-      let relevantCategories = [];
-      if (userContext.focusAreas && userContext.focusAreas.length > 0 && this.evaluationDomainService) {
-        try {
-          this.log('debug', 'Mapping focus areas to categories', { 
-            focusAreas: userContext.focusAreas 
-          });
-          
-          relevantCategories = await this.evaluationDomainService.mapFocusAreasToCategories(userContext.focusAreas);
-          
-          this.log('debug', 'Successfully mapped focus areas to categories', { 
-            focusAreas: userContext.focusAreas,
-            categoryCount: relevantCategories.length
-          });
-        } catch (error) {
-          this.log('warn', 'Error mapping focus areas to categories', { 
-            error: error.message,
-            focusAreas: userContext.focusAreas
-          });
-          // Continue with empty relevant categories
-        }
-      }
-      
-      // Prepare growth metrics
-      const growthMetrics = {
-        scoreChange,
-        categoryScoreChanges,
-        improvementRate: this.calculateOverallImprovement(categoryScoreChanges),
-        consistentStrengths: evaluationData.growthInsights?.persistentStrengths || 
-                            evaluationHistory.consistentStrengths || [],
-        persistentWeaknesses: evaluationData.growthInsights?.developmentAreas || 
-                             evaluationHistory.areasNeedingImprovement || [],
-        lastEvaluationId: evaluationHistory.lastEvaluationId
-      };
-      
-      // Prepare challenge context
-      const challengeContext = {
-        title: challenge.title || '',
-        type: challengeTypeName,
-        focusArea: focusArea,
-        difficulty: challenge.difficulty || 'intermediate',
-        categoryWeights: this.getCategoryWeightsFromPrompt(prompt)
-      };
-      
-      // Normalize the evaluation structure with enhanced data
-      const normalizedData = {
-        userId,
-        challengeId: challenge.id,
-        score: overallScore || 70,
-        categoryScores: evaluationData.categoryScores || {},
-        overallFeedback: evaluationData.overallFeedback || evaluationData.feedback || '',
-        strengths: evaluationData.strengths || [],
-        strengthAnalysis: evaluationData.strengthAnalysis || [],
-        areasForImprovement: evaluationData.areasForImprovement || evaluationData.improvements || [],
-        improvementPlans: evaluationData.improvementPlans || [],
-        nextSteps: evaluationData.recommendations?.nextSteps || evaluationData.nextSteps || '',
-        recommendedResources: evaluationData.recommendations?.resources || [],
-        recommendedChallenges: evaluationData.recommendations?.recommendedChallenges || [],
-        userContext: userContext,
-        challengeContext: challengeContext,
-        growthMetrics: growthMetrics,
+    );
+    
+    // Configure API call options for OpenAI API
+    const apiOptions = {
+      model: options.model || 'gpt-4o',
+      temperature: options.temperature || 0.4, // Lower temperature for more consistent evaluations
+      responseFormat: 'json',
+      previousResponseId: previousResponseId
+    };
+    
+    // Call the AI service for evaluation
+    this.logger.debug('Calling AI service for personalized evaluation', { 
+      challengeId: challenge.id, 
+      threadId 
+    });
+    
+    const response = await this.aiClient.sendJsonMessage(messages, apiOptions);
+    
+    // Update the conversation state with the new response ID
+    await this.aiStateManager.updateLastResponseId(conversationState.id, response.responseId);
+    
+    // Validate and process the response
+    if (!response || !response.data) {
+      throw new Error('Invalid evaluation response format from AI service');
+    }
+    
+    // Extract evaluation data from response
+    const evaluationData = response.data;
+    
+    // Create and return the evaluation entity
+    const evaluation = new Evaluation({
+      id: uuidv4(),
+      challengeId: challenge.id,
+      userId: userId,
+      overallScore: evaluationData.overallScore || evaluationData.score,
+      feedback: evaluationData.feedback,
+      strengths: evaluationData.strengths,
+      improvements: evaluationData.improvements,
+      categoryScores: evaluationData.categoryScores,
+      insights: evaluationData.insights,
+      createdAt: new Date().toISOString(),
+      metadata: {
+        promptOptions,
+        model: apiOptions.model,
+        temperature: apiOptions.temperature,
         responseId: response.responseId,
-        threadId,
-        // Include mapped relevant categories
-        relevantCategories,
-        metadata: {
-          evaluationPromptLength: prompt.length,
-          personalizationLevel: options.user ? 'personalized' : 'standard',
-          hasHistory: !!options.evaluationHistory,
-          categoryWeights: challengeContext.categoryWeights,
-          generatedAt: new Date().toISOString()
-        }
-      };
-      
-      // Create domain model instance
-      const evaluation = new Evaluation(normalizedData);
-      
-      this.log('info', 'Successfully evaluated challenge response with personalization', {
-        challengeId: challenge.id,
-        score: evaluation.score,
-        threadId,
-        personalization: options.user ? 'enabled' : 'disabled'
-      });
-      
-      return evaluation;
-    } catch (error) {
-      this.log('error', 'Error in personalized evaluation service', { 
-        error: error.message,
-        challengeId: challenge?.id
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Stream personalized evaluation results for real-time feedback
-   * @param {Object} challenge - Challenge object
-   * @param {string|Array} userResponse - User's response (string or array of responses)
-   * @param {Object} callbacks - Callback functions
-   * @param {Function} callbacks.onChunk - Called with each chunk of text
-   * @param {Function} callbacks.onComplete - Called when streaming is complete
-   * @param {Function} callbacks.onError - Called if an error occurs
-   * @param {Object} options - Additional options including user and history data
-   * @returns {Promise<void>}
-   */
-  async streamEvaluation(challenge, userResponse, callbacks, options = {}) {
-    try {
-      if (!challenge) {
-        throw new Error('Challenge is required for evaluation');
-      }
-      
-      if (!userResponse) {
-        throw new Error('User response is required for evaluation');
-      }
-      
-      const threadId = options.threadId;
-      if (!threadId) {
-        throw new Error('Thread ID is required for evaluation');
-      }
-      
-      // Extract user ID from challenge or options
-      const userId = challenge.userEmail || challenge.userId || options.user?.email || options.user?.id;
-      if (!userId) {
-        throw new Error('User ID or email is required for evaluation');
-      }
-      
-      // Get or create a conversation state for this evaluation thread
-      const conversationState = await this.openAIStateManager.findOrCreateConversationState(
-        userId, 
-        `evaluation_stream_${threadId}`,
-        { createdAt: new Date().toISOString() }
-      );
-      
-      // Get the previous response ID for conversation continuity
-      const previousResponseId = await this.openAIStateManager.getLastResponseId(conversationState.id);
-      
-      // Gather user and history data for personalization
-      const user = options.user || {};
-      const evaluationHistory = options.evaluationHistory || {};
-      
-      // Get challenge type and format information
-      const challengeTypeName = challenge.getChallengeTypeName ? 
-        challenge.getChallengeTypeName() : 
-        (challenge.typeMetadata?.name || challenge.challengeTypeCode || challenge.challengeType || 'standard');
-      
-      const formatTypeName = challenge.getFormatTypeName ? 
-        challenge.getFormatTypeName() : 
-        (challenge.formatMetadata?.name || challenge.formatTypeCode || challenge.formatType || 'standard');
-      
-      const focusArea = challenge.focusArea || options.focusArea || 'general';
-      
-      // Add type information to prompt options
-      const promptOptions = {
-        challengeTypeName,
-        formatTypeName,
-        focusArea,
-        typeMetadata: challenge.typeMetadata || {},
-        formatMetadata: challenge.formatMetadata || {},
-        evaluationHistory,
-        isStreaming: true, // Indicate this is for streaming
-        threadId,
-        previousResponseId: options.previousResponseId
-      };
-      
-      // Use the prompt builder to create a personalized evaluation prompt
-      const { prompt, systemMessage } = await promptBuilder.buildPrompt(PROMPT_TYPES.EVALUATION, {
-        challenge,
-        userResponse,
-        user,
-        evaluationHistory,
-        options: promptOptions
-      });
-      
-      // Add streaming-specific instructions
-      const streamingPrompt = `${prompt}\n\nIMPORTANT: Format your response as a continuous stream of your evaluation, providing each part as soon as it's ready. Begin with an overall assessment, then provide detailed analysis of each category, followed by strengths and improvement areas. This is a real-time evaluation, so provide as much value as possible throughout the stream.`;
-      
-      // Format messages for Responses API
-      const messages = formatForResponsesApi(
-        streamingPrompt,
-        `You are an AI evaluation expert providing real-time personalized feedback on ${challengeTypeName} challenges.
-Your evaluation should be structured but conversational, providing immediate value as you analyze the response.
-This is a ${formatTypeName} type challenge in the ${focusArea} focus area, so adapt your evaluation criteria accordingly.
-For each strength you identify, provide a detailed analysis explaining why it's effective and how it contributes to the quality.
-${promptOptions.typeMetadata.evaluationNote || ''}
-${promptOptions.formatMetadata.evaluationNote || ''}`
-      );
-      
-      // Prepare streaming options
-      const streamOptions = {
-        model: options.model || 'gpt-4o',
-        temperature: options.temperature || 0.4,
-        responseFormat: 'json',
-        previousResponseId: previousResponseId,
-        onChunk: callbacks.onChunk,
-        onComplete: (response) => {
-          // Update the conversation state with the new response ID when streaming is complete
-          if (response && response.responseId) {
-            this.openAIStateManager.updateLastResponseId(conversationState.id, response.responseId)
-              .then(() => {
-                if (callbacks.onComplete) {
-                  callbacks.onComplete(response);
-                }
-              })
-              .catch(error => {
-                this.log('error', 'Error updating response ID after streaming', { 
-                  error: error.message,
-                  stateId: conversationState.id
-                });
-                if (callbacks.onComplete) {
-                  callbacks.onComplete(response);
-                }
-              });
-          } else if (callbacks.onComplete) {
-            callbacks.onComplete(response);
-          }
-        },
-        onError: callbacks.onError
-      };
-      
-      // Stream the evaluation
-      await this.responsesApiClient.streamMessage(messages, streamOptions);
-    } catch (error) {
-      this.log('error', 'Error in personalized evaluation streaming', { 
-        error: error.message,
-        challengeId: challenge?.id
-      });
-      
-      if (callbacks.onError) {
-        callbacks.onError(error);
-      } else {
-        throw error;
-      }
-    }
-  }
-
-  /**
-   * Process and enhance an evaluation result
-   * @param {Object} evaluationData - Raw evaluation data
-   * @param {Object} options - Processing options
-   * @returns {Promise<Evaluation>} Processed evaluation model
-   */
-  async processEvaluation(evaluationData, options = {}) {
-    try {
-      if (!evaluationData || typeof evaluationData !== 'object') {
-        throw new Error('Valid evaluation data is required for processing');
-      }
-      
-      // Handle case where we already have an Evaluation model
-      if (evaluationData instanceof Evaluation) {
-        return evaluationData;
-      }
-      
-      // Calculate overall score if not provided but category scores are
-      let overallScore = evaluationData.score || evaluationData.overallScore;
-      if (!overallScore && evaluationData.categoryScores) {
-        // Calculate weighted average based on the category scores
-        const categoryScores = evaluationData.categoryScores;
-        const totalPoints = Object.values(categoryScores).reduce((sum, score) => sum + score, 0);
-        overallScore = Math.round(totalPoints);
-      }
-      
-      // Map focus areas to categories if user context is available and contains focus areas
-      let relevantCategories = evaluationData.relevantCategories || [];
-      if (evaluationData.userContext && 
-          evaluationData.userContext.focusAreas && 
-          evaluationData.userContext.focusAreas.length > 0 && 
-          this.evaluationDomainService) {
-        try {
-          this.log('debug', 'Mapping focus areas to categories in processEvaluation', { 
-            focusAreas: evaluationData.userContext.focusAreas 
-          });
-          
-          // Use the domain service to map focus areas to categories
-          relevantCategories = await this.evaluationDomainService.mapFocusAreasToCategories(
-            evaluationData.userContext.focusAreas
-          );
-          
-          this.log('debug', 'Successfully mapped focus areas to categories', { 
-            categoryCount: relevantCategories.length 
-          });
-          
-          // Add the mapped categories to the evaluation data
-          evaluationData.relevantCategories = relevantCategories;
-        } catch (error) {
-          this.log('warn', 'Error mapping focus areas to categories in processEvaluation', { 
-            error: error.message 
-          });
-        }
-      }
-      
-      // Enhance with user context if evaluationDomainService is available
-      if (evaluationData.userContext && this.evaluationDomainService) {
-        try {
-          // Create a temporary evaluation for processing
-          const tempEval = new Evaluation({
-            ...evaluationData,
-            id: evaluationData.id || 'temp-id',
-            userId: evaluationData.userId || 'temp-user',
-            challengeId: evaluationData.challengeId || 'temp-challenge',
-            score: overallScore || 0,
-            categoryScores: evaluationData.categoryScores || {},
-            relevantCategories
-          });
-          
-          // Process user context with domain service
-          const enrichedContext = await this.evaluationDomainService.processUserContext(tempEval);
-          
-          // Update user context with enriched data
-          evaluationData.userContext = {
-            ...evaluationData.userContext,
-            ...enrichedContext
-          };
-        } catch (error) {
-          this.log('warn', 'Error enriching user context in evaluation', { 
-            error: error.message,
-            userId: evaluationData.userId
-          });
-        }
-      }
-      
-      // Create domain model instance
-      const evaluation = new Evaluation({
-        ...evaluationData,
-        score: overallScore,
-        relevantCategories
-      });
-      
-      return evaluation;
-    } catch (error) {
-      this.log('error', 'Error processing evaluation', { error: error.message });
-      throw error;
-    }
-  }
-
-  /**
-   * Extract category weights from the evaluation prompt
-   * @param {string} prompt - Evaluation prompt text
-   * @returns {Object} Category weights mapping
-   * @private
-   */
-  getCategoryWeightsFromPrompt(prompt) {
-    const weights = {};
-    
-    try {
-      // Extract the category weights section from the prompt
-      const criteriaMatch = prompt.match(/EVALUATION CRITERIA[\s\S]*?The total maximum score is 100 points/i);
-      
-      if (criteriaMatch) {
-        const criteriaText = criteriaMatch[0];
-        
-        // Extract each category and weight using regex
-        const categoryRegex = /- ([a-z_]+) \(0-(\d+) points\)/g;
-        let match;
-        
-        while ((match = categoryRegex.exec(criteriaText)) !== null) {
-          const category = match[1];
-          const weight = parseInt(match[2], 10);
-          
-          if (category && !isNaN(weight)) {
-            weights[category] = weight;
-          }
-        }
-      }
-      
-      return weights;
-    } catch (error) {
-      this.log('warn', 'Error extracting category weights from prompt', { error: error.message });
-      return {};
-    }
-  }
-
-  /**
-   * Calculate changes in category scores
-   * @param {Object} currentScores - Current category scores
-   * @param {Object} previousScores - Previous category scores
-   * @returns {Object} Category score changes
-   * @private
-   */
-  getCategoryScoreChanges(currentScores, previousScores) {
-    const changes = {};
-    
-    // Skip if we don't have both sets of scores
-    if (!currentScores || !previousScores) {
-      return changes;
-    }
-    
-    // Calculate changes for each category
-    Object.entries(currentScores).forEach(([category, score]) => {
-      if (previousScores[category] !== undefined) {
-        changes[category] = score - previousScores[category];
+        conversationId: conversationState.id
       }
     });
     
-    return changes;
+    // Publish evaluation created event
+    if (this.eventBus) {
+      this.eventBus.publish('evaluation.created', { 
+        evaluation, 
+        challenge, 
+        userResponse 
+      });
+    }
+    
+    return evaluation;
   }
 
   /**
-   * Calculate overall improvement rate
-   * @param {Object} categoryChanges - Category score changes
-   * @returns {number} Overall improvement rate
-   * @private
+   * Stream an evaluation response with real-time updates
+   * @param {Object} challenge - Challenge object
+   * @param {string|Array} userResponse - User's response to evaluate
+   * @param {Object} options - Additional options
+   * @param {Function} onChunk - Callback for each chunk of streamed content
+   * @returns {Promise<void>} - Resolves when streaming completes
    */
-  calculateOverallImprovement(categoryChanges) {
-    if (!categoryChanges || Object.keys(categoryChanges).length === 0) {
-      return 0;
+  async streamEvaluation(challenge, userResponse, options = {}, onChunk) {
+    if (!challenge) {
+      throw new Error('Challenge is required for evaluation');
     }
     
-    const changes = Object.values(categoryChanges);
-    const sum = changes.reduce((total, change) => total + change, 0);
+    if (!userResponse) {
+      throw new Error('User response is required for evaluation');
+    }
     
-    return Math.round(sum / changes.length);
+    if (typeof onChunk !== 'function') {
+      throw new Error('onChunk callback is required for streaming evaluations');
+    }
+    
+    const threadId = options.threadId || uuidv4();
+    
+    // Prepare messages similarly to evaluateResponse
+    const promptOptions = {
+      challengeTypeName: challenge.challengeTypeCode || 'standard',
+      formatTypeName: challenge.formatTypeCode || 'standard',
+      focusArea: challenge.focusArea || 'general'
+    };
+    
+    const { prompt } = await promptBuilder.buildPrompt(PROMPT_TYPES.EVALUATION, {
+      challenge,
+      userResponse,
+      user: options.user,
+      options: promptOptions
+    });
+    
+    const messages = formatForResponsesApi(
+      prompt,
+      `You are an AI evaluation expert specializing in providing personalized feedback.`
+    );
+    
+    // Configure streaming options
+    const streamOptions = {
+      model: options.model || 'gpt-4o',
+      temperature: options.temperature || 0.4,
+      onEvent: (eventType, data) => {
+        if (eventType === 'content') {
+          onChunk(data.content);
+        } else if (eventType === 'error') {
+          this.logger.error('Error streaming evaluation', { error: data });
+          throw new Error(data.message || 'Error streaming evaluation');
+        }
+      }
+    };
+    
+    // Start streaming
+    this.logger.debug('Starting evaluation stream', { 
+      challengeId: challenge.id,
+      threadId
+    });
+    
+    await this.aiClient.streamMessage(messages, streamOptions);
+    
+    this.logger.debug('Completed evaluation stream', { 
+      challengeId: challenge.id,
+      threadId
+    });
   }
 }
 

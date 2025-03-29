@@ -1,12 +1,17 @@
+'use strict';
+
 /**
  * Focus Area Model
- * 
+ *
  * Represents a focus area for challenges (e.g., AI Ethics, Human-AI Collaboration).
  * This is a configuration entity that helps categorize challenges by topic.
  */
 
 const { v4: uuidv4 } = require('uuid');
 
+/**
+ * Focus Area domain entity
+ */
 class FocusArea {
   /**
    * Create a new FocusArea
@@ -23,6 +28,9 @@ class FocusArea {
    * @param {number} [data.displayOrder] - Order for display in UI
    * @param {string} [data.createdAt] - Creation timestamp
    * @param {string} [data.updatedAt] - Last update timestamp
+   */
+  /**
+   * Method constructor
    */
   constructor(data = {}) {
     this.id = data.id || uuidv4();
@@ -44,6 +52,9 @@ class FocusArea {
    * @param {string} areaCode - Focus area code to check
    * @returns {boolean} True if areas are related
    */
+  /**
+   * Method isRelatedTo
+   */
   isRelatedTo(areaCode) {
     return this.relatedAreas.includes(areaCode);
   }
@@ -51,6 +62,9 @@ class FocusArea {
   /**
    * Check if this focus area has prerequisites
    * @returns {boolean} True if has prerequisites
+   */
+  /**
+   * Method hasPrerequisites
    */
   hasPrerequisites() {
     return this.prerequisites.length > 0;
@@ -60,6 +74,9 @@ class FocusArea {
    * Get prerequisite focus areas
    * @returns {Array<string>} Array of prerequisite area codes
    */
+  /**
+   * Method getPrerequisites
+   */
   getPrerequisites() {
     return [...this.prerequisites];
   }
@@ -67,6 +84,9 @@ class FocusArea {
   /**
    * Get learning outcomes
    * @returns {Object} Learning outcomes
+   */
+  /**
+   * Method getLearningOutcomes
    */
   getLearningOutcomes() {
     return { ...this.learningOutcomes };
@@ -77,64 +97,30 @@ class FocusArea {
    * @param {Object} updates - Fields to update
    * @returns {FocusArea} Updated focus area
    */
+  /**
+   * Method update
+   */
   update(updates) {
     const allowedFields = [
-      'name', 'description', 'relatedAreas', 'prerequisites',
-      'learningOutcomes', 'metadata', 'isActive', 'displayOrder'
+      'name',
+      'description',
+      'relatedAreas',
+      'prerequisites',
+      'learningOutcomes',
+      'metadata',
+      'isActive',
+      'displayOrder',
     ];
-    
+
     for (const field of allowedFields) {
       if (updates[field] !== undefined) {
         this[field] = updates[field];
       }
     }
-    
+
     this.updatedAt = new Date().toISOString();
     return this;
   }
-
-  /**
-   * Convert to database format
-   * @returns {Object} Database representation
-   */
-  toDatabase() {
-    return {
-      id: this.id,
-      code: this.code,
-      name: this.name,
-      description: this.description,
-      related_areas: this.relatedAreas,
-      prerequisites: this.prerequisites,
-      learning_outcomes: this.learningOutcomes,
-      metadata: this.metadata,
-      is_active: this.isActive,
-      display_order: this.displayOrder,
-      created_at: this.createdAt,
-      updated_at: this.updatedAt
-    };
-  }
-
-  /**
-   * Create from database record
-   * @param {Object} data - Database record
-   * @returns {FocusArea} FocusArea instance
-   */
-  static fromDatabase(data) {
-    return new FocusArea({
-      id: data.id,
-      code: data.code,
-      name: data.name,
-      description: data.description,
-      relatedAreas: data.related_areas || data.relatedAreas || [],
-      prerequisites: data.prerequisites || [],
-      learningOutcomes: data.learning_outcomes || data.learningOutcomes || {},
-      metadata: data.metadata || {},
-      isActive: data.is_active !== undefined ? data.is_active : (data.isActive || true),
-      displayOrder: data.display_order || data.displayOrder || 0,
-      createdAt: data.created_at || data.createdAt,
-      updatedAt: data.updated_at || data.updatedAt
-    });
-  }
 }
 
-module.exports = FocusArea; 
+module.exports = FocusArea;

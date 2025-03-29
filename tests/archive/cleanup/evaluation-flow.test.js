@@ -36,6 +36,9 @@ if (!fs.existsSync(LOG_DIR)) {
 }
 
 // Helper to log test actions
+/**
+ *
+ */
 function logTestAction(action, data) {
   const timestamp = new Date().toISOString();
   const logFile = path.join(LOG_DIR, `evaluation_test_${timestamp.replace(/[:.]/g, '-')}.json`);
@@ -56,7 +59,7 @@ describe('Integration: Evaluation Flow', function() {
     skipIfMissingEnv(this, 'openai');
   });
 
-// Set longer timeout for API calls
+  // Set longer timeout for API calls
   this.timeout(30000);
   
   // Skip if API keys not available
@@ -98,7 +101,7 @@ describe('Integration: Evaluation Flow', function() {
         // Create OpenAI client
         const { OpenAIClient } = require('../../src/infra/openai');
         openaiClient = new OpenAIClient({ apiKey: testEnv.getTestConfig().openai.apiKey
-         });
+        });
         
         // Use environment variables if available, otherwise use our obtained credentials
         const supabaseUrl = testEnv.getTestConfig().supabase.url || 'https://dvmfpddmnzaxjmxxpupk.supabase.co';
@@ -116,7 +119,13 @@ describe('Integration: Evaluation Flow', function() {
         );
         
         // Create a simple Evaluation model
+        /**
+         *
+         */
         class Evaluation {
+          /**
+           *
+           */
           constructor(data) {
             this.id = data.id || uuidv4();
             this.challenge_id = data.challenge_id;
@@ -132,7 +141,7 @@ describe('Integration: Evaluation Flow', function() {
         
         // Create a simple repository that uses Supabase
         evaluationRepository = {
-          save: async (evaluation) => {
+          save: async evaluation => {
             try {
               // Log what we're about to insert
               logTestAction('EvaluationToSave', { 
@@ -182,7 +191,7 @@ describe('Integration: Evaluation Flow', function() {
             }
           },
           
-          findById: async (id) => {
+          findById: async id => {
             try {
               const { data, error } = await supabaseClient
                 .from('evaluations')
@@ -232,12 +241,12 @@ describe('Integration: Evaluation Flow', function() {
             category_scores: An object with scores for clarity (1-10), reasoning (1-10), and originality (1-10)`;
             
             const completion = await openaiClient.responses.create({
-              model: "gpt-4o",
+              model: 'gpt-4o',
               messages: [
-                { role: "system", content: "You are an expert evaluator for AI cognitive challenges." },
-                { role: "user", content: prompt }
+                { role: 'system', content: 'You are an expert evaluator for AI cognitive challenges.' },
+                { role: 'user', content: prompt }
               ],
-              response_format: { type: "json_object" }
+              response_format: { type: 'json_object' }
             });
             
             const responseText = completion.choices[0].message.content;
@@ -358,6 +367,9 @@ describe('Integration: Evaluation Flow', function() {
 });
 
 // Adjust the generateEvaluation function to create a challenge first
+/**
+ *
+ */
 async function generateEvaluation(openaiClient, supabaseClient) {
   try {
     // First, create a challenge to satisfy the foreign key constraint
@@ -452,18 +464,18 @@ async function generateEvaluation(openaiClient, supabaseClient) {
 
     // Make the completion call to OpenAI
     const completion = await openaiClient.responses.create({
-      model: "gpt-4o", // Using GPT-4 for better evaluation
+      model: 'gpt-4o', // Using GPT-4 for better evaluation
       messages: [
         {
-          role: "system",
-          content: "You are an evaluator for critical thinking challenges. Provide an assessment of the user's solution with constructive feedback."
+          role: 'system',
+          content: 'You are an evaluator for critical thinking challenges. Provide an assessment of the user\'s solution with constructive feedback.'
         },
         {
-          role: "user",
+          role: 'user',
           content: promptText
         }
       ],
-      response_format: { type: "json_object" }
+      response_format: { type: 'json_object' }
     });
 
     // Get the response from OpenAI

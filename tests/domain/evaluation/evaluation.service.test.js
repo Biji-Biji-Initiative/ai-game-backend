@@ -16,7 +16,7 @@ describe('Evaluation Service', function() {
   // Set longer timeout for API calls
   this.timeout(30000);
 
-let sandbox;
+  let sandbox;
   let challengeRepository;
   let evaluationRepository;
   let openAIMock;
@@ -36,14 +36,14 @@ let sandbox;
         message: {
           content: JSON.stringify({
             overall_score: 8,
-            feedback: "This is a well-reasoned response that shows good understanding of the ethical implications. The proposed solution is technically feasible and balances fairness with performance requirements.",
+            feedback: 'This is a well-reasoned response that shows good understanding of the ethical implications. The proposed solution is technically feasible and balances fairness with performance requirements.',
             strengths: [
-              "Strong understanding of ethical implications",
-              "Practical approach to bias mitigation"
+              'Strong understanding of ethical implications',
+              'Practical approach to bias mitigation'
             ],
             areas_for_improvement: [
-              "Could provide more technical details",
-              "Limited discussion of regulatory compliance"
+              'Could provide more technical details',
+              'Limited discussion of regulatory compliance'
             ],
             category_scores: {
               clarity: 8,
@@ -74,12 +74,12 @@ let sandbox;
         category_scores: An object with scores for clarity (1-10), reasoning (1-10), and originality (1-10)`;
         
         const completion = await openAIMock.responses.create({
-          model: "gpt-4",
+          model: 'gpt-4',
           messages: [
-            { role: "system", content: "You are an expert evaluator for cognitive challenges." },
-            { role: "user", content: prompt }
+            { role: 'system', content: 'You are an expert evaluator for cognitive challenges.' },
+            { role: 'user', content: prompt }
           ],
-          response_format: { type: "json_object" }
+          response_format: { type: 'json_object' }
         });
         
         const responseJson = completion.choices[0].message.content;
@@ -107,15 +107,15 @@ let sandbox;
         return evaluation;
       },
       
-      getEvaluationById: async (id) => {
+      getEvaluationById: async id => {
         return await evaluationRepository.findById(id);
       },
       
-      getEvaluationsByChallengeId: async (challengeId) => {
+      getEvaluationsByChallengeId: async challengeId => {
         return await evaluationRepository.findByChallengeId(challengeId);
       },
       
-      getEvaluationsByUserId: async (userId) => {
+      getEvaluationsByUserId: async userId => {
         return await evaluationRepository.findByUserId(userId);
       }
     };
@@ -140,7 +140,7 @@ let sandbox;
         difficulty: 'medium'
       };
       
-      const response = "I would address bias by carefully examining the training data, ensuring diverse representation, and implementing regular audits of the system's decisions to catch any unintended biases that emerge over time.";
+      const response = 'I would address bias by carefully examining the training data, ensuring diverse representation, and implementing regular audits of the system\'s decisions to catch any unintended biases that emerge over time.';
       
       // Save challenge to repository
       await challengeRepository.save(challenge);

@@ -1,6 +1,8 @@
+'use strict';
+
 /**
  * Domain Loggers
- * 
+ *
  * Provides specific loggers for each domain in the application.
  * Helps with consistent logging patterns across domains.
  */
@@ -37,14 +39,14 @@ module.exports = {
   progressLogger,
   adaptiveLogger,
   userJourneyLogger,
-  
+
   // Infrastructure loggers
   infraLogger,
   httpLogger,
   dbLogger,
   apiLogger,
   eventsLogger,
-  
+
   // Application logger
-  appLogger
-}; 
+  appLogger,
+};

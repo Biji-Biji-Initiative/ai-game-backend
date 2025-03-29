@@ -1,11 +1,17 @@
+'use strict';
+
 /**
  * Challenge Coordinator
  * 
  * Application-level coordinator that orchestrates domain services for challenges
  * This coordinator follows the principles of Domain-Driven Design by delegating
  * business logic to the appropriate domain services and coordinating across domains.
+ * 
+ * NOTE: This coordinator has been updated to remove direct dependencies on OpenAI infrastructure
+ * as part of Ticket 4 to better follow Ports & Adapters architecture.
  */
 const { challengeLogger } = require('../core/infra/logging/domainLogger');
+const BaseCoordinator = require('./BaseCoordinator');
 
 // Import domain model
 const Challenge = require('../core/challenge/models/Challenge');
@@ -17,11 +23,24 @@ const {
   ChallengeResponseError 
 } = require('../core/challenge/errors/ChallengeErrors');
 
+// Add import for value objects
+const { 
+  createEmail, 
+  createChallengeId, 
+  createFocusArea,
+  createDifficultyLevel,
+  Email,
+  ChallengeId,
+  FocusArea,
+  DifficultyLevel
+} = require('../core/common/valueObjects');
+
 /**
  * Challenge Coordinator Class
  * Manages challenge-related operations across domains
+ * Extends BaseCoordinator for standardized error handling and operation execution
  */
-class ChallengeCoordinator {
+class ChallengeCoordinator extends BaseCoordinator {
   /**
    * Create a new ChallengeCoordinator
    * @param {Object} dependencies Injected dependencies
@@ -31,8 +50,6 @@ class ChallengeCoordinator {
    * @param {ChallengeFactory} dependencies.challengeFactory Factory for creating challenges
    * @param {ChallengeGenerationService} dependencies.challengeGenerationService Service for challenge generation
    * @param {ChallengeEvaluationService} dependencies.challengeEvaluationService Service for challenge evaluation
-   * @param {OpenAIClient} dependencies.openAIClient OpenAI client for AI operations
-   * @param {OpenAIStateManager} dependencies.openAIStateManager State manager for OpenAI conversations
    * @param {Logger} dependencies.logger Logger instance
    */
   constructor({ 
@@ -42,66 +59,88 @@ class ChallengeCoordinator {
     challengeFactory,
     challengeGenerationService,
     challengeEvaluationService,
-    openAIClient, 
-    openAIStateManager, 
     logger 
   }) {
+    // Call super with name and logger
+    super({
+      name: 'ChallengeCoordinator',
+      logger: logger || challengeLogger.child('coordinator')
+    });
+
+    // Validate required dependencies
+    const requiredDependencies = [
+      'userService',
+      'challengeService',
+      'challengeConfigService',
+      'challengeFactory',
+      'challengeGenerationService',
+      'challengeEvaluationService'
+    ];
+
+    this.validateDependencies({
+      userService,
+      challengeService,
+      challengeConfigService,
+      challengeFactory,
+      challengeGenerationService,
+      challengeEvaluationService
+    }, requiredDependencies);
+
+    // Initialize services
     this.userService = userService;
     this.challengeService = challengeService;
     this.challengeConfigService = challengeConfigService;
     this.challengeFactory = challengeFactory;
     this.challengeGenerationService = challengeGenerationService;
     this.challengeEvaluationService = challengeEvaluationService;
-    this.openAIClient = openAIClient;
-    this.openAIStateManager = openAIStateManager;
-    this.logger = logger || challengeLogger.child('coordinator');
   }
 
   /**
-   * Generate a challenge for a user
+   * Generate and persist a new challenge for a user
    * @param {Object} params - Challenge generation parameters
-   * @param {string} params.userEmail - User email
-   * @param {string} [params.focusArea] - Focus area for the challenge
+   * @param {string|Email} params.userEmail - User email or Email value object
+   * @param {string|FocusArea} [params.focusArea] - Focus area for the challenge or FocusArea value object
    * @param {string} [params.challengeType] - Type of challenge
    * @param {string} [params.formatType] - Format type of the challenge
-   * @param {string} [params.difficulty] - Difficulty level
+   * @param {string|DifficultyLevel} [params.difficulty] - Difficulty level or DifficultyLevel value object
    * @param {Object} [params.config] - Configuration object
    * @param {Object} [params.difficultyManager] - Difficulty manager for calculating optimal difficulty
    * @returns {Promise<Object>} - The generated challenge
    */
-  async generateAndPersistChallenge(params) {
-    try {
-      const { userEmail, focusArea, challengeType, formatType, difficulty, config, difficultyManager } = params;
+  generateAndPersistChallenge(params) {
+    const { userEmail, focusArea, challengeType, formatType, difficulty } = params;
+    
+    // Context for logging
+    const context = { 
+      userEmail: typeof userEmail === 'string' ? userEmail : userEmail?.value, 
+      focusArea: typeof focusArea === 'string' ? focusArea : focusArea?.value,
+      challengeType,
+      formatType,
+      difficulty: typeof difficulty === 'string' ? difficulty : difficulty?.value
+    };
+
+    return this.executeOperation(async () => {
+      // Create value objects for validation and domain logic
+      const emailVO = userEmail instanceof Email ? userEmail : createEmail(userEmail);
+      const focusAreaVO = focusArea instanceof FocusArea ? focusArea : (focusArea ? createFocusArea(focusArea) : null);
+      const difficultyVO = difficulty instanceof DifficultyLevel ? difficulty : (difficulty ? createDifficultyLevel(difficulty) : null);
       
-      // Validate input
-      if (!userEmail) {
-        throw new ChallengeGenerationError('User email is required');
+      // Validate input using value objects
+      if (!emailVO) {
+        throw new ChallengeGenerationError('Invalid user email');
       }
       
-      // Get user data
-      const user = await this.userService.findByEmail(userEmail);
+      // Get user data using the value object directly
+      const user = await this.userService.findByEmail(emailVO);
       if (!user) {
-        throw new ChallengeGenerationError(`User with email ${userEmail} not found`);
+        throw new ChallengeGenerationError(`User with email ${emailVO.value} not found`);
       }
       
       // Get user's recent challenges for context
-      const recentChallenges = await this.challengeService.getRecentChallengesForUser(userEmail, 3);
+      const recentChallenges = await this.challengeService.getRecentChallengesForUser(emailVO, 3);
       
-      this.logger.info(`Generating challenge for user: ${userEmail}`, { 
-        challengeType, 
-        focusArea,
-        difficulty
-      });
-      
-      // Find or create conversation state for challenge generation
-      const conversationContext = `challenge_gen_${userEmail}`;
-      const conversationState = await this.openAIStateManager.findOrCreateConversationState(
-        userEmail, 
-        conversationContext
-      );
-      
-      // Get the last response ID for stateful conversation
-      const lastResponseId = await this.openAIStateManager.getLastResponseId(conversationState.id);
+      // Create a conversation context identifier
+      const conversationContext = `challenge_gen_${emailVO.value}`;
       
       // Use the factory to create the challenge with validated parameters
       const challengeEntity = await this.challengeFactory.createChallenge({
@@ -109,13 +148,14 @@ class ChallengeCoordinator {
         recentChallenges,
         challengeTypeCode: challengeType,
         formatTypeCode: formatType,
-        focusArea,
-        difficulty,
-        difficultyManager,
-        config
+        focusArea: focusAreaVO || focusArea,
+        difficulty: difficultyVO || difficulty,
+        difficultyManager: params.difficultyManager,
+        config: params.config
       });
       
       // Generate challenge content using the domain service
+      // The state management is now handled inside the service using the AIStateManager port
       const fullChallenge = await this.challengeGenerationService.generateChallenge(
         user, 
         {
@@ -129,16 +169,10 @@ class ChallengeCoordinator {
         }, 
         recentChallenges,
         { 
-          stateId: conversationState.id,
-          lastResponseId,
+          conversationContext,
           allowDynamicTypes: true 
         }
       );
-      
-      // Update the state with the new response ID if available
-      if (fullChallenge.responseId) {
-        await this.openAIStateManager.updateLastResponseId(conversationState.id, fullChallenge.responseId);
-      }
       
       // Update the challenge entity with generated content
       challengeEntity.title = fullChallenge.title || challengeEntity.title;
@@ -151,274 +185,194 @@ class ChallengeCoordinator {
       // Persist the challenge using the service
       const savedChallenge = await this.challengeService.saveChallenge(challengeEntity);
       
-      // Update user's lastActive timestamp asynchronously (non-blocking)
-      this.userService
-        .updateUser(userEmail, { lastActive: new Date().toISOString() })
-        .then(() => {
-          this.logger.debug(`Updated lastActive timestamp for user: ${userEmail}`);
-        })
-        .catch(updateError => {
-          this.logger.error('Error updating user lastActive timestamp:', { 
-            error: updateError.message,
-            userEmail
-          });
-        });
+      // Define secondary operations for parallel execution
+      const updateLastActiveOperation = async () => {
+        await this.userService.updateUser(emailVO, { lastActive: new Date().toISOString() });
+      };
+      
+      // Execute secondary operations in parallel without blocking the main flow
+      this.executeSecondaryOperations(
+        [updateLastActiveOperation], 
+        'updateUserLastActive', 
+        { userEmail: emailVO.value }
+      );
       
       return savedChallenge;
-    } catch (error) {
-      this.logger.error('Error generating and persisting challenge:', { error: error.message });
-      throw new ChallengeGenerationError(`Failed to generate challenge: ${error.message}`);
-    }
+    }, 'generateAndPersistChallenge', context, ChallengeGenerationError);
   }
 
   /**
    * Submit and evaluate a challenge response
    * @param {Object} params - Challenge response submission parameters
-   * @param {string} params.challengeId - Challenge ID
-   * @param {string} params.userEmail - User's email
+   * @param {string|ChallengeId} params.challengeId - Challenge ID or ChallengeId value object
+   * @param {string|Email} params.userEmail - User's email or Email value object
    * @param {string} params.response - User's response
    * @param {Object} [params.progressTrackingService] - Optional progress tracking service for updating user stats
    * @param {Object} [params.userJourneyService] - Optional user journey service for recording events
    * @returns {Promise<Object>} - Evaluation results and updated challenge
    */
-  async submitChallengeResponse(params) {
-    try {
-      const { challengeId, userEmail, response, progressTrackingService, userJourneyService } = params;
+  submitChallengeResponse(params) {
+    const { challengeId, userEmail, response } = params;
+    
+    // Context for logging
+    const context = { 
+      challengeId: typeof challengeId === 'string' ? challengeId : challengeId?.value, 
+      userEmail: typeof userEmail === 'string' ? userEmail : userEmail?.value, 
+      hasProgressTracker: !!params.progressTrackingService,
+      hasJourneyService: !!params.userJourneyService
+    };
+
+    return this.executeOperation(async () => {
+      // Create value objects for validation and domain logic
+      const challengeIdVO = challengeId instanceof ChallengeId ? challengeId : createChallengeId(challengeId);
+      const emailVO = userEmail instanceof Email ? userEmail : createEmail(userEmail);
       
       // Validate required parameters
-      if (!challengeId) {
-        throw new ChallengeResponseError('Challenge ID is required');
+      if (!challengeIdVO) {
+        throw new ChallengeResponseError('Invalid Challenge ID');
       }
       
       if (!response) {
         throw new ChallengeResponseError('Response is required');
       }
       
-      // Get the challenge
-      const challengeData = await this.challengeService.getChallengeById(challengeId);
+      // Get the challenge using value object directly
+      const challengeData = await this.challengeService.getChallengeById(challengeIdVO);
       if (!challengeData) {
-        throw new ChallengeNotFoundError(`Challenge with ID ${challengeId} not found`);
+        throw new ChallengeNotFoundError(`Challenge with ID ${challengeIdVO.value} not found`);
       }
       
-      // Convert to domain model if necessary
-      const challenge = challengeData instanceof Challenge ? 
-        challengeData : Challenge.fromDatabase(challengeData);
+      // Use the challenge directly as it should already be a domain entity
+      const challenge = challengeData;
       
       // Check if challenge is already completed using domain model method
       if (challenge.isCompleted()) {
-        throw new ChallengeResponseError(`Challenge with ID ${challengeId} is already completed`);
+        throw new ChallengeResponseError(`Challenge with ID ${challengeIdVO.value} is already completed`);
       }
       
       // Format responses as an array for compatibility
       const responses = Array.isArray(response) ? response : [{ response }];
       
-      this.logger.info(`Processing challenge response submission for challenge: ${challengeId}`, { 
-        userEmail,
-        challengeType: challenge.challengeType,
-        responseCount: responses.length
-      });
-      
-      // Find or create conversation state for challenge evaluation
-      const conversationContext = `challenge_eval_${challengeId}`;
-      const conversationState = await this.openAIStateManager.findOrCreateConversationState(
-        userEmail, 
-        conversationContext,
-        { challengeId }
-      );
-      
-      this.logger.debug('Found or created conversation state for challenge evaluation', {
-        userEmail,
-        challengeId,
-        stateId: conversationState.id
-      });
-      
-      // Get the last response ID for stateful conversation
-      const lastResponseId = await this.openAIStateManager.getLastResponseId(conversationState.id);
-      
-      this.logger.debug('Retrieved last response ID for stateful conversation', {
-        stateId: conversationState.id,
-        hasResponseId: !!lastResponseId
-      });
+      // Create a conversation context identifier
+      const conversationContext = `challenge_eval_${challengeIdVO.value}`;
       
       // Submit responses to the challenge using domain model method
       challenge.submitResponses(responses);
       
       // Evaluate the responses using the domain service
+      // The state management is now handled inside the service using the AIStateManager port
       const evaluation = await this.challengeEvaluationService.evaluateResponses(
         challenge, 
         responses, 
         { 
-          stateId: conversationState.id,
-          lastResponseId 
+          conversationContext,
+          stateMetadata: { challengeId: challengeIdVO.value }
         }
       );
-      
-      // Update the state with the new response ID if available
-      if (evaluation.responseId) {
-        await this.openAIStateManager.updateLastResponseId(conversationState.id, evaluation.responseId);
-        
-        this.logger.debug('Updated conversation state with new response ID', {
-          stateId: conversationState.id,
-          responseId: evaluation.responseId
-        });
-      }
       
       // Complete the challenge with the evaluation using domain model method
       challenge.complete(evaluation);
       
-      // Update the challenge in the repository using toDatabase() method
+      // Update the challenge in the repository
       const updatedChallenge = await this.challengeService.updateChallenge(
         challenge.id, 
-        challenge.toDatabase()
+        challenge
       );
 
-      // Prepare secondary operations that can be performed in parallel
-      const secondaryOperations = [];
+      // Define secondary operations for parallel execution
+      const secondaryOpFunctions = [];
       
       // Add user progress tracking operation if service is provided
-      if (progressTrackingService && userEmail) {
-        const progressOperation = progressTrackingService
-          .updateProgressAfterChallenge(
-            userEmail,
+      if (params.progressTrackingService && emailVO) {
+        const progressOperation = async () => {
+          await params.progressTrackingService.updateProgressAfterChallenge(
+            emailVO, 
             challenge.focusArea,
-            challengeId,
+            challengeIdVO,
             evaluation
-          )
-          .then(() => {
-            this.logger.info(`Updated progress for user: ${userEmail}`);
-          })
-          .catch(progressError => {
-            this.logger.error('Error updating user progress:', { error: progressError.message });
-            // Don't throw to avoid failing the whole operation
-          });
-        
-        secondaryOperations.push(progressOperation);
+          );
+        };
+        secondaryOpFunctions.push(progressOperation);
       }
       
       // Add user journey event recording operation if service is provided
-      if (userJourneyService && userEmail) {
-        const journeyOperation = userJourneyService
-          .recordUserEvent(userEmail, 'challenge_completed', {
-            challengeId,
+      if (params.userJourneyService && emailVO) {
+        const journeyOperation = async () => {
+          await params.userJourneyService.recordUserEvent(emailVO, 'challenge_completed', {
+            challengeId: challengeIdVO,
             challengeType: challenge.challengeType,
             focusArea: challenge.focusArea,
             score: challenge.getScore() || 0
-          })
-          .then(() => {
-            this.logger.info(`Recorded journey event for user: ${userEmail}`);
-          })
-          .catch(journeyError => {
-            this.logger.error('Error recording user journey event:', { error: journeyError.message });
-            // Don't throw to avoid failing the whole operation
           });
-        
-        secondaryOperations.push(journeyOperation);
+        };
+        secondaryOpFunctions.push(journeyOperation);
       }
       
       // Add user lastActive timestamp update operation
-      const lastActiveOperation = this.userService
-        .updateUser(userEmail, { lastActive: new Date().toISOString() })
-        .catch(updateError => {
-          this.logger.error('Error updating user lastActive timestamp:', { error: updateError.message });
-          // Don't throw to avoid failing the whole operation
-        });
-      
-      secondaryOperations.push(lastActiveOperation);
+      const lastActiveOperation = async () => {
+        await this.userService.updateUser(emailVO, { lastActive: new Date().toISOString() });
+      };
+      secondaryOpFunctions.push(lastActiveOperation);
       
       // Execute all secondary operations in parallel
       // We're not awaiting the result as these are non-critical and shouldn't block the main response
-      Promise.all(secondaryOperations)
-        .then(() => {
-          this.logger.debug('All secondary operations completed successfully', { challengeId });
-        })
-        .catch(error => {
-          this.logger.error('Error in secondary operations:', { error: error.message });
-        });
-      
-      this.logger.info(`Challenge response processed successfully for challenge: ${challengeId}`, {
-        userEmail,
-        score: challenge.getScore() || 0
-      });
+      this.executeSecondaryOperations(
+        secondaryOpFunctions, 
+        'challengeCompletionOperations', 
+        { challengeId: challengeIdVO.value, userEmail: emailVO.value }
+      );
       
       return {
         evaluation,
         challenge: updatedChallenge
       };
-    } catch (error) {
-      this.logger.error('Error submitting and evaluating challenge response:', {
-        error: error.message,
-        challengeId: params.challengeId
-      });
-      
-      if (error instanceof ChallengeNotFoundError) {
-        throw error;
-      }
-      
-      throw new ChallengeResponseError(`Failed to process challenge response: ${error.message}`);
-    }
+    }, 'submitChallengeResponse', context, ChallengeResponseError);
   }
 
   /**
    * Get challenge history for a user
-   * @param {string} userEmail - User's email
+   * @param {string|Email} userEmail - User's email or Email value object
    * @returns {Promise<Array>} - List of challenges
    */
-  async getChallengeHistoryForUser(userEmail) {
-    try {
-      if (!userEmail) {
-        throw new ChallengeNotFoundError('User email is required');
+  getChallengeHistoryForUser(userEmail) {
+    return this.executeOperation(async () => {
+      // Create value object for validation
+      const emailVO = userEmail instanceof Email ? userEmail : createEmail(userEmail);
+      
+      if (!emailVO) {
+        throw new ChallengeNotFoundError('Invalid user email');
       }
-
-      this.logger.debug(`Getting challenge history for user: ${userEmail}`);
       
-      const challenges = await this.challengeService.getChallengesForUser(userEmail);
-      
-      this.logger.info(`Retrieved ${challenges.length} challenges for user: ${userEmail}`);
-      
+      const challenges = await this.challengeService.getChallengesForUser(emailVO);
       return challenges;
-    } catch (error) {
-      this.logger.error('Error getting challenge history:', { 
-        error: error.message,
-        userEmail 
-      });
-      throw new ChallengeNotFoundError(`Failed to retrieve challenge history: ${error.message}`);
-    }
+    }, 'getChallengeHistoryForUser', { 
+      userEmail: typeof userEmail === 'string' ? userEmail : userEmail?.value 
+    }, ChallengeNotFoundError);
   }
 
   /**
    * Get a challenge by ID
-   * @param {string} challengeId - Challenge ID
-   * @returns {Promise<Object>} - Challenge object
+   * @param {string|ChallengeId} challengeId - Challenge ID or ChallengeId value object
+   * @returns {Promise<Object>} - Challenge data
    */
-  async getChallengeById(challengeId) {
-    try {
-      if (!challengeId) {
-        throw new ChallengeNotFoundError('Challenge ID is required');
+  getChallengeById(challengeId) {
+    return this.executeOperation(async () => {
+      // Create value object for validation
+      const challengeIdVO = challengeId instanceof ChallengeId ? challengeId : createChallengeId(challengeId);
+      
+      if (!challengeIdVO) {
+        throw new ChallengeNotFoundError('Invalid challenge ID');
       }
-
-      this.logger.debug(`Getting challenge by ID: ${challengeId}`);
       
-      const challenge = await this.challengeService.getChallengeById(challengeId);
-      
+      const challenge = await this.challengeService.getChallengeById(challengeIdVO);
       if (!challenge) {
-        throw new ChallengeNotFoundError(`Challenge with ID ${challengeId} not found`);
+        throw new ChallengeNotFoundError(`Challenge with ID ${challengeIdVO.value} not found`);
       }
-      
-      this.logger.info(`Retrieved challenge: ${challengeId}`);
       
       return challenge;
-    } catch (error) {
-      this.logger.error('Error getting challenge by ID:', { 
-        error: error.message,
-        challengeId 
-      });
-      
-      if (error instanceof ChallengeNotFoundError) {
-        throw error;
-      }
-      
-      throw new ChallengeNotFoundError(`Failed to retrieve challenge: ${error.message}`);
-    }
+    }, 'getChallengeById', { 
+      challengeId: typeof challengeId === 'string' ? challengeId : challengeId?.value 
+    }, ChallengeNotFoundError);
   }
 }
 

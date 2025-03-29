@@ -127,7 +127,7 @@ describe('Prompt Builder Domain', function() {
       // Define a simple custom prompt builder
       const customBuilder = {
         type: 'custom-type',
-        build: (params) => Promise.resolve(`This is a custom prompt for ${params.name}`)
+        build: params => Promise.resolve(`This is a custom prompt for ${params.name}`)
       };
       
       // Register the custom builder

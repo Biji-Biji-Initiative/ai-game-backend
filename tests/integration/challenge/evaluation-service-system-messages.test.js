@@ -65,11 +65,11 @@ const mockPromptBuilder = {
 
 // Mock the container with our mock dependencies
 const containerStub = {
-  get: sinon.stub().callsFake((service) => {
-    if (service === 'openAIClient') return mockOpenAIClient;
-    if (service === 'openAIStateManager') return mockOpenAIStateManager;
-    if (service === 'openAIConfig') return mockOpenAIConfig;
-    if (service === 'promptBuilder') return mockPromptBuilder;
+  get: sinon.stub().callsFake(service => {
+    if (service === 'openAIClient') {return mockOpenAIClient;}
+    if (service === 'openAIStateManager') {return mockOpenAIStateManager;}
+    if (service === 'openAIConfig') {return mockOpenAIConfig;}
+    if (service === 'promptBuilder') {return mockPromptBuilder;}
     return {};
   })
 };
@@ -131,7 +131,7 @@ describe('Services System Message Integration', () => {
   // Set longer timeout for API calls
   this.timeout(30000);
 
-beforeEach(() => {
+  beforeEach(() => {
     // Reset all stubs
     sinon.resetHistory();
   });

@@ -1,9 +1,11 @@
+'use strict';
+
 /**
  * Schema for Personalized Learning Path Prompt Parameters
- * 
+ *
  * Defines the expected structure and validation rules for parameters
  * used in building personalized learning path prompts.
- * 
+ *
  * @module personalizedLearningPathSchema
  * @requires zod
  */
@@ -18,7 +20,7 @@ const completedChallengeSchema = z.object({
   title: z.string().describe('Title of the challenge'),
   focusArea: z.string().describe('Focus area of the challenge'),
   score: z.number().min(0).max(100).optional().describe('Score achieved (0-100)'),
-  completedAt: z.string().optional().describe('ISO timestamp when the challenge was completed')
+  completedAt: z.string().optional().describe('ISO timestamp when the challenge was completed'),
 });
 
 /**
@@ -27,7 +29,7 @@ const completedChallengeSchema = z.object({
 const personalityProfileSchema = z.object({
   dominantTraits: z.array(z.string()).optional().describe('List of dominant personality traits'),
   learningStyle: z.string().optional().describe('Preferred learning style'),
-  motivationalFactors: z.array(z.string()).optional().describe('Factors that motivate the user')
+  motivationalFactors: z.array(z.string()).optional().describe('Factors that motivate the user'),
 });
 
 /**
@@ -36,7 +38,7 @@ const personalityProfileSchema = z.object({
 const goalSchema = z.object({
   id: z.string().describe('Unique identifier for the goal'),
   description: z.string().describe('Description of the learning goal'),
-  priority: z.number().min(1).max(10).optional().describe('Priority level (1-10)')
+  priority: z.number().min(1).max(10).optional().describe('Priority level (1-10)'),
 });
 
 /**
@@ -50,7 +52,7 @@ const availableChallengeSchema = z.object({
   difficulty: z.string().describe('Difficulty level of the challenge'),
   prerequisites: z.array(z.string()).optional().describe('Prerequisites for the challenge'),
   estimatedTime: z.number().min(0).optional().describe('Estimated time to complete in minutes'),
-  concepts: z.array(z.string()).optional().describe('Key concepts covered by the challenge')
+  concepts: z.array(z.string()).optional().describe('Key concepts covered by the challenge'),
 });
 
 /**
@@ -60,7 +62,7 @@ const focusAreaSchema = z.object({
   id: z.string().describe('Unique identifier for the focus area'),
   name: z.string().describe('Name of the focus area'),
   proficiency: z.number().min(0).max(100).optional().describe('Current proficiency level (0-100)'),
-  importance: z.number().min(1).max(10).optional().describe('Importance level (1-10)')
+  importance: z.number().min(1).max(10).optional().describe('Importance level (1-10)'),
 });
 
 /**
@@ -69,7 +71,7 @@ const focusAreaSchema = z.object({
 const timeConstraintsSchema = z.object({
   totalAvailableTime: z.number().min(0).optional().describe('Total available time in hours'),
   maxSessionDuration: z.number().min(0).optional().describe('Maximum session duration in minutes'),
-  sessionsPerWeek: z.number().min(0).optional().describe('Number of sessions per week')
+  sessionsPerWeek: z.number().min(0).optional().describe('Number of sessions per week'),
 });
 
 /**
@@ -78,7 +80,10 @@ const timeConstraintsSchema = z.object({
 const pathOptionsSchema = z.object({
   maxLength: z.number().min(1).default(10).describe('Maximum number of challenges in the path'),
   includeMilestones: z.boolean().default(true).describe('Whether to include milestone challenges'),
-  adaptBasedOnPerformance: z.boolean().default(true).describe('Whether to adapt based on performance')
+  adaptBasedOnPerformance: z
+    .boolean()
+    .default(true)
+    .describe('Whether to adapt based on performance'),
 });
 
 /**
@@ -89,7 +94,10 @@ const userSchema = z.object({
   name: z.string().optional().describe('Name of the user'),
   skillLevel: z.string().optional().describe('Overall skill level assessment'),
   learningPreferences: z.array(z.string()).optional().describe('User learning style preferences'),
-  completedChallenges: z.array(completedChallengeSchema).optional().describe('Challenges completed by the user')
+  completedChallenges: z
+    .array(completedChallengeSchema)
+    .optional()
+    .describe('Challenges completed by the user'),
 });
 
 /**
@@ -102,12 +110,12 @@ const personalizedLearningPathSchema = z.object({
   availableChallenges: z.array(availableChallengeSchema).min(1).describe('Available challenges'),
   focusAreas: z.array(focusAreaSchema).min(1).describe('Focus areas'),
   timeConstraints: timeConstraintsSchema.optional().describe('User time constraints'),
-  pathOptions: pathOptionsSchema.optional().describe('Path design options')
+  pathOptions: pathOptionsSchema.optional().describe('Path design options'),
 });
 
 module.exports = {
   personalizedLearningPathSchema,
-  validatePersonalizedLearningPathParams: (params) => {
+  validatePersonalizedLearningPathParams: params => {
     return personalizedLearningPathSchema.parse(params);
-  }
-}; 
+  },
+};

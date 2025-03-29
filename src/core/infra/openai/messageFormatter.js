@@ -1,12 +1,14 @@
+'use strict';
+
 /**
  * Message Formatter for OpenAI Responses API
- * 
+ *
  * Provides utilities for formatting messages for the Responses API.
  * Converts different input formats to the proper Responses API structure.
- * 
+ *
  * IMPORTANT: This implementation EXCLUSIVELY uses OpenAI Responses API, NEVER
  * Chat Completions API or Assistants API.
- * 
+ *
  * @module messageFormatter
  */
 
@@ -30,7 +32,7 @@ const formatForResponsesApi = (prompt, systemMessage = null) => {
 
   return {
     input: prompt,
-    instructions: systemMessage || null
+    instructions: systemMessage || null,
   };
 };
 
@@ -52,23 +54,21 @@ const formatMultimodalContent = (prompt, imageUrls = [], systemMessage = null) =
   }
 
   // Create multimodal content array
-  const contentItems = [
-    { type: 'input_text', text: prompt }
-  ];
+  const contentItems = [{ type: 'input_text', text: prompt }];
 
   // Add images
   for (const imageUrl of imageUrls) {
     if (typeof imageUrl === 'string' && imageUrl.trim()) {
-      contentItems.push({ 
-        type: 'image_url', 
-        url: imageUrl 
+      contentItems.push({
+        type: 'image_url',
+        url: imageUrl,
       });
     }
   }
 
   return {
     input: contentItems,
-    instructions: systemMessage
+    instructions: systemMessage,
   };
 };
 
@@ -94,16 +94,14 @@ const formatContentWithFiles = (prompt, fileIds = [], systemMessage = null) => {
   }
 
   // Create content array with text and files
-  const contentItems = [
-    { type: 'input_text', text: prompt }
-  ];
+  const contentItems = [{ type: 'input_text', text: prompt }];
 
   // Add file references
   for (const fileId of fileIds) {
     if (typeof fileId === 'string' && fileId.trim()) {
       contentItems.push({
         type: 'file',
-        file_id: fileId.trim()
+        file_id: fileId.trim(),
       });
     } else {
       throw new OpenAIRequestError('Each file ID must be a non-empty string');
@@ -112,7 +110,7 @@ const formatContentWithFiles = (prompt, fileIds = [], systemMessage = null) => {
 
   return {
     input: contentItems,
-    instructions: systemMessage
+    instructions: systemMessage,
   };
 };
 
@@ -147,16 +145,14 @@ const formatMultimodalWithFiles = (prompt, media = {}, systemMessage = null) => 
   }
 
   // Create content array with text
-  const contentItems = [
-    { type: 'input_text', text: prompt }
-  ];
+  const contentItems = [{ type: 'input_text', text: prompt }];
 
   // Add images
   for (const imageUrl of imageUrls) {
     if (typeof imageUrl === 'string' && imageUrl.trim()) {
       contentItems.push({
         type: 'image_url',
-        url: imageUrl.trim()
+        url: imageUrl.trim(),
       });
     }
   }
@@ -166,30 +162,30 @@ const formatMultimodalWithFiles = (prompt, media = {}, systemMessage = null) => 
     if (typeof fileId === 'string' && fileId.trim()) {
       contentItems.push({
         type: 'file',
-        file_id: fileId.trim()
+        file_id: fileId.trim(),
       });
     }
   }
 
   return {
     input: contentItems,
-    instructions: systemMessage
+    instructions: systemMessage,
   };
 };
 
 /**
  * Creates a JSON response configuration for structured output
- * @param {Object} payload - Base request payload 
+ * @param {Object} payload - Base request payload
  * @returns {Object} Updated payload with JSON format configuration
  */
-const configureJsonResponse = (payload) => {
+const configureJsonResponse = payload => {
   return {
     ...payload,
     text: {
       format: {
-        type: 'json_object'
-      }
-    }
+        type: 'json_object',
+      },
+    },
   };
 };
 
@@ -198,23 +194,23 @@ module.exports = {
   formatMultimodalContent,
   formatContentWithFiles,
   formatMultimodalWithFiles,
-  configureJsonResponse
+  configureJsonResponse,
 };
 
 /**
  * TICKET 12 RESOLUTION:
  * The function formatStructuredContent mentioned in Ticket 12 was not found
- * in this file or elsewhere in the codebase. This was likely a function 
+ * in this file or elsewhere in the codebase. This was likely a function
  * that was planned but never implemented, or it was removed in a previous
  * refactoring. The functionality required by Ticket 12 is already covered
  * by the following existing functions:
- * 
+ *
  * - formatForResponsesApi - For basic text prompts
  * - formatMultimodalContent - For text + images
  * - formatContentWithFiles - For text + files
  * - formatMultimodalWithFiles - For text + images + files
  * - configureJsonResponse - For structured JSON responses
- * 
+ *
  * No action was required as the described function doesn't exist and its
  * purported functionality is already covered by other methods.
  */

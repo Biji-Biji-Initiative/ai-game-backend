@@ -16,7 +16,7 @@ describe('Challenge Generation Service', function() {
   // Set longer timeout for API calls
   this.timeout(30000);
 
-let sandbox;
+  let sandbox;
   let challengeRepository;
   let openAIMock;
   let challengeService;
@@ -29,7 +29,7 @@ let sandbox;
     openAIMock = setup.openAIClient;
     
     // Set up mock OpenAI response for challenge generation
-    openAIMock.responses.create.callsFake((params) => {
+    openAIMock.responses.create.callsFake(params => {
       // Determine if this is a challenge generation or response simulation request
       const isResponseRequest = params.messages.some(msg => 
         msg.content && msg.content.includes('provide a thoughtful, well-reasoned response'));
@@ -38,7 +38,7 @@ let sandbox;
         return Promise.resolve({
           choices: [{
             message: {
-              content: "This is a simulated response to the challenge. It demonstrates critical thinking by analyzing the problem from multiple perspectives and proposing a balanced solution."
+              content: 'This is a simulated response to the challenge. It demonstrates critical thinking by analyzing the problem from multiple perspectives and proposing a balanced solution.'
             }
           }]
         });
@@ -48,14 +48,14 @@ let sandbox;
           choices: [{
             message: {
               content: JSON.stringify({
-                title: "Ethical Decision Making in AI Development",
+                title: 'Ethical Decision Making in AI Development',
                 content: {
-                  description: "You are leading a team developing an AI system that will help make lending decisions for a bank. You discover that the historical data used for training shows bias against certain demographic groups. How would you address this issue while maintaining the system's performance and meeting business requirements?"
+                  description: 'You are leading a team developing an AI system that will help make lending decisions for a bank. You discover that the historical data used for training shows bias against certain demographic groups. How would you address this issue while maintaining the system\'s performance and meeting business requirements?'
                 },
                 evaluation_criteria: [
-                  "Understanding of ethical implications",
-                  "Technical feasibility of solution",
-                  "Balance between fairness and performance"
+                  'Understanding of ethical implications',
+                  'Technical feasibility of solution',
+                  'Balance between fairness and performance'
                 ]
               })
             }
@@ -77,12 +77,12 @@ let sandbox;
         evaluation_criteria: An array of criteria to evaluate responses by`;
         
         const completion = await openAIMock.responses.create({
-          model: "gpt-4",
+          model: 'gpt-4',
           messages: [
-            { role: "system", content: "You are an expert in creating challenging cognitive exercises that test human skills." },
-            { role: "user", content: prompt }
+            { role: 'system', content: 'You are an expert in creating challenging cognitive exercises that test human skills.' },
+            { role: 'user', content: prompt }
           ],
-          response_format: { type: "json_object" }
+          response_format: { type: 'json_object' }
         });
         
         const responseText = completion.choices[0].message.content;
@@ -109,7 +109,7 @@ let sandbox;
         return challenge;
       },
       
-      simulateResponse: async (challenge) => {
+      simulateResponse: async challenge => {
         const prompt = `
         You are presented with the following challenge:
         
@@ -120,25 +120,25 @@ let sandbox;
         Please provide a thoughtful, well-reasoned response to this challenge.`;
         
         const completion = await openAIMock.responses.create({
-          model: "gpt-4",
+          model: 'gpt-4',
           messages: [
-            { role: "system", content: "You are a participant in a cognitive challenge, responding as a human would." },
-            { role: "user", content: prompt }
+            { role: 'system', content: 'You are a participant in a cognitive challenge, responding as a human would.' },
+            { role: 'user', content: prompt }
           ]
         });
         
         return completion.choices[0].message.content;
       },
       
-      getChallengeById: async (id) => {
+      getChallengeById: async id => {
         return await challengeRepository.findById(id);
       },
       
-      getChallengesByUserId: async (userId) => {
+      getChallengesByUserId: async userId => {
         return await challengeRepository.findByUserId(userId);
       },
       
-      getChallengesByFocusArea: async (focusArea) => {
+      getChallengesByFocusArea: async focusArea => {
         return await challengeRepository.findByFocusArea(focusArea);
       }
     };

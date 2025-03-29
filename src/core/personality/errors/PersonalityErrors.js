@@ -1,16 +1,23 @@
+'use strict';
+
 /**
  * Personality Domain Error Classes
- * 
+ *
  * Provides specific error types for the Personality domain
  * following Domain-Driven Design principles.
  */
 
-const AppError = require('../../infra/errors/AppError');
+const AppError = require('../../../core/infra/errors/AppError');
 
 /**
  * Base class for Personality domain errors
  */
 class PersonalityError extends AppError {
+  /**
+   * Create a new PersonalityError
+   * @param {string} message - Error message
+   * @param {number} statusCode - HTTP status code
+   */
   constructor(message = 'Personality operation failed', statusCode = 400) {
     super(message, statusCode);
     this.name = 'PersonalityError';
@@ -22,23 +29,14 @@ class PersonalityError extends AppError {
  * Thrown when attempting to access a personality that doesn't exist
  */
 class PersonalityNotFoundError extends PersonalityError {
+  /**
+   * Create a new PersonalityNotFoundError
+   * @param {string} identifier - Personality identifier that wasn't found
+   */
   constructor(identifier = '') {
-    const message = identifier 
-      ? `Personality not found: ${identifier}` 
-      : 'Personality not found';
+    const message = identifier ? `Personality not found: ${identifier}` : 'Personality not found';
     super(message, 404);
     this.name = 'PersonalityNotFoundError';
-  }
-}
-
-/**
- * Personality Update Error
- * Thrown when there's an issue updating a personality
- */
-class PersonalityUpdateError extends PersonalityError {
-  constructor(message = 'Failed to update personality') {
-    super(message, 500);
-    this.name = 'PersonalityUpdateError';
   }
 }
 
@@ -47,6 +45,10 @@ class PersonalityUpdateError extends PersonalityError {
  * Thrown when personality data fails validation
  */
 class PersonalityValidationError extends PersonalityError {
+  /**
+   * Create a new PersonalityValidationError
+   * @param {string} message - Error message describing the validation failure
+   */
   constructor(message = 'Invalid personality data') {
     super(message, 400);
     this.name = 'PersonalityValidationError';
@@ -54,32 +56,44 @@ class PersonalityValidationError extends PersonalityError {
 }
 
 /**
- * Trait Analysis Error
- * Thrown when there's an issue with personality trait analysis
+ * Personality Processing Error
+ * Thrown when there's an issue processing a personality
  */
-class TraitAnalysisError extends PersonalityError {
-  constructor(message = 'Failed to analyze traits') {
+class PersonalityProcessingError extends PersonalityError {
+  /**
+   * Create a new PersonalityProcessingError
+   * @param {string} message - Error message describing the processing failure
+   */
+  constructor(message = 'Failed to process personality') {
     super(message, 500);
-    this.name = 'TraitAnalysisError';
+    this.name = 'PersonalityProcessingError';
   }
 }
 
 /**
- * AI Attitude Error
- * Thrown when there's an issue with AI attitude assessment
+ * Personality Repository Error
+ * Thrown when there's an issue with the personality repository operations
  */
-class AIAttitudeError extends PersonalityError {
-  constructor(message = 'AI attitude operation failed') {
-    super(message, 400);
-    this.name = 'AIAttitudeError';
+class PersonalityRepositoryError extends PersonalityError {
+  /**
+   * Create a new PersonalityRepositoryError
+   * @param {string} message - Error message describing the repository operation failure
+   * @param {Object} options - Additional error options
+   * @param {Error} [options.cause] - The underlying error that caused this error
+   * @param {Object} [options.metadata] - Additional metadata about the error
+   */
+  constructor(message = 'Failed to perform personality repository operation', options = {}) {
+    super(message, 500);
+    this.name = 'PersonalityRepositoryError';
+    this.cause = options.cause || null;
+    this.metadata = options.metadata || {};
   }
 }
 
 module.exports = {
   PersonalityError,
   PersonalityNotFoundError,
-  PersonalityUpdateError,
   PersonalityValidationError,
-  TraitAnalysisError,
-  AIAttitudeError
-}; 
+  PersonalityProcessingError,
+  PersonalityRepositoryError
+};

@@ -1,6 +1,8 @@
+'use strict';
+
 /**
  * Configuration Module
- * 
+ *
  * Centralized configuration for the application.
  * Re-exports the main config from config.js.
  */

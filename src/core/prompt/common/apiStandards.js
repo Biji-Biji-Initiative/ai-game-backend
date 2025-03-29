@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * API Standards Module
  * Provides standardized instructions and references for API usage
@@ -20,11 +22,11 @@ const getResponsesApiInstruction = () => {
  * @param {string} prompt - The prompt to append instructions to
  * @returns {string} Prompt with standardized API instructions
  */
-const appendApiStandards = (prompt) => {
+const appendApiStandards = prompt => {
   if (!prompt) {
     return getResponsesApiInstruction();
   }
-  
+
   // Add a newline if the prompt doesn't end with one
   const separator = prompt.endsWith('\n') ? '' : '\n\n';
   return `${prompt}${separator}${getResponsesApiInstruction()}`;
@@ -35,11 +37,11 @@ const appendApiStandards = (prompt) => {
  * @param {Object} schema - JSON schema for the expected output
  * @returns {string} Formatted instructions for structured output
  */
-const getStructuredOutputInstructions = (schema) => {
+const getStructuredOutputInstructions = schema => {
   if (!schema) {
     throw new Error('Schema is required for structured output instructions');
   }
-  
+
   let instructions = 'Return your response in the following JSON format:\n\n';
   instructions += '```json\n';
   instructions += JSON.stringify(schema, null, 2);
@@ -47,7 +49,7 @@ const getStructuredOutputInstructions = (schema) => {
   instructions += 'Ensure your response is valid JSON that matches this schema exactly.\n';
   instructions += 'Do not include any explanations or markdown formatting outside the JSON.\n';
   instructions += getResponsesApiInstruction();
-  
+
   return instructions;
 };
 
@@ -64,11 +66,11 @@ const getErrorHandlingInstructions = () => {
  * @param {string} prompt - The prompt to append instructions to
  * @returns {string} Prompt with error handling instructions
  */
-const appendErrorHandlingInstructions = (prompt) => {
+const appendErrorHandlingInstructions = prompt => {
   if (!prompt) {
     return getErrorHandlingInstructions();
   }
-  
+
   // Add a newline if the prompt doesn't end with one
   const separator = prompt.endsWith('\n') ? '' : '\n\n';
   return `${prompt}${separator}${getErrorHandlingInstructions()}`;
@@ -79,5 +81,5 @@ module.exports = {
   appendApiStandards,
   getStructuredOutputInstructions,
   getErrorHandlingInstructions,
-  appendErrorHandlingInstructions
+  appendErrorHandlingInstructions,
 };

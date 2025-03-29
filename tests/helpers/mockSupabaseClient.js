@@ -75,7 +75,7 @@ function createMockSupabaseClient(customResponses = {}) {
   // Create the mock client
   const mockClient = {
     // Mock for from() method (database access)
-    from: sinon.stub().callsFake((table) => {
+    from: sinon.stub().callsFake(table => {
       return {
         select: sinon.stub().returns({
           eq: sinon.stub().returns({ 

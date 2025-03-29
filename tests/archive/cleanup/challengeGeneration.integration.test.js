@@ -45,31 +45,31 @@ describe('Challenge Generation Integration', function() {
       sendJsonMessage: sandbox.stub().resolves({
         responseId: `resp_${uuidv4()}`,
         data: {
-          title: "AI Ethics in Automated Decision Making",
-          description: "Explore the ethical implications of using AI in high-stakes decision-making contexts.",
+          title: 'AI Ethics in Automated Decision Making',
+          description: 'Explore the ethical implications of using AI in high-stakes decision-making contexts.',
           content: {
-            scenario: "A healthcare system is implementing an AI system to help prioritize patients in the emergency room based on predicted severity and treatment urgency.",
+            scenario: 'A healthcare system is implementing an AI system to help prioritize patients in the emergency room based on predicted severity and treatment urgency.',
             questions: [
               {
-                id: "q1",
-                text: "What are the key ethical considerations that should be addressed before implementing this system?"
+                id: 'q1',
+                text: 'What are the key ethical considerations that should be addressed before implementing this system?'
               },
               {
-                id: "q2",
-                text: "How would you design safeguards to ensure fair treatment across different patient demographics?"
+                id: 'q2',
+                text: 'How would you design safeguards to ensure fair treatment across different patient demographics?'
               }
             ]
           },
-          difficulty: "intermediate",
-          focusArea: "AI Ethics",
-          challengeType: "critical-analysis",
-          formatType: "case-study",
+          difficulty: 'intermediate',
+          focusArea: 'AI Ethics',
+          challengeType: 'critical-analysis',
+          formatType: 'case-study',
           estimatedTime: 20,
-          keywords: ["ethics", "healthcare", "bias", "decision-making", "fairness"],
+          keywords: ['ethics', 'healthcare', 'bias', 'decision-making', 'fairness'],
           learningObjectives: [
-            "Understand ethical implications of AI in healthcare",
-            "Identify potential biases in automated decision systems",
-            "Design appropriate human oversight mechanisms"
+            'Understand ethical implications of AI in healthcare',
+            'Identify potential biases in automated decision systems',
+            'Design appropriate human oversight mechanisms'
           ]
         }
       }),
@@ -302,13 +302,13 @@ describe('Challenge Generation Integration', function() {
       openAIClient.sendJsonMessage.resolves({
         responseId: `resp_${uuidv4()}`,
         data: {
-          title: "Advanced Data Privacy Challenge",
-          description: "A challenge about data privacy",
-          content: { scenario: "Data privacy scenario", questions: [] },
-          difficulty: "advanced",
-          focusArea: "Data Privacy",
-          challengeType: "critical-analysis",
-          formatType: "case-study"
+          title: 'Advanced Data Privacy Challenge',
+          description: 'A challenge about data privacy',
+          content: { scenario: 'Data privacy scenario', questions: [] },
+          difficulty: 'advanced',
+          focusArea: 'Data Privacy',
+          challengeType: 'critical-analysis',
+          formatType: 'case-study'
         }
       });
       

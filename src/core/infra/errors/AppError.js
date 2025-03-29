@@ -1,6 +1,8 @@
+'use strict';
+
 /**
  * Application Error Class
- * 
+ *
  * DDD-compliant error handling for the application
  * Placed in infrastructure layer as a cross-cutting concern
  */
@@ -18,17 +20,16 @@ class AppError extends Error {
    * @param {Error} options.cause - Original error that caused this error
    * @param {string} options.errorCode - Specific error code for API clients
    */
+  /**
+   * Method constructor
+   */
   constructor(message, statusCode, options = {}) {
     // Extract options with defaults
-    const { 
-      metadata = {}, 
-      cause = null,
-      errorCode = null
-    } = options;
+    const { metadata = {}, cause = null, errorCode = null } = options;
 
     // Initialize Error with message and cause
     super(message, { cause });
-    
+
     // Set AppError specific properties
     this.statusCode = statusCode;
     this.status = `${statusCode}`.startsWith('4') ? 'fail' : 'error';
@@ -41,4 +42,4 @@ class AppError extends Error {
   }
 }
 
-module.exports = AppError; 
+module.exports = AppError;

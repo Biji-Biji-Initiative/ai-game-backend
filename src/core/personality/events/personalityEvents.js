@@ -1,6 +1,8 @@
+'use strict';
+
 /**
  * Personality Domain Events
- * 
+ *
  * Events that occur within the Personality domain.
  * Following DDD principles, these events are used to communicate changes
  * in the domain to other domains.
@@ -22,16 +24,16 @@ async function publishTraitIdentified(userEmail, traitName, traitScore, source) 
       userEmail,
       trait: {
         name: traitName,
-        score: traitScore
+        score: traitScore,
       },
-      source
+      source,
     });
     logger.debug('Published personality trait identified event', { userEmail, traitName });
   } catch (error) {
-    logger.error('Error publishing personality trait identified event', { 
+    logger.error('Error publishing personality trait identified event', {
       error: error.message,
       userEmail,
-      traitName
+      traitName,
     });
   }
 }
@@ -48,14 +50,14 @@ async function publishProfileUpdated(userEmail, profile) {
       userEmail,
       profile: {
         dominantTraits: profile.dominantTraits || [],
-        traitScores: profile.traitScores || {}
-      }
+        traitScores: profile.traitScores || {},
+      },
     });
     logger.debug('Published personality profile updated event', { userEmail });
   } catch (error) {
-    logger.error('Error publishing personality profile updated event', { 
+    logger.error('Error publishing personality profile updated event', {
       error: error.message,
-      userEmail
+      userEmail,
     });
   }
 }
@@ -63,29 +65,29 @@ async function publishProfileUpdated(userEmail, profile) {
 /**
  * Set up personality event subscriptions
  */
-function registerPersonalityEventHandlers() {
+async function registerPersonalityEventHandlers() {
   // Subscribe to evaluation completed events to extract personality traits
-  eventBus.subscribe(EventTypes.EVALUATION_COMPLETED, async (event) => {
-    logger.debug('Handling evaluation completed event for personality analysis', { 
-      evaluationId: event.payload.evaluationId 
+  eventBus.subscribe(EventTypes.EVALUATION_COMPLETED, async event => {
+    logger.debug('Handling evaluation completed event for personality analysis', {
+      evaluationId: event.payload.evaluationId,
     });
-    
+
     // Extract traits from evaluation result if available
     const traits = event.payload.result.traits;
-    
+
     if (traits && Object.keys(traits).length > 0) {
-      logger.info('Processing personality traits from evaluation', { 
+      logger.info('Processing personality traits from evaluation', {
         userEmail: event.payload.userEmail,
-        traitCount: Object.keys(traits).length
+        traitCount: Object.keys(traits).length,
       });
-      
+
       // In a real implementation, we would update the user's personality profile here
       // For now, we just log the traits
       for (const [traitName, traitScore] of Object.entries(traits)) {
         logger.debug('Identified trait from evaluation', {
           userEmail: event.payload.userEmail,
           traitName,
-          traitScore
+          traitScore,
         });
       }
     }
@@ -95,5 +97,5 @@ function registerPersonalityEventHandlers() {
 module.exports = {
   publishTraitIdentified,
   publishProfileUpdated,
-  registerPersonalityEventHandlers
-}; 
+  registerPersonalityEventHandlers,
+};

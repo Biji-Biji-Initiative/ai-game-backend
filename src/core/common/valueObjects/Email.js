@@ -1,29 +1,37 @@
+'use strict';
+
 /**
  * Email Value Object
- * 
+ *
  * Represents and validates email addresses in the system.
  * Follows Value Object pattern - immutable and defined by its value.
  */
 
+/**
+ *
+ */
 class Email {
   /**
    * Create a new Email value object
    * @param {string} value - Email address
    * @throws {Error} If the email is invalid
    */
+  /**
+   * Method constructor
+   */
   constructor(value) {
     if (!value) {
       throw new Error('Email cannot be empty');
     }
-    
+
     if (!Email.isValid(value)) {
       throw new Error(`Invalid email format: ${value}`);
     }
-    
+
     this._value = value.toLowerCase().trim();
     Object.freeze(this);
   }
-  
+
   /**
    * Get the email value
    * @returns {string} Email address
@@ -31,7 +39,7 @@ class Email {
   get value() {
     return this._value;
   }
-  
+
   /**
    * Get the domain part of the email
    * @returns {string} Domain part of the email
@@ -39,7 +47,7 @@ class Email {
   get domain() {
     return this._value.split('@')[1];
   }
-  
+
   /**
    * Get the local part of the email (before @)
    * @returns {string} Local part of the email
@@ -47,11 +55,14 @@ class Email {
   get localPart() {
     return this._value.split('@')[0];
   }
-  
+
   /**
    * Check if two Email objects are equal
    * @param {Email} other - Another Email object to compare
    * @returns {boolean} True if emails are equal
+   */
+  /**
+   * Method equals
    */
   equals(other) {
     if (!(other instanceof Email)) {
@@ -59,7 +70,7 @@ class Email {
     }
     return this.value === other.value;
   }
-  
+
   /**
    * Validate email format
    * @param {string} email - Email to validate
@@ -69,13 +80,13 @@ class Email {
     if (!email || typeof email !== 'string') {
       return false;
     }
-    
+
     // Simple email validation regex
     // For production, consider using a more comprehensive solution
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   }
-  
+
   /**
    * Create an Email object from a string
    * @param {string} email - Email string
@@ -88,22 +99,28 @@ class Email {
       return null;
     }
   }
-  
+
   /**
    * Convert to string representation
    * @returns {string} String representation
    */
+  /**
+   * Method toString
+   */
   toString() {
     return this._value;
   }
-  
+
   /**
    * Convert to primitive value when serializing
    * @returns {string} The email value
+   */
+  /**
+   * Method toJSON
    */
   toJSON() {
     return this._value;
   }
 }
 
-module.exports = Email; 
+module.exports = Email;

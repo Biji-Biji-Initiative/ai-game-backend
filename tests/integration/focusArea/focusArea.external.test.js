@@ -20,7 +20,7 @@ describe('External: OpenAI Focus Area Integration', function() {
     skipIfMissingEnv(this, 'openai');
   });
 
-// Configure longer timeout for external API calls
+  // Configure longer timeout for external API calls
   this.timeout(30000);
   
   let openAIClient;
@@ -46,7 +46,7 @@ describe('External: OpenAI Focus Area Integration', function() {
       skills: ['Project management', 'Data analysis', 'Team leadership']
     };
     
-    const systemPrompt = "You are an expert career advisor specializing in AI skill development.";
+    const systemPrompt = 'You are an expert career advisor specializing in AI skill development.';
     
     const userPrompt = `Based on the following user profile, recommend a focus area for their AI skills development:
     
@@ -91,7 +91,7 @@ describe('External: OpenAI Focus Area Integration', function() {
       skills: ['Python', 'TensorFlow', 'JavaScript', 'SQL']
     };
     
-    const systemPrompt = "You are an expert career advisor specializing in AI skill development.";
+    const systemPrompt = 'You are an expert career advisor specializing in AI skill development.';
     
     const userPrompt = `Based on the following user profile, recommend a focus area for their AI skills development:
     

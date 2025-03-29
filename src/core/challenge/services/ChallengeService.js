@@ -1,484 +1,371 @@
+'use strict';
+
 /**
  * Challenge Service
  * 
- * Core domain service for challenge operations with integrated caching.
- * Acts as the primary interface for challenge-related domain operations.
+ * Provides business logic for managing challenges and associated operations.
+ * Implements caching for improved performance.
  */
 
-const { challengeLogger } = require('../../../core/infra/logging/domainLogger');
-const Challenge = require('../models/Challenge');
-const { 
-  ChallengeNotFoundError, 
-  ChallengeValidationError 
-} = require('../errors/ChallengeErrors');
+const { v4: uuidv4 } = require('uuid');
+const { getCacheService, getCacheInvalidationManager } = require('../../core/infra/cache/cacheFactory');
+const {
+  applyServiceErrorHandling,
+  createErrorMapper
+} = require('../../../core/infra/errors/centralizedErrorUtils');
 
-// Cache TTL constants
-const CHALLENGE_CACHE_TTL = 600; // 10 minutes
-const CHALLENGE_LIST_CACHE_TTL = 120; // 2 minutes
-const CHALLENGE_USER_TTL = 300; // 5 minutes for user-specific challenges
-const CHALLENGE_CONFIG_TTL = 1800; // 30 minutes for config data
+// Import domain-specific error classes
+const {
+  ChallengeError,
+  ChallengeNotFoundError,
+  ChallengeValidationError,
+  ChallengeProcessingError,
+} = require('../errors/ChallengeErrors');
+const { ValidationError } = require('../errors/ChallengeErrors');
+const {
+  Email,
+  ChallengeId,
+  FocusArea,
+  createEmail,
+  createChallengeId,
+  createFocusArea
+} = require('../../common/valueObjects');
+
+// Create error mapper for service
+const challengeServiceErrorMapper = createErrorMapper({
+  'ValidationError': ValidationError,
+  'ChallengeNotFoundError': ChallengeNotFoundError,
+  'ChallengeValidationError': ChallengeValidationError,
+  'ChallengeProcessingError': ChallengeProcessingError,
+  'Error': ChallengeError
+}, ChallengeError);
+
+// Get cache services
+const cache = getCacheService();
+const cacheInvalidator = getCacheInvalidationManager();
+
+// Cache key prefixes
+const CACHE_KEYS = {
+  CHALLENGE_BY_ID: 'challenge:byId:',
+  CHALLENGES_BY_USER: 'challenge:byUser:',
+  RECENT_CHALLENGES: 'challenge:recent:',
+  CHALLENGES_BY_FOCUS_AREA: 'challenge:byFocusArea:',
+  CHALLENGE_SEARCH: 'challenge:search:',
+  CHALLENGE_LIST: 'challenge:list:'
+};
 
 /**
- * Challenge Service class with standardized caching
+ * Challenge Service class
+ * Responsible for challenge management and operations
  */
 class ChallengeService {
   /**
    * Create a new ChallengeService
-   * @param {Object} dependencies - Dependencies
-   * @param {ChallengeRepository} dependencies.challengeRepository - Repository for challenge data access
+   * @param {Object} dependencies - Service dependencies
+   * @param {Object} dependencies.challengeRepository - Challenge repository instance
    * @param {Object} dependencies.logger - Logger instance
-   * @param {CacheService} dependencies.cacheService - Cache service for optimizing data access
-   * @throws {Error} If required dependencies are missing
    */
-  constructor({ challengeRepository, logger, cacheService }) {
+  constructor(dependencies = {}) {
+    const { challengeRepository, logger } = dependencies;
+    
     if (!challengeRepository) {
-      throw new Error('challengeRepository is required for ChallengeService');
+      throw new Error('Challenge repository is required for ChallengeService');
     }
     
-    if (!cacheService) {
-      throw new Error('cacheService is required for ChallengeService');
+    if (!logger) {
+      throw new Error('Logger is required for ChallengeService');
     }
     
-    this.challengeRepository = challengeRepository;
-    this.logger = logger || challengeLogger.child({ component: 'service:challenge' });
-    this.cache = cacheService;
+    this.repository = challengeRepository;
+    this.logger = logger;
+    
+    // Apply service error handling wrappers to all methods
+    applyServiceErrorHandling(this, challengeServiceErrorMapper, [
+      'getChallengeById',
+      'getChallengesForUser',
+      'getRecentChallengesForUser',
+      'saveChallenge',
+      'updateChallenge',
+      'deleteChallenge',
+      'searchChallenges',
+      'getChallengesByFocusArea',
+      'getAllChallenges',
+      '_invalidateChallengeRelatedCaches'
+    ]);
   }
 
   /**
    * Get a challenge by ID
-   * @param {string} challengeId - Challenge ID
-   * @returns {Promise<Challenge>} Challenge if found
-   * @throws {ChallengeNotFoundError} If challenge not found
+   * @param {string|ChallengeId} id - Challenge ID or ChallengeId value object
+   * @returns {Promise<Challenge|null>} Challenge object or null if not found
    */
-  async getChallengeById(challengeId) {
-    if (!challengeId) {
-      throw new ChallengeValidationError('Challenge ID is required');
+  getChallengeById(id) {
+    // Convert to value object if needed
+    const challengeIdVO = id instanceof ChallengeId ? id : createChallengeId(id);
+    if (!challengeIdVO) {
+      throw new ValidationError(`Invalid challenge ID: ${id}`);
     }
     
-    try {
-      const cacheKey = `challenge:id:${challengeId}`;
-      const challenge = await this.cache.getOrSet(cacheKey, async () => {
-        const challenge = await this.challengeRepository.findById(challengeId);
-        
-        if (!challenge) {
-          return null; // Cache will store null to prevent repeated DB lookups for non-existent challenges
-        }
-        
-        return challenge;
-      }, CHALLENGE_CACHE_TTL);
-      
-      if (!challenge) {
-        throw new ChallengeNotFoundError(`Challenge with ID ${challengeId} not found`);
-      }
-      
-      return challenge;
-    } catch (error) {
-      if (error instanceof ChallengeNotFoundError) {
-        throw error;
-      }
-      
-      this.logger.error('Error getting challenge by ID', {
-        error: error.message,
-        stack: error.stack,
-        challengeId
-      });
-      
-      throw error;
-    }
+    const cacheKey = `${CACHE_KEYS.CHALLENGE_BY_ID}${challengeIdVO.value}`;
+    
+    return cache.getOrSet(cacheKey, () => {
+      this.logger.debug(`Getting challenge by ID: ${challengeIdVO.value}`);
+      return this.repository.findById(challengeIdVO.value);
+    });
   }
-
+  
   /**
-   * Get all challenges for a user
-   * @param {string} userId - User ID
-   * @returns {Promise<Array<Challenge>>} Array of challenges
+   * Get challenges for a specific user
+   * @param {string|Email} userEmail - User email or Email value object
+   * @param {Object} options - Query options
+   * @returns {Promise<Array<Object>>} List of challenges
    */
-  async getChallengesForUser(userId) {
-    if (!userId) {
-      throw new ChallengeValidationError('User ID is required');
+  getChallengesForUser(userEmail, options = {}) {
+    // Convert to value object if needed
+    const emailVO = userEmail instanceof Email ? userEmail : createEmail(userEmail);
+    if (!emailVO) {
+      throw new ValidationError(`Invalid email format: ${userEmail}`);
     }
     
-    try {
-      const cacheKey = `challenges:user:${userId}`;
-      
-      return this.cache.getOrSet(cacheKey, async () => {
-        const challenges = await this.challengeRepository.findByUserId(userId);
-        
-        // Cache individual challenges too
-        challenges.forEach(challenge => {
-          this.cache.set(`challenge:id:${challenge.id}`, challenge, CHALLENGE_CACHE_TTL);
-        });
-        
-        return challenges;
-      }, CHALLENGE_USER_TTL);
-    } catch (error) {
-      this.logger.error('Error getting challenges for user', {
-        error: error.message,
-        stack: error.stack,
-        userId
-      });
-      
-      throw error;
-    }
+    const { limit = 10, offset = 0, status, sortBy = 'createdAt', sortDir = 'desc' } = options;
+    
+    // Create a cache key that includes all query parameters
+    const cacheKey = `${CACHE_KEYS.CHALLENGES_BY_USER}${emailVO.value}:${limit}:${offset}:${status || 'all'}:${sortBy}:${sortDir}`;
+    
+    return cache.getOrSet(cacheKey, () => {
+      this.logger.debug(`Getting challenges for user: ${emailVO.value}`, { options });
+      return this.repository.findByUserEmail(emailVO.value, { limit, offset, status, sortBy, sortDir });
+    });
   }
-
+  
   /**
    * Get recent challenges for a user
-   * @param {string} userId - User ID
+   * @param {string|Email} userEmail - User email or Email value object
    * @param {number} limit - Maximum number of challenges to return
-   * @returns {Promise<Array<Challenge>>} Array of recent challenges
+   * @returns {Promise<Array<Challenge>>} List of recent challenges
    */
-  async getRecentChallengesForUser(userId, limit = 5) {
-    if (!userId) {
-      throw new ChallengeValidationError('User ID is required');
+  getRecentChallengesForUser(userEmail, limit = 5) {
+    // Convert to value object if needed
+    const emailVO = userEmail instanceof Email ? userEmail : createEmail(userEmail);
+    if (!emailVO) {
+      throw new ValidationError(`Invalid email format: ${userEmail}`);
     }
     
-    try {
-      const criteria = { userId };
-      const options = { 
-        limit,
-        sortBy: 'createdAt',
-        sortOrder: 'desc'
-      };
-      
-      const cacheKey = `challenges:user:${userId}:recent:${limit}`;
-      
-      return this.cache.getOrSet(cacheKey, async () => {
-        const challenges = await this.challengeRepository.findByCriteria(criteria, options);
-        
-        // Cache individual challenges too
-        challenges.forEach(challenge => {
-          this.cache.set(`challenge:id:${challenge.id}`, challenge, CHALLENGE_CACHE_TTL);
-        });
-        
-        return challenges;
-      }, CHALLENGE_USER_TTL);
-    } catch (error) {
-      this.logger.error('Error getting recent challenges for user', {
-        error: error.message,
-        stack: error.stack,
-        userId,
-        limit
-      });
-      
-      throw error;
-    }
+    const cacheKey = `${CACHE_KEYS.RECENT_CHALLENGES}${emailVO.value}:${limit}`;
+    
+    return cache.getOrSet(cacheKey, () => {
+      this.logger.debug(`Getting recent challenges for user: ${emailVO.value}`, { limit });
+      return this.repository.findRecentByUserEmail(emailVO.value, limit);
+    });
   }
-
+  
   /**
-   * Save a challenge
-   * @param {Challenge} challenge - Challenge to save
-   * @returns {Promise<Challenge>} Saved challenge
+   * Find recent challenges for a user (alternative method name for getRecentChallengesForUser)
+   * @param {string|Email} userEmail - User email or Email value object
+   * @param {number} limit - Maximum number of challenges to return
+   * @returns {Promise<Array<Challenge>>} List of recent challenges
    */
-  async saveChallenge(challenge) {
-    if (!challenge) {
-      throw new ChallengeValidationError('Challenge object is required');
-    }
-    
-    if (!(challenge instanceof Challenge)) {
-      throw new ChallengeValidationError('Object must be a Challenge instance');
-    }
-    
-    try {
-      const savedChallenge = await this.challengeRepository.save(challenge);
-      
-      // Update cache with new data
-      this.cache.set(`challenge:id:${savedChallenge.id}`, savedChallenge, CHALLENGE_CACHE_TTL);
-      
-      // Invalidate user's challenges lists and all list caches
-      if (savedChallenge.userId) {
-        this.invalidateUserChallengeCache(savedChallenge.userId);
-      }
-      
-      this.invalidateChallengeLists();
-      
-      return savedChallenge;
-    } catch (error) {
-      this.logger.error('Error saving challenge', {
-        error: error.message,
-        stack: error.stack,
-        challengeId: challenge.id
-      });
-      
-      throw error;
-    }
+  findRecentByUserEmail(userEmail, limit = 5) {
+    return this.getRecentChallengesForUser(userEmail, limit);
   }
-
+  
   /**
-   * Update a challenge
-   * @param {string} challengeId - Challenge ID
+   * Find challenges by user email (alternative method name for getChallengesForUser)
+   * @param {string|Email} userEmail - User email or Email value object
+   * @param {Object} options - Query options
+   * @returns {Promise<Array<Object>>} List of challenges
+   */
+  findByUserEmail(userEmail, options = {}) {
+    return this.getChallengesForUser(userEmail, options);
+  }
+  
+  /**
+   * Save a new challenge
+   * @param {Object} challengeData - Challenge data
+   * @returns {Promise<Object>} Saved challenge
+   */
+  async saveChallenge(challengeData) {
+    this.logger.debug('Saving new challenge', { challengeData });
+    
+    // Generate UUID if not provided
+    const challenge = {
+      ...challengeData,
+      id: challengeData.id || uuidv4(),
+      createdAt: challengeData.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    const savedChallenge = await this.repository.save(challenge);
+    
+    // Invalidate relevant caches
+    await this._invalidateChallengeRelatedCaches(savedChallenge);
+    
+    return savedChallenge;
+  }
+  
+  /**
+   * Update an existing challenge
+   * @param {string|ChallengeId} id - Challenge ID or ChallengeId value object
    * @param {Object} updateData - Data to update
-   * @returns {Promise<Challenge>} Updated challenge
+   * @returns {Promise<Object>} Updated challenge
    */
-  async updateChallenge(challengeId, updateData) {
-    if (!challengeId) {
-      throw new ChallengeValidationError('Challenge ID is required');
+  async updateChallenge(id, updateData) {
+    // Convert to value object if needed
+    const challengeIdVO = id instanceof ChallengeId ? id : createChallengeId(id);
+    if (!challengeIdVO) {
+      throw new ValidationError(`Invalid challenge ID: ${id}`);
     }
     
-    if (!updateData || typeof updateData !== 'object') {
-      throw new ChallengeValidationError('Update data must be an object');
+    this.logger.debug(`Updating challenge: ${challengeIdVO.value}`);
+    
+    // Get existing challenge
+    const existingChallenge = await this.repository.findById(challengeIdVO.value);
+    
+    if (!existingChallenge) {
+      throw new ChallengeNotFoundError(`Challenge not found with ID: ${challengeIdVO.value}`);
     }
     
-    try {
-      // First, retrieve the existing challenge (bypassing cache to get fresh data)
-      const existingChallenge = await this.challengeRepository.findById(challengeId);
-      
-      if (!existingChallenge) {
-        throw new ChallengeNotFoundError(`Challenge with ID ${challengeId} not found`);
-      }
-      
-      let savedChallenge;
-      
-      // If updateData is a Challenge instance, use its data
-      if (updateData instanceof Challenge) {
-        savedChallenge = await this.challengeRepository.save(updateData);
-      } else {
-        // Otherwise, update the existing challenge
-        Object.keys(updateData).forEach(key => {
-          existingChallenge[key] = updateData[key];
-        });
-        
-        savedChallenge = await this.challengeRepository.save(existingChallenge);
-      }
-      
-      // Update cache with new data
-      this.cache.set(`challenge:id:${challengeId}`, savedChallenge, CHALLENGE_CACHE_TTL);
-      
-      // Invalidate user's challenges lists and all list caches
-      if (savedChallenge.userId) {
-        this.invalidateUserChallengeCache(savedChallenge.userId);
-      }
-      
-      this.invalidateChallengeLists();
-      
-      return savedChallenge;
-    } catch (error) {
-      if (error instanceof ChallengeNotFoundError) {
-        throw error;
-      }
-      
-      this.logger.error('Error updating challenge', {
-        error: error.message,
-        stack: error.stack,
-        challengeId
-      });
-      
-      throw error;
-    }
+    // Merge with existing data and update timestamp
+    const challenge = {
+      ...existingChallenge,
+      ...updateData,
+      updatedAt: new Date().toISOString()
+    };
+    
+    const updatedChallenge = await this.repository.update(challengeIdVO.value, challenge);
+    
+    // Invalidate relevant caches
+    await this._invalidateChallengeRelatedCaches(updatedChallenge);
+    
+    return updatedChallenge;
   }
-
+  
   /**
    * Delete a challenge
-   * @param {string} challengeId - Challenge ID
-   * @returns {Promise<boolean>} True if deleted, false if not found
+   * @param {string|ChallengeId} id - Challenge ID or ChallengeId value object
+   * @returns {Promise<boolean>} True if successfully deleted
    */
-  async deleteChallenge(challengeId) {
-    if (!challengeId) {
-      throw new ChallengeValidationError('Challenge ID is required');
+  async deleteChallenge(id) {
+    // Convert to value object if needed
+    const challengeIdVO = id instanceof ChallengeId ? id : createChallengeId(id);
+    if (!challengeIdVO) {
+      throw new ValidationError(`Invalid challenge ID: ${id}`);
     }
     
-    try {
-      // Get the challenge first to have user ID for cache invalidation
-      const challenge = await this.challengeRepository.findById(challengeId);
-      
-      if (!challenge) {
-        throw new ChallengeNotFoundError(`Challenge with ID ${challengeId} not found`);
-      }
-      
-      const result = await this.challengeRepository.deleteById(challengeId);
-      
-      if (result) {
-        // Delete challenge from cache
-        this.cache.delete(`challenge:id:${challengeId}`);
-        
-        // Invalidate user's challenges lists
-        if (challenge.userId) {
-          this.invalidateUserChallengeCache(challenge.userId);
-        }
-        
-        // Invalidate any search/list caches
-        this.invalidateChallengeLists();
-      }
-      
-      return result;
-    } catch (error) {
-      if (error instanceof ChallengeNotFoundError) {
-        throw error;
-      }
-      
-      this.logger.error('Error deleting challenge', {
-        error: error.message,
-        stack: error.stack,
-        challengeId
-      });
-      
-      throw error;
+    this.logger.debug(`Deleting challenge: ${challengeIdVO.value}`);
+    
+    // Get challenge before deleting (for cache invalidation)
+    const challenge = await this.repository.findById(challengeIdVO.value);
+    
+    if (!challenge) {
+      throw new ChallengeNotFoundError(`Challenge not found with ID: ${challengeIdVO.value}`);
     }
+    
+    const result = await this.repository.delete(challengeIdVO.value);
+    
+    // Invalidate relevant caches
+    await this._invalidateChallengeRelatedCaches(challenge);
+    
+    return result;
   }
-
+  
   /**
-   * Find challenges by criteria
-   * @param {Object} criteria - Search criteria
-   * @param {Object} [options] - Search options
-   * @returns {Promise<Array<Challenge>>} Array of matching challenges
+   * Search challenges with filters
+   * @param {Object} filters - Search filters
+   * @param {Object} options - Query options
+   * @returns {Promise<Array<Object>>} List of matching challenges
    */
-  async findChallenges(criteria, options = {}) {
-    try {
-      // Create a cache key based on criteria and options
-      const criteriaStr = JSON.stringify(criteria || {});
-      const optionsStr = JSON.stringify(options || {});
-      const cacheKey = `challenges:find:${criteriaStr}:${optionsStr}`;
-      
-      return this.cache.getOrSet(cacheKey, async () => {
-        const challenges = await this.challengeRepository.findByCriteria(criteria, options);
-        
-        // Cache individual challenges
-        challenges.forEach(challenge => {
-          this.cache.set(`challenge:id:${challenge.id}`, challenge, CHALLENGE_CACHE_TTL);
-        });
-        
-        return challenges;
-      }, CHALLENGE_LIST_CACHE_TTL);
-    } catch (error) {
-      this.logger.error('Error finding challenges', {
-        error: error.message,
-        stack: error.stack,
-        criteria,
-        options
-      });
-      
-      throw error;
-    }
+  searchChallenges(filters = {}, options = {}) {
+    const { limit = 10, offset = 0, sortBy = 'createdAt', sortDir = 'desc' } = options;
+    
+    // Create a cache key that includes search parameters
+    const filterKey = JSON.stringify(filters);
+    const cacheKey = `${CACHE_KEYS.CHALLENGE_SEARCH}${filterKey}:${limit}:${offset}:${sortBy}:${sortDir}`;
+    
+    return cache.getOrSet(cacheKey, () => {
+      this.logger.debug('Searching challenges', { filters, options });
+      return this.repository.search(filters, { limit, offset, sortBy, sortDir });
+    });
   }
   
   /**
    * Get challenges by focus area
-   * @param {string} focusArea - Focus area name
-   * @param {Object} [options] - Query options
-   * @returns {Promise<Array<Challenge>>} Array of challenges
+   * @param {string|FocusArea} focusArea - Focus area code or FocusArea value object
+   * @param {Object} options - Query options
+   * @returns {Promise<Array<Object>>} List of challenges
    */
-  async getChallengesByFocusArea(focusArea, options = {}) {
-    if (!focusArea) {
-      throw new ChallengeValidationError('Focus area is required');
+  getChallengesByFocusArea(focusArea, options = {}) {
+    // Convert to value object if needed
+    const focusAreaVO = focusArea instanceof FocusArea ? focusArea : createFocusArea(focusArea);
+    if (!focusAreaVO) {
+      throw new ValidationError(`Invalid focus area: ${focusArea}`);
     }
     
-    try {
-      const cacheKey = `challenges:focusArea:${focusArea}:${JSON.stringify(options)}`;
-      
-      return this.cache.getOrSet(cacheKey, async () => {
-        const challenges = await this.challengeRepository.findByCriteria(
-          { focusArea },
-          options
-        );
-        
-        // Cache individual challenges
-        challenges.forEach(challenge => {
-          this.cache.set(`challenge:id:${challenge.id}`, challenge, CHALLENGE_CACHE_TTL);
-        });
-        
-        return challenges;
-      }, CHALLENGE_LIST_CACHE_TTL);
-    } catch (error) {
-      this.logger.error('Error getting challenges by focus area', {
-        error: error.message,
-        stack: error.stack,
-        focusArea,
-        options
-      });
-      
-      throw error;
-    }
+    const { limit = 10, offset = 0, status, sortBy = 'createdAt', sortDir = 'desc' } = options;
+    
+    // Create a cache key that includes all query parameters
+    const cacheKey = `${CACHE_KEYS.CHALLENGES_BY_FOCUS_AREA}${focusAreaVO.value}:` + 
+      `${limit}:${offset}:${status || 'all'}:` + 
+      `${sortBy}:${sortDir}`;
+    
+    return cache.getOrSet(cacheKey, () => {
+      this.logger.debug(`Getting challenges for focus area: ${focusAreaVO.value}`, { options });
+      return this.repository.findByFocusAreaId(
+        focusAreaVO.value, 
+        { limit, offset, status, sortBy, sortDir }
+      );
+    });
   }
   
   /**
-   * Get challenges by type
-   * @param {string} challengeType - Challenge type
-   * @param {Object} [options] - Query options
-   * @returns {Promise<Array<Challenge>>} Array of challenges
+   * Get all challenges with pagination
+   * @param {Object} options - Query options
+   * @returns {Promise<Array<Object>>} List of challenges
    */
-  async getChallengesByType(challengeType, options = {}) {
-    if (!challengeType) {
-      throw new ChallengeValidationError('Challenge type is required');
-    }
+  getAllChallenges(options = {}) {
+    const { limit = 10, offset = 0, status, sortBy = 'createdAt', sortDir = 'desc' } = options;
     
-    try {
-      const cacheKey = `challenges:type:${challengeType}:${JSON.stringify(options)}`;
-      
-      return this.cache.getOrSet(cacheKey, async () => {
-        const challenges = await this.challengeRepository.findByCriteria(
-          { challengeType },
-          options
-        );
-        
-        // Cache individual challenges
-        challenges.forEach(challenge => {
-          this.cache.set(`challenge:id:${challenge.id}`, challenge, CHALLENGE_CACHE_TTL);
-        });
-        
-        return challenges;
-      }, CHALLENGE_LIST_CACHE_TTL);
-    } catch (error) {
-      this.logger.error('Error getting challenges by type', {
-        error: error.message,
-        stack: error.stack,
-        challengeType,
-        options
-      });
-      
-      throw error;
-    }
+    // Create a cache key that includes all query parameters
+    const cacheKey = `${CACHE_KEYS.CHALLENGE_LIST}${limit}:${offset}:${status || 'all'}:${sortBy}:${sortDir}`;
+    
+    return cache.getOrSet(cacheKey, () => {
+      this.logger.debug('Getting all challenges', { options });
+      return this.repository.findAll({ limit, offset, status, sortBy, sortDir });
+    });
   }
   
   /**
-   * Helper to invalidate all user-specific challenge caches
-   * @param {string} userId - User ID
+   * Invalidate related challenge caches
+   * @param {Object} challenge - Challenge object
    * @private
    */
-  invalidateUserChallengeCache(userId) {
-    if (!userId) return;
-    
+  async _invalidateChallengeRelatedCaches(challenge) {
     try {
-      // Delete standard user challenge caches
-      this.cache.delete(`challenges:user:${userId}`);
+      // Use the cache invalidator for centralized cache invalidation
+      await cacheInvalidator.invalidateChallengeCaches(challenge.id);
       
-      // Find and delete all recent challenge caches
-      const recentCacheKeys = this.cache.keys(`challenges:user:${userId}:recent:`);
+      // Additionally invalidate user-specific caches if userId is present
+      if (challenge.userId) {
+        await cacheInvalidator.invalidatePattern(`${CACHE_KEYS.CHALLENGES_BY_USER}${challenge.userId}:*`);
+        await cacheInvalidator.invalidatePattern(`${CACHE_KEYS.RECENT_CHALLENGES}${challenge.userId}:*`);
+      }
       
-      recentCacheKeys.forEach(key => this.cache.delete(key));
+      // Invalidate focus area related caches if focusAreaId is present
+      if (challenge.focusAreaId) {
+        await cacheInvalidator.invalidatePattern(`${CACHE_KEYS.CHALLENGES_BY_FOCUS_AREA}${challenge.focusAreaId}:*`);
+      }
       
-      this.logger.debug(`Invalidated ${recentCacheKeys.length + 1} user challenge caches for user ${userId}`);
+      this.logger.debug(`Invalidated caches for challenge: ${challenge.id}`);
     } catch (error) {
-      this.logger.warn('Error invalidating user challenge caches', { error: error.message });
-    }
-  }
-  
-  /**
-   * Helper to invalidate all challenge list caches
-   * @private
-   */
-  invalidateChallengeLists() {
-    try {
-      // Categories of caches to invalidate
-      const prefixes = [
-        'challenges:find:',
-        'challenges:type:',
-        'challenges:focusArea:'
-      ];
-      
-      // Find all matching keys
-      let keysToInvalidate = [];
-      prefixes.forEach(prefix => {
-        const matchingKeys = this.cache.keys(prefix);
-        keysToInvalidate.push(...matchingKeys);
+      this.logger.error(`Error invalidating challenge caches: ${error.message}`, {
+        error,
+        challengeId: challenge.id
       });
-      
-      // Delete all matching keys
-      keysToInvalidate.forEach(key => this.cache.delete(key));
-      
-      this.logger.debug(`Invalidated ${keysToInvalidate.length} challenge list caches`);
-    } catch (error) {
-      this.logger.warn('Error invalidating challenge list caches', { error: error.message });
     }
   }
 }
 
-module.exports = ChallengeService; 
+// Create instance with repository and export it
+const challengeService = new ChallengeService();
+
+module.exports = { ChallengeService, challengeService }; 

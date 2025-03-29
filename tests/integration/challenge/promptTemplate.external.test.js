@@ -19,7 +19,7 @@ describe('External: Prompt Template OpenAI Integration', function() {
     skipIfMissingEnv(this, 'openai');
   });
 
-// Skip if API keys not available
+  // Skip if API keys not available
   before(function() {
     if (!testEnv.getTestConfig().openai.apiKey) {
       console.warn('OPENAI_API_KEY not found, skipping external OpenAI tests');
@@ -36,7 +36,7 @@ describe('External: Prompt Template OpenAI Integration', function() {
     // Create OpenAI client
     const { OpenAIClient } = require('../../src/infra/openai');
     openaiClient = new OpenAIClient({ apiKey: testEnv.getTestConfig().openai.apiKey
-     });
+    });
   });
   
   it('should generate a prompt template using OpenAI API', async function() {
@@ -56,12 +56,12 @@ describe('External: Prompt Template OpenAI Integration', function() {
     
     // 2. ACT
     const completion = await openaiClient.responses.create({
-      model: "gpt-4o",
+      model: 'gpt-4o',
       messages: [
-        { role: "system", content: "You are an expert prompt engineer who specializes in creating effective prompts for AI systems." },
-        { role: "user", content: prompt }
+        { role: 'system', content: 'You are an expert prompt engineer who specializes in creating effective prompts for AI systems.' },
+        { role: 'user', content: prompt }
       ],
-      response_format: { type: "json_object" }
+      response_format: { type: 'json_object' }
     });
     
     // Parse the response
@@ -103,12 +103,12 @@ describe('External: Prompt Template OpenAI Integration', function() {
     variables: An array of variable names that should be replaced in the template`;
     
     const completion = await openaiClient.responses.create({
-      model: "gpt-4o",
+      model: 'gpt-4o',
       messages: [
-        { role: "system", content: "You are an expert prompt engineer who specializes in creating effective prompts for AI systems." },
-        { role: "user", content: prompt }
+        { role: 'system', content: 'You are an expert prompt engineer who specializes in creating effective prompts for AI systems.' },
+        { role: 'user', content: prompt }
       ],
-      response_format: { type: "json_object" }
+      response_format: { type: 'json_object' }
     });
     
     // Parse the response

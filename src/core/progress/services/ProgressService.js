@@ -1,80 +1,144 @@
+'use strict';
+
 /**
  * Progress Service
  * 
- * Handles business logic for tracking user progress across challenges and focus areas.
+ * Domain service that handles the recording and retrieval of user progress data.
+ * Provides centralized logic for user progress tracking and analytics.
  */
 
-const Progress = require('../models/Progress');
-const ProgressRepository = require('../repositories/ProgressRepository');
-const { EventTypes, eventBus } = require('../../common/events/domainEvents');
-const { v4: uuidv4 } = require('uuid');
+const { createErrorMapper, withServiceErrorHandling } = require('../../../core/infra/errors/errorStandardization');
+const { ProgressError } = require('../errors/ProgressErrors');
 
+/**
+ * Service for handling progress-related operations
+ */
 class ProgressService {
   /**
    * Create a new ProgressService
-   * @param {ProgressRepository} progressRepository - Repository for progress data access
-   * @param {Object} logger - Logger instance
-   * @param {CacheService} cacheService - Cache service for optimizing data access
+   * @param {Object} dependencies - Service dependencies
+   * @param {Object} dependencies.progressRepository - Repository for progress data
+   * @param {Object} dependencies.logger - Logger instance
+   * @param {Object} dependencies.cacheService - Optional cache service
    */
-  constructor(progressRepository, logger, cacheService) {
-    this.progressRepository = progressRepository || new ProgressRepository();
+  constructor(dependencies = {}) {
+    const { progressRepository, logger, cacheService } = dependencies;
+    
+    if (!progressRepository) {
+      throw new Error('progressRepository is required for ProgressService');
+    }
+    
+    this.progressRepository = progressRepository;
     this.logger = logger || console;
     this.cache = cacheService;
+    
+    // Create error mapper for standardized error handling
+    const errorMapper = createErrorMapper(
+      {
+        'Error': ProgressError
+      },
+      ProgressError
+    );
+    
+    // Apply standardized error handling to methods
+    this.getProgress = withServiceErrorHandling(
+      this.getProgress.bind(this),
+      { methodName: 'getProgress', domainName: 'progress', logger: this.logger, errorMapper }
+    );
+    
+    this.getOrCreateProgress = withServiceErrorHandling(
+      this.getOrCreateProgress.bind(this),
+      { methodName: 'getOrCreateProgress', domainName: 'progress', logger: this.logger, errorMapper }
+    );
+    
+    this.recordChallengeCompletion = withServiceErrorHandling(
+      this.recordChallengeCompletion.bind(this),
+      { methodName: 'recordChallengeCompletion', domainName: 'progress', logger: this.logger, errorMapper }
+    );
+    
+    this.updateSkillLevels = withServiceErrorHandling(
+      this.updateSkillLevels.bind(this),
+      { methodName: 'updateSkillLevels', domainName: 'progress', logger: this.logger, errorMapper }
+    );
   }
-
+  
   /**
-   * Get or create a progress record for a user
+   * Get user progress data
    * @param {string} userId - User ID
-   * @returns {Promise<Progress>} Progress record
+   * @returns {Promise<Object>} User progress data
+   */
+  async getProgress(userId) {
+    if (!userId) {
+      throw new Error('User ID is required to get progress');
+    }
+    
+    // Check cache first if available
+    if (this.cache) {
+      const cacheKey = `progress:${userId}`;
+      const cachedProgress = await this.cache.get(cacheKey);
+      
+      if (cachedProgress) {
+        this.logger.debug('Retrieved progress from cache', { userId });
+        return cachedProgress;
+      }
+    }
+    
+    const progress = await this.progressRepository.findByUserId(userId);
+    
+    // Cache result if cache service is available
+    if (progress && this.cache) {
+      const cacheKey = `progress:${userId}`;
+      await this.cache.set(cacheKey, progress, 300); // Cache for 5 minutes
+    }
+    
+    return progress;
+  }
+  
+  /**
+   * Get or create user progress
+   * @param {string} userId - User ID
+   * @returns {Promise<Object>} User progress data
    */
   async getOrCreateProgress(userId) {
     if (!userId) {
-      throw new Error('User ID is required');
+      throw new Error('User ID is required to get or create progress');
     }
-
-    try {
-      // Try to find existing progress
-      let progress = await this.progressRepository.findByUserId(userId);
+    
+    let progress = await this.getProgress(userId);
+    
+    if (!progress) {
+      this.logger.info('Creating new progress record for user', { userId });
       
-      // If no progress exists, create a new one
-      if (!progress) {
-        progress = new Progress({
-          id: uuidv4(),
-          userId,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        });
-        
-        progress = await this.progressRepository.save(progress);
-        
-        // Publish domain event for new progress record
-        await eventBus.publish(EventTypes.PROGRESS_CREATED, {
-          userId,
-          progressId: progress.id
-        });
-
-        this.logger.info('Created new progress record', { userId, progressId: progress.id });
+      // Create a new progress record
+      const newProgress = {
+        userId,
+        completedChallenges: 0,
+        skillLevels: {},
+        challengeHistory: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      progress = await this.progressRepository.create(newProgress);
+      
+      // Cache if available
+      if (this.cache) {
+        const cacheKey = `progress:${userId}`;
+        await this.cache.set(cacheKey, progress, 300); // Cache for 5 minutes
       }
-      
-      return progress;
-    } catch (error) {
-      this.logger.error('Error getting or creating progress', { 
-        error: error.message, 
-        stack: error.stack,
-        userId 
-      });
-      throw error;
     }
+    
+    return progress;
   }
-
+  
   /**
    * Record a challenge completion for a user
    * @param {string} userId - User ID
    * @param {string} challengeId - Challenge ID
-   * @param {number} score - Score achieved (0-100)
-   * @param {number} completionTime - Time taken to complete in seconds
-   * @param {Object} evaluationData - Additional evaluation data
-   * @returns {Promise<Progress>} Updated progress record
+   * @param {number} score - Score (0-100)
+   * @param {number} completionTime - Time to complete in seconds
+   * @param {Object} evaluationData - Evaluation data
+   * @returns {Promise<Object>} Updated progress
    */
   async recordChallengeCompletion(userId, challengeId, score, completionTime, evaluationData = {}) {
     if (!userId) {
@@ -89,44 +153,34 @@ class ProgressService {
       throw new Error('Score must be a number between 0 and 100');
     }
     
-    try {
-      // Get user progress
-      const progress = await this.getOrCreateProgress(userId);
-      
-      // Record the challenge completion
-      progress.recordChallengeCompletion(challengeId, score, completionTime, evaluationData);
-      
-      // Save updated progress
-      const updatedProgress = await this.progressRepository.save(progress);
-      
-      this.logger.info('Recorded challenge completion', { 
-        userId, 
-        challengeId, 
-        score 
-      });
-      
-      // Invalidate cache if using caching
-      if (this.cache) {
-        this.invalidateProgressCache(userId);
-      }
-      
-      return updatedProgress;
-    } catch (error) {
-      this.logger.error('Error recording challenge completion', { 
-        error: error.message, 
-        stack: error.stack,
-        userId,
-        challengeId 
-      });
-      throw error;
+    // Get user progress
+    const progress = await this.getOrCreateProgress(userId);
+    
+    // Record the challenge completion
+    progress.recordChallengeCompletion(challengeId, score, completionTime, evaluationData);
+    
+    // Save updated progress
+    const updatedProgress = await this.progressRepository.save(progress);
+    
+    this.logger.info('Recorded challenge completion', { 
+      userId, 
+      challengeId, 
+      score 
+    });
+    
+    // Invalidate cache if using caching
+    if (this.cache) {
+      this.invalidateProgressCache(userId);
     }
+    
+    return updatedProgress;
   }
-
+  
   /**
    * Update skill levels for a user
    * @param {string} userId - User ID
    * @param {Object} skillLevels - Skill levels to update
-   * @returns {Promise<Progress>} Updated progress record
+   * @returns {Promise<Object>} Updated progress record
    */
   async updateSkillLevels(userId, skillLevels) {
     if (!userId) {
@@ -134,325 +188,52 @@ class ProgressService {
     }
     
     if (!skillLevels || typeof skillLevels !== 'object') {
-      throw new Error('Skill levels must be an object');
+      throw new Error('Skill levels must be provided as an object');
     }
     
-    try {
-      // Get user progress
-      const progress = await this.getOrCreateProgress(userId);
-      
-      // Update skill levels
-      progress.updateSkillLevels(skillLevels);
-      
-      // Save updated progress
-      const updatedProgress = await this.progressRepository.save(progress);
-      
-      this.logger.info('Updated skill levels', { 
-        userId, 
-        skillCount: Object.keys(skillLevels).length 
-      });
-      
-      // Invalidate cache if using caching
-      if (this.cache) {
-        this.invalidateProgressCache(userId);
+    // Get user progress
+    const progress = await this.getOrCreateProgress(userId);
+    
+    // Update the skill levels
+    Object.entries(skillLevels).forEach(([skill, level]) => {
+      if (typeof level === 'number' && level >= 0 && level <= 100) {
+        progress.updateSkillLevel(skill, level);
+      } else {
+        this.logger.warn('Invalid skill level ignored', { skill, level });
       }
-      
-      return updatedProgress;
-    } catch (error) {
-      this.logger.error('Error updating skill levels', { 
-        error: error.message, 
-        stack: error.stack,
-        userId 
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Set the focus area for a user's progress
-   * @param {string} userId - User ID
-   * @param {string} focusArea - Focus area name
-   * @returns {Promise<Progress>} Updated progress record
-   */
-  async setFocusArea(userId, focusArea) {
-    if (!userId) {
-      throw new Error('User ID is required');
+    });
+    
+    // Save updated progress
+    const updatedProgress = await this.progressRepository.save(progress);
+    
+    this.logger.info('Updated skill levels', { 
+      userId, 
+      skillCount: Object.keys(skillLevels).length 
+    });
+    
+    // Invalidate cache if using caching
+    if (this.cache) {
+      this.invalidateProgressCache(userId);
     }
     
-    if (!focusArea) {
-      throw new Error('Focus area is required');
-    }
-    
-    try {
-      // Get user progress
-      const progress = await this.getOrCreateProgress(userId);
-      
-      // Set focus area
-      progress.setFocusArea(focusArea);
-      
-      // Save updated progress
-      const updatedProgress = await this.progressRepository.save(progress);
-      
-      this.logger.info('Set focus area', { userId, focusArea });
-      
-      // Invalidate cache if using caching
-      if (this.cache) {
-        this.invalidateProgressCache(userId);
-      }
-      
-      return updatedProgress;
-    } catch (error) {
-      this.logger.error('Error setting focus area', { 
-        error: error.message, 
-        stack: error.stack,
-        userId,
-        focusArea 
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Get all progress records for a user
-   * @param {string} userId - User ID
-   * @returns {Promise<Array<Progress>>} Array of progress records
-   */
-  async getAllProgressForUser(userId) {
-    if (!userId) {
-      throw new Error('User ID is required');
-    }
-    
-    try {
-      // Use cache if available
-      if (this.cache) {
-        const cacheKey = `progress:user:${userId}:all`;
-        return this.cache.getOrSet(cacheKey, async () => {
-          return this.progressRepository.findAllByUserId(userId);
-        }, 300); // Cache for 5 minutes
-      }
-      
-      return this.progressRepository.findAllByUserId(userId);
-    } catch (error) {
-      this.logger.error('Error getting all progress for user', { 
-        error: error.message, 
-        stack: error.stack,
-        userId 
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Get a user's progress for a specific challenge
-   * @param {string} userId - User ID
-   * @param {string} challengeId - Challenge ID
-   * @returns {Promise<Progress|null>} Progress record or null if not found
-   */
-  async getProgressForChallenge(userId, challengeId) {
-    if (!userId) {
-      throw new Error('User ID is required');
-    }
-    
-    if (!challengeId) {
-      throw new Error('Challenge ID is required');
-    }
-    
-    try {
-      // Use cache if available
-      if (this.cache) {
-        const cacheKey = `progress:user:${userId}:challenge:${challengeId}`;
-        return this.cache.getOrSet(cacheKey, async () => {
-          return this.progressRepository.findByUserAndChallenge(userId, challengeId);
-        }, 300); // Cache for 5 minutes
-      }
-      
-      return this.progressRepository.findByUserAndChallenge(userId, challengeId);
-    } catch (error) {
-      this.logger.error('Error getting progress for challenge', { 
-        error: error.message, 
-        stack: error.stack,
-        userId,
-        challengeId 
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Get progress records by focus area
-   * @param {string} focusArea - Focus area name
-   * @returns {Promise<Array<Progress>>} Array of progress records
-   */
-  async getProgressByFocusArea(focusArea) {
-    if (!focusArea) {
-      throw new Error('Focus area is required');
-    }
-    
-    try {
-      // Use cache if available
-      if (this.cache) {
-        const cacheKey = `progress:focusArea:${focusArea}`;
-        return this.cache.getOrSet(cacheKey, async () => {
-          return this.progressRepository.findByFocusArea(focusArea);
-        }, 300); // Cache for 5 minutes
-      }
-      
-      return this.progressRepository.findByFocusArea(focusArea);
-    } catch (error) {
-      this.logger.error('Error getting progress by focus area', { 
-        error: error.message, 
-        stack: error.stack,
-        focusArea 
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Calculate user's overall progress
-   * @param {string} userId - User ID
-   * @returns {Promise<Object>} Overall progress statistics
-   */
-  async calculateOverallProgress(userId) {
-    if (!userId) {
-      throw new Error('User ID is required');
-    }
-    
-    try {
-      // Use cache if available
-      if (this.cache) {
-        const cacheKey = `progress:user:${userId}:stats`;
-        return this.cache.getOrSet(cacheKey, async () => {
-          // Get user progress
-          const progress = await this.getOrCreateProgress(userId);
-          
-          // Return statistics
-          return {
-            totalChallenges: progress.statistics.totalChallenges || 0,
-            averageScore: progress.statistics.averageScore || 0,
-            highestScore: progress.statistics.highestScore || 0,
-            averageCompletionTime: progress.statistics.averageCompletionTime || 0,
-            streakDays: progress.statistics.streakDays || 0,
-            lastActive: progress.statistics.lastActive || null,
-            skillLevels: progress.skillLevels || {},
-            strengths: progress.strengths || [],
-            weaknesses: progress.weaknesses || []
-          };
-        }, 300); // Cache for 5 minutes
-      }
-      
-      // Get user progress directly if not using cache
-      const progress = await this.getOrCreateProgress(userId);
-      
-      // Return statistics
-      return {
-        totalChallenges: progress.statistics.totalChallenges || 0,
-        averageScore: progress.statistics.averageScore || 0,
-        highestScore: progress.statistics.highestScore || 0,
-        averageCompletionTime: progress.statistics.averageCompletionTime || 0,
-        streakDays: progress.statistics.streakDays || 0,
-        lastActive: progress.statistics.lastActive || null,
-        skillLevels: progress.skillLevels || {},
-        strengths: progress.strengths || [],
-        weaknesses: progress.weaknesses || []
-      };
-    } catch (error) {
-      this.logger.error('Error calculating overall progress', { 
-        error: error.message, 
-        stack: error.stack,
-        userId 
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Delete a progress record
-   * @param {string} id - Progress ID
-   * @returns {Promise<boolean>} True if successful
-   */
-  async deleteProgress(id) {
-    if (!id) {
-      throw new Error('Progress ID is required');
-    }
-    
-    try {
-      // Get the progress record first to get the userId for cache invalidation
-      const progress = await this.progressRepository.findById(id);
-      const result = await this.progressRepository.delete(id);
-      
-      if (result && progress && this.cache) {
-        this.invalidateProgressCache(progress.userId);
-      }
-      
-      this.logger.info('Deleted progress record', { id });
-      
-      return result;
-    } catch (error) {
-      this.logger.error('Error deleting progress', { 
-        error: error.message, 
-        stack: error.stack,
-        id 
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Delete all progress records for a user
-   * @param {string} userId - User ID
-   * @returns {Promise<boolean>} True if successful
-   */
-  async deleteAllProgressForUser(userId) {
-    if (!userId) {
-      throw new Error('User ID is required');
-    }
-    
-    try {
-      const result = await this.progressRepository.deleteAllForUser(userId);
-      
-      if (result && this.cache) {
-        this.invalidateProgressCache(userId);
-      }
-      
-      this.logger.info('Deleted all progress for user', { userId });
-      
-      return result;
-    } catch (error) {
-      this.logger.error('Error deleting all progress for user', { 
-        error: error.message, 
-        stack: error.stack,
-        userId 
-      });
-      throw error;
-    }
+    return updatedProgress;
   }
   
   /**
-   * Helper method to invalidate all progress cache for a user
+   * Invalidate progress cache for a user
    * @param {string} userId - User ID
    * @private
    */
   invalidateProgressCache(userId) {
-    if (!this.cache || !userId) return;
-    
-    try {
-      // Get all keys with userId
-      const userKeys = this.cache.keys(`progress:user:${userId}`);
-      
-      // Invalidate each key
-      userKeys.forEach(key => this.cache.delete(key));
-      
-      this.logger.debug(`Invalidated ${userKeys.length} progress cache entries for user`, {
-        userId
-      });
-    } catch (error) {
-      this.logger.warn('Error invalidating progress cache', { 
-        error: error.message,
-        userId 
-      });
+    if (!this.cache || !userId) {
+      return;
     }
+    
+    const cacheKey = `progress:${userId}`;
+    this.cache.delete(cacheKey);
+    
+    this.logger.debug('Invalidated progress cache', { userId });
   }
 }
 
-module.exports = ProgressService; 
+module.exports = ProgressService;

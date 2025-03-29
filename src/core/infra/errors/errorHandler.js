@@ -1,12 +1,14 @@
+'use strict';
+
 /**
  * Error Handling Infrastructure
- * 
+ *
  * Provides centralized error handling for the application
  * Placed in infrastructure layer as a cross-cutting concern
  */
 
 const AppError = require('./AppError');
-const { logger } = require('../logging/logger');
+const { logger } = require('../../logging/logger');
 const config = require('../../../config/config');
 
 // Standard error codes for API responses
@@ -21,28 +23,28 @@ const StandardErrorCodes = {
   CONFLICT: 'ERR_1006',
   TIMEOUT: 'ERR_1007',
   TOO_MANY_REQUESTS: 'ERR_1008',
-  
+
   // Infrastructure errors (2xxx)
   DATABASE_ERROR: 'ERR_2000',
   NETWORK_ERROR: 'ERR_2001',
   EXTERNAL_SERVICE_ERROR: 'ERR_2002',
   DEPENDENCY_ERROR: 'ERR_2003',
   CONFIGURATION_ERROR: 'ERR_2004',
-  
+
   // Domain-specific errors (3xxx)
   DOMAIN_ERROR: 'ERR_3000',
   BUSINESS_RULE_VIOLATION: 'ERR_3001',
   INVALID_STATE_TRANSITION: 'ERR_3002',
-  
+
   // Integration errors (4xxx)
   API_ERROR: 'ERR_4000',
   OPENAI_ERROR: 'ERR_4001',
   AUTH_SERVICE_ERROR: 'ERR_4002',
-  
+
   // User interaction errors (5xxx)
   INPUT_ERROR: 'ERR_5000',
   RESOURCE_LIMIT_EXCEEDED: 'ERR_5001',
-  RATE_LIMITED: 'ERR_5002'
+  RATE_LIMITED: 'ERR_5002',
 };
 
 /**
@@ -50,35 +52,54 @@ const StandardErrorCodes = {
  * @param {Error} err - The error object
  * @returns {string} Standard error code
  */
-const mapErrorToStandardCode = (err) => {
+const mapErrorToStandardCode = err => {
   // If error already has an errorCode, use it
   if (err.errorCode) {
     return err.errorCode;
   }
-  
+
   // Map based on error status code
   if (err.statusCode) {
     switch (err.statusCode) {
-      case 400: return StandardErrorCodes.BAD_REQUEST;
-      case 401: return StandardErrorCodes.UNAUTHORIZED;
-      case 403: return StandardErrorCodes.FORBIDDEN;
-      case 404: return StandardErrorCodes.NOT_FOUND;
-      case 408: return StandardErrorCodes.TIMEOUT;
-      case 409: return StandardErrorCodes.CONFLICT;
-      case 429: return StandardErrorCodes.TOO_MANY_REQUESTS;
+      case 400:
+        return StandardErrorCodes.BAD_REQUEST;
+      case 401:
+        return StandardErrorCodes.UNAUTHORIZED;
+      case 403:
+        return StandardErrorCodes.FORBIDDEN;
+      case 404:
+        return StandardErrorCodes.NOT_FOUND;
+      case 408:
+        return StandardErrorCodes.TIMEOUT;
+      case 409:
+        return StandardErrorCodes.CONFLICT;
+      case 429:
+        return StandardErrorCodes.TOO_MANY_REQUESTS;
     }
   }
-  
+
   // Map based on error name/type
   if (err.name) {
-    if (err.name.includes('Validation')) return StandardErrorCodes.VALIDATION_ERROR;
-    if (err.name.includes('NotFound')) return StandardErrorCodes.NOT_FOUND;
-    if (err.name.includes('Unauthorized')) return StandardErrorCodes.UNAUTHORIZED;
-    if (err.name.includes('Forbidden')) return StandardErrorCodes.FORBIDDEN;
-    if (err.name.includes('Timeout')) return StandardErrorCodes.TIMEOUT;
-    if (err.name.includes('Duplicate') || err.name.includes('Conflict')) return StandardErrorCodes.CONFLICT;
+    if (err.name.includes('Validation')) {
+      return StandardErrorCodes.VALIDATION_ERROR;
+    }
+    if (err.name.includes('NotFound')) {
+      return StandardErrorCodes.NOT_FOUND;
+    }
+    if (err.name.includes('Unauthorized')) {
+      return StandardErrorCodes.UNAUTHORIZED;
+    }
+    if (err.name.includes('Forbidden')) {
+      return StandardErrorCodes.FORBIDDEN;
+    }
+    if (err.name.includes('Timeout')) {
+      return StandardErrorCodes.TIMEOUT;
+    }
+    if (err.name.includes('Duplicate') || err.name.includes('Conflict')) {
+      return StandardErrorCodes.CONFLICT;
+    }
   }
-  
+
   // Default to unknown error
   return StandardErrorCodes.UNKNOWN_ERROR;
 };
@@ -88,50 +109,53 @@ const mapErrorToStandardCode = (err) => {
  * @param {Error} err - The error object
  * @returns {Array} Array of error causes
  */
-const extractCauseChain = (err) => {
+const extractCauseChain = err => {
   const causes = [];
   let currentCause = err.cause;
-  
+
   while (currentCause) {
     causes.push({
       message: currentCause.message,
       name: currentCause.name,
       ...(currentCause.code && { code: currentCause.code }),
-      ...(currentCause.errorCode && { errorCode: currentCause.errorCode })
+      ...(currentCause.errorCode && { errorCode: currentCause.errorCode }),
     });
-    
+
     currentCause = currentCause.cause;
   }
-  
+
   return causes;
 };
 
 /**
  * Error response formatter - formats error response for API clients
+ * @param {Error} err - The error object to format
+ * @param {boolean} includeDetails - Whether to include detailed error information
+ * @returns {Object} Formatted error response object
  */
 const formatErrorResponse = (err, includeDetails = false) => {
   // Get a standard error code if not provided
   const errorCode = err.errorCode || mapErrorToStandardCode(err);
-  
+
   const response = {
     success: false,
     status: err.status || 'error',
     message: err.isOperational ? err.message : 'Something went wrong!',
     errorCode: errorCode,
-    requestId: err.requestId
+    requestId: err.requestId,
   };
 
   if (includeDetails) {
     response.error = {
       name: err.name,
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     };
-    
+
     if (err.cause) {
       response.causes = extractCauseChain(err);
     }
-    
+
     if (err.metadata) {
       response.metadata = err.metadata;
     }
@@ -142,15 +166,20 @@ const formatErrorResponse = (err, includeDetails = false) => {
 
 /**
  * Global error handling middleware for Express
+ * @param {Error} err - The error object
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} _next - Express next function (unused)
+ * @returns {void}
  */
-const errorHandler = (err, req, res, next) => {
+const errorHandler = (err, req, res, _next) => {
   // Set default status code and error status if not provided
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
-  
+
   // Add request ID to error for tracking
   err.requestId = req.id;
-  
+
   // Add user context if available
   if (req.user) {
     err.userId = req.user.id;
@@ -178,7 +207,7 @@ const errorHandler = (err, req, res, next) => {
     domain: err.metadata?.domain || 'unknown',
     metadata: err.metadata || {},
     causes: err.cause ? extractCauseChain(err) : undefined,
-    stack: err.stack
+    stack: err.stack,
   });
 
   // Send error response based on environment
@@ -188,11 +217,15 @@ const errorHandler = (err, req, res, next) => {
 
 /**
  * 404 Not Found handler for Express
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next function
+ * @returns {void}
  */
 const notFoundHandler = (req, res, next) => {
   const error = new AppError(`Route not found: ${req.originalUrl}`, 404, {
     errorCode: StandardErrorCodes.NOT_FOUND,
-    metadata: { path: req.originalUrl }
+    metadata: { path: req.originalUrl },
   });
   next(error);
 };
@@ -200,14 +233,15 @@ const notFoundHandler = (req, res, next) => {
 /**
  * Format error response based on environment
  * @param {Error} err - The error object
- * @param {Request} req - The request object
+ * @param {Object} req - The request object
+ * @returns {Object} Formatted error response
  */
 const formatError = (err, req) => {
   // Start with basic error info
   const errorResponse = {
     status: err.status || 'error',
     message: err.message || 'Something went wrong',
-    requestId: req.id
+    requestId: req.id,
   };
 
   // If we have a domain, add domain-specific data
@@ -227,11 +261,14 @@ const formatError = (err, req) => {
 
 /**
  * Error Handler Class
- * 
+ *
  * Central error handling utility for transforming errors
  * and providing a consistent error handling interface
  */
 class ErrorHandler {
+  /**
+   * Create a new ErrorHandler instance
+   */
   constructor() {
     this.formatErrorResponse = formatErrorResponse;
     this.formatError = formatError;
@@ -241,9 +278,10 @@ class ErrorHandler {
   /**
    * Handle error for Express middleware
    * @param {Error} err - Error to handle
-   * @param {Request} req - Express request object
-   * @param {Response} res - Express response object
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
    * @param {Function} next - Express next function
+   * @returns {void}
    */
   handleError(err, req, res, next) {
     return errorHandler(err, req, res, next);
@@ -251,14 +289,15 @@ class ErrorHandler {
 
   /**
    * Handle 404 Not Found errors
-   * @param {Request} req - Express request object
-   * @param {Response} res - Express response object
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
    * @param {Function} next - Express next function
+   * @returns {void}
    */
   handleNotFound(req, res, next) {
     return notFoundHandler(req, res, next);
   }
-  
+
   /**
    * Map an error to a standard error code
    * @param {Error} err - Error to map
@@ -277,5 +316,5 @@ module.exports = {
   StandardErrorCodes,
   mapErrorToStandardCode,
   AppError,
-  ErrorHandler
-}; 
+  ErrorHandler,
+};

@@ -22,11 +22,11 @@ describe('Focus Area OpenAI Responses API Integration', function() {
   // Set longer timeout for API calls
   this.timeout(30000);
 
-before(function() {
+  before(function() {
     skipIfMissingEnv(this, 'openai');
   });
 
-// Configure longer timeout for API calls
+  // Configure longer timeout for API calls
   this.timeout(TEST_TIMEOUT);
   
   let openAIClient;

@@ -18,11 +18,11 @@ describe('Supabase Client', function() {
   // Set longer timeout for API calls
   this.timeout(30000);
 
-before(function() {
+  before(function() {
     skipIfMissingEnv(this, 'supabase');
   });
 
-let supabase;
+  let supabase;
   
   before(function() {
     // Skip tests if Supabase credentials not available

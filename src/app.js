@@ -1,38 +1,44 @@
+'use strict';
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
+const swaggerUi = require('swagger-ui-express');
+const swaggerJsDoc = require('swagger-jsdoc');
+const swaggerOptions = require('./config/swagger');
 
 // Import container for dependency injection
-const container = require('./config/container');
+const { container } = require('./config/container');
 
 // Get dependencies from container
-const config = container.get('config');
-const logger = container.get('logger');
-const { requestLogger, errorLogger, correlationIdMiddleware } = require('./core/infrastructure/logging/logger');
-const { errorHandler, notFoundHandler } = require('./core/infrastructure/errors/errorHandler');
-const { responseFormatterMiddleware } = require('./core/infrastructure/http/responseFormatter');
-const RouteFactory = require('./core/infrastructure/http/routes/RouteFactory');
+const _config = container.get('config');
+const { logger } = require('./core/infra/logging/logger');
+const {
+  requestLogger,
+  errorLogger,
+  correlationIdMiddleware,
+} = require('./core/infra/logging/logger');
+const { errorHandler, notFoundHandler } = require('./core/infra/errors/ErrorHandler');
+const { responseFormatterMiddleware } = require('./core/infra/http/responseFormatter');
+const RouteFactory = require('./core/infra/http/routes/RouteFactory');
 
 // Import domain events system
-const { eventBus, eventTypes } = require('./core/infrastructure/messaging/domainEvents');
+const { eventBus: _eventBus, EventTypes: _EventTypes } = require('./core/common/events/domainEvents');
 
-// Import domain event handlers
-const { registerEvaluationEventHandlers } = require('./core/evaluation/events/evaluationEvents');
-const { registerPersonalityEventHandlers } = require('./core/personality/events/personalityEvents');
-const { registerProgressEventHandlers } = require('./core/progress/events/progressEvents');
-const { registerAdaptiveEventHandlers } = require('./core/adaptive/events/adaptiveEvents');
-const { registerUserJourneyEventHandlers } = require('./core/userJourney/events/userJourneyEvents');
-const { registerFocusAreaEventHandlers } = require('./core/focusArea/events/focusAreaEvents');
-const { registerChallengeEventHandlers } = require('./core/challenge/events/challengeEvents');
-const { registerUserEventHandlers } = require('./core/user/events/userEvents');
-
-// Register application event handlers
+// Register application event handlers (moved from inline to a separate file)
 const { registerEventHandlers } = require('./application/EventHandlers');
 registerEventHandlers(container);
 
-// Initialize Express app
+// Register domain event handlers (moved to a separate file)
+const { registerAllDomainEventHandlers } = require('./core/infra/events/eventSetup');
+
+// Import health check utilities (these are now used by the HealthCheckService)
+// const { runDatabaseHealthCheck } = require('./core/infra/db/databaseConnection');
+// const { checkOpenAIStatus } = require('./core/infra/openai/healthCheck');
+
+// Create Express application
 const app = express();
 
 // Basic middleware
@@ -53,121 +59,38 @@ app.use(correlationIdMiddleware);
 // Request logging
 app.use(requestLogger);
 
-// Add health check endpoint
-app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    status: 'success',
-    message: 'Server is running',
-    timestamp: new Date().toISOString()
-  });
-});
+// Initialize Swagger
+const swaggerDocs = swaggerJsDoc(swaggerOptions);
+app.use(
+  '/api-docs',
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerDocs, {
+    explorer: true,
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'AI Fight Club API Documentation',
+  })
+);
 
-// Add test endpoints for the API Tester UI
-const inMemoryUsers = new Map(); // Simple in-memory user storage for testing
-
-app.post('/api/test/user', async (req, res) => {
-  try {
-    const { email, password, fullName } = req.body;
-    
-    if (!email) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Email is required'
-      });
-    }
-    
-    logger.debug('Creating/retrieving test user', { email });
-    
-    // Check if user already exists in memory
-    if (inMemoryUsers.has(email)) {
-      const existingUser = inMemoryUsers.get(email);
-      logger.info('User already exists in memory', { email });
-      
-      return res.status(200).json({
-        status: 'success',
-        data: {
-          user: existingUser,
-          token: 'test-token-for-existing-user'
-        },
-        message: 'User already exists'
-      });
-    }
-    
-    // Create a new user in memory
-    const newUser = {
-      id: require('uuid').v4(),
-      email,
-      fullName: fullName || 'Test User',
-      professionalTitle: 'Test Role',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      status: 'active',
-      roles: ['user']
-    };
-    
-    // Store in memory
-    inMemoryUsers.set(email, newUser);
-    
-    logger.info('Created new test user in memory', { email });
-    
-    return res.status(201).json({
-      status: 'success',
-      data: {
-        user: newUser,
-        token: 'test-token-for-new-user'
-      },
-      message: 'User created successfully'
-    });
-  } catch (error) {
-    logger.error('Error in test user endpoint', { error: error.message });
-    return res.status(500).json({
-      status: 'error',
-      message: `Error creating test user: ${error.message}`
-    });
-  }
-});
+// Add enhanced health check endpoint
+// This health check endpoint is now provided by the healthRoutes module
+// and mounted by the RouteFactory
 
 // Serve the API Tester UI static files
 const testerUiPath = path.join(__dirname, '../api-tester-ui');
 app.use('/tester', express.static(testerUiPath));
 logger.info(`API Tester UI available at /tester`);
 
-// Create a simple proxy for the UI to access the API through /api
-app.use('/api/v1', (req, res, next) => {
-  // Forward to the actual API routes
-  next();
-});
-
 // Add response formatter middleware
 app.use(responseFormatterMiddleware);
 
-// Initialize Supabase (will be implemented when Supabase is integrated)
-const { initializeSupabase } = require('./core/infrastructure/persistence/databaseConnection');
-
-// Initialize domain event handlers - register all domain event handlers
-function initializeDomainEventSystem() {
-  // Register event handlers from each domain
-  registerEvaluationEventHandlers();
-  registerPersonalityEventHandlers();
-  registerProgressEventHandlers();
-  registerAdaptiveEventHandlers();
-  registerUserJourneyEventHandlers();
-  registerFocusAreaEventHandlers();
-  registerChallengeEventHandlers();
-  registerUserEventHandlers();
-  
-  logger.info('Domain event handlers registered successfully');
-}
-
-// Initialize the domain event system
-initializeDomainEventSystem();
+// Register domain event handlers
+registerAllDomainEventHandlers();
 
 // Initialize route factory
 const routeFactory = new RouteFactory(container);
 
-// Mount all routes using the route factory - mount at both /api/v1 and /v1 for backward compatibility
+// Mount all routes using the route factory - only using /api/v1 for consistent API path
 routeFactory.mountAll(app, '/api/v1');
-routeFactory.mountAll(app, '/v1');
 
 // Handle 404 errors
 app.use(notFoundHandler);

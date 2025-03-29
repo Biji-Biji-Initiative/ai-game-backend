@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Prompt Builder Facade
  * 
@@ -11,18 +13,18 @@
 const { logger } = require('../../core/infra/logging/logger');
 const { PROMPT_TYPES } = require('./promptTypes');
 const { PromptBuilderNotFoundError, PromptConstructionError } = require('./common/errors');
-const { formatForResponsesApi } = require('../../infra/openai/messageFormatter');
+const { formatForResponsesApi } = require(../../core/infra/openai/messageFormatter');
 
 // Import all prompt builders
-const EvaluationPromptBuilder = require('./builders/EvaluationPromptBuilder');
-const ChallengePromptBuilder = require('./builders/ChallengePromptBuilder');
-const FocusAreaPromptBuilder = require('./builders/FocusAreaPromptBuilder');
-const PersonalityPromptBuilder = require('./builders/PersonalityPromptBuilder');
-const ProgressPromptBuilder = require('./builders/ProgressPromptBuilder');
-const AdaptiveChallengeSelectionPromptBuilder = require('./builders/AdaptiveChallengeSelectionPromptBuilder');
-const DifficultyCalibratonPromptBuilder = require('./builders/DifficultyCalibratonPromptBuilder');
-const PersonalizedLearningPathPromptBuilder = require('./builders/PersonalizedLearningPathPromptBuilder');
-const EngagementOptimizationPromptBuilder = require('./builders/EngagementOptimizationPromptBuilder');
+// const EvaluationPromptBuilder = require('./builders/EvaluationPromptBuilder');
+// const ChallengePromptBuilder = require('./builders/ChallengePromptBuilder');
+// const FocusAreaPromptBuilder = require('./builders/FocusAreaPromptBuilder');
+// const PersonalityPromptBuilder = require('./builders/PersonalityPromptBuilder');
+// const ProgressPromptBuilder = require('./builders/ProgressPromptBuilder');
+// const AdaptiveChallengeSelectionPromptBuilder = require('./builders/AdaptiveChallengeSelectionPromptBuilder');
+// const DifficultyCalibratonPromptBuilder = require('./builders/DifficultyCalibratonPromptBuilder');
+// const PersonalizedLearningPathPromptBuilder = require('./builders/PersonalizedLearningPathPromptBuilder');
+// const EngagementOptimizationPromptBuilder = require('./builders/EngagementOptimizationPromptBuilder');
 
 // Builder registry to store all available prompt builders
 const builderRegistry = new Map();
@@ -34,7 +36,7 @@ const builderRegistry = new Map();
  * @param {Object} meta - Additional metadata
  * @private
  */
-function log(level, message, meta = {}) {
+async async async async async function log(level, message, meta = {}) {
   if (logger && typeof logger[level] === 'function') {
     logger[level](message, meta);
   } else {
@@ -46,7 +48,7 @@ function log(level, message, meta = {}) {
  * Register all the default prompt builders
  * @private
  */
-function registerDefaultBuilders() {
+async async async async async function registerDefaultBuilders() {
   // Register all builders using a consistent pattern
   registerBuilder(PROMPT_TYPES.EVALUATION, EvaluationPromptBuilder.build);
   registerBuilder(PROMPT_TYPES.CHALLENGE, ChallengePromptBuilder.build);
@@ -71,13 +73,13 @@ function registerDefaultBuilders() {
  * @throws {Error} If the builder function is not valid
  * @public
  */
-function registerBuilder(type, builderFn) {
+async async async async async function registerBuilder(type, builderFn) {
   if (typeof builderFn !== 'function') {
-    throw new Error(`Builder for "${type}" must be a function`);
+    throw new Error(`Builder for '${type}' must be a function`);
   }
   
   builderRegistry.set(type.toLowerCase(), builderFn);
-  log('debug', `Registered prompt builder for "${type}"`, { 
+  log('debug', `Registered prompt builder for '${type}'`, { 
     totalBuilders: builderRegistry.size 
   });
 }
@@ -89,15 +91,15 @@ function registerBuilder(type, builderFn) {
  * @throws {Error} If the builder instance lacks a build method
  * @public
  */
-function registerBuilderInstance(type, builderInstance) {
+async async async async async function registerBuilderInstance(type, builderInstance) {
   if (!builderInstance || 
       typeof builderInstance !== 'object' || 
       typeof builderInstance.build !== 'function') {
-    throw new Error(`Builder instance for "${type}" must have a build method`);
+    throw new Error(`Builder instance for '${type}' must have a build method`);
   }
   
   builderRegistry.set(type.toLowerCase(), builderInstance.build.bind(builderInstance));
-  log('debug', `Registered prompt builder instance for "${type}"`, { 
+  log('debug', `Registered prompt builder instance for '${type}'`, { 
     totalBuilders: builderRegistry.size 
   });
 }
@@ -108,7 +110,7 @@ function registerBuilderInstance(type, builderInstance) {
  * @returns {string} Normalized type
  * @private
  */
-function normalizeType(type) {
+async async async async async function normalizeType(type) {
   return type.toLowerCase();
 }
 
@@ -117,7 +119,7 @@ function normalizeType(type) {
  * @returns {Array<string>} Array of available prompt types
  * @public
  */
-function getAvailableTypes() {
+async async async async async function getAvailableTypes() {
   return Array.from(builderRegistry.keys());
 }
 
@@ -125,7 +127,7 @@ function getAvailableTypes() {
  * Reset the builder registry, often used in testing
  * @public
  */
-function reset() {
+async async async async async function reset() {
   builderRegistry.clear();
   registerDefaultBuilders();
 }
@@ -137,7 +139,7 @@ function reset() {
  * @throws {PromptBuilderNotFoundError} If the builder is not found
  * @private
  */
-function getBuilder(type) {
+async async async async async function getBuilder(type) {
   const normalizedType = normalizeType(type);
   
   if (!builderRegistry.has(normalizedType)) {
@@ -155,11 +157,11 @@ function getBuilder(type) {
  * @throws {PromptConstructionError} If the builder encounters an error
  * @public
  */
-async function buildPrompt(type, params) {
+async async async async async function buildPrompt(type, params) {
   try {
     const builder = getBuilder(type);
     
-    log('debug', `Building prompt using builder for type "${type}"`, {
+    log('debug', `Building prompt using builder for type '${type}'`, {
       paramKeys: Object.keys(params)
     });
     
@@ -174,7 +176,7 @@ async function buildPrompt(type, params) {
       // Validate required properties
       if (typeof result.input !== 'string' && !Array.isArray(result.input)) {
         throw new PromptConstructionError(
-          `Builder for "${type}" returned invalid input type: ${typeof result.input}. Must be string or array.`
+          `Builder for '${type}' returned invalid input type: ${typeof result.input}. Must be string or array.`
         );
       }
       
@@ -182,7 +184,7 @@ async function buildPrompt(type, params) {
           result.instructions !== null && 
           typeof result.instructions !== 'string') {
         throw new PromptConstructionError(
-          `Builder for "${type}" returned invalid instructions type: ${typeof result.instructions}. Must be string or null.`
+          `Builder for '${type}' returned invalid instructions type: ${typeof result.instructions}. Must be string or null.`
         );
       }
       
@@ -196,13 +198,13 @@ async function buildPrompt(type, params) {
     
     // Handle legacy string return (input only)
     if (typeof result === 'string') {
-      log('warn', `Builder for "${type}" returned legacy string format. Should return Responses API format.`);
+      log('warn', `Builder for '${type}' returned legacy string format. Should return Responses API format.`);
       return formatForResponsesApi(result, null);
     }
     
     // Handle legacy object formats 
     if (typeof result === 'object' && result !== null) {
-      log('warn', `Builder for "${type}" returned legacy object format. Should return Responses API format.`);
+      log('warn', `Builder for '${type}' returned legacy object format. Should return Responses API format.`);
       
       // Handle object with prompt/content and systemMessage/system
       if (result.prompt || result.content) {
@@ -218,19 +220,19 @@ async function buildPrompt(type, params) {
       
       // Unrecognized format
       throw new PromptConstructionError(
-        `Builder for "${type}" returned unrecognized format that cannot be converted to Responses API format`, 
+        `Builder for '${type}' returned unrecognized format that cannot be converted to Responses API format`, 
         { result }
       );
     }
     
     // Result isn't a recognized type
     throw new PromptConstructionError(
-      `Invalid prompt result format from builder "${type}": ${typeof result}`,
+      `Invalid prompt result format from builder '${type}': ${typeof result}`,
       { result }
     );
     
   } catch (error) {
-    log('error', `Error building prompt for type "${type}"`, {
+    log('error', `Error building prompt for type '${type}'`, {
       error: error.message,
       stack: error.stack
     });
@@ -240,7 +242,7 @@ async function buildPrompt(type, params) {
       throw error;
     }
     
-    throw new PromptConstructionError(`Failed to build prompt for type "${type}": ${error.message}`, {
+    throw new PromptConstructionError(`Failed to build prompt for type '${type}': ${error.message}`, {
       originalError: error
     });
   }
@@ -252,13 +254,13 @@ async function buildPrompt(type, params) {
  * @returns {Function} A specialized builder function
  * @public
  */
-function createBuilder(type) {
+async async async async async function createBuilder(type) {
   const builder = getBuilder(type);
-  return async (params) => {
+  return async params => {
     try {
       return await buildPrompt(type, params);
     } catch (error) {
-      throw new PromptConstructionError(`Failed to create builder for type "${type}": ${error.message}`, {
+      throw new PromptConstructionError(`Failed to create builder for type '${type}': ${error.message}`, {
         originalError: error
       });
     }
@@ -271,7 +273,7 @@ function createBuilder(type) {
  * @returns {boolean} True if a builder exists, false otherwise
  * @public
  */
-function hasBuilder(type) {
+async async async async async function hasBuilder(type) {
   return builderRegistry.has(normalizeType(type));
 }
 

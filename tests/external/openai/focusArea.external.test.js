@@ -19,7 +19,7 @@ describe('External: OpenAI Focus Area Integration', function() {
     skipIfMissingEnv(this, 'openai');
   });
 
-// Configure longer timeout for external API calls
+  // Configure longer timeout for external API calls
   this.timeout(30000);
   
   let openaiClient;
@@ -33,7 +33,7 @@ describe('External: OpenAI Focus Area Integration', function() {
     
     // Initialize OpenAI client
     openaiClient = new OpenAIClient({ apiKey: testEnv.getTestConfig().openai.apiKey
-     });
+    });
   });
   
   it('should generate focus area recommendations using OpenAI', async function() {
@@ -59,8 +59,8 @@ describe('External: OpenAI Focus Area Integration', function() {
     const completion = await openaiClient.responses.create({
       model: 'gpt-4-turbo-preview',
       messages: [
-        { role: "system", content: "You are an expert career advisor specializing in AI skill development." },
-        { role: "user", content: prompt }
+        { role: 'system', content: 'You are an expert career advisor specializing in AI skill development.' },
+        { role: 'user', content: prompt }
       ],
       response_format: { type: 'json_object' }, model: 'gpt-4-turbo-preview'
     });
@@ -105,8 +105,8 @@ describe('External: OpenAI Focus Area Integration', function() {
     const completion = await openaiClient.responses.create({
       model: 'gpt-4-turbo-preview',
       messages: [
-        { role: "system", content: "You are an expert career advisor specializing in AI skill development." },
-        { role: "user", content: prompt }
+        { role: 'system', content: 'You are an expert career advisor specializing in AI skill development.' },
+        { role: 'user', content: prompt }
       ],
       response_format: { type: 'json_object' }, model: 'gpt-4-turbo-preview'
     });

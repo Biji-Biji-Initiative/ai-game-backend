@@ -1,6 +1,8 @@
+'use strict';
+
 /**
  * Challenge Domain Events
- * 
+ *
  * Events that occur within the Challenge domain.
  * Following DDD principles, these events are used to communicate changes
  * in the domain to other domains.
@@ -20,14 +22,14 @@ async function publishChallengeCreated(challengeId, userEmail, focusArea) {
     await eventBus.publishEvent(EventTypes.CHALLENGE_CREATED, {
       challengeId,
       userEmail,
-      focusArea
+      focusArea,
     });
     logger.debug('Published challenge created event', { challengeId, userEmail });
   } catch (error) {
-    logger.error('Error publishing challenge created event', { 
+    logger.error('Error publishing challenge created event', {
       error: error.message,
       challengeId,
-      userEmail
+      userEmail,
     });
   }
 }
@@ -44,14 +46,14 @@ async function publishChallengeUpdated(challengeId, userEmail, changes) {
     await eventBus.publishEvent(EventTypes.CHALLENGE_UPDATED, {
       challengeId,
       userEmail,
-      changes
+      changes,
     });
     logger.debug('Published challenge updated event', { challengeId, userEmail });
   } catch (error) {
-    logger.error('Error publishing challenge updated event', { 
+    logger.error('Error publishing challenge updated event', {
       error: error.message,
       challengeId,
-      userEmail
+      userEmail,
     });
   }
 }
@@ -68,14 +70,14 @@ async function publishChallengeResponseSubmitted(challengeId, userEmail, respons
     await eventBus.publishEvent(EventTypes.CHALLENGE_RESPONSE_SUBMITTED, {
       challengeId,
       userEmail,
-      response
+      response,
     });
     logger.debug('Published challenge response submitted event', { challengeId, userEmail });
   } catch (error) {
-    logger.error('Error publishing challenge response submitted event', { 
+    logger.error('Error publishing challenge response submitted event', {
       error: error.message,
       challengeId,
-      userEmail
+      userEmail,
     });
   }
 }
@@ -92,14 +94,14 @@ async function publishChallengeEvaluated(challengeId, userEmail, evaluation) {
     await eventBus.publishEvent(EventTypes.CHALLENGE_EVALUATED, {
       challengeId,
       userEmail,
-      evaluation
+      evaluation,
     });
     logger.debug('Published challenge evaluated event', { challengeId, userEmail });
   } catch (error) {
-    logger.error('Error publishing challenge evaluated event', { 
+    logger.error('Error publishing challenge evaluated event', {
       error: error.message,
       challengeId,
-      userEmail
+      userEmail,
     });
   }
 }
@@ -107,43 +109,43 @@ async function publishChallengeEvaluated(challengeId, userEmail, evaluation) {
 /**
  * Set up challenge event subscriptions
  */
-function registerChallengeEventHandlers() {
+async function registerChallengeEventHandlers() {
   // When user focus area is set, generate new challenges
-  eventBus.subscribe(EventTypes.USER_FOCUS_AREA_SET, async (event) => {
-    logger.debug('Handling user focus area set event', { 
+  eventBus.subscribe(EventTypes.USER_FOCUS_AREA_SET, async event => {
+    logger.debug('Handling user focus area set event', {
       userId: event.payload.userId,
-      focusArea: event.payload.focusArea 
+      focusArea: event.payload.focusArea,
     });
-    
+
     // In a real implementation, we would generate new challenges for the user
-    logger.info('New challenges would be generated for user focus area', { 
+    logger.info('New challenges would be generated for user focus area', {
       userId: event.payload.userId,
-      focusArea: event.payload.focusArea
+      focusArea: event.payload.focusArea,
     });
   });
-  
+
   // When progress is updated, adjust challenge difficulty
-  eventBus.subscribe(EventTypes.PROGRESS_UPDATED, async (event) => {
-    logger.debug('Handling progress updated event', { 
-      userId: event.payload.userId
+  eventBus.subscribe(EventTypes.PROGRESS_UPDATED, async event => {
+    logger.debug('Handling progress updated event', {
+      userId: event.payload.userId,
     });
-    
+
     // In a real implementation, we would adjust challenge difficulty
-    logger.info('Challenge difficulty would be adjusted based on progress', { 
-      userId: event.payload.userId
+    logger.info('Challenge difficulty would be adjusted based on progress', {
+      userId: event.payload.userId,
     });
   });
-  
+
   // When evaluation is completed, update challenge status
-  eventBus.subscribe(EventTypes.EVALUATION_COMPLETED, async (event) => {
-    logger.debug('Handling evaluation completed event', { 
-      challengeId: event.payload.challengeId 
-    });
-    
-    // In a real implementation, we would update the challenge status
-    logger.info('Challenge status would be updated based on evaluation', { 
+  eventBus.subscribe(EventTypes.EVALUATION_COMPLETED, async event => {
+    logger.debug('Handling evaluation completed event', {
       challengeId: event.payload.challengeId,
-      userEmail: event.payload.userEmail
+    });
+
+    // In a real implementation, we would update the challenge status
+    logger.info('Challenge status would be updated based on evaluation', {
+      challengeId: event.payload.challengeId,
+      userEmail: event.payload.userEmail,
     });
   });
 }
@@ -153,5 +155,5 @@ module.exports = {
   publishChallengeUpdated,
   publishChallengeResponseSubmitted,
   publishChallengeEvaluated,
-  registerChallengeEventHandlers
-}; 
+  registerChallengeEventHandlers,
+};

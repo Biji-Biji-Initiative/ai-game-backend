@@ -15,11 +15,20 @@ const domainEvents = require('../../src/core/common/events/domainEvents');
 const testSetup = require('../setup');
 
 // Mock service implementations
+/**
+ *
+ */
 class ChallengeService {
+  /**
+   *
+   */
   constructor(challengeRepository) {
     this.challengeRepository = challengeRepository;
   }
   
+  /**
+   *
+   */
   async completeChallenge(challengeId, userId, response, score) {
     // Get the challenge
     const challenge = await this.challengeRepository.findById(challengeId);
@@ -48,11 +57,20 @@ class ChallengeService {
   }
 }
 
+/**
+ *
+ */
 class FocusAreaProgressService {
+  /**
+   *
+   */
   constructor(focusAreaRepository) {
     this.focusAreaRepository = focusAreaRepository;
   }
   
+  /**
+   *
+   */
   async updateProgress(userId, focusAreaName, score) {
     // Find focus areas for the user
     const userFocusAreas = await this.focusAreaRepository.findByUserId(userId);
@@ -122,7 +140,7 @@ describe('Challenge and Focus Area Cross-Domain Integration', function() {
     focusAreaProgressService = new FocusAreaProgressService(focusAreaRepository);
     
     // Register domain event handler
-    domainEvents.registerHandler('ChallengeCompleted', async (event) => {
+    domainEvents.registerHandler('ChallengeCompleted', async event => {
       const { data } = event;
       
       if (data.focusArea) {

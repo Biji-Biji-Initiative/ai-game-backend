@@ -39,12 +39,12 @@ describe('OpenAI Responses API', function() {
     
     // Make a request with response_format set to json_object
     const response = await openai.createChatCompletion({
-      model: "gpt-4-turbo-preview",
+      model: 'gpt-4-turbo-preview',
       messages: [
-        { role: "system", content: "You are a helpful assistant that returns data in JSON format." },
-        { role: "user", content: prompt }
+        { role: 'system', content: 'You are a helpful assistant that returns data in JSON format.' },
+        { role: 'user', content: prompt }
       ],
-      response_format: { type: "json_object" }
+      response_format: { type: 'json_object' }
     });
     
     const responseData = response.data;

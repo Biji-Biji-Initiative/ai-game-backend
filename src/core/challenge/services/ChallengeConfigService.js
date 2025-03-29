@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Challenge Config Service
  * 
@@ -6,6 +8,8 @@
  * Encapsulates repository implementation details from clients.
  */
 
+const { createErrorMapper, withServiceErrorHandling } = require('../../../core/infra/errors/errorStandardization');
+const { ChallengeConfigError } = require('../errors/ChallengeErrors');
 const { challengeLogger } = require('../../../core/infra/logging/domainLogger');
 
 /**
@@ -49,22 +53,107 @@ class ChallengeConfigService {
     this.focusAreaConfigRepository = focusAreaConfigRepository;
     this.difficultyLevelRepository = difficultyLevelRepository;
     this.logger = logger || challengeLogger.child({ component: 'service:challenge-config' });
+
+    // Create error mapper for standardized error handling
+    const errorMapper = createErrorMapper({
+      'EntityNotFoundError': ChallengeConfigError,
+      'ValidationError': ChallengeConfigError
+    }, ChallengeConfigError);
+
+    // Apply standardized error handling to methods
+    this.getChallengeType = withServiceErrorHandling(this.getChallengeType.bind(this), {
+      methodName: 'getChallengeType',
+      domainName: 'challenge',
+      logger: this.logger,
+      errorMapper
+    });
+
+    this.getAllChallengeTypes = withServiceErrorHandling(this.getAllChallengeTypes.bind(this), {
+      methodName: 'getAllChallengeTypes',
+      domainName: 'challenge',
+      logger: this.logger,
+      errorMapper
+    });
+
+    this.getFormatType = withServiceErrorHandling(this.getFormatType.bind(this), {
+      methodName: 'getFormatType',
+      domainName: 'challenge',
+      logger: this.logger,
+      errorMapper
+    });
+
+    this.getAllFormatTypes = withServiceErrorHandling(this.getAllFormatTypes.bind(this), {
+      methodName: 'getAllFormatTypes',
+      domainName: 'challenge',
+      logger: this.logger,
+      errorMapper
+    });
+
+    this.getFocusAreaConfig = withServiceErrorHandling(this.getFocusAreaConfig.bind(this), {
+      methodName: 'getFocusAreaConfig',
+      domainName: 'challenge',
+      logger: this.logger,
+      errorMapper
+    });
+
+    this.getAllFocusAreaConfigs = withServiceErrorHandling(this.getAllFocusAreaConfigs.bind(this), {
+      methodName: 'getAllFocusAreaConfigs',
+      domainName: 'challenge',
+      logger: this.logger,
+      errorMapper
+    });
+
+    this.getDifficultyLevel = withServiceErrorHandling(this.getDifficultyLevel.bind(this), {
+      methodName: 'getDifficultyLevel',
+      domainName: 'challenge',
+      logger: this.logger,
+      errorMapper
+    });
+
+    this.getAllDifficultyLevels = withServiceErrorHandling(this.getAllDifficultyLevels.bind(this), {
+      methodName: 'getAllDifficultyLevels',
+      domainName: 'challenge',
+      logger: this.logger,
+      errorMapper
+    });
+
+    this.getRecommendedChallengeParameters = withServiceErrorHandling(this.getRecommendedChallengeParameters.bind(this), {
+      methodName: 'getRecommendedChallengeParameters',
+      domainName: 'challenge',
+      logger: this.logger,
+      errorMapper
+    });
+
+    this.getDifficultySettings = withServiceErrorHandling(this.getDifficultySettings.bind(this), {
+      methodName: 'getDifficultySettings',
+      domainName: 'challenge',
+      logger: this.logger,
+      errorMapper
+    });
+
+    this.validateChallengeConfig = withServiceErrorHandling(this.validateChallengeConfig.bind(this), {
+      methodName: 'validateChallengeConfig',
+      domainName: 'challenge',
+      logger: this.logger,
+      errorMapper
+    });
   }
 
   /**
    * Get challenge type by code
    * @param {string} typeCode - Challenge type code
    * @returns {Promise<Object>} Challenge type data
+   * @throws {ChallengeConfigError} If type not found or invalid code
    */
   async getChallengeType(typeCode) {
     if (!typeCode) {
-      throw new Error('Type code is required to get challenge type');
+      throw new ChallengeConfigError('Type code is required to get challenge type');
     }
     
     const type = await this.challengeTypeRepository.getChallengeTypeByCode(typeCode);
     
     if (!type) {
-      throw new Error(`Challenge type with code '${typeCode}' not found`);
+      throw new ChallengeConfigError(`Challenge type with code '${typeCode}' not found`);
     }
     
     return type;
@@ -74,24 +163,25 @@ class ChallengeConfigService {
    * Get all challenge types
    * @returns {Promise<Array<Object>>} Array of challenge types
    */
-  async getAllChallengeTypes() {
-    return await this.challengeTypeRepository.getChallengeTypes();
+  getAllChallengeTypes() {
+    return this.challengeTypeRepository.getChallengeTypes();
   }
 
   /**
    * Get format type by code
    * @param {string} formatCode - Format type code
    * @returns {Promise<Object>} Format type data
+   * @throws {ChallengeConfigError} If format not found or invalid code
    */
   async getFormatType(formatCode) {
     if (!formatCode) {
-      throw new Error('Format code is required to get format type');
+      throw new ChallengeConfigError('Format code is required to get format type');
     }
     
     const format = await this.formatTypeRepository.getFormatTypeByCode(formatCode);
     
     if (!format) {
-      throw new Error(`Format type with code '${formatCode}' not found`);
+      throw new ChallengeConfigError(`Format type with code '${formatCode}' not found`);
     }
     
     return format;
@@ -101,24 +191,25 @@ class ChallengeConfigService {
    * Get all format types
    * @returns {Promise<Array<Object>>} Array of format types
    */
-  async getAllFormatTypes() {
-    return await this.formatTypeRepository.getFormatTypes();
+  getAllFormatTypes() {
+    return this.formatTypeRepository.getFormatTypes();
   }
 
   /**
    * Get focus area config by code
    * @param {string} focusAreaCode - Focus area code
    * @returns {Promise<Object>} Focus area config data
+   * @throws {ChallengeConfigError} If focus area not found or invalid code
    */
   async getFocusAreaConfig(focusAreaCode) {
     if (!focusAreaCode) {
-      throw new Error('Focus area code is required to get focus area config');
+      throw new ChallengeConfigError('Focus area code is required to get focus area config');
     }
     
     const focusArea = await this.focusAreaConfigRepository.getFocusAreaByCode(focusAreaCode);
     
     if (!focusArea) {
-      throw new Error(`Focus area with code '${focusAreaCode}' not found`);
+      throw new ChallengeConfigError(`Focus area with code '${focusAreaCode}' not found`);
     }
     
     return focusArea;
@@ -128,24 +219,25 @@ class ChallengeConfigService {
    * Get all focus area configs
    * @returns {Promise<Array<Object>>} Array of focus area configs
    */
-  async getAllFocusAreaConfigs() {
-    return await this.focusAreaConfigRepository.getFocusAreas();
+  getAllFocusAreaConfigs() {
+    return this.focusAreaConfigRepository.getFocusAreas();
   }
 
   /**
    * Get difficulty level by code
    * @param {string} difficultyCode - Difficulty level code
    * @returns {Promise<Object>} Difficulty level data
+   * @throws {ChallengeConfigError} If difficulty level not found or invalid code
    */
   async getDifficultyLevel(difficultyCode) {
     if (!difficultyCode) {
-      throw new Error('Difficulty code is required to get difficulty level');
+      throw new ChallengeConfigError('Difficulty code is required to get difficulty level');
     }
     
     const difficulty = await this.difficultyLevelRepository.getDifficultyLevelByCode(difficultyCode);
     
     if (!difficulty) {
-      throw new Error(`Difficulty level with code '${difficultyCode}' not found`);
+      throw new ChallengeConfigError(`Difficulty level with code '${difficultyCode}' not found`);
     }
     
     return difficulty;
@@ -155,8 +247,100 @@ class ChallengeConfigService {
    * Get all difficulty levels
    * @returns {Promise<Array<Object>>} Array of difficulty levels
    */
-  async getAllDifficultyLevels() {
-    return await this.difficultyLevelRepository.getDifficultyLevels();
+  getAllDifficultyLevels() {
+    return this.difficultyLevelRepository.getDifficultyLevels();
+  }
+
+  /**
+   * Get difficulty settings for a specific difficulty level
+   * @param {string} difficultyCode - Difficulty level code (easy, medium, hard)
+   * @param {string} challengeTypeCode - Challenge type code
+   * @returns {Promise<Object>} Difficulty settings
+   */
+  async getDifficultySettings(difficultyCode, challengeTypeCode) {
+    // Get base difficulty level
+    const difficultyLevel = await this.getDifficultyLevel(difficultyCode);
+    
+    // Get challenge type for type-specific settings
+    const challengeType = await this.getChallengeType(challengeTypeCode);
+    
+    // Merge the base settings with any type-specific settings
+    const baseSettings = difficultyLevel.settings || {};
+    const typeSettings = (challengeType.difficultySettings || {})[difficultyCode] || {};
+    
+    return {
+      ...baseSettings,
+      ...typeSettings,
+      level: difficultyCode
+    };
+  }
+
+  /**
+   * Validate a challenge configuration
+   * @param {Object} config - Challenge configuration to validate
+   * @param {string} config.challengeTypeCode - Challenge type code
+   * @param {string} config.formatTypeCode - Format type code
+   * @param {string} config.focusArea - Focus area code
+   * @param {string} config.difficulty - Difficulty level code
+   * @returns {Promise<boolean>} True if valid, throws error if invalid
+   */
+  async validateChallengeConfig(config) {
+    if (!config) {
+      throw new ChallengeConfigError('Config object is required for validation');
+    }
+
+    const validationPromises = [];
+    const errors = [];
+
+    // Validate challenge type if specified
+    if (config.challengeTypeCode) {
+      validationPromises.push(
+        this.getChallengeType(config.challengeTypeCode)
+          .catch(err => {
+            errors.push(`Invalid challenge type: ${err.message}`);
+          })
+      );
+    }
+
+    // Validate format type if specified
+    if (config.formatTypeCode) {
+      validationPromises.push(
+        this.getFormatType(config.formatTypeCode)
+          .catch(err => {
+            errors.push(`Invalid format type: ${err.message}`);
+          })
+      );
+    }
+
+    // Validate focus area if specified
+    if (config.focusArea) {
+      validationPromises.push(
+        this.getFocusAreaConfig(config.focusArea)
+          .catch(err => {
+            errors.push(`Invalid focus area: ${err.message}`);
+          })
+      );
+    }
+
+    // Validate difficulty if specified
+    if (config.difficulty) {
+      validationPromises.push(
+        this.getDifficultyLevel(config.difficulty)
+          .catch(err => {
+            errors.push(`Invalid difficulty: ${err.message}`);
+          })
+      );
+    }
+
+    // Wait for all validation checks to complete
+    await Promise.all(validationPromises);
+
+    // If there are any errors, throw with all error messages
+    if (errors.length > 0) {
+      throw new ChallengeConfigError(`Challenge configuration validation failed: ${errors.join('; ')}`);
+    }
+
+    return true;
   }
 
   /**
@@ -164,16 +348,18 @@ class ChallengeConfigService {
    * @param {Object} user - User profile data
    * @param {Array} recentChallenges - User's recent challenges
    * @returns {Promise<Object>} Recommended challenge parameters
+   * @throws {ChallengeConfigError} If user data is missing or invalid
    */
   async getRecommendedChallengeParameters(user, recentChallenges = []) {
     if (!user) {
-      throw new Error('User data is required for parameter recommendations');
+      throw new ChallengeConfigError('User data is required for parameter recommendations');
     }
     
     // Get all available types
     const challengeTypes = await this.getAllChallengeTypes();
     const formatTypes = await this.getAllFormatTypes();
-    const focusAreas = await this.getAllFocusAreaConfigs();
+    // We load all focus areas for potential future use but don't currently use the variable
+    // const focusAreas = await this.getAllFocusAreaConfigs();
     
     // Default values
     let recommendedType = challengeTypes.find(t => t.code === 'critical-analysis') || challengeTypes[0];
@@ -246,4 +432,4 @@ class ChallengeConfigService {
   }
 }
 
-module.exports = ChallengeConfigService; 
+module.exports = ChallengeConfigService;

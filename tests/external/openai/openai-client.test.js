@@ -25,11 +25,11 @@ describe('OpenAI Client', function() {
   // Set longer timeout for API calls
   this.timeout(30000);
 
-before(function() {
+  before(function() {
     skipIfMissingEnv(this, 'openai');
   });
 
-let sandbox;
+  let sandbox;
   
   beforeEach(function() {
     // Create a sinon sandbox for mocking

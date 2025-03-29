@@ -1,6 +1,8 @@
+'use strict';
+
 /**
  * User Schema Definitions using Zod
- * 
+ *
  * Defines validation schemas for the User domain model
  * to ensure data consistency and integrity.
  * Personality data is now managed by the personality domain.
@@ -9,60 +11,232 @@
 const { z } = require('zod');
 
 // Define the basic user schema
-const userSchema = z.object({
-  // Required fields
-  id: z.string().uuid().nullable(),
-  email: z.string().email('Invalid email format'),
-  fullName: z.string().min(1, 'Full name is required'),
-  
-  // Optional fields with defaults
-  professionalTitle: z.string().optional().default(''),
-  location: z.string().optional().default(''),
-  country: z.string().optional().default(''),
-  focusArea: z.string().optional().default(''),
-  lastActive: z.string().nullable().optional(),
-  createdAt: z.string().optional(),
-  updatedAt: z.string().optional(),
-  
-  // Account status and metadata
-  status: z.enum(['active', 'inactive', 'pending', 'suspended']).optional().default('active'),
-  roles: z.array(z.string()).optional().default(['user']),
-  onboardingCompleted: z.boolean().optional().default(false),
-  lastLoginAt: z.string().nullable().optional(),
-  
-  // Thread IDs
-  focusAreaThreadId: z.string().optional().default(''),
-  challengeThreadId: z.string().optional().default(''),
-  evaluationThreadId: z.string().optional().default(''),
-  personalityThreadId: z.string().optional().default(''),
-  
-  // Preferences
-  preferences: z.object({
-    theme: z.enum(['light', 'dark', 'system']).optional().default('system'),
-    emailNotifications: z.boolean().optional().default(true),
-    pushNotifications: z.boolean().optional().default(true),
-    aiInteraction: z.object({
-      detailLevel: z.enum(['basic', 'detailed', 'comprehensive']).optional().default('detailed'),
-      communicationStyle: z.enum(['formal', 'casual', 'technical']).optional().default('casual'),
-      responseFormat: z.enum(['structured', 'conversational', 'mixed']).optional().default('mixed')
-    }).optional().default({})
-  }).optional().default({})
-});
+const userSchema = z
+  .object({
+    // Required fields
+    id: z.string().uuid('User ID must be a valid UUID').nullable(),
+    email: z
+      .string()
+      .email('Invalid email format')
+      .min(3, 'Email must be at least 3 characters')
+      .max(254, 'Email cannot exceed 254 characters')
+      .refine(email => email.trim() === email, 'Email cannot start or end with whitespace'),
+    fullName: z
+      .string()
+      .min(1, 'Full name is required and cannot be empty')
+      .max(100, 'Full name cannot exceed 100 characters')
+      .refine(name => name.trim() === name, 'Full name cannot start or end with whitespace'),
+
+    // Optional fields with defaults
+    professionalTitle: z
+      .string()
+      .max(100, 'Professional title cannot exceed 100 characters')
+      .refine(
+        title => !title || title.trim() === title,
+        'Professional title cannot start or end with whitespace'
+      )
+      .default(''),
+    location: z
+      .string()
+      .max(100, 'Location cannot exceed 100 characters')
+      .refine(loc => !loc || loc.trim() === loc, 'Location cannot start or end with whitespace')
+      .default(''),
+    country: z
+      .string()
+      .max(100, 'Country cannot exceed 100 characters')
+      .refine(
+        country => !country || country.trim() === country,
+        'Country cannot start or end with whitespace'
+      )
+      .default(''),
+    focusArea: z
+      .string()
+      .max(100, 'Focus area cannot exceed 100 characters')
+      .refine(
+        area => !area || area.trim() === area,
+        'Focus area cannot start or end with whitespace'
+      )
+      .default(''),
+    lastActive: z
+      .string()
+      .datetime('Last active must be a valid ISO datetime')
+      .nullable()
+      .optional(),
+    createdAt: z.string().datetime('Created at must be a valid ISO datetime').optional(),
+    updatedAt: z.string().datetime('Updated at must be a valid ISO datetime').optional(),
+
+    // Account status and metadata
+    status: z
+      .enum(['active', 'inactive', 'pending', 'suspended'], {
+        errorMap: () => ({
+          message: 'Status must be one of: active, inactive, pending, suspended',
+        }),
+      })
+      .default('active'),
+    roles: z
+      .array(
+        z.enum(['user', 'admin', 'moderator'], {
+          errorMap: () => ({ message: 'Role must be one of: user, admin, moderator' }),
+        })
+      )
+      .min(1, 'At least one role is required')
+      .default(['user']),
+    onboardingCompleted: z.boolean().default(false),
+    lastLoginAt: z
+      .string()
+      .datetime('Last login must be a valid ISO datetime')
+      .nullable()
+      .optional(),
+
+    // Thread IDs
+    focusAreaThreadId: z
+      .string()
+      .min(1, 'Focus area thread ID cannot be empty')
+      .max(100, 'Focus area thread ID cannot exceed 100 characters')
+      .optional()
+      .default(''),
+    challengeThreadId: z
+      .string()
+      .min(1, 'Challenge thread ID cannot be empty')
+      .max(100, 'Challenge thread ID cannot exceed 100 characters')
+      .optional()
+      .default(''),
+    evaluationThreadId: z
+      .string()
+      .min(1, 'Evaluation thread ID cannot be empty')
+      .max(100, 'Evaluation thread ID cannot exceed 100 characters')
+      .optional()
+      .default(''),
+    personalityThreadId: z
+      .string()
+      .min(1, 'Personality thread ID cannot be empty')
+      .max(100, 'Personality thread ID cannot exceed 100 characters')
+      .optional()
+      .default(''),
+
+    // Preferences
+    preferences: z
+      .object({
+        theme: z
+          .enum(['light', 'dark', 'system'], {
+            errorMap: () => ({ message: 'Theme must be one of: light, dark, system' }),
+          })
+          .default('system'),
+        emailNotifications: z.boolean().default(true),
+        pushNotifications: z.boolean().default(true),
+        aiInteraction: z
+          .object({
+            detailLevel: z
+              .enum(['basic', 'detailed', 'comprehensive'], {
+                errorMap: () => ({
+                  message: 'Detail level must be one of: basic, detailed, comprehensive',
+                }),
+              })
+              .default('detailed'),
+            communicationStyle: z
+              .enum(['formal', 'casual', 'technical'], {
+                errorMap: () => ({
+                  message: 'Communication style must be one of: formal, casual, technical',
+                }),
+              })
+              .default('casual'),
+            responseFormat: z
+              .enum(['structured', 'conversational', 'mixed'], {
+                errorMap: () => ({
+                  message: 'Response format must be one of: structured, conversational, mixed',
+                }),
+              })
+              .default('mixed'),
+          })
+          .strict()
+          .default({}),
+      })
+      .strict()
+      .default({}),
+  })
+  .strict();
 
 // Schema for creating a new user
-const createUserSchema = userSchema.omit({ 
-  id: true, 
-  createdAt: true, 
-  updatedAt: true 
-});
+const createUserSchema = userSchema
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+    lastActive: true,
+    lastLoginAt: true,
+  })
+  .extend({
+    password: z
+      .string()
+      .min(8, 'Password must be at least 8 characters')
+      .max(100, 'Password cannot exceed 100 characters')
+      .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+      .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+      .regex(/[0-9]/, 'Password must contain at least one number')
+      .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
+  })
+  .strict();
 
-// Schema for updating an existing user
-const updateUserSchema = userSchema.partial().omit({ 
-  id: true, 
-  email: true, 
-  createdAt: true, 
-  updatedAt: true 
-});
+// Schema for updating a user
+const updateUserSchema = userSchema
+  .partial()
+  .omit({
+    id: true,
+    email: true,
+    createdAt: true,
+    updatedAt: true,
+    lastActive: true,
+    lastLoginAt: true,
+  })
+  .strict();
+
+// Schema for user search options
+const userSearchOptionsSchema = z
+  .object({
+    limit: z
+      .number()
+      .int('Limit must be a whole number')
+      .positive('Limit must be a positive number')
+      .max(100, 'Limit cannot exceed 100')
+      .optional()
+      .default(20),
+    offset: z
+      .number()
+      .int('Offset must be a whole number')
+      .nonnegative('Offset cannot be negative')
+      .optional()
+      .default(0),
+    status: z
+      .enum(['active', 'inactive', 'pending', 'suspended'], {
+        errorMap: () => ({
+          message: 'Status must be one of: active, inactive, pending, suspended',
+        }),
+      })
+      .optional(),
+    role: z
+      .enum(['user', 'admin', 'moderator'], {
+        errorMap: () => ({ message: 'Role must be one of: user, admin, moderator' }),
+      })
+      .optional(),
+    focusArea: z
+      .string()
+      .min(1, 'Focus area cannot be empty')
+      .max(100, 'Focus area cannot exceed 100 characters')
+      .optional(),
+    onboardingCompleted: z.boolean().optional(),
+    startDate: z.string().datetime('Start date must be a valid ISO datetime').optional(),
+    endDate: z.string().datetime('End date must be a valid ISO datetime').optional(),
+  })
+  .strict()
+  .refine(
+    data => {
+      if (data.startDate && data.endDate) {
+        return new Date(data.startDate) <= new Date(data.endDate);
+      }
+      return true;
+    },
+    { message: 'Start date must be before or equal to end date' }
+  );
 
 // Schema for database representation (snake_case keys)
 const userDatabaseSchema = z.object({
@@ -84,64 +258,13 @@ const userDatabaseSchema = z.object({
   challenge_thread_id: z.string().optional().default(''),
   evaluation_thread_id: z.string().optional().default(''),
   personality_thread_id: z.string().optional().default(''),
-  preferences: z.any().optional() // Stored as JSONB in the database
+  preferences: z.any().optional(), // Stored as JSONB in the database
 });
-
-// Convert from database format to domain model format
-function fromDatabase(dbUser) {
-  return {
-    id: dbUser.id,
-    email: dbUser.email,
-    fullName: dbUser.full_name,
-    professionalTitle: dbUser.professional_title,
-    location: dbUser.location,
-    country: dbUser.country,
-    focusArea: dbUser.focus_area,
-    lastActive: dbUser.last_active,
-    createdAt: dbUser.created_at,
-    updatedAt: dbUser.updated_at,
-    status: dbUser.status || 'active',
-    roles: dbUser.roles || ['user'],
-    onboardingCompleted: dbUser.onboarding_completed || false,
-    lastLoginAt: dbUser.last_login_at || null,
-    focusAreaThreadId: dbUser.focus_area_thread_id,
-    challengeThreadId: dbUser.challenge_thread_id,
-    evaluationThreadId: dbUser.evaluation_thread_id,
-    personalityThreadId: dbUser.personality_thread_id,
-    preferences: dbUser.preferences || {}
-  };
-}
-
-// Convert from domain model format to database format
-function toDatabase(user) {
-  return {
-    id: user.id,
-    email: user.email,
-    full_name: user.fullName,
-    professional_title: user.professionalTitle,
-    location: user.location,
-    country: user.country,
-    focus_area: user.focusArea,
-    last_active: user.lastActive,
-    created_at: user.createdAt,
-    updated_at: user.updatedAt,
-    status: user.status || 'active',
-    roles: user.roles || ['user'],
-    onboarding_completed: user.onboardingCompleted || false,
-    last_login_at: user.lastLoginAt || null,
-    focus_area_thread_id: user.focusAreaThreadId,
-    challenge_thread_id: user.challengeThreadId,
-    evaluation_thread_id: user.evaluationThreadId,
-    personality_thread_id: user.personalityThreadId,
-    preferences: user.preferences || {}
-  };
-}
 
 module.exports = {
   userSchema,
   createUserSchema,
   updateUserSchema,
+  userSearchOptionsSchema,
   userDatabaseSchema,
-  fromDatabase,
-  toDatabase
-}; 
+};

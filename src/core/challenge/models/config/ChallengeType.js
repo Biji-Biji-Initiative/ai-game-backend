@@ -1,12 +1,17 @@
+'use strict';
+
 /**
  * Challenge Type Model
- * 
+ *
  * Represents a type of challenge in the system (e.g., critical-analysis, creative-problem-solving).
  * This is a configuration entity that defines the structure and properties of challenges.
  */
 
 const { v4: uuidv4 } = require('uuid');
 
+/**
+ * Challenge Type domain entity
+ */
 class ChallengeType {
   /**
    * Create a new ChallengeType
@@ -23,6 +28,9 @@ class ChallengeType {
    * @param {boolean} [data.isActive] - Whether this challenge type is active
    * @param {string} [data.createdAt] - Creation timestamp
    * @param {string} [data.updatedAt] - Last update timestamp
+   */
+  /**
+   * Method constructor
    */
   constructor(data = {}) {
     this.id = data.id || uuidv4();
@@ -44,6 +52,9 @@ class ChallengeType {
    * @param {string} formatType - Format type code to check
    * @returns {boolean} True if format is supported
    */
+  /**
+   * Method supportsFormat
+   */
   supportsFormat(formatType) {
     return this.formatTypes.includes(formatType);
   }
@@ -52,6 +63,9 @@ class ChallengeType {
    * Check if this challenge type is related to a focus area
    * @param {string} focusArea - Focus area to check
    * @returns {boolean} True if related to focus area
+   */
+  /**
+   * Method relatedToFocusArea
    */
   relatedToFocusArea(focusArea) {
     return this.focusAreas.includes(focusArea);
@@ -62,6 +76,9 @@ class ChallengeType {
    * @param {string} trait - Trait to check
    * @returns {boolean} True if trait is leveraged
    */
+  /**
+   * Method leveragesTrait
+   */
   leveragesTrait(trait) {
     return this.leveragedTraits.includes(trait);
   }
@@ -69,6 +86,9 @@ class ChallengeType {
   /**
    * Get recommended next challenge types
    * @returns {Array<string>} Array of challenge type codes
+   */
+  /**
+   * Method getNextChallengeTypes
    */
   getNextChallengeTypes() {
     return [...this.progressionPath];
@@ -79,64 +99,30 @@ class ChallengeType {
    * @param {Object} updates - Fields to update
    * @returns {ChallengeType} Updated challenge type
    */
+  /**
+   * Method update
+   */
   update(updates) {
     const allowedFields = [
-      'name', 'description', 'formatTypes', 'focusAreas',
-      'leveragedTraits', 'progressionPath', 'metadata', 'isActive'
+      'name',
+      'description',
+      'formatTypes',
+      'focusAreas',
+      'leveragedTraits',
+      'progressionPath',
+      'metadata',
+      'isActive',
     ];
-    
+
     for (const field of allowedFields) {
       if (updates[field] !== undefined) {
         this[field] = updates[field];
       }
     }
-    
+
     this.updatedAt = new Date().toISOString();
     return this;
   }
-
-  /**
-   * Convert to database format
-   * @returns {Object} Database representation
-   */
-  toDatabase() {
-    return {
-      id: this.id,
-      code: this.code,
-      name: this.name,
-      description: this.description,
-      format_types: this.formatTypes,
-      focus_areas: this.focusAreas,
-      leveraged_traits: this.leveragedTraits,
-      progression_path: this.progressionPath,
-      metadata: this.metadata,
-      is_active: this.isActive,
-      created_at: this.createdAt,
-      updated_at: this.updatedAt
-    };
-  }
-
-  /**
-   * Create from database record
-   * @param {Object} data - Database record
-   * @returns {ChallengeType} ChallengeType instance
-   */
-  static fromDatabase(data) {
-    return new ChallengeType({
-      id: data.id,
-      code: data.code,
-      name: data.name,
-      description: data.description,
-      formatTypes: data.format_types || data.formatTypes || [],
-      focusAreas: data.focus_areas || data.focusAreas || [],
-      leveragedTraits: data.leveraged_traits || data.leveragedTraits || [],
-      progressionPath: data.progression_path || data.progressionPath || [],
-      metadata: data.metadata || {},
-      isActive: data.is_active !== undefined ? data.is_active : (data.isActive || true),
-      createdAt: data.created_at || data.createdAt,
-      updatedAt: data.updated_at || data.updatedAt
-    });
-  }
 }
 
-module.exports = ChallengeType; 
+module.exports = ChallengeType;

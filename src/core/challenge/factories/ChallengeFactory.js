@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Challenge Factory
  * 
@@ -9,7 +11,6 @@
  * creation logic that would otherwise be scattered across services or coordinators.
  */
 
-const { v4: uuidv4 } = require('uuid');
 const { challengeLogger } = require('../../../core/infra/logging/domainLogger');
 const Challenge = require('../models/Challenge');
 const { ChallengeGenerationError } = require('../errors/ChallengeErrors');
@@ -22,14 +23,16 @@ class ChallengeFactory {
    * Create a new ChallengeFactory
    * @param {Object} dependencies - Service dependencies
    * @param {Object} dependencies.challengeConfigService - Service for challenge configuration
+   * @param {Object} dependencies.focusAreaValidationService - Service for validating focus areas
    * @param {Object} [dependencies.logger] - Logger instance
    */
-  constructor({ challengeConfigService, logger }) {
+  constructor({ challengeConfigService, focusAreaValidationService, logger }) {
     if (!challengeConfigService) {
       throw new Error('challengeConfigService is required for ChallengeFactory');
     }
     
     this.challengeConfigService = challengeConfigService;
+    this.focusAreaValidationService = focusAreaValidationService;
     this.logger = logger || challengeLogger.child({ component: 'factory:challenge' });
   }
 
@@ -88,7 +91,7 @@ class ChallengeFactory {
       
       // Create the challenge entity
       const challenge = new Challenge({
-        id: uuidv4(),
+        id: Challenge.createNewId(),
         userId: user.email || user.id,
         title: `${enrichedParams.typeMetadata?.name || 'Challenge'}: ${enrichedParams.focusArea}`,
         description: '',  // Will be filled by the generation service
@@ -169,10 +172,8 @@ class ChallengeFactory {
     }
     
     // Use the challenge config service for recommendations when parameters are missing
-    const recommendedParams = await this.challengeConfigService.getRecommendedChallengeParameters(
-      user, 
-      recentChallenges
-    );
+    const recommendedParams = await this.challengeConfigService
+      .getRecommendedChallengeParameters(user, recentChallenges);
     
     return {
       challengeTypeCode: challengeTypeCode || recommendedParams.challengeType.code,
@@ -204,11 +205,11 @@ class ChallengeFactory {
   /**
    * Validate challenge parameters against provided configuration
    * @param {Object} params - Challenge parameters
-   * @param {Object} config - Configuration to validate against
+   * @param {Object} _config - Configuration to validate against
    * @throws {ChallengeGenerationError} If validation fails
    * @private
    */
-  async validateParameters(params, config) {
+  async validateParameters(params, _config) {
     // Validate challenge type
     const validTypes = await this.challengeConfigService.getAllChallengeTypes();
     if (!validTypes.some(type => type.code === params.challengeTypeCode)) {
@@ -221,10 +222,18 @@ class ChallengeFactory {
       throw new ChallengeGenerationError(`Invalid format type: ${params.formatTypeCode}`);
     }
     
-    // Validate focus area
-    const validFocusAreas = await this.challengeConfigService.getAllFocusAreaConfigs();
-    if (!validFocusAreas.some(area => area.code === params.focusArea)) {
-      throw new ChallengeGenerationError(`Invalid focus area: ${params.focusArea}`);
+    // Validate focus area using the validation service
+    if (this.focusAreaValidationService) {
+      const focusAreaValid = await this.focusAreaValidationService.exists(params.focusArea);
+      if (!focusAreaValid) {
+        throw new ChallengeGenerationError(`Invalid focus area: ${params.focusArea}`);
+      }
+    } else {
+      // Fallback to config service if validation service is not available
+      const validFocusAreas = await this.challengeConfigService.getAllFocusAreaConfigs();
+      if (!validFocusAreas.some(area => area.code === params.focusArea)) {
+        throw new ChallengeGenerationError(`Invalid focus area: ${params.focusArea}`);
+      }
     }
     
     // Validate difficulty level
@@ -239,42 +248,23 @@ class ChallengeFactory {
   /**
    * Enrich challenge parameters with metadata from config service
    * @param {Object} params - Challenge parameters
-   * @returns {Promise<Object>} - Enriched parameters with metadata
+   * @returns {Promise<Object>} - Enriched parameters
    * @private
    */
   async enrichWithMetadata(params) {
-    const enrichedParams = { ...params };
+    const { challengeTypeCode, formatTypeCode } = params;
     
-    try {
-      // Fetch challenge type metadata
-      const challengeTypeData = await this.challengeConfigService.getChallengeType(
-        params.challengeTypeCode
-      );
-      
-      if (challengeTypeData) {
-        enrichedParams.typeMetadata = {
-          name: challengeTypeData.name,
-          description: challengeTypeData.description
-        };
-      }
-      
-      // Fetch format type metadata
-      const formatTypeData = await this.challengeConfigService.getFormatType(
-        params.formatTypeCode
-      );
-      
-      if (formatTypeData) {
-        enrichedParams.formatMetadata = {
-          name: formatTypeData.name,
-          description: formatTypeData.description
-        };
-      }
-    } catch (error) {
-      // Log error but continue with what we have
-      this.logger.warn('Error fetching metadata for challenge', { error: error.message });
-    }
+    // Get challenge type metadata
+    const typeMetadata = await this.challengeConfigService.getChallengeTypeByCode(challengeTypeCode);
     
-    return enrichedParams;
+    // Get format type metadata
+    const formatMetadata = await this.challengeConfigService.getFormatTypeByCode(formatTypeCode);
+    
+    return {
+      ...params,
+      typeMetadata,
+      formatMetadata
+    };
   }
 }
 

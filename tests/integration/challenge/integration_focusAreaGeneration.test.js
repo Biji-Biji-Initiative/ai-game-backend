@@ -27,7 +27,7 @@ describe('Focus Area Generation with Real APIs', function() {
     skipIfMissingEnv(this, 'openai');
   });
 
-// Set longer timeout for real API calls
+  // Set longer timeout for real API calls
   this.timeout(30000);
   
   let testUser;

@@ -30,11 +30,11 @@ describe('E2E: User Management API', function() {
   // Set longer timeout for API calls
   this.timeout(30000);
 
-before(function() {
+  before(function() {
     skipIfMissingEnv(this, 'supabase');
   });
 
-// Configure longer timeout for E2E tests
+  // Configure longer timeout for E2E tests
   this.timeout(API_TIMEOUT);
   
   // Skip if API URLs not available

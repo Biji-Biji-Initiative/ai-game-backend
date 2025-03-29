@@ -11,7 +11,7 @@ const proxyquire = require('proxyquire').noCallThru();
 
 // Create mock implementation for EvaluationPromptBuilder
 const mockEvaluationPromptBuilder = {
-  build: sinon.stub().callsFake((params) => {
+  build: sinon.stub().callsFake(params => {
     const { challenge, user = {}, personalityProfile = {}, options = {} } = params;
     
     // Mock the system message generation based on parameters
@@ -64,7 +64,7 @@ const mockEvaluationPromptBuilder = {
 
 // Create mock implementation for ChallengePromptBuilder
 const mockChallengePromptBuilder = {
-  build: sinon.stub().callsFake((params) => {
+  build: sinon.stub().callsFake(params => {
     const { challengeParams = {}, user = {}, personalityProfile = {} } = params;
     
     // Mock the system message generation based on parameters

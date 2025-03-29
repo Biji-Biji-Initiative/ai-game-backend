@@ -20,11 +20,20 @@ const challengeRepository = require('../../src/core/challenge/repositories/chall
 const focusAreaRepository = require('../../src/core/focusArea/repositories/focusAreaRepository');
 
 // Focus Area Progress Service for handling focus area updates
+/**
+ *
+ */
 class FocusAreaProgressService {
+  /**
+   *
+   */
   constructor(focusAreaRepository) {
     this.focusAreaRepository = focusAreaRepository;
   }
   
+  /**
+   *
+   */
   async updateProgress(userId, focusAreaName, score) {
     try {
       // Find focus areas for the user
@@ -106,7 +115,7 @@ describe('Cross-Domain Workflow with Real APIs', function() {
     focusAreaProgressService = new FocusAreaProgressService(focusAreaRepository);
     
     // Register domain event handler
-    domainEvents.registerHandler('ChallengeCompleted', async (event) => {
+    domainEvents.registerHandler('ChallengeCompleted', async event => {
       const { data } = event;
       if (data.focusArea) {
         console.log(`ChallengeCompleted event received for focus area: ${data.focusArea}`);
@@ -115,7 +124,7 @@ describe('Cross-Domain Workflow with Real APIs', function() {
     });
     
     // Register handler to track FocusAreaCompleted events
-    domainEvents.registerHandler('FocusAreaCompleted', async (event) => {
+    domainEvents.registerHandler('FocusAreaCompleted', async event => {
       focusAreaCompletedHandlerCalled = true;
       console.log('FocusAreaCompleted event received:', event.data);
     });

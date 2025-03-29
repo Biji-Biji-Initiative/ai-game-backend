@@ -37,6 +37,9 @@ if (!fs.existsSync(LOG_DIR)) {
 }
 
 // Helper to log test actions
+/**
+ *
+ */
 function logTestAction(action, data) {
   const timestamp = new Date().toISOString();
   const logFile = path.join(LOG_DIR, `user_test_${timestamp.replace(/[:.]/g, '-')}.json`);
@@ -57,7 +60,7 @@ describe('Integration: User Flow', function() {
     skipIfMissingEnv(this, 'supabase');
   });
 
-// Set longer timeout for API calls
+  // Set longer timeout for API calls
   this.timeout(30000);
   
   // Skip if API keys not available
@@ -129,7 +132,7 @@ describe('Integration: User Flow', function() {
       };
       
       // Create the user
-      let createdUser = await userService.createUser(userData);
+      const createdUser = await userService.createUser(userData);
       
       logTestAction('UserCreated', {
         id: createdUser.id,

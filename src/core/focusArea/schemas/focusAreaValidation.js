@@ -1,8 +1,10 @@
+'use strict';
+
 /**
  * Focus Area Validation Schemas
- * 
+ *
  * Defines Zod validation schemas for focus area operations
- * 
+ *
  * @module focusAreaValidation
  * @requires zod
  */
@@ -12,20 +14,35 @@ const { z } = require('zod');
 /**
  * Base schema for a focus area
  */
-const focusAreaSchema = z.object({
-  id: z.string().uuid().optional(),
-  userId: z.string().min(1, "User ID is required"),
-  name: z.string().min(1, "Name is required").max(200, "Name must be 200 characters or less"),
-  description: z.string().max(1000, "Description must be 1000 characters or less").optional().default(''),
-  active: z.boolean().optional().default(true),
-  priority: z.number().int().min(1).max(5).optional().default(1),
-  metadata: z.record(z.any()).optional().default({})
-});
+const focusAreaSchema = z
+  .object({
+    id: z.string().uuid('Focus area ID must be a valid UUID'),
+    userId: z.string().min(1, 'User ID is required and cannot be empty'),
+    name: z
+      .string()
+      .min(1, 'Focus area name is required and cannot be empty')
+      .max(200, 'Focus area name cannot exceed 200 characters')
+      .refine(name => name.trim() === name, 'Focus area name cannot start or end with whitespace'),
+    description: z
+      .string()
+      .max(1000, 'Focus area description cannot exceed 1000 characters')
+      .nullable()
+      .optional(),
+    active: z.boolean().default(true),
+    priority: z
+      .number()
+      .int('Priority must be a whole number')
+      .min(1, 'Priority must be at least 1')
+      .max(5, 'Priority cannot exceed 5')
+      .default(1),
+    metadata: z.record(z.unknown()).default({}),
+  })
+  .strict();
 
 /**
  * Schema for creating a new focus area
  */
-const createFocusAreaSchema = focusAreaSchema.omit({ id: true });
+const createFocusAreaSchema = focusAreaSchema.omit({ id: true }).strict();
 
 /**
  * Schema for updating a focus area
@@ -34,54 +51,98 @@ const updateFocusAreaSchema = focusAreaSchema
   .partial()
   .omit({ id: true, userId: true })
   .refine(data => Object.keys(data).length > 0, {
-    message: "At least one field must be provided for update"
-  });
+    message: 'At least one field must be provided for update',
+  })
+  .strict();
 
 /**
  * Schema for API request to set focus areas for a user
  */
-const setFocusAreasSchema = z.object({
-  focusAreas: z.array(
-    z.union([
-      z.string().min(1),
-      z.object({
-        name: z.string().min(1),
-        description: z.string().optional(),
-        priority: z.number().int().min(1).max(5).optional(),
-        active: z.boolean().optional()
-      })
-    ])
-  ).min(1, "At least one focus area must be provided")
-});
+const setFocusAreasSchema = z
+  .object({
+    focusAreas: z
+      .array(
+        z.union([
+          z.string().min(1, 'Focus area name is required and cannot be empty'),
+          z
+            .object({
+              name: z.string().min(1, 'Focus area name is required and cannot be empty'),
+              description: z
+                .string()
+                .max(1000, 'Focus area description cannot exceed 1000 characters')
+                .nullable()
+                .optional(),
+              priority: z
+                .number()
+                .int('Priority must be a whole number')
+                .min(1, 'Priority must be at least 1')
+                .max(5, 'Priority cannot exceed 5')
+                .optional(),
+              active: z.boolean().optional(),
+            })
+            .strict(),
+        ])
+      )
+      .min(1, 'At least one focus area must be provided'),
+  })
+  .strict();
 
 /**
  * Schema for generating a focus area (admin only)
  */
-const generateFocusAreaSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  description: z.string().min(1, "Description is required"),
-  category: z.string().optional(),
-  difficulty: z.enum(['beginner', 'intermediate', 'advanced']).optional()
-});
+const generateFocusAreaSchema = z
+  .object({
+    name: z
+      .string()
+      .min(1, 'Focus area name is required and cannot be empty')
+      .max(200, 'Focus area name cannot exceed 200 characters'),
+    description: z
+      .string()
+      .min(1, 'Focus area description is required and cannot be empty')
+      .max(1000, 'Focus area description cannot exceed 1000 characters'),
+    category: z.string().min(1, 'Category is required and cannot be empty').optional(),
+    difficulty: z
+      .enum(['beginner', 'intermediate', 'advanced'], {
+        errorMap: () => ({
+          message: 'Difficulty must be one of: beginner, intermediate, advanced',
+        }),
+      })
+      .optional(),
+  })
+  .strict();
 
 /**
  * Schema for query parameters when getting focus areas
  */
-const getFocusAreasQuerySchema = z.object({
-  activeOnly: z.boolean().optional().default(true),
-  orderBy: z.string().optional().default('priority'),
-  limit: z.number().int().positive().optional()
-}).optional();
+const getFocusAreasQuerySchema = z
+  .object({
+    activeOnly: z.boolean().optional().default(true),
+    orderBy: z
+      .enum(['priority', 'name', 'createdAt'], {
+        errorMap: () => ({ message: 'Order by must be one of: priority, name, createdAt' }),
+      })
+      .optional()
+      .default('priority'),
+    limit: z
+      .number()
+      .int('Limit must be a whole number')
+      .positive('Limit must be a positive number')
+      .optional(),
+  })
+  .strict();
 
 /**
  * Email URL parameter validation schema
  */
-const emailParamSchema = z.object({
-  email: z.string()
-    .email("Invalid email format")
-    .min(3, "Email must be at least 3 characters")
-    .max(254, "Email cannot exceed 254 characters")
-});
+const emailParamSchema = z
+  .object({
+    email: z
+      .string()
+      .email('Invalid email format')
+      .min(3, 'Email must be at least 3 characters')
+      .max(254, 'Email cannot exceed 254 characters'),
+  })
+  .strict();
 
 /**
  * Validate focus area data
@@ -95,10 +156,10 @@ function validate(data, schema) {
     return schema.parse(data);
   } catch (error) {
     if (error.errors) {
-      const formattedErrors = error.errors.map(err => 
-        `${err.path.join('.')}: ${err.message}`
-      ).join('; ');
-      
+      const formattedErrors = error.errors
+        .map(err => `${err.path.join('.')}: ${err.message}`)
+        .join('; ');
+
       throw new Error(`Validation failed: ${formattedErrors}`);
     }
     throw error;
@@ -113,5 +174,5 @@ module.exports = {
   generateFocusAreaSchema,
   getFocusAreasQuerySchema,
   emailParamSchema,
-  validate
-}; 
+  validate,
+};

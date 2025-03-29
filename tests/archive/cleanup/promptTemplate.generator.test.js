@@ -16,6 +16,9 @@ try {
 } catch (error) {
   // If the model can't be loaded, create a simple version for testing
   Prompt = class Prompt {
+    /**
+     *
+     */
     constructor(data) {
       this.id = data.id || uuidv4();
       this.name = data.name;
@@ -35,7 +38,7 @@ describe('Domain: Prompt Template Generator', function() {
   // Set longer timeout for API calls
   this.timeout(30000);
 
-// Test setup
+  // Test setup
   let promptService;
   let mockOpenAI;
   let mockRepository;
@@ -87,12 +90,12 @@ describe('Domain: Prompt Template Generator', function() {
         variables: An array of variable names that should be replaced in the template`;
         
         const completion = await mockOpenAI.responses.create({
-          model: "gpt-4o",
+          model: 'gpt-4o',
           messages: [
-            { role: "system", content: "You are an expert prompt engineer who specializes in creating effective prompts for AI systems." },
-            { role: "user", content: prompt }
+            { role: 'system', content: 'You are an expert prompt engineer who specializes in creating effective prompts for AI systems.' },
+            { role: 'user', content: prompt }
           ],
-          response_format: { type: "json_object" }
+          response_format: { type: 'json_object' }
         });
         
         const responseText = completion.choices[0].message.content;

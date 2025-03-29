@@ -1,23 +1,46 @@
+'use strict';
+
 /**
  * Personality Coordinator
  * 
  * Coordinates between the Personality domain and other domains.
  * Acts as an application service that handles cross-domain concerns.
  */
+const BaseCoordinator = require('./BaseCoordinator');
 
-const { appLogger } = require('../core/infra/logging/appLogger');
-
-class PersonalityCoordinator {
+/**
+ * Class representing Personality Coordinator
+ * Extends BaseCoordinator for standardized error handling and operation execution
+ */
+class PersonalityCoordinator extends BaseCoordinator {
   /**
    * Create a personality coordinator
-   * @param {Object} userService - User domain service
-   * @param {Object} personalityService - Personality domain service
-   * @param {Object} logger - Logger instance
+   * @param {Object} dependencies - Injected dependencies
+   * @param {Object} dependencies.userService - User domain service
+   * @param {Object} dependencies.personalityService - Personality domain service
+   * @param {Object} dependencies.personalityDataLoader - Personality data loader with caching
+   * @param {Object} dependencies.logger - Logger instance
    */
-  constructor(userService, personalityService, logger) {
-    this.userService = userService;
-    this.personalityService = personalityService;
-    this.logger = logger || appLogger.child('personalityCoordinator');
+  constructor(dependencies) {
+    // Call super with name and logger
+    super({
+      name: 'PersonalityCoordinator',
+      logger: dependencies?.logger
+    });
+
+    // Validate required dependencies
+    const requiredDependencies = [
+      'userService',
+      'personalityService',
+      'personalityDataLoader'
+    ];
+    
+    this.validateDependencies(dependencies, requiredDependencies);
+
+    // Initialize services
+    this.userService = dependencies.userService;
+    this.personalityService = dependencies.personalityService;
+    this.dataLoader = dependencies.personalityDataLoader;
   }
   
   /**
@@ -25,18 +48,22 @@ class PersonalityCoordinator {
    * This is a cross-domain operation that translates personality domain data to user domain data
    * 
    * @param {string} userId - User ID
-   * @param {Object} aiAttitudes - AI attitudes from personality domain
    * @returns {Promise<Object>} Updated user preferences
    */
-  async synchronizeUserPreferences(userId, aiAttitudes) {
-    try {
-      this.logger.debug('Synchronizing user preferences', { userId });
-      
+  synchronizeUserPreferences(userId) {
+    return this.executeOperation(async () => {
       // Get user from user domain
       const user = await this.userService.getUserById(userId);
       if (!user) {
         this.logger.warn('User not found for preferences synchronization', { userId });
         return null;
+      }
+      
+      // Get AI attitudes using the data loader (cached)
+      const aiAttitudes = await this.dataLoader.getAiAttitudes(userId);
+      if (!aiAttitudes || Object.keys(aiAttitudes).length === 0) {
+        this.logger.info('No AI attitudes found for user, using defaults', { userId });
+        // Continue with default attitudes
       }
       
       // Map attitudes to preferences (pure function, no domain knowledge)
@@ -54,16 +81,30 @@ class PersonalityCoordinator {
       // Save user through the UserService rather than directly with repository
       await this.userService.updateUser(userId, { preferences: user.preferences });
       
-      this.logger.info('User preferences synchronized', { userId });
       return user.preferences;
-    } catch (error) {
-      this.logger.error('Error synchronizing user preferences', {
-        error: error.message,
-        userId,
-        stack: error.stack
-      });
-      throw error;
-    }
+    }, 'synchronizeUserPreferences', { userId });
+  }
+  
+  /**
+   * Get AI attitudes for a user (cached)
+   * @param {string} userId - User ID
+   * @returns {Promise<Object>} AI attitudes
+   */
+  getAiAttitudes(userId) {
+    return this.executeOperation(() => {
+      return this.dataLoader.getAiAttitudes(userId);
+    }, 'getAiAttitudes', { userId });
+  }
+  
+  /**
+   * Get personality traits for a user (cached)
+   * @param {string} userId - User ID
+   * @returns {Promise<Object>} Personality traits
+   */
+  getPersonalityTraits(userId) {
+    return this.executeOperation(() => {
+      return this.dataLoader.getPersonalityTraits(userId);
+    }, 'getPersonalityTraits', { userId });
   }
   
   /**

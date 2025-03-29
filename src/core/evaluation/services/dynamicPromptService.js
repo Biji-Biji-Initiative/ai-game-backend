@@ -1,3 +1,31 @@
+'use strict';
+
+const {
+  applyRepositoryErrorHandling,
+  applyServiceErrorHandling,
+  applyControllerErrorHandling,
+  createErrorMapper
+} = require('../../../core/infra/errors/centralizedErrorUtils');
+
+// Import domain-specific error classes
+const {
+  EvaluationError,
+  EvaluationNotFoundError,
+  EvaluationValidationError,
+  EvaluationProcessingError,
+} = require('../errors/EvaluationErrors');
+
+// Create an error mapper for services
+const evaluationServiceErrorMapper = createErrorMapper(
+  {
+    EvaluationNotFoundError: EvaluationNotFoundError,
+    EvaluationValidationError: EvaluationValidationError,
+    EvaluationProcessingError: EvaluationProcessingError,
+    Error: EvaluationError,
+  },
+  EvaluationError
+);
+
 /**
  * Dynamic Prompt Service for Evaluations
  * 
@@ -17,6 +45,9 @@ class DynamicPromptService {
    * @param {Object} dependencies.evaluationCategoryRepository - Repository for evaluation categories
    * @param {Object} dependencies.logger - Logger instance
    */
+  /**
+   * Method constructor
+   */
   constructor({ evaluationCategoryRepository, logger }) {
     this.evaluationCategoryRepository = evaluationCategoryRepository;
     this.logger = logger;
@@ -28,6 +59,9 @@ class DynamicPromptService {
    * @param {string} message - Log message
    * @param {Object} meta - Additional metadata
    * @private
+   */
+  /**
+   * Method log
    */
   log(level, message, meta = {}) {
     if (this.logger && typeof this.logger[level] === 'function') {
@@ -47,6 +81,9 @@ class DynamicPromptService {
    * @param {Object} params.criteria - Personalized evaluation criteria
    * @param {Object} params.options - Additional options
    * @returns {Object} Generated prompt data with messages and instructions
+   */
+  /**
+   * Method generateDynamicPrompt
    */
   generateDynamicPrompt({ challenge, userResponse, userContext, criteria, options = {} }) {
     try {
@@ -80,9 +117,9 @@ class DynamicPromptService {
       
       // Return basic prompt on error
       return {
-        systemMessage: "You are an AI evaluation expert providing objective feedback.",
+        systemMessage: 'You are an AI evaluation expert providing objective feedback.',
         userMessage: `Evaluate this response:\n\n${userResponse}`,
-        responseFormat: "Provide JSON with scores, feedback, strengths, and areas for improvement.",
+        responseFormat: 'Provide JSON with scores, feedback, strengths, and areas for improvement.',
         metadata: {
           promptVersion: '1.0',
           promptType: 'basic-evaluation',
@@ -100,6 +137,9 @@ class DynamicPromptService {
    * @param {Object} criteria - Evaluation criteria
    * @returns {string} Personalized system message
    * @private
+   */
+  /**
+   * Method buildSystemMessage
    */
   buildSystemMessage(challenge, userContext, criteria) {
     const challengeType = challenge.challengeType || challenge.type || 'standard';
@@ -147,6 +187,9 @@ class DynamicPromptService {
    * @param {Object} criteria - Evaluation criteria
    * @returns {string} Comprehensive user message
    * @private
+   */
+  /**
+   * Method buildUserMessage
    */
   buildUserMessage(challenge, userResponse, userContext, criteria) {
     let message = `### EVALUATION TASK\n`;
@@ -212,7 +255,7 @@ class DynamicPromptService {
     });
     
     // Wait for all category descriptions and join them
-    Promise.all(categoryPromises).then(categoryLines => {
+    await Promise.all(categoryPromises).then(categoryLines => {
       message += categoryLines.join('');
     }).catch(error => {
       this.log('error', 'Error getting category descriptions', { error: error.message });
@@ -255,52 +298,55 @@ class DynamicPromptService {
    * @returns {string} Formatted response instructions
    * @private
    */
+  /**
+   * Method buildResponseFormat
+   */
   buildResponseFormat(criteria) {
     const formatInstructions = `### RESPONSE FORMAT
 Provide your evaluation as a JSON object with the following structure:
 
 {
-  "categoryScores": {
-${Object.keys(criteria.categoryWeights).map(cat => `    "${cat}": 0`).join(',\n')}
+  'categoryScores': {
+${Object.keys(criteria.categoryWeights).map(cat => `    '${cat}': 0`).join(',\n')}
   },
-  "overallScore": 0,
-  "overallFeedback": "Comprehensive evaluation of the entire response...",
-  "strengths": [
-    "Strength 1",
-    "Strength 2"
+  'overallScore': 0,
+  'overallFeedback': 'Comprehensive evaluation of the entire response...',
+  'strengths': [
+    'Strength 1',
+    'Strength 2'
   ],
-  "strengthAnalysis": [
+  'strengthAnalysis': [
     {
-      "strength": "Strength 1",
-      "analysis": "Detailed explanation of why this is effective...",
-      "impact": "How this contributes to overall quality..."
+      'strength': 'Strength 1',
+      'analysis': 'Detailed explanation of why this is effective...',
+      'impact': 'How this contributes to overall quality...'
     }
   ],
-  "areasForImprovement": [
-    "Area 1",
-    "Area 2"
+  'areasForImprovement': [
+    'Area 1',
+    'Area 2'
   ],
-  "improvementPlans": [
+  'improvementPlans': [
     {
-      "area": "Area 1",
-      "importance": "Why improving this is important...",
-      "actionItems": ["Specific action 1", "Specific action 2"],
-      "resources": ["Suggested resource or exercise"]
+      'area': 'Area 1',
+      'importance': 'Why improving this is important...',
+      'actionItems': ['Specific action 1', 'Specific action 2'],
+      'resources': ['Suggested resource or exercise']
     }
   ],
-  "growthInsights": {
-    "improvements": ["Specific improvements since last evaluation"],
-    "persistentStrengths": ["Strengths maintained across evaluations"],
-    "developmentAreas": ["Areas that still need focus"],
-    "growthSummary": "Overall assessment of growth trajectory..."
+  'growthInsights': {
+    'improvements': ['Specific improvements since last evaluation'],
+    'persistentStrengths': ['Strengths maintained across evaluations'],
+    'developmentAreas': ['Areas that still need focus'],
+    'growthSummary': 'Overall assessment of growth trajectory...'
   },
-  "recommendations": {
-    "nextSteps": "Personalized next steps for improvement...",
-    "resources": [
-      {"title": "Resource Title", "type": "article|video|course", "url": "URL if available", "relevance": "Why this is relevant"}
+  'recommendations': {
+    'nextSteps': 'Personalized next steps for improvement...',
+    'resources': [
+      {'title': 'Resource Title', 'type': 'article|video|course', 'url': 'URL if available', 'relevance': 'Why this is relevant'}
     ],
-    "recommendedChallenges": [
-      {"title": "Challenge Type", "description": "Brief description", "relevance": "Why this would help growth"}
+    'recommendedChallenges': [
+      {'title': 'Challenge Type', 'description': 'Brief description', 'relevance': 'Why this would help growth'}
     ]
   }
 }
@@ -317,7 +363,10 @@ Note: Ensure that all scores sum to 100 points. Provide specific, actionable fee
    * @returns {Promise<string>} Detailed description
    * @private
    */
-  async getCategoryDescription(category) {
+  /**
+   * Method getCategoryDescription
+   */
+  getCategoryDescription(category) {
     try {
       // Use the repository method to get descriptions from database
       const descriptions = await this.evaluationCategoryRepository.getCategoryDescriptions();
@@ -328,44 +377,44 @@ Note: Ensure that all scores sum to 100 points. Provide specific, actionable fee
       // Fallback to hardcoded descriptions if repository call fails
       const descriptions = {
         // Common categories
-        accuracy: "Evaluate factual correctness, depth of knowledge, and absence of misconceptions",
-        clarity: "Assess organization, clarity of expression, and logical flow of ideas",
-        reasoning: "Evaluate logical connections, critical thinking, and soundness of arguments",
-        creativity: "Judge originality of ideas, innovative thinking, and novel approaches",
+        accuracy: 'Evaluate factual correctness, depth of knowledge, and absence of misconceptions',
+        clarity: 'Assess organization, clarity of expression, and logical flow of ideas',
+        reasoning: 'Evaluate logical connections, critical thinking, and soundness of arguments',
+        creativity: 'Judge originality of ideas, innovative thinking, and novel approaches',
         
         // Specialized categories
-        critical_thinking: "Assess depth of analysis, consideration of alternatives, and avoidance of cognitive biases",
-        insight: "Evaluate the presence of meaningful, non-obvious observations and connections",
-        problem_solving: "Judge the effectiveness of solutions, considering constraints and trade-offs",
-        application: "Assess how well concepts are applied to specific situations or problems",
-        communication: "Evaluate clarity, precision, and effectiveness of communication",
-        thoroughness: "Judge comprehensiveness of research, addressing all relevant aspects",
-        methodology: "Evaluate appropriateness and rigor of methods used",
-        critical_analysis: "Assess ability to evaluate sources, identify biases, and synthesize information",
-        presentation: "Judge organization, clarity, and effective use of evidence",
-        originality: "Evaluate uniqueness and novelty of ideas and approach",
-        effectiveness: "Assess how well the response achieves its intended purpose",
-        elaboration: "Evaluate depth, detail, and development of ideas",
-        relevance: "Judge how well the response addresses the challenge requirements",
-        technical_accuracy: "Evaluate technical correctness and precision",
-        implementation: "Assess the quality and effectiveness of implementation details",
-        explanation: "Evaluate clarity and completeness of explanations for technical choices",
-        best_practices: "Judge adherence to established standards and best practices",
+        critical_thinking: 'Assess depth of analysis, consideration of alternatives, and avoidance of cognitive biases',
+        insight: 'Evaluate the presence of meaningful, non-obvious observations and connections',
+        problem_solving: 'Judge the effectiveness of solutions, considering constraints and trade-offs',
+        application: 'Assess how well concepts are applied to specific situations or problems',
+        communication: 'Evaluate clarity, precision, and effectiveness of communication',
+        thoroughness: 'Judge comprehensiveness of research, addressing all relevant aspects',
+        methodology: 'Evaluate appropriateness and rigor of methods used',
+        critical_analysis: 'Assess ability to evaluate sources, identify biases, and synthesize information',
+        presentation: 'Judge organization, clarity, and effective use of evidence',
+        originality: 'Evaluate uniqueness and novelty of ideas and approach',
+        effectiveness: 'Assess how well the response achieves its intended purpose',
+        elaboration: 'Evaluate depth, detail, and development of ideas',
+        relevance: 'Judge how well the response addresses the challenge requirements',
+        technical_accuracy: 'Evaluate technical correctness and precision',
+        implementation: 'Assess the quality and effectiveness of implementation details',
+        explanation: 'Evaluate clarity and completeness of explanations for technical choices',
+        best_practices: 'Judge adherence to established standards and best practices',
         
         // Ethics-focused categories
-        ethical_reasoning: "Evaluate depth and nuance of ethical analysis and reasoning",
-        comprehensiveness: "Assess coverage of relevant ethical dimensions and perspectives",
-        practical_application: "Judge how well ethical principles are applied to concrete situations",
+        ethical_reasoning: 'Evaluate depth and nuance of ethical analysis and reasoning',
+        comprehensiveness: 'Assess coverage of relevant ethical dimensions and perspectives',
+        practical_application: 'Judge how well ethical principles are applied to concrete situations',
         
         // AI literacy categories
-        conceptual_understanding: "Evaluate understanding of core AI concepts and principles",
-        critical_perspective: "Assess ability to critically evaluate AI technologies and claims",
+        conceptual_understanding: 'Evaluate understanding of core AI concepts and principles',
+        critical_perspective: 'Assess ability to critically evaluate AI technologies and claims',
         
         // Impact categories
-        impact_analysis: "Evaluate depth and breadth of impact analysis across domains",
-        stakeholder_consideration: "Assess identification and consideration of affected stakeholders",
-        systemic_thinking: "Evaluate understanding of complex systemic interactions and dynamics",
-        practical_insight: "Judge the practicality and applicability of insights about AI's impact"
+        impact_analysis: 'Evaluate depth and breadth of impact analysis across domains',
+        stakeholder_consideration: 'Assess identification and consideration of affected stakeholders',
+        systemic_thinking: 'Evaluate understanding of complex systemic interactions and dynamics',
+        practical_insight: 'Judge the practicality and applicability of insights about AI's impact'
       };
       
       return descriptions[category] || `Evaluate the quality of ${category.replace(/_/g, ' ')}`;
@@ -378,6 +427,9 @@ Note: Ensure that all scores sum to 100 points. Provide specific, actionable fee
    * @param {Object} userContext - User context object
    * @returns {string} Context level (none, basic, detailed, comprehensive)
    * @private
+   */
+  /**
+   * Method getUserContextLevel
    */
   getUserContextLevel(userContext) {
     if (!userContext || Object.keys(userContext).length === 0) {

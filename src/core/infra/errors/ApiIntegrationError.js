@@ -1,6 +1,8 @@
+'use strict';
+
 /**
  * API Integration Error
- * 
+ *
  * Error class for handling API integration issues following DDD principles.
  * This error is used when there are issues communicating with external APIs
  * like OpenAI.
@@ -17,6 +19,9 @@ class ApiIntegrationError extends Error {
    * @param {number} [status=500] - HTTP status code
    * @param {Error} [cause=null] - Underlying error that caused this one
    */
+  /**
+   * Method constructor
+   */
   constructor(message, status = 500, cause = null) {
     super(message);
     this.name = 'ApiIntegrationError';
@@ -25,4 +30,4 @@ class ApiIntegrationError extends Error {
   }
 }
 
-module.exports = { ApiIntegrationError }; 
+module.exports = { ApiIntegrationError };

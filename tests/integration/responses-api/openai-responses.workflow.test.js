@@ -22,7 +22,7 @@ describe('Integration: OpenAI Responses API Workflow', function() {
     skipIfMissingEnv(this, 'openai');
   });
 
-// Set longer timeout for API tests
+  // Set longer timeout for API tests
   this.timeout(10000);
   
   let sandbox;
@@ -140,7 +140,7 @@ describe('Integration: OpenAI Responses API Workflow', function() {
         return true;
       },
       
-      getLastResponseId: async (stateId) => {
+      getLastResponseId: async stateId => {
         // Find the state
         const state = await conversationStateRepository.findById(stateId);
         if (!state) {
@@ -150,7 +150,7 @@ describe('Integration: OpenAI Responses API Workflow', function() {
         return state.lastResponseId;
       },
       
-      deleteConversationState: async (stateId) => {
+      deleteConversationState: async stateId => {
         // Delete the state
         return conversationStateRepository.delete(stateId);
       }

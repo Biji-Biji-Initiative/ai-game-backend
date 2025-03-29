@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Personality Service
  * 
@@ -6,17 +8,44 @@
 
 const Personality = require('../models/Personality');
 const PersonalityRepository = require('../repositories/PersonalityRepository');
-const TraitsAnalysisService = require('./TraitsAnalysisService');
 const { EventTypes, eventBus } = require('../../common/events/domainEvents');
 const { v4: uuidv4 } = require('uuid');
-const { personalityLogger } = require('../../infra/logging/domainLogger');
+const { personalityLogger } = require('../../../core/infra/logging/domainLogger');
+const {
+  applyRepositoryErrorHandling,
+  applyServiceErrorHandling,
+  applyControllerErrorHandling,
+  createErrorMapper
+} = require('../../../core/infra/errors/centralizedErrorUtils');
+
+// Import domain-specific error classes
+const {
+  PersonalityError,
+  PersonalityNotFoundError,
+  PersonalityValidationError,
+  PersonalityProcessingError,
+} = require('../errors/PersonalityErrors');
+
+// Create an error mapper for services
+const personalityServiceErrorMapper = createErrorMapper(
+  {
+    PersonalityNotFoundError: PersonalityNotFoundError,
+    PersonalityValidationError: PersonalityValidationError,
+    PersonalityProcessingError: PersonalityProcessingError,
+    Error: PersonalityError,
+  },
+  PersonalityError
+);
 const { NoPersonalityDataError } = require('../errors/PersonalityErrors');
 
+/**
+ * Service that manages personality profiles, traits analysis, and insights
+ */
 class PersonalityService {
   /**
    * Create a new PersonalityService
-   * @param {PersonalityRepository} personalityRepository - Repository for personality data
-   * @param {TraitsAnalysisService} traitsAnalysisService - Service for analyzing traits
+   * @param {Object} personalityRepository - Repository for personality data
+   * @param {Object} traitsAnalysisService - Service for analyzing traits
    * @param {Object} insightGenerator - Service for generating insights, via port
    */
   constructor(personalityRepository, traitsAnalysisService, insightGenerator) {
@@ -31,7 +60,7 @@ class PersonalityService {
    * @param {string} userId - User ID
    * @returns {Promise<Personality>} Personality profile
    */
-  async getOrCreatePersonalityProfile(userId) {
+  getOrCreatePersonalityProfile(userId) {
     try {
       // Try to find existing profile
       let profile = await this.personalityRepository.findByUserId(userId);
@@ -69,7 +98,7 @@ class PersonalityService {
    * @param {string} userId - User ID
    * @returns {Promise<Object>} Personality profile with computed insights
    */
-  async getEnrichedProfile(userId) {
+  getEnrichedProfile(userId) {
     return this.traitsAnalysisService.getEnrichedProfile(userId);
   }
 
@@ -78,7 +107,7 @@ class PersonalityService {
    * @param {string} userId - User ID
    * @returns {Promise<Object>} Generated insights
    */
-  async generateInsights(userId) {
+  generateInsights(userId) {
     try {
       // Get personality profile
       const profile = await this.getOrCreatePersonalityProfile(userId);
@@ -123,12 +152,16 @@ class PersonalityService {
    * @returns {Promise<Personality>} The processed profile
    * @private
    */
-  async processPersonalityData(profile) {
+  processPersonalityData(profile) {
     // Calculate dominant traits if needed
-    if (Object.keys(profile.personalityTraits).length > 0 && 
+    if (Object.keys(profile.personalityTraits) {
+  .length > 0 && 
+}
         profile.dominantTraits.length === 0) {
       
-      const dominantTraits = this.traitsAnalysisService.computeDominantTraits(profile.personalityTraits);
+      const dominantTraits = this.traitsAnalysisService.computeDominantTraits(
+        profile.personalityTraits
+      );
       profile.setDominantTraits(dominantTraits);
       
       const traitClusters = this.traitsAnalysisService.identifyTraitClusters(dominantTraits);
@@ -136,10 +169,14 @@ class PersonalityService {
     }
     
     // Calculate AI attitude profile if needed
-    if (Object.keys(profile.aiAttitudes).length > 0 && 
+    if (Object.keys(profile.aiAttitudes) {
+  .length > 0 && 
+}
         Object.keys(profile.aiAttitudeProfile).length === 0) {
       
-      const aiAttitudeProfile = this.traitsAnalysisService.analyzeAiAttitudes(profile.aiAttitudes);
+      const aiAttitudeProfile = this.traitsAnalysisService.analyzeAiAttitudes(
+        profile.aiAttitudes
+      );
       profile.setAIAttitudeProfile(aiAttitudeProfile);
     }
     
@@ -157,7 +194,7 @@ class PersonalityService {
    * @param {Object} traits - Personality traits to update
    * @returns {Promise<Personality>} Updated personality profile
    */
-  async updatePersonalityTraits(userId, traits) {
+  updatePersonalityTraits(userId, traits) {
     try {
       // Get personality profile
       const profile = await this.getOrCreatePersonalityProfile(userId);
@@ -166,7 +203,9 @@ class PersonalityService {
       profile.updateTraits(traits);
       
       // Process personality data
-      const dominantTraits = this.traitsAnalysisService.computeDominantTraits(profile.personalityTraits);
+      const dominantTraits = this.traitsAnalysisService.computeDominantTraits(
+        profile.personalityTraits
+      );
       profile.setDominantTraits(dominantTraits);
       
       const traitClusters = this.traitsAnalysisService.identifyTraitClusters(dominantTraits);
@@ -199,7 +238,7 @@ class PersonalityService {
    * @param {Object} attitudes - AI attitudes to update
    * @returns {Promise<Personality>} Updated personality profile
    */
-  async updateAIAttitudes(userId, attitudes) {
+  updateAIAttitudes(userId, attitudes) {
     try {
       // Get personality profile
       const profile = await this.getOrCreatePersonalityProfile(userId);
@@ -208,7 +247,9 @@ class PersonalityService {
       profile.updateAttitudes(attitudes);
       
       // Process AI attitude data
-      const aiAttitudeProfile = this.traitsAnalysisService.analyzeAiAttitudes(profile.aiAttitudes);
+      const aiAttitudeProfile = this.traitsAnalysisService.analyzeAiAttitudes(
+        profile.aiAttitudes
+      );
       profile.setAIAttitudeProfile(aiAttitudeProfile);
       
       // Save updated profile
@@ -236,29 +277,40 @@ class PersonalityService {
    * Get personality profile for a user
    * @param {string} userId - User ID
    * @param {Object} queryParams - Query parameters for filtering data
-   * @returns {Promise<Personality|null>} Personality profile or null if not found
+   * @returns {Promise<Object>} Personality profile
    */
-  async getPersonalityProfile(userId, queryParams = {}) {
+  getPersonalityProfile(userId, queryParams = {}) {
     try {
-      let profile = await this.personalityRepository.findByUserId(userId);
+      const profile = await this.personalityRepository.findByUserId(userId);
       
-      // Filter data based on query parameters if needed
-      if (profile && queryParams) {
-        if (queryParams.includeInsights === false) {
-          profile.insights = {};
-        }
-        if (queryParams.includeTraits === false) {
-          profile.personalityTraits = {};
-          profile.dominantTraits = [];
-          profile.traitClusters = {};
-        }
-        if (queryParams.includeAttitudes === false) {
-          profile.aiAttitudes = {};
-          profile.aiAttitudeProfile = {};
-        }
+      if (!profile) {
+        throw new NoPersonalityDataError(`No personality profile found for user: ${userId}`);
       }
       
-      return profile;
+      // Apply query param filters
+      const result = {};
+      
+      if (!queryParams.excludePersonalityTraits) {
+        result.personalityTraits = profile.personalityTraits;
+      }
+      
+      if (!queryParams.excludeDominantTraits) {
+        result.dominantTraits = profile.dominantTraits;
+      }
+      
+      if (!queryParams.excludeAiAttitudes) {
+        result.aiAttitudes = profile.aiAttitudes;
+      }
+      
+      if (!queryParams.excludeAiAttitudeProfile) {
+        result.aiAttitudeProfile = profile.aiAttitudeProfile;
+      }
+      
+      return {
+        id: profile.id,
+        userId: profile.userId,
+        ...result
+      };
     } catch (error) {
       this.logger.error('Error getting personality profile', {
         error: error.message,
@@ -269,13 +321,21 @@ class PersonalityService {
   }
 
   /**
-   * Delete personality profile for a user
+   * Delete a personality profile
    * @param {string} userId - User ID
    * @returns {Promise<boolean>} True if successful
    */
-  async deletePersonalityProfile(userId) {
+  deletePersonalityProfile(userId) {
     try {
-      return this.personalityRepository.deleteByUserId(userId);
+      const deleted = await this.personalityRepository.deleteByUserId(userId);
+      
+      if (deleted) {
+        await eventBus.publishEvent(EventTypes.PERSONALITY_PROFILE_DELETED, {
+          userId
+        });
+      }
+      
+      return deleted;
     } catch (error) {
       this.logger.error('Error deleting personality profile', {
         error: error.message,
@@ -284,33 +344,50 @@ class PersonalityService {
       throw error;
     }
   }
-  
+
   /**
-   * Calculate compatibility between user and challenge
-   * @param {string} userId - User ID
-   * @param {Object} challengeTraits - Challenge trait requirements 
-   * @returns {Promise<number>} Compatibility score (0-100)
+   * Calculate compatibility between user personality and challenge traits
+   * @param {string} userId - User ID to check compatibility for
+   * @param {Object} challengeTraits - Challenge traits to compare against
+   * @returns {Promise<Object>} Compatibility scores and analysis
    */
-  async calculateChallengeCompatibility(userId, challengeTraits) {
+  calculateChallengeCompatibility(userId, challengeTraits) {
     try {
-      const profile = await this.getPersonalityProfile(userId);
+      // Get the user's personality profile
+      const profile = await this.getOrCreatePersonalityProfile(userId);
       
-      if (!profile || Object.keys(profile.personalityTraits).length === 0) {
-        return 50; // Default neutral score
-      }
+      // Extract traits to compare
+      const userTraits = profile.personalityTraits;
       
-      return this.traitsAnalysisService.calculateTraitCompatibility(
-        profile.personalityTraits,
-        challengeTraits
-      );
+      // Calculate compatibility scores
+      const compatibilityScores = 
+        this.traitsAnalysisService.calculateTraitCompatibility(
+          userTraits, 
+          challengeTraits
+        );
+      
+      // Create recommendations based on compatibility
+      const recommendations = 
+        this.traitsAnalysisService.generateRecommendations(
+          compatibilityScores, 
+          userTraits, 
+          challengeTraits
+        );
+      
+      return {
+        userId,
+        overallScore: compatibilityScores.overall,
+        traitScores: compatibilityScores.traits,
+        recommendations
+      };
     } catch (error) {
       this.logger.error('Error calculating challenge compatibility', {
         error: error.message,
         userId
       });
-      return 50; // Default neutral score on error
+      throw error;
     }
   }
 }
 
-module.exports = PersonalityService; 
+module.exports = PersonalityService;

@@ -1,6 +1,8 @@
+'use strict';
+
 /**
  * Evaluation Domain Events
- * 
+ *
  * Events that occur within the Evaluation domain.
  * Following DDD principles, these events are used to communicate changes
  * in the domain to other domains.
@@ -20,14 +22,14 @@ async function publishEvaluationStarted(evaluationId, challengeId, userEmail) {
     await eventBus.publishEvent(EventTypes.EVALUATION_STARTED, {
       evaluationId,
       challengeId,
-      userEmail
+      userEmail,
     });
     logger.debug('Published evaluation started event', { evaluationId, challengeId });
   } catch (error) {
-    logger.error('Error publishing evaluation started event', { 
+    logger.error('Error publishing evaluation started event', {
       error: error.message,
       evaluationId,
-      challengeId
+      challengeId,
     });
   }
 }
@@ -51,36 +53,36 @@ async function publishEvaluationCompleted(evaluationId, challengeId, userEmail, 
         feedback: result.feedback,
         strengths: result.strengths || [],
         weaknesses: result.weaknesses || [],
-        traits: result.traits || {}
-      }
+        traits: result.traits || {},
+      },
     });
     logger.debug('Published evaluation completed event', { evaluationId, challengeId });
   } catch (error) {
-    logger.error('Error publishing evaluation completed event', { 
+    logger.error('Error publishing evaluation completed event', {
       error: error.message,
       evaluationId,
-      challengeId
+      challengeId,
     });
   }
 }
 
 /**
- * Set up evaluation event subscriptions 
+ * Set up evaluation event subscriptions
  */
-function registerEvaluationEventHandlers() {
+async function registerEvaluationEventHandlers() {
   // Subscribe to relevant events from other domains
-  
+
   // For example, when a challenge response is submitted, we want to start an evaluation
-  eventBus.subscribe(EventTypes.CHALLENGE_RESPONSE_SUBMITTED, async (event) => {
-    logger.debug('Handling challenge response submitted event', { 
-      challengeId: event.payload.challengeId 
+  eventBus.subscribe(EventTypes.CHALLENGE_RESPONSE_SUBMITTED, async event => {
+    logger.debug('Handling challenge response submitted event', {
+      challengeId: event.payload.challengeId,
     });
-    
+
     // In a real implementation, we would trigger the evaluation process here
     // But for now we just log it
-    logger.info('Evaluation would be triggered for response', { 
+    logger.info('Evaluation would be triggered for response', {
       challengeId: event.payload.challengeId,
-      userEmail: event.payload.userEmail
+      userEmail: event.payload.userEmail,
     });
   });
 }
@@ -88,5 +90,5 @@ function registerEvaluationEventHandlers() {
 module.exports = {
   publishEvaluationStarted,
   publishEvaluationCompleted,
-  registerEvaluationEventHandlers
-}; 
+  registerEvaluationEventHandlers,
+};

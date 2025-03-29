@@ -22,14 +22,14 @@ function createInMemoryRepository(initialData = {}) {
   const items = { ...initialData };
   
   return {
-    save: async (item) => {
+    save: async item => {
       const id = item.id || uuidv4();
       const savedItem = { ...item, id };
       items[id] = savedItem;
       return savedItem;
     },
     
-    findById: async (id) => {
+    findById: async id => {
       return items[id] || null;
     },
     
@@ -37,18 +37,18 @@ function createInMemoryRepository(initialData = {}) {
       return Object.values(items);
     },
     
-    findByFilter: async (filterFn) => {
+    findByFilter: async filterFn => {
       return Object.values(items).filter(filterFn);
     },
     
     update: async (id, updateData) => {
-      if (!items[id]) return null;
+      if (!items[id]) {return null;}
       items[id] = { ...items[id], ...updateData };
       return items[id];
     },
     
-    delete: async (id) => {
-      if (!items[id]) return false;
+    delete: async id => {
+      if (!items[id]) {return false;}
       delete items[id];
       return true;
     },
@@ -58,11 +58,11 @@ function createInMemoryRepository(initialData = {}) {
     },
     
     // Additional methods for specific repositories
-    findByUserId: async (userId) => {
+    findByUserId: async userId => {
       return Object.values(items).filter(item => item.userId === userId);
     },
     
-    findByFocusArea: async (focusArea) => {
+    findByFocusArea: async focusArea => {
       return Object.values(items).filter(item => item.focusArea === focusArea);
     }
   };

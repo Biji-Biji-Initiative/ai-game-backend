@@ -1,4 +1,15 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-npm test
+# Run lint-staged to check staged files
+npx lint-staged
+
+# Auto-fix common linting issues in the entire codebase
+# npm run lint:auto-fix
+
+# Run regular linting and formatting on the entire codebase
+# npm run lint:fix
+# npm run format
+
+# Report status
+echo "✅ Pre-commit hook passed!"

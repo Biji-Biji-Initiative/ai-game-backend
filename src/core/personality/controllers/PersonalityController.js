@@ -1,9 +1,11 @@
+'use strict';
+
 /**
  * Personality Controller
  * 
  * Handles HTTP requests related to personality operations.
  */
-const { personalityLogger } = require('../../infra/logging/domainLogger');
+const { personalityLogger } = require(../../core/infra/logging/domainLogger');
 const { 
   ProfileNotFoundError,
   TraitsValidationError,
@@ -11,6 +13,28 @@ const {
   InsightGenerationError,
   NoPersonalityDataError
 } = require('../errors/PersonalityErrors');
+cconst {
+  applyRepositoryErrorHandling,
+  applyServiceErrorHandling,
+  applyControllerErrorHandling,
+  createErrorMapper
+} = require('../../../core/infra/errors/centralizedErrorUtils');
+
+// Import domain-specific error classes
+const {
+  PersonalityError,
+  PersonalityNotFoundError,
+  PersonalityValidationError,
+  PersonalityProcessingError,
+} = require('../errors/PersonalityErrors');
+
+// Error mappings for controllers
+const personalityControllerErrorMappings = [
+  { errorClass: PersonalityNotFoundError, statusCode: 404 },
+  { errorClass: PersonalityValidationError, statusCode: 400 },
+  { errorClass: PersonalityProcessingError, statusCode: 500 },
+  { errorClass: PersonalityError, statusCode: 500 },
+];
 const {
   updatePersonalityTraitsSchema,
   updateAIAttitudesSchema,
@@ -22,6 +46,9 @@ class PersonalityController {
    * Create a new PersonalityController
    * @param {Object} dependencies - Dependencies
    * @param {Object} dependencies.personalityService - Personality service
+   */
+  /**
+   * Method constructor
    */
   constructor(dependencies = {}) {
     const { personalityService } = dependencies;
@@ -35,7 +62,10 @@ class PersonalityController {
    * @param {Request} req - Express request object
    * @param {Response} res - Express response object
    */
-  async generateInsights(req, res, next) {
+  /**
+   * Method generateInsights
+   */
+  generateInsights(req, res, next) {
     try {
       // Check if user is authenticated
       if (!req.user || !req.user.id) {
@@ -71,7 +101,10 @@ class PersonalityController {
    * @param {Request} req - Express request object
    * @param {Response} res - Express response object
    */
-  async updatePersonalityTraits(req, res, next) {
+  /**
+   * Method updatePersonalityTraits
+   */
+  updatePersonalityTraits(req, res, next) {
     try {
       // Check if user is authenticated
       if (!req.user || !req.user.id) {
@@ -132,7 +165,10 @@ class PersonalityController {
    * @param {Request} req - Express request object
    * @param {Response} res - Express response object
    */
-  async updateAIAttitudes(req, res, next) {
+  /**
+   * Method updateAIAttitudes
+   */
+  updateAIAttitudes(req, res, next) {
     try {
       // Check if user is authenticated
       if (!req.user || !req.user.id) {
@@ -192,7 +228,10 @@ class PersonalityController {
    * @param {Request} req - Express request object
    * @param {Response} res - Express response object
    */
-  async getPersonalityProfile(req, res, next) {
+  /**
+   * Method getPersonalityProfile
+   */
+  getPersonalityProfile(req, res, next) {
     try {
       // Check if user is authenticated
       if (!req.user || !req.user.id) {
@@ -255,7 +294,10 @@ class PersonalityController {
    * @param {Request} req - Express request object
    * @param {Response} res - Express response object
    */
-  async submitAssessment(req, res, next) {
+  /**
+   * Method submitAssessment
+   */
+  submitAssessment(req, res, next) {
     try {
       // Check if user is authenticated
       if (!req.user || !req.user.id) {

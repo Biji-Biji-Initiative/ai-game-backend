@@ -47,26 +47,51 @@ A powerful and flexible UI for testing API endpoints in the AI Fight Club backen
 
 ## Adding New Endpoints
 
-New endpoints can be added by editing the `api-endpoints.js` file. Each endpoint should include:
+Endpoints are loaded dynamically from the `data/endpoints.json` file. To add new endpoints, edit this file and follow the standard format:
 
-- A unique ID
-- Display name
-- Path
-- HTTP method
-- Input fields with types, validation rules, and default values
-
-Example:
-```javascript
+```json
 {
-  id: "getUser",
-  name: "Get User by ID",
-  path: "/users/:userId",
-  method: "GET",
-  fields: [
-    { id: "userId", label: "User ID:", type: "text", placeholder: "User ID", required: true }
+  "endpoints": [
+    {
+      "name": "Get User by ID",
+      "method": "GET",
+      "path": "/api/users/{id}",
+      "description": "Retrieves a specific user by ID",
+      "category": "Users",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "type": "string",
+          "description": "User ID"
+        }
+      ],
+      "responseExample": {
+        "id": 1,
+        "name": "John Doe",
+        "email": "john@example.com",
+        "role": "admin"
+      }
+    }
   ]
 }
 ```
+
+Each endpoint definition should include:
+
+- `name`: Display name of the endpoint
+- `method`: HTTP method (GET, POST, PUT, DELETE, etc.)
+- `path`: URL path, can include path parameters in curly braces: `{paramName}`
+- `description`: A brief description of the endpoint
+- `category`: Group name for organization in the UI
+- `parameters`: Array of parameter definitions with name, location (path, query, header), type, and whether they're required
+- `requestBody`: Optional structure for endpoints that accept a request body (mainly POST/PUT)
+- `responseExample`: An example of the expected response format
+
+The UI will automatically load all defined endpoints and create appropriate forms and validation rules.
+
+No code changes are needed to add new endpoints - just update the JSON file and refresh the page.
 
 ## Technologies Used
 - Vanilla JavaScript (no external frameworks)

@@ -39,6 +39,9 @@ if (!fs.existsSync(LOG_DIR)) {
 }
 
 // Helper to log test actions
+/**
+ *
+ */
 function logTestAction(action, data) {
   const timestamp = new Date().toISOString();
   const logFile = path.join(LOG_DIR, `integration_test_${timestamp.replace(/[:.]/g, '-')}.json`);
@@ -59,7 +62,7 @@ describe('Integration: Complete OpenAI to Supabase Flow', function() {
     skipIfMissingEnv(this, 'openai');
   });
 
-// Set longer timeout for API calls
+  // Set longer timeout for API calls
   this.timeout(30000);
   
   // Skip if API keys not available
@@ -102,7 +105,7 @@ describe('Integration: Complete OpenAI to Supabase Flow', function() {
         // Create OpenAI client
         const { OpenAIClient } = require('../../src/infra/openai');
         openaiClient = new OpenAIClient({ apiKey: testEnv.getTestConfig().openai.apiKey
-         });
+        });
         
         // Create Supabase client
         const { createClient } = require('@supabase/supabase-js');
@@ -121,7 +124,13 @@ describe('Integration: Complete OpenAI to Supabase Flow', function() {
         );
         
         // Create a simple Challenge model
+        /**
+         *
+         */
         class Challenge {
+          /**
+           *
+           */
           constructor(data) {
             this.id = data.id || uuidv4();
             this.title = data.title;
@@ -139,7 +148,7 @@ describe('Integration: Complete OpenAI to Supabase Flow', function() {
         
         // Create a simple repository that uses Supabase
         challengeRepository = {
-          save: async (challenge) => {
+          save: async challenge => {
             try {
               // Log what we're about to insert
               logTestAction('ChallengeToSave', { 
@@ -193,7 +202,7 @@ describe('Integration: Complete OpenAI to Supabase Flow', function() {
             }
           },
           
-          findById: async (id) => {
+          findById: async id => {
             try {
               const { data, error } = await supabaseClient
                 .from('challenges')
@@ -223,7 +232,7 @@ describe('Integration: Complete OpenAI to Supabase Flow', function() {
         
         // Create a simple service that generates challenges using OpenAI
         challengeService = {
-          generateChallenge: async (category) => {
+          generateChallenge: async category => {
             const prompt = `Generate a cognitive challenge in the ${category} category. 
             The challenge should test critical thinking and problem-solving abilities.
             Format the response as a JSON object with these properties:
@@ -232,12 +241,12 @@ describe('Integration: Complete OpenAI to Supabase Flow', function() {
             difficulty: The difficulty level (easy, medium, or hard)`;
             
             const completion = await openaiClient.responses.create({
-              model: "gpt-4o",
+              model: 'gpt-4o',
               messages: [
-                { role: "system", content: "You are an expert at creating engaging cognitive challenges that test problem-solving abilities." },
-                { role: "user", content: prompt }
+                { role: 'system', content: 'You are an expert at creating engaging cognitive challenges that test problem-solving abilities.' },
+                { role: 'user', content: prompt }
               ],
-              response_format: { type: "json_object" }
+              response_format: { type: 'json_object' }
             });
             
             const responseText = completion.choices[0].message.content;
@@ -262,7 +271,7 @@ describe('Integration: Complete OpenAI to Supabase Flow', function() {
       logTestAction('StartTest', { testId: TEST_ID });
       
       // Generate the challenge
-      const category = "logical-reasoning";
+      const category = 'logical-reasoning';
       const challenge = await challengeService.generateChallenge(category);
       
       logTestAction('ChallengeGenerated', {

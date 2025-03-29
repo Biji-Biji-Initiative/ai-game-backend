@@ -1,14 +1,22 @@
+'use strict';
+
 /**
  * Difficulty Domain Model
- * 
+ *
  * This model represents the difficulty settings for challenges,
  * with adaptive parameters based on user performance.
  */
 
+/**
+ *
+ */
 class Difficulty {
   /**
    * Create a difficulty instance
    * @param {Object} data - Difficulty data
+   */
+  /**
+   * Method constructor
    */
   constructor(data = {}) {
     this.level = data.level || 'beginner';
@@ -21,6 +29,9 @@ class Difficulty {
   /**
    * Validate the difficulty model
    * @returns {Object} Validation result with isValid and errors properties
+   */
+  /**
+   * Method validate
    */
   validate() {
     const errors = [];
@@ -52,7 +63,7 @@ class Difficulty {
 
     return {
       isValid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
@@ -60,20 +71,23 @@ class Difficulty {
    * Increase difficulty by a certain percentage
    * @param {number} percentage - Percentage to increase (0-100)
    */
+  /**
+   * Method increase
+   */
   increase(percentage = 10) {
     if (percentage < 0 || percentage > 100) {
       throw new Error('Percentage must be between 0 and 100');
     }
 
     const factor = percentage / 100;
-    
+
     // Increase complexity and depth
-    this.complexity = Math.min(1, this.complexity + (factor * 0.3));
-    this.depth = Math.min(1, this.depth + (factor * 0.3));
-    
+    this.complexity = Math.min(1, this.complexity + factor * 0.3);
+    this.depth = Math.min(1, this.depth + factor * 0.3);
+
     // Decrease time allocation (harder = less time)
-    this.timeAllocation = Math.max(60, this.timeAllocation * (1 - (factor * 0.15)));
-    
+    this.timeAllocation = Math.max(60, this.timeAllocation * (1 - factor * 0.15));
+
     // Update level based on new complexity and depth
     this.updateLevel();
   }
@@ -82,20 +96,23 @@ class Difficulty {
    * Decrease difficulty by a certain percentage
    * @param {number} percentage - Percentage to decrease (0-100)
    */
+  /**
+   * Method decrease
+   */
   decrease(percentage = 10) {
     if (percentage < 0 || percentage > 100) {
       throw new Error('Percentage must be between 0 and 100');
     }
 
     const factor = percentage / 100;
-    
+
     // Decrease complexity and depth
-    this.complexity = Math.max(0.2, this.complexity - (factor * 0.2));
-    this.depth = Math.max(0.2, this.depth - (factor * 0.2));
-    
+    this.complexity = Math.max(0.2, this.complexity - factor * 0.2);
+    this.depth = Math.max(0.2, this.depth - factor * 0.2);
+
     // Increase time allocation (easier = more time)
-    this.timeAllocation = Math.min(1800, this.timeAllocation * (1 + (factor * 0.2)));
-    
+    this.timeAllocation = Math.min(1800, this.timeAllocation * (1 + factor * 0.2));
+
     // Update level based on new complexity and depth
     this.updateLevel();
   }
@@ -103,9 +120,12 @@ class Difficulty {
   /**
    * Update the difficulty level based on complexity and depth
    */
+  /**
+   * Method updateLevel
+   */
   updateLevel() {
     const average = (this.complexity + this.depth) / 2;
-    
+
     if (average >= 0.85) {
       this.level = 'expert';
     } else if (average >= 0.65) {
@@ -121,6 +141,9 @@ class Difficulty {
    * Apply personality traits to modify difficulty
    * @param {Object} personalityTraits - User's personality traits
    */
+  /**
+   * Method applyPersonalityModifiers
+   */
   applyPersonalityModifiers(personalityTraits) {
     if (!personalityTraits) {
       return;
@@ -130,11 +153,11 @@ class Difficulty {
     if (personalityTraits.openness > 0.7) {
       this.complexity = Math.min(1.0, this.complexity + 0.1);
     }
-    
+
     if (personalityTraits.conscientiousness > 0.7) {
       this.depth = Math.min(1.0, this.depth + 0.1);
     }
-    
+
     // Adjust time allocation based on neuroticism
     if (personalityTraits.neuroticism > 0.7) {
       this.timeAllocation = Math.round(this.timeAllocation * 1.2);
@@ -148,6 +171,9 @@ class Difficulty {
    * Apply score to adjust difficulty adaptively
    * @param {number} score - User's score (0-100)
    */
+  /**
+   * Method adjustBasedOnScore
+   */
   adjustBasedOnScore(score) {
     if (score < 0 || score > 100) {
       throw new Error('Score must be between 0 and 100');
@@ -155,17 +181,17 @@ class Difficulty {
 
     // Calculate adjustment percentage based on score
     let adjustmentPercentage = 0;
-    
+
     if (score > 85) {
       // High score, increase difficulty
-      adjustmentPercentage = (score - 85) / 15 * 20; // Up to 20% increase for perfect score
+      adjustmentPercentage = ((score - 85) / 15) * 20; // Up to 20% increase for perfect score
       this.increase(adjustmentPercentage);
     } else if (score < 60) {
       // Low score, decrease difficulty
-      adjustmentPercentage = (60 - score) / 60 * 25; // Up to 25% decrease for 0 score
+      adjustmentPercentage = ((60 - score) / 60) * 25; // Up to 25% decrease for 0 score
       this.decrease(adjustmentPercentage);
     }
-    
+
     // Set adaptive factor based on score
     this.adaptiveFactor = (score - 70) / 30; // -1 to 1 range centered around 70
   }
@@ -174,15 +200,18 @@ class Difficulty {
    * Convert to difficulty settings for challenge generator
    * @returns {Object} Difficulty settings
    */
+  /**
+   * Method toSettings
+   */
   toSettings() {
     return {
       level: this.level,
       complexity: this.complexity,
       depth: this.depth,
       timeAllocation: Math.round(this.timeAllocation),
-      adaptiveFactor: this.adaptiveFactor
+      adaptiveFactor: this.adaptiveFactor,
     };
   }
 }
 
-module.exports = Difficulty; 
+module.exports = Difficulty;

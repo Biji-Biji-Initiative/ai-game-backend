@@ -13,7 +13,7 @@ process.env.OPENAI_API_KEY = 'mock-openai-key';
 
 // Mock Supabase client
 const mockSupabaseClient = {
-  from: (table) => ({
+  from: table => ({
     select: () => ({
       eq: () => Promise.resolve({ data: [], error: null }),
       in: () => Promise.resolve({ data: [], error: null }),
