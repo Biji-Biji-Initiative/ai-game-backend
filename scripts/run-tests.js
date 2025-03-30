@@ -6,13 +6,16 @@
  * with consistent configuration and environment setup.
  */
 
-'use strict';
+import fs from 'fs';
+import path from 'path';
+import { spawn } from 'child_process';
+import dotenv from 'dotenv';
+import chalk from 'chalk';
+import { fileURLToPath } from 'url';
 
-const fs = require('fs');
-const path = require('path');
-const { spawn } = require('child_process');
-const dotenv = require('dotenv');
-const chalk = require('chalk');
+// Get __dirname equivalent in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // --- Configuration ---
 const TEST_CATEGORIES = {
@@ -27,7 +30,7 @@ const TEST_CATEGORIES = {
     pattern: 'tests/domain/**/*.test.js', 
     env: '.env.test', 
     needsEnv: false, 
-    setup: 'tests/setup/mockSetup.js',
+    setup: 'tests/loadEnv.js',
     description: 'Domain tests (business logic)'
   },
   integration: { 
@@ -233,4 +236,48 @@ mochaProcess.on('close', code => {
 mochaProcess.on('error', err => {
   console.error(chalk.red('Failed to start Mocha process:'), err);
   process.exit(1);
-}); 
+});
+
+/**
+ * Run a specific test or category of tests
+ * @param {string} category - Test category (unit, domain, integration, etc.)
+ * @param {Object} options - Test options
+ * @param {string} options.focus - Optional focus pattern for specific tests
+ * @param {boolean} options.updateSnapshots - Whether to update snapshots
+ * @returns {Promise<number>} Process exit code
+ */
+async function runTests(category, options = {}) {
+  const { focus, updateSnapshots } = options;
+  const testCategories = {
+    unit: {
+      pattern: 'tests/unit',
+      timeout: 5000,
+      require: 'tests/loadEnv.js'
+    },
+    domain: {
+      pattern: 'tests/domain',
+      timeout: 15000,
+      require: 'tests/loadEnv.js'
+    },
+    integration: {
+      pattern: 'tests/integration',
+      timeout: 30000,
+      require: 'tests/loadEnv.js'
+    },
+    external: {
+      pattern: 'tests/external',
+      timeout: 60000,
+      require: 'tests/loadEnv.js'
+    },
+    e2e: {
+      pattern: 'tests/e2e',
+      timeout: 60000,
+      require: 'tests/loadEnv.js'
+    },
+    all: {
+      pattern: 'tests',
+      timeout: 60000,
+      require: 'tests/loadEnv.js'
+    }
+  };
+} 

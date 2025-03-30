@@ -1,42 +1,19 @@
+import { createErrorMapper, withServiceErrorHandling } from "../../infra/errors/errorStandardization.js";
+import { UserJourneyError, UserJourneyNotFoundError, UserJourneyValidationError, UserJourneyProcessingError } from "../errors/UserJourneyErrors.js";
+import { logger } from "../../infra/logging/logger.js";
+import { v4 as uuidv4 } from "uuid";
+import { userJourneyLogger } from "../../infra/logging/domainLogger.js";
 'use strict';
-
-const {
-  applyRepositoryErrorHandling,
-  applyServiceErrorHandling,
-  applyControllerErrorHandling,
-  createErrorMapper
-} = require('../../../core/infra/errors/centralizedErrorUtils');
-
-// Import domain-specific error classes
-const {
-  UserJourneyError,
-  UserJourneyNotFoundError,
-  UserJourneyValidationError,
-  UserJourneyProcessingError,
-} = require('../errors/UserJourneyErrors');
-
 // Create an error mapper for services
-const userJourneyServiceErrorMapper = createErrorMapper(
-  {
-    UserJourneyNotFoundError: UserJourneyNotFoundError,
-    UserJourneyValidationError: UserJourneyValidationError,
-    UserJourneyProcessingError: UserJourneyProcessingError,
-    Error: UserJourneyError,
-  },
-  UserJourneyError
-);
-
-/**
- * User Journey Service
- *
- * Domain service for tracking and managing user journey and engagement.
- * Contains business logic for user sessions, engagement levels, and phase transitions.
- */
-const { logger } = require('../../../core/infra/logging/logger');
-// const UserJourneyEvent = require('../models/UserJourneyEvent');
-const { v4: uuidv4 } = require('uuid');
-const { _userJourneyLogger } = require('../core/infra/logging/domainLogger');
-
+const userJourneyErrorMapper = createErrorMapper({
+  UserJourneyNotFoundError: UserJourneyNotFoundError,
+  UserJourneyValidationError: UserJourneyValidationError,
+  UserJourneyProcessingError: UserJourneyProcessingError,
+  Error: UserJourneyError
+}, UserJourneyError);
+const {
+  _userJourneyLogger
+} = userJourneyLogger;
 /**
  * User journey phases and constants
  */
@@ -45,72 +22,71 @@ const USER_JOURNEY_PHASES = {
   BEGINNER: 'beginner',
   INTERMEDIATE: 'intermediate',
   ADVANCED: 'advanced',
-  EXPERT: 'expert',
+  EXPERT: 'expert'
 };
-
 /**
  * UserJourneyService class
- * 
+ *
  * Provides business logic for tracking and managing user journeys through the application.
  * Implements domain operations for user engagement, progress tracking, and activity insights.
  */
 class UserJourneyService {
   /**
    * Create a new UserJourneyService
-   * 
+   *
    * @param {Object} dependencies - Service dependencies
    * @param {Object} dependencies.userJourneyRepository - Repository for storing user journey events
    * @param {Object} dependencies.logger - Logger instance
    */
-  constructor({ userJourneyRepository, logger: loggerInstance }) {
+  constructor({
+    userJourneyRepository,
+    logger: loggerInstance
+  }) {
     this.userJourneyRepository = userJourneyRepository;
-    this.logger = loggerInstance || logger.child({ service: 'UserJourneyService' });
-    
-    // Apply error handling to methods
-    this.recordEvent = applyServiceErrorHandling(
-      this.recordEvent.bind(this),
+    this.logger = loggerInstance || logger.child({
+      service: 'UserJourneyService'
+    });
+    // Apply error handling to methods using the withServiceErrorHandling wrapper
+    this.recordEvent = withServiceErrorHandling(
+      this.recordEvent.bind(this), 
       {
-        serviceName: 'UserJourneyService',
         methodName: 'recordEvent',
-        errorMapper: userJourneyServiceErrorMapper,
-        logger: this.logger
+        domainName: 'userJourney',
+        logger: this.logger,
+        errorMapper: userJourneyErrorMapper
       }
     );
-    
-    this.getUserEvents = applyServiceErrorHandling(
-      this.getUserEvents.bind(this),
+    this.getUserEvents = withServiceErrorHandling(
+      this.getUserEvents.bind(this), 
       {
-        serviceName: 'UserJourneyService',
         methodName: 'getUserEvents',
-        errorMapper: userJourneyServiceErrorMapper,
-        logger: this.logger
+        domainName: 'userJourney',
+        logger: this.logger,
+        errorMapper: userJourneyErrorMapper
       }
     );
-    
-    this.getUserEventsByType = applyServiceErrorHandling(
-      this.getUserEventsByType.bind(this),
+    this.getUserEventsByType = withServiceErrorHandling(
+      this.getUserEventsByType.bind(this), 
       {
-        serviceName: 'UserJourneyService',
         methodName: 'getUserEventsByType',
-        errorMapper: userJourneyServiceErrorMapper,
-        logger: this.logger
+        domainName: 'userJourney',
+        logger: this.logger,
+        errorMapper: userJourneyErrorMapper
       }
     );
-    
-    this.getUserEventCountsByType = applyServiceErrorHandling(
-      this.getUserEventCountsByType.bind(this),
+    this.getUserEventCountsByType = withServiceErrorHandling(
+      this.getUserEventCountsByType.bind(this), 
       {
-        serviceName: 'UserJourneyService',
         methodName: 'getUserEventCountsByType',
-        errorMapper: userJourneyServiceErrorMapper,
-        logger: this.logger
+        domainName: 'userJourney',
+        logger: this.logger,
+        errorMapper: userJourneyErrorMapper
       }
     );
   }
-  
   /**
    * Record a user interaction event
-   * 
+   *
    * @param {string} userEmail - User's email identifier
    * @param {string} eventType - Type of event
    * @param {Object} eventData - Additional data about the event
@@ -118,45 +94,67 @@ class UserJourneyService {
    * @returns {Promise<Object>} The recorded event
    */
   async recordEvent(userEmail, eventType, eventData = {}, challengeId = null) {
+    if (!userEmail) {
+      throw new UserJourneyValidationError('User email is required');
+    }
+    if (!eventType) {
+      throw new UserJourneyValidationError('Event type is required');
+    }
+    
+    this.logger.debug('Recording user journey event', { userEmail, eventType, challengeId });
     return this.userJourneyRepository.recordEvent(userEmail, eventType, eventData, challengeId);
   }
-  
   /**
    * Get user journey events
-   * 
+   *
    * @param {string} userEmail - User's email identifier
    * @param {number} limit - Maximum number of events to retrieve
    * @returns {Promise<Array>} List of user journey events
    */
   async getUserEvents(userEmail, limit = null) {
+    if (!userEmail) {
+      throw new UserJourneyValidationError('User email is required');
+    }
+    
+    this.logger.debug('Retrieving user journey events', { userEmail, limit });
     return this.userJourneyRepository.getUserEvents(userEmail, limit);
   }
-  
   /**
    * Get user events of a specific type
-   * 
+   *
    * @param {string} userEmail - User's email identifier
    * @param {string} eventType - Type of events to retrieve
    * @param {number} limit - Maximum number of events to retrieve
    * @returns {Promise<Array>} List of events of the specified type
    */
   async getUserEventsByType(userEmail, eventType, limit = null) {
+    if (!userEmail) {
+      throw new UserJourneyValidationError('User email is required');
+    }
+    if (!eventType) {
+      throw new UserJourneyValidationError('Event type is required');
+    }
+    
+    this.logger.debug('Retrieving user events by type', { userEmail, eventType, limit });
     return this.userJourneyRepository.getUserEventsByType(userEmail, eventType, limit);
   }
-  
   /**
    * Get count of events by type for a user
-   * 
+   *
    * @param {string} userEmail - User's email identifier
    * @returns {Promise<Object>} Counts indexed by event type
    */
   async getUserEventCountsByType(userEmail) {
+    if (!userEmail) {
+      throw new UserJourneyValidationError('User email is required');
+    }
+    
+    this.logger.debug('Retrieving user event counts by type', { userEmail });
     return this.userJourneyRepository.getUserEventCountsByType(userEmail);
   }
-  
   /**
    * Calculate user engagement level based on activity patterns
-   * 
+   *
    * @param {Object} journeyMeta - User's journey metadata
    * @param {Array} recentEvents - Recent user events
    * @returns {string} Engagement level classification
@@ -165,18 +163,14 @@ class UserJourneyService {
     if (!journeyMeta || !recentEvents) {
       return 'new';
     }
-  
     const now = new Date();
     const lastActivity = journeyMeta.lastActivity ? new Date(journeyMeta.lastActivity) : null;
-  
     // No previous activity
     if (!lastActivity) {
       return 'new';
     }
-  
     // Check recency of last activity
     const daysSinceLastActivity = (now - lastActivity) / (1000 * 60 * 60 * 24);
-  
     if (daysSinceLastActivity < 2) {
       return 'active';
     } else if (daysSinceLastActivity < 7) {
@@ -187,10 +181,9 @@ class UserJourneyService {
       return 'inactive';
     }
   }
-  
   /**
    * Determine user's journey phase based on progress
-   * 
+   *
    * @param {Object} user - User data
    * @param {number} completedChallenges - Number of completed challenges
    * @returns {string} Current journey phase
@@ -199,14 +192,11 @@ class UserJourneyService {
     if (!user || !user.profile) {
       return USER_JOURNEY_PHASES.ONBOARDING;
     }
-  
     // Check if user has completed profile
     const hasCompletedProfile = Boolean(user.profile.personalityTraits);
-  
     if (!hasCompletedProfile) {
       return USER_JOURNEY_PHASES.ONBOARDING;
     }
-  
     // Determine phase based on completed challenges
     if (completedChallenges < 5) {
       return USER_JOURNEY_PHASES.BEGINNER;
@@ -218,10 +208,9 @@ class UserJourneyService {
       return USER_JOURNEY_PHASES.EXPERT;
     }
   }
-  
   /**
    * Generate insights and recommendations for user's journey
-   * 
+   *
    * @param {string} phase - User's current phase
    * @param {string} engagement - User's engagement level
    * @returns {Object} Insights and personalized recommendations
@@ -229,7 +218,6 @@ class UserJourneyService {
   generateInsightsAndRecommendations(phase, engagement) {
     const insights = [];
     const recommendations = [];
-  
     // Add phase-based insights
     switch (phase) {
       case USER_JOURNEY_PHASES.ONBOARDING:
@@ -253,7 +241,6 @@ class UserJourneyService {
         recommendations.push('Try creating your own challenges to test your mastery');
         break;
     }
-  
     // Add engagement-based insights
     switch (engagement) {
       case 'active':
@@ -273,13 +260,14 @@ class UserJourneyService {
         recommendations.push('Start with a simple challenge to get back into practice');
         break;
     }
-  
-    return { insights, recommendations };
+    return {
+      insights,
+      recommendations
+    };
   }
-  
   /**
    * Calculate activity metrics from challenge events
-   * 
+   *
    * @param {Array} challengeEvents - Challenge completion events
    * @returns {Object} Calculated activity metrics
    */
@@ -289,49 +277,37 @@ class UserJourneyService {
         totalChallenges: 0,
         averageScore: 0,
         streakDays: 0,
-        lastChallenge: null,
+        lastChallenge: null
       };
     }
-  
     // Sort events by date
     const sortedEvents = [...challengeEvents].sort((a, b) => {
       return new Date(b.timestamp) - new Date(a.timestamp);
     });
-  
     // Calculate metrics
     const lastChallenge = sortedEvents[0].timestamp;
     const scores = sortedEvents.map(event => event.data?.score).filter(Boolean);
-    const averageScore =
-      scores.length > 0 ? scores.reduce((sum, score) => sum + score, 0) / scores.length : 0;
-  
+    const averageScore = scores.length > 0 ? scores.reduce((sum, score) => sum + score, 0) / scores.length : 0;
     // Calculate streak days
     const uniqueDays = new Set();
     const streakDays = 0;
-  
     // Sort by date ascending for streak calculation
-    const datesSorted = [...challengeEvents]
-      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
-      .map(event => {
-        const date = new Date(event.timestamp);
-        return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
-      });
-  
+    const datesSorted = [...challengeEvents].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)).map(event => {
+      const date = new Date(event.timestamp);
+      return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+    });
     // Count consecutive days
     let currentStreak = 1;
     let maxStreak = 1;
-  
     for (let i = 1; i < datesSorted.length; i++) {
       if (datesSorted[i] === datesSorted[i - 1]) {
         continue; // Same day, skip
       }
-  
       const prevDate = new Date(datesSorted[i - 1]);
       const currDate = new Date(datesSorted[i]);
-  
       // Check if dates are consecutive
       const diffTime = Math.abs(currDate - prevDate);
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
       if (diffDays === 1) {
         currentStreak++;
         maxStreak = Math.max(maxStreak, currentStreak);
@@ -339,18 +315,16 @@ class UserJourneyService {
         currentStreak = 1;
       }
     }
-  
     return {
       totalChallenges: challengeEvents.length,
       averageScore: Math.round(averageScore * 100) / 100,
       streakDays: maxStreak,
-      lastChallenge,
+      lastChallenge
     };
   }
-  
   /**
    * Get session timeout in milliseconds from config
-   * 
+   *
    * @param {Object} config - Application configuration object
    * @returns {number} Session timeout in milliseconds
    */
@@ -359,10 +333,9 @@ class UserJourneyService {
     const timeoutMinutes = config?.userJourney?.sessionTimeoutMinutes || 30;
     return timeoutMinutes * 60 * 1000; // Convert minutes to milliseconds
   }
-  
   /**
    * Update user session data and handle timeouts
-   * 
+   *
    * @param {Object} journeyMeta - Current journey metadata
    * @param {Date|string} currentTime - Current timestamp
    * @param {Object} config - Application configuration
@@ -375,33 +348,23 @@ class UserJourneyService {
         engagementLevel: 'new',
         sessionCount: 0,
         currentSessionStarted: null,
-        currentPhase: 'onboarding',
+        currentPhase: 'onboarding'
       };
     }
-  
     const timestamp = currentTime instanceof Date ? currentTime.toISOString() : currentTime;
     const currentDate = currentTime instanceof Date ? currentTime : new Date(currentTime);
     const lastActivityDate = journeyMeta.lastActivity ? new Date(journeyMeta.lastActivity) : null;
-  
     // Get the session timeout value from config
     const sessionTimeoutMs = this.getSessionTimeoutMs(config);
-  
     // Update session data
     // If no previous session or session timeout has occurred, start a new session
-    if (
-      !journeyMeta.currentSessionStarted ||
-      !lastActivityDate ||
-      currentDate - lastActivityDate > sessionTimeoutMs
-    ) {
+    if (!journeyMeta.currentSessionStarted || !lastActivityDate || currentDate - lastActivityDate > sessionTimeoutMs) {
       journeyMeta.sessionCount = (journeyMeta.sessionCount || 0) + 1;
       journeyMeta.currentSessionStarted = timestamp;
     }
-  
     // Always update the last activity time
     journeyMeta.lastActivity = timestamp;
-  
     return journeyMeta;
   }
 }
-
-module.exports = UserJourneyService;
+export default UserJourneyService;

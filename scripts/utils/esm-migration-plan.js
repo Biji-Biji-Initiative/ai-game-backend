@@ -10,183 +10,278 @@
  *   node scripts/utils/esm-migration-plan.js migrate [file]
  */
 
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
-const glob = require('glob');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { glob } from 'glob';
+import chalk from 'chalk';
 
-// Configuration
-const SRC_DIR = path.resolve(__dirname, '../../src');
-const CONFIG_FILE = path.resolve(__dirname, '../../.esm-migration.json');
+// Get the directory name in ESM context
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootDir = path.resolve(__dirname, '../..');
+
+// Regex patterns to detect module syntax
+const REQUIRE_PATTERN = /require\s*\(\s*["']([@\w\d\/\.-]+)["']\s*\)/g;
+const MODULE_EXPORTS_PATTERN = /module\.exports\s*=/g;
+const EXPORTS_PATTERN = /exports\.\w+\s*=/g;
+const IMPORT_PATTERN = /import\s+.*\s+from\s+["']([@\w\d\/\.-]+)["']/g;
+const EXPORT_PATTERN = /export\s+(default|const|let|var|function|class)\s+/g;
+const DYNAMIC_REQUIRE_PATTERN = /require\s*\(\s*[^"'][^)]*\)/g;
+const DIRNAME_FILENAME_PATTERN = /(__dirname|__filename)/g;
+
+// Directories to ignore
+const ignoreDirs = [
+  'node_modules',
+  '.git',
+  'disabled_scripts',
+  'coverage',
+  'logs',
+  'api-tester-ui',
+  'supabase'
+];
 
 /**
- * Analyze the codebase for CommonJS vs ESM usage
+ * Analyze a file for module syntax
+ * @param {string} filePath - Path to the file to analyze
+ * @returns {Object} - Analysis results
  */
-function analyzeCodebase() {
-  console.log('Analyzing codebase...');
-  
-  // Count CommonJS statements
-  const requireCount = parseInt(execSync('grep -r "require(" ./src | wc -l').toString().trim());
-  const moduleExportsCount = parseInt(execSync('grep -r "module.exports" ./src | wc -l').toString().trim());
-  
-  // Count ESM statements
-  const importCount = parseInt(execSync('grep -r "import " ./src | wc -l').toString().trim());
-  const exportCount = parseInt(execSync('grep -r "export " ./src | wc -l').toString().trim());
-  
-  console.log('\n=== Codebase Analysis ===');
-  console.log(`CommonJS usage: ${requireCount + moduleExportsCount} statements`);
-  console.log(`- require statements: ${requireCount}`);
-  console.log(`- module.exports statements: ${moduleExportsCount}`);
-  console.log(`\nES Modules usage: ${importCount + exportCount} statements`);
-  console.log(`- import statements: ${importCount}`);
-  console.log(`- export statements: ${exportCount}`);
-  
-  const files = glob.sync(`${SRC_DIR}/**/*.js`);
-  console.log(`\nTotal JavaScript files: ${files.length}`);
-  
-  // Identify files with CommonJS
-  const filesWithRequire = execSync(`grep -l "require(" ${SRC_DIR}/**/*.js`).toString().trim().split('\n');
-  const filesWithModuleExports = execSync(`grep -l "module.exports" ${SRC_DIR}/**/*.js`).toString().trim().split('\n');
-  
-  // Identify files with ESM
-  const filesWithImport = execSync(`grep -l "import " ${SRC_DIR}/**/*.js`).toString().trim().split('\n');
-  const filesWithExport = execSync(`grep -l "export " ${SRC_DIR}/**/*.js`).toString().trim().split('\n');
-  
-  // Create a unique set of files
-  const commonJSFiles = [...new Set([...filesWithRequire, ...filesWithModuleExports])];
-  const esmFiles = [...new Set([...filesWithImport, ...filesWithExport])];
-  
-  // Save the analysis to a config file
-  const config = {
-    analyzed: new Date().toISOString(),
-    totalFiles: files.length,
-    commonJS: {
-      files: commonJSFiles,
-      count: commonJSFiles.length
-    },
-    esm: {
-      files: esmFiles,
-      count: esmFiles.length
-    },
-    mixed: {
-      files: commonJSFiles.filter(file => esmFiles.includes(file)),
-      count: commonJSFiles.filter(file => esmFiles.includes(file)).length
-    },
-    migrated: []
-  };
-  
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
-  
-  console.log(`\nMigration candidates: ${config.commonJS.count} files`);
-  console.log(`Already using ESM: ${config.esm.count} files`);
-  console.log(`Mixed usage: ${config.mixed.count} files`);
-  console.log(`\nAnalysis saved to ${CONFIG_FILE}`);
-  
-  // Analysis for dependencies
-  const packageJson = require('../../package.json');
-  const dependencies = { ...packageJson.dependencies, ...packageJson.devDependencies };
-  
-  console.log('\n=== Dependency Analysis ===');
-  console.log('These packages might need special attention during migration:');
-  const keyPackages = [
-    'express', 'openai', '@supabase/supabase-js', 'winston', 'jest', 'mocha'
-  ];
-  
-  for (const pkg of keyPackages) {
-    console.log(`- ${pkg}: ${dependencies[pkg]}`);
+async function analyzeFile(filePath) {
+  try {
+    const content = await fs.promises.readFile(filePath, 'utf8');
+    
+    const requires = [...content.matchAll(REQUIRE_PATTERN)];
+    const moduleExports = [...content.matchAll(MODULE_EXPORTS_PATTERN)];
+    const exportsProps = [...content.matchAll(EXPORTS_PATTERN)];
+    const imports = [...content.matchAll(IMPORT_PATTERN)];
+    const exports = [...content.matchAll(EXPORT_PATTERN)];
+    const dynamicRequires = [...content.matchAll(DYNAMIC_REQUIRE_PATTERN)];
+    const dirnameFilename = [...content.matchAll(DIRNAME_FILENAME_PATTERN)];
+    
+    const hasCjs = requires.length > 0 || moduleExports.length > 0 || exportsProps.length > 0;
+    const hasEsm = imports.length > 0 || exports.length > 0;
+    const hasMixedSyntax = hasCjs && hasEsm;
+    
+    return {
+      filePath,
+      requires: requires.length,
+      moduleExports: moduleExports.length,
+      exportsProps: exportsProps.length,
+      imports: imports.length,
+      exports: exports.length,
+      dynamicRequires: dynamicRequires.length,
+      dirnameFilename: dirnameFilename.length,
+      hasCjs,
+      hasEsm,
+      hasMixedSyntax,
+      moduleType: hasMixedSyntax ? 'mixed' : (hasCjs ? 'cjs' : (hasEsm ? 'esm' : 'empty'))
+    };
+  } catch (error) {
+    console.error(chalk.red(`Error analyzing file ${filePath}: ${error.message}`));
+    return {
+      filePath,
+      error: error.message,
+      moduleType: 'error'
+    };
   }
 }
 
 /**
- * Migrate a single file from CommonJS to ESM
- * @param {string} filePath - The file to migrate
+ * Find all JavaScript files
+ * @returns {Promise<string[]>} - Array of file paths
  */
-function migrateFile(filePath) {
-  const resolvedPath = path.resolve(process.cwd(), filePath);
+async function findJSFiles() {
+  const ignorePattern = `**/{${ignoreDirs.join(',')}}/**`;
   
-  if (!fs.existsSync(resolvedPath)) {
-    console.error(`File not found: ${resolvedPath}`);
-    process.exit(1);
-  }
-  
-  console.log(`Migrating file: ${resolvedPath}`);
-  
-  const content = fs.readFileSync(resolvedPath, 'utf8');
-  let newContent = content;
-  
-  // Handle 'use strict' directive (not needed in ESM)
-  newContent = newContent.replace(/['"]use strict['"];?\n?/g, '');
-  
-  // Convert require statements to import statements
-  const requireRegex = /const\s+([{}\s\w,]+)\s+=\s+require\(['"]([^'"]+)['"]\);?/g;
-  newContent = newContent.replace(requireRegex, (match, importItems, importPath) => {
-    // Check if it's destructuring require
-    if (importItems.includes('{')) {
-      // Handle destructuring imports
-      return `import ${importItems} from '${importPath}';`;
-    } else {
-      // Handle regular imports
-      return `import ${importItems} from '${importPath}';`;
+  return glob('**/*.js', {
+    cwd: rootDir,
+    ignore: [ignorePattern, 'eslint.config.js'],
+    absolute: true
+  });
+}
+
+/**
+ * Sort files by a specific criterion
+ * @param {Array} files - Array of file analysis results
+ * @param {string} criterion - The criterion to sort by
+ * @returns {Array} - Sorted files
+ */
+function sortFiles(files, criterion) {
+  return [...files].sort((a, b) => {
+    if (criterion === 'dependencies') {
+      return (a.requires + a.imports) - (b.requires + b.imports);
+    } else if (criterion === 'exports') {
+      return (a.moduleExports + a.exportsProps + a.exports) - (b.moduleExports + b.exportsProps + b.exports);
+    } else if (criterion === 'complexity') {
+      return (a.dynamicRequires + a.dirnameFilename) - (b.dynamicRequires + b.dirnameFilename);
     }
+    return 0;
+  });
+}
+
+/**
+ * Identify "leaf" files that are good candidates for early migration
+ * @param {Array} files - Array of file analysis results
+ * @returns {Array} - Leaf files
+ */
+function identifyLeafFiles(files) {
+  // Files with few or no dependencies but many exports are good candidates
+  return files.filter(file => 
+    file.hasCjs && 
+    (file.requires + file.imports) <= 3 && 
+    (file.moduleExports + file.exportsProps) > 0 &&
+    file.dynamicRequires === 0 &&
+    file.dirnameFilename === 0
+  );
+}
+
+/**
+ * Generate an ESM migration plan report
+ * @param {Array} files - Array of file analysis results
+ * @returns {string} - Report text
+ */
+function generateReport(files) {
+  // Basic stats
+  const totalFiles = files.length;
+  const cjsFiles = files.filter(f => f.moduleType === 'cjs').length;
+  const esmFiles = files.filter(f => f.moduleType === 'esm').length;
+  const mixedFiles = files.filter(f => f.moduleType === 'mixed').length;
+  const emptyFiles = files.filter(f => f.moduleType === 'empty').length;
+  
+  const totalRequires = files.reduce((sum, f) => sum + f.requires, 0);
+  const totalModuleExports = files.reduce((sum, f) => sum + f.moduleExports, 0);
+  const totalExportsProps = files.reduce((sum, f) => sum + f.exportsProps, 0);
+  const totalImports = files.reduce((sum, f) => sum + f.imports, 0);
+  const totalExports = files.reduce((sum, f) => sum + f.exports, 0);
+  const totalDynamicRequires = files.reduce((sum, f) => sum + f.dynamicRequires, 0);
+  const totalDirnameFilename = files.reduce((sum, f) => sum + f.dirnameFilename, 0);
+  
+  // Identify leaf files
+  const leafFiles = identifyLeafFiles(files);
+  
+  // Build the report
+  let report = `# ESM Migration Analysis Report\n\n`;
+  
+  report += `## Summary\n\n`;
+  report += `- **Total JS Files**: ${totalFiles}\n`;
+  report += `- **CommonJS Files**: ${cjsFiles}\n`;
+  report += `- **ES Module Files**: ${esmFiles}\n`;
+  report += `- **Mixed Syntax Files**: ${mixedFiles}\n`;
+  report += `- **Empty/Other Files**: ${emptyFiles}\n\n`;
+  
+  report += `## Module Usage\n\n`;
+  report += `- **require() statements**: ${totalRequires}\n`;
+  report += `- **module.exports statements**: ${totalModuleExports}\n`;
+  report += `- **exports.x statements**: ${totalExportsProps}\n`;
+  report += `- **import statements**: ${totalImports}\n`;
+  report += `- **export statements**: ${totalExports}\n\n`;
+  
+  report += `## Migration Challenges\n\n`;
+  report += `- **Files with dynamic requires**: ${files.filter(f => f.dynamicRequires > 0).length} (${totalDynamicRequires} instances)\n`;
+  report += `- **Files using __dirname/__filename**: ${files.filter(f => f.dirnameFilename > 0).length} (${totalDirnameFilename} instances)\n\n`;
+  
+  report += `## Recommended Migration Candidates\n\n`;
+  report += `The following ${leafFiles.length} files are good candidates for early migration:\n\n`;
+  
+  leafFiles.forEach(file => {
+    const relativePath = path.relative(rootDir, file.filePath);
+    report += `- \`${relativePath}\` (${file.requires} requires, ${file.moduleExports + file.exportsProps} exports)\n`;
   });
   
-  // Convert module.exports to export default or named exports
-  newContent = newContent.replace(/module\.exports\s+=\s+(\w+);?/g, 'export default $1;');
-  newContent = newContent.replace(/module\.exports\s+=\s+{/g, 'export {');
-  newContent = newContent.replace(/module\.exports\s+=\s+(\w+);?/g, 'export default $1;');
+  report += `\n## Migration Progress\n\n`;
+  report += `- CommonJS: ${Math.round((cjsFiles / totalFiles) * 100)}%\n`;
+  report += `- ES Modules: ${Math.round((esmFiles / totalFiles) * 100)}%\n`;
+  report += `- Mixed/In Progress: ${Math.round((mixedFiles / totalFiles) * 100)}%\n\n`;
   
-  // Handle class exports
-  newContent = newContent.replace(
-    /module\.exports\s+=\s+class\s+(\w+)/g, 
-    'export default class $1'
-  );
+  report += `## Next Steps\n\n`;
+  report += `1. Start by migrating the leaf files listed above\n`;
+  report += `2. Use the migration scripts to help with the conversion:\n`;
+  report += `   - \`npm run migrate:esm:cjstoesm\` - Use cjstoesm for bulk conversion\n`;
+  report += `   - \`npm run migrate:esm:jscodeshift\` - Use JSCodeshift for more complex transformations\n`;
+  report += `3. After each batch of migrations, run tests to ensure functionality\n`;
+  report += `4. Fix ESLint errors with \`npm run migrate:esm:check\`\n\n`;
   
-  // Handle function exports
-  newContent = newContent.replace(
-    /module\.exports\s+=\s+function\s+(\w+)/g, 
-    'export default function $1'
-  );
+  report += `Report generated on ${new Date().toISOString()}\n`;
   
-  // Save the changes to a new file
-  const dir = path.dirname(resolvedPath);
-  const ext = path.extname(resolvedPath);
-  const base = path.basename(resolvedPath, ext);
-  const newFilePath = path.join(dir, `${base}.mjs`);
+  return report;
+}
+
+/**
+ * Save the report to a file
+ * @param {string} report - Report content
+ * @returns {Promise<string>} - Path to the saved report
+ */
+async function saveReport(report) {
+  const reportDir = path.join(rootDir, 'reports');
+  const reportPath = path.join(reportDir, 'esm-migration-report.md');
   
-  fs.writeFileSync(newFilePath, newContent);
-  console.log(`Migrated file saved to: ${newFilePath}`);
-  
-  // Update the config file to track migrated files
-  if (fs.existsSync(CONFIG_FILE)) {
-    const config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-    config.migrated.push({
-      original: resolvedPath,
-      migrated: newFilePath,
-      date: new Date().toISOString()
-    });
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+  try {
+    // Create reports directory if it doesn't exist
+    if (!fs.existsSync(reportDir)) {
+      await fs.promises.mkdir(reportDir, { recursive: true });
+    }
+    
+    await fs.promises.writeFile(reportPath, report, 'utf8');
+    console.log(chalk.green(`✓ Report saved to ${reportPath}`));
+    return reportPath;
+  } catch (error) {
+    console.error(chalk.red(`Error saving report: ${error.message}`));
+    throw error;
   }
 }
 
 /**
- * Main function
+ * Main function to run the analysis
  */
-function main() {
-  const command = process.argv[2];
-  
-  if (command === 'analyze') {
-    analyzeCodebase();
-  } else if (command === 'migrate') {
-    const filePath = process.argv[3];
-    if (!filePath) {
-      console.error('Please provide a file path to migrate');
-      process.exit(1);
+async function main() {
+  try {
+    console.log(chalk.yellow('Starting ESM migration analysis...'));
+    
+    // Step 1: Find JS files
+    console.log(chalk.yellow('Finding JS files...'));
+    const allFiles = await findJSFiles();
+    console.log(chalk.blue(`Found ${allFiles.length} JS files to analyze`));
+    
+    // Step 2: Analyze each file
+    console.log(chalk.yellow('Analyzing files...'));
+    const fileAnalysis = [];
+    
+    for (const file of allFiles) {
+      fileAnalysis.push(await analyzeFile(file));
+      
+      // Log progress every 100 files
+      if (fileAnalysis.length % 100 === 0) {
+        console.log(chalk.blue(`Analyzed ${fileAnalysis.length}/${allFiles.length} files`));
+      }
     }
-    migrateFile(filePath);
-  } else {
-    console.log('Usage:');
-    console.log('  node scripts/utils/esm-migration-plan.js analyze');
-    console.log('  node scripts/utils/esm-migration-plan.js migrate [file]');
+    
+    // Step 3: Generate and save report
+    console.log(chalk.yellow('Generating report...'));
+    const report = generateReport(fileAnalysis);
+    const reportPath = await saveReport(report);
+    
+    console.log(chalk.green('\nAnalysis completed successfully!'));
+    console.log(chalk.blue(`View the full report at: ${reportPath}`));
+    
+    // Print summary to console
+    const cjsFiles = fileAnalysis.filter(f => f.moduleType === 'cjs').length;
+    const esmFiles = fileAnalysis.filter(f => f.moduleType === 'esm').length;
+    const leafFiles = identifyLeafFiles(fileAnalysis);
+    
+    console.log(chalk.yellow('\nSummary:'));
+    console.log(chalk.blue(`- Total JS Files: ${allFiles.length}`));
+    console.log(chalk.blue(`- CommonJS Files: ${cjsFiles} (${Math.round((cjsFiles / allFiles.length) * 100)}%)`));
+    console.log(chalk.blue(`- ES Module Files: ${esmFiles} (${Math.round((esmFiles / allFiles.length) * 100)}%)`));
+    console.log(chalk.blue(`- Recommended Migration Candidates: ${leafFiles.length} files`));
+    
+    console.log(chalk.yellow('\nRecommended next steps:'));
+    console.log(chalk.blue('1. Review the full report for detailed information'));
+    console.log(chalk.blue('2. Start with the recommended migration candidates'));
+    console.log(chalk.blue('3. Use npm run migrate:esm:cjstoesm or npm run migrate:esm:jscodeshift for conversion'));
+    
+  } catch (error) {
+    console.error(chalk.red(`Analysis failed: ${error.message}`));
+    process.exit(1);
   }
 }
 

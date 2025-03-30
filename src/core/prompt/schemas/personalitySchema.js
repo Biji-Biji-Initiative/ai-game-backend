@@ -1,22 +1,10 @@
+import { z } from "zod";
 'use strict';
-
-/**
- * Personality Prompt Schema
- *
- * Defines the schema for validation of personality assessment prompt parameters
- * using Zod validation library.
- *
- * @module personalitySchema
- * @requires zod
- */
-
-const { z } = require('zod');
-
 /**
  * User schema for personality assessment
  */
 const userSchema = z
-  .object({
+    .object({
     id: z.string().optional(),
     email: z.string().optional(),
     fullName: z.string().optional(),
@@ -29,32 +17,28 @@ const userSchema = z
     aiAttitudes: z.record(z.number().min(1).max(10)).optional(),
     communicationStyle: z.string().optional(),
     learningGoals: z.array(z.string()).optional(),
-  })
-  .passthrough();
-
+})
+    .passthrough();
 /**
  * User interaction history schema
  */
 const interactionHistorySchema = z
-  .array(
-    z.object({
-      id: z.string().optional(),
-      type: z.string().optional(),
-      content: z.string().optional(),
-      timestamp: z.string().optional(),
-      score: z.number().optional(),
-      sentimentScore: z.number().min(-1).max(1).optional(),
-      complexity: z.number().min(1).max(10).optional(),
-      length: z.number().optional(),
-    })
-  )
-  .optional();
-
+    .array(z.object({
+    id: z.string().optional(),
+    type: z.string().optional(),
+    content: z.string().optional(),
+    timestamp: z.string().optional(),
+    score: z.number().optional(),
+    sentimentScore: z.number().min(-1).max(1).optional(),
+    complexity: z.number().min(1).max(10).optional(),
+    length: z.number().optional(),
+}))
+    .optional();
 /**
  * Options schema - defines additional personality assessment options
  */
 const optionsSchema = z
-  .object({
+    .object({
     traitCategories: z.array(z.string()).optional(),
     detailLevel: z.enum(['basic', 'detailed', 'comprehensive']).optional().default('detailed'),
     includeRationale: z.boolean().optional().default(true),
@@ -62,18 +46,16 @@ const optionsSchema = z
     responseFormat: z.enum(['json', 'markdown']).optional().default('json'),
     model: z.string().optional(),
     temperature: z.number().min(0).max(2).optional().default(0.5),
-  })
-  .passthrough();
-
+})
+    .passthrough();
 /**
  * Complete personality prompt parameters schema
  */
 const personalityPromptSchema = z.object({
-  user: userSchema,
-  interactionHistory: interactionHistorySchema.optional(),
-  options: optionsSchema.optional(),
+    user: userSchema,
+    interactionHistory: interactionHistorySchema.optional(),
+    options: optionsSchema.optional(),
 });
-
 /**
  * Validate personality prompt parameters
  * @param {Object} params - Parameters to validate
@@ -81,22 +63,23 @@ const personalityPromptSchema = z.object({
  * @throws {Error} If validation fails
  */
 function validatePersonalityPromptParams(params) {
-  try {
-    return personalityPromptSchema.parse(params);
-  } catch (error) {
-    // Transform Zod validation errors to more user-friendly format
-    if (error.errors) {
-      const formattedErrors = error.errors
-        .map(err => `${err.path.join('.')}: ${err.message}`)
-        .join('; ');
-
-      throw new Error(`Personality prompt parameter validation failed: ${formattedErrors}`);
+    try {
+        return personalityPromptSchema.parse(params);
     }
-    throw error;
-  }
+    catch (error) {
+        // Transform Zod validation errors to more user-friendly format
+        if (error.errors) {
+            const formattedErrors = error.errors
+                .map(err => `${err.path.join('.')}: ${err.message}`)
+                .join('; ');
+            throw new Error(`Personality prompt parameter validation failed: ${formattedErrors}`);
+        }
+        throw error;
+    }
 }
-
-module.exports = {
-  personalityPromptSchema,
-  validatePersonalityPromptParams,
+export { personalityPromptSchema };
+export { validatePersonalityPromptParams };
+export default {
+    personalityPromptSchema,
+    validatePersonalityPromptParams
 };

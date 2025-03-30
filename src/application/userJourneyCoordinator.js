@@ -7,18 +7,19 @@
  * of user progression through the platform.
  * This coordinator follows DDD principles by coordinating across multiple domains.
  */
+import BaseCoordinator from './BaseCoordinator.js';
 
 /**
  * Class representing the User Journey Coordinator
  * Follows DDD principles and proper dependency injection
+ * Extends BaseCoordinator for standardized error handling and operation execution
  */
-class UserJourneyCoordinator {
+class UserJourneyCoordinator extends BaseCoordinator {
   /**
    * Create a new UserJourneyCoordinator
    * @param {Object} dependencies - Injected dependencies
    * @param {Object} dependencies.userService - Service for user operations
    * @param {Object} dependencies.challengeService - Service for challenge operations
-   * @param {Object} dependencies.userJourneyRepository - Repository for user journey operations
    * @param {Object} dependencies.userJourneyService - Service for user journey logic
    * @param {Object} dependencies.config - Application configuration
    * @param {Object} dependencies.logger - Logger instance
@@ -26,18 +27,36 @@ class UserJourneyCoordinator {
   constructor({ 
     userService, 
     challengeService, 
-    userJourneyRepository, 
     userJourneyService,
     config,
     logger 
   }) {
+    // Call super with name and logger
+    super({
+      name: 'UserJourneyCoordinator',
+      logger
+    });
+
+    // Validate required dependencies
+    const requiredDependencies = [
+      'userService',
+      'challengeService',
+      'userJourneyService',
+      'config'
+    ];
+    
+    this.validateDependencies({
+      userService,
+      challengeService,
+      userJourneyService,
+      config
+    }, requiredDependencies);
+
+    // Initialize services
     this.userService = userService;
     this.challengeService = challengeService;
-    // We still need direct access to userJourneyRepository as there's no comprehensive service API for it yet
-    this.userJourneyRepository = userJourneyRepository;
     this.userJourneyService = userJourneyService;
     this.config = config;
-    this.logger = logger;
   }
 
   /**
@@ -48,16 +67,14 @@ class UserJourneyCoordinator {
    * @param {String} challengeId - Optional associated challenge ID
    * @returns {Promise<Object>} The recorded event
    */
-  async recordUserEvent(userEmail, eventType, eventData = {}, challengeId = null) {
-    try {
+  recordUserEvent(userEmail, eventType, eventData = {}, challengeId = null) {
+    return this.executeOperation(async () => {
       if (!userEmail || !eventType) {
-        this.logger.warn('Missing required parameters for recording user event');
         throw new Error('Missing required parameters');
       }
       
-      // Record event in the database using repository
-      // Note: This operation is specific to user journey tracking and doesn't have a service equivalent yet
-      const recordedEvent = await this.userJourneyRepository.recordEvent(
+      // Record event using the domain service
+      const recordedEvent = await this.userJourneyService.recordEvent(
         userEmail, 
         eventType, 
         eventData, 
@@ -80,23 +97,14 @@ class UserJourneyCoordinator {
         currentPhase: 'onboarding'
       };
       
-      // Get recent events to calculate metrics
-      // Note: This operation is specific to user journey tracking and doesn't have a service equivalent yet
-      const recentEvents = await this.userJourneyRepository.getUserEvents(userEmail, 100);
+      // Get recent events to calculate metrics through the service
+      const recentEvents = await this.userJourneyService.getUserEvents(userEmail, 100);
       
       // Update user's phase, session data, and engagement level based on events
       await this.updateUserJourneyMetrics(userEmail, journeyMeta, recentEvents);
       
-      this.logger.info(`Recorded user event: ${eventType}`, { 
-        userEmail, 
-        currentPhase: journeyMeta.currentPhase 
-      });
-      
       return recordedEvent;
-    } catch (error) {
-      this.logger.error('Error recording user event', { error: error.message });
-      throw error;
-    }
+    }, 'recordUserEvent', { userEmail, eventType, hasEventData: !!Object.keys(eventData).length, challengeId });
   }
 
   /**
@@ -106,8 +114,8 @@ class UserJourneyCoordinator {
    * @param {Array} recentEvents - Recent user events
    * @returns {Promise<Object>} Updated user
    */
-  async updateUserJourneyMetrics(userEmail, journeyMeta, recentEvents) {
-    try {
+  updateUserJourneyMetrics(userEmail, journeyMeta, recentEvents) {
+    return this.executeOperation(async () => {
       // Get completed challenges count using challengeService
       const challengeHistory = await this.challengeService.getUserChallengeHistory(userEmail);
       const completedChallenges = challengeHistory.filter(c => c.status === 'completed').length;
@@ -126,10 +134,7 @@ class UserJourneyCoordinator {
       
       // Save updated journey metadata using userService
       return await this.userService.updateUser(userEmail, { journeyMeta });
-    } catch (error) {
-      this.logger.error('Error updating user journey metrics', { error: error.message });
-      throw error;
-    }
+    }, 'updateUserJourneyMetrics', { userEmail, journeyPhase: journeyMeta?.currentPhase, eventsCount: recentEvents?.length });
   }
 
   /**
@@ -137,17 +142,16 @@ class UserJourneyCoordinator {
    * @param {String} userEmail - User's email
    * @returns {Promise<Object>} Journey insights and recommendations
    */
-  async getUserJourneyInsights(userEmail) {
-    try {
+  getUserJourneyInsights(userEmail) {
+    return this.executeOperation(async () => {
       // Get user data using userService
       const user = await this.userService.getUserByEmail(userEmail);
       if (!user) {
         throw new Error(`User not found: ${userEmail}`);
       }
       
-      // Get user journey events - this operation remains repository-specific
-      // as there's no service equivalent yet
-      const events = await this.userJourneyRepository.getUserEvents(userEmail, 100);
+      // Get user journey events through the service
+      const events = await this.userJourneyService.getUserEvents(userEmail, 100);
       
       // Get journey metadata or use defaults if not available
       const journeyMeta = user.journeyMeta || {
@@ -172,7 +176,8 @@ class UserJourneyCoordinator {
         recommendations,
         eventsCount: events.length
       };
-    } catch (error) {
+    }, 'getUserJourneyInsights', { userEmail }, (error) => {
+      // Custom error handler for this operation only
       this.logger.error('Error generating user journey insights', { error: error.message });
       
       return {
@@ -180,7 +185,7 @@ class UserJourneyCoordinator {
         insights: ['Unable to generate journey insights'],
         recommendations: ['Try a new challenge to continue your journey']
       };
-    }
+    });
   }
 
   /**
@@ -188,12 +193,11 @@ class UserJourneyCoordinator {
    * @param {String} userEmail - User's email
    * @returns {Promise<Object>} Activity summary
    */
-  async getUserActivitySummary(userEmail) {
-    try {
-      // The following operations remain repository-specific as there's no service equivalent yet
-      // Note: In a future refactoring, these could be moved to the UserJourneyService
-      const eventCounts = await this.userJourneyRepository.getUserEventCountsByType(userEmail);
-      const challengeEvents = await this.userJourneyRepository.getUserEventsByType(userEmail, 'challenge_completed');
+  getUserActivitySummary(userEmail) {
+    return this.executeOperation(async () => {
+      // Get event data through the service
+      const eventCounts = await this.userJourneyService.getUserEventCountsByType(userEmail);
+      const challengeEvents = await this.userJourneyService.getUserEventsByType(userEmail, 'challenge_completed');
       
       // Use domain service to calculate activity metrics
       const activityMetrics = this.userJourneyService.calculateActivityMetrics(challengeEvents);
@@ -203,11 +207,8 @@ class UserJourneyCoordinator {
         eventCounts,
         ...activityMetrics
       };
-    } catch (error) {
-      this.logger.error('Error getting user activity summary', { error: error.message });
-      throw error;
-    }
+    }, 'getUserActivitySummary', { userEmail });
   }
 }
 
-module.exports = UserJourneyCoordinator;
+export default UserJourneyCoordinator; 

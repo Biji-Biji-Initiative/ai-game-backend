@@ -1,25 +1,12 @@
+import { focusAreaLogger } from "../../infra/logging/domainLogger.js";
+import { FocusAreaError, FocusAreaNotFoundError } from "../errors/focusAreaErrors.js";
+import { withServiceErrorHandling, createErrorMapper } from "../../infra/errors/errorStandardization.js";
 'use strict';
-
-/**
- * Focus Area Service
- * 
- * Domain service for focus area operations.
- * This service encapsulates all repository operations for focus areas.
- */
-
-const { focusAreaLogger } = require('../../../core/infra/logging/domainLogger');
-const { FocusAreaError, FocusAreaNotFoundError } = require('../errors/focusAreaErrors');
-const {
-  withServiceErrorHandling,
-  createErrorMapper
-} = require('../../../core/infra/errors/errorStandardization');
-
 // Create an error mapper for the focus area service
 const focusAreaServiceErrorMapper = createErrorMapper({
   'FocusAreaNotFoundError': FocusAreaNotFoundError,
   'Error': FocusAreaError
 }, FocusAreaError);
-
 /**
  * Service for managing focus area entities
  */
@@ -32,16 +19,19 @@ class FocusAreaService {
    * @param {Object} dependencies.eventTypes - Event type constants
    * @param {Object} dependencies.logger - Logger instance
    */
-  constructor({ focusAreaRepository, eventBus, eventTypes, logger }) {
+  constructor({
+    focusAreaRepository,
+    eventBus,
+    eventTypes,
+    logger
+  }) {
     if (!focusAreaRepository) {
       throw new Error('focusAreaRepository is required for FocusAreaService');
     }
-
     this.focusAreaRepository = focusAreaRepository;
     this.eventBus = eventBus;
     this.eventTypes = eventTypes;
     this.logger = logger || focusAreaLogger.child('service');
-    
     // Apply standardized error handling to methods
     this.getFocusAreasForUser = withServiceErrorHandling(this.getFocusAreasForUser.bind(this), {
       methodName: 'getFocusAreasForUser',
@@ -49,14 +39,12 @@ class FocusAreaService {
       logger: this.logger,
       errorMapper: focusAreaServiceErrorMapper
     });
-    
     this.save = withServiceErrorHandling(this.save.bind(this), {
       methodName: 'save',
       domainName: 'focusArea',
       logger: this.logger,
       errorMapper: focusAreaServiceErrorMapper
     });
-    
     this.deleteAllForUser = withServiceErrorHandling(this.deleteAllForUser.bind(this), {
       methodName: 'deleteAllForUser',
       domainName: 'focusArea',
@@ -64,17 +52,17 @@ class FocusAreaService {
       errorMapper: focusAreaServiceErrorMapper
     });
   }
-
   /**
    * Get focus areas for a user
    * @param {string} userId - User ID
    * @returns {Promise<Array>} List of focus areas
    */
   getFocusAreasForUser(userId) {
-    this.logger.debug('Getting focus areas for user', { userId });
+    this.logger.debug('Getting focus areas for user', {
+      userId
+    });
     return this.focusAreaRepository.findByUserId(userId);
   }
-
   /**
    * Save focus areas for a user
    * @param {string} userId - User ID
@@ -82,13 +70,11 @@ class FocusAreaService {
    * @returns {Promise<Array>} Saved focus areas
    */
   async save(userId, focusAreas) {
-    this.logger.debug('Saving focus areas for user', { 
-      userId, 
-      count: focusAreas?.length 
+    this.logger.debug('Saving focus areas for user', {
+      userId,
+      count: focusAreas?.length
     });
-    
     const savedAreas = await this.focusAreaRepository.save(userId, focusAreas);
-    
     // Publish an event if there's an event bus
     if (this.eventBus && this.eventTypes) {
       await this.eventBus.publish(this.eventTypes.FOCUS_AREAS_SAVED, {
@@ -97,19 +83,18 @@ class FocusAreaService {
         focusAreaIds: savedAreas.map(area => area.id)
       });
     }
-    
     return savedAreas;
   }
-
   /**
    * Delete all focus areas for a user
    * @param {string} userId - User ID
    * @returns {Promise<boolean>} Whether the operation was successful
    */
   async deleteAllForUser(userId) {
-    this.logger.debug('Deleting all focus areas for user', { userId });
+    this.logger.debug('Deleting all focus areas for user', {
+      userId
+    });
     const success = await this.focusAreaRepository.deleteAllForUser(userId);
-    
     // Publish an event if there's an event bus
     if (this.eventBus && this.eventTypes && success) {
       await this.eventBus.publish(this.eventTypes.FOCUS_AREAS_DELETED, {
@@ -117,9 +102,7 @@ class FocusAreaService {
         allDeleted: true
       });
     }
-    
     return success;
   }
 }
-
-module.exports = FocusAreaService; 
+export default FocusAreaService;

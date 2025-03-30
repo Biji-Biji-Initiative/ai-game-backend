@@ -1,0 +1,190 @@
+Okay, focusing on getting your tests up-to-date, functional, and emphasizing real API/integration behavior where appropriate. Based on the provided files (which show a good structure is intended but might have issues), here's a plan with actionable tickets:
+
+Overall Goal: Achieve a reliable test suite that reflects the current DDD architecture, validates core business logic and API functionality, and provides confidence before deployment. We'll prioritize fixing existing tests and structure, then refactoring, and finally adding coverage.
+
+Phase 1: Stabilization & Cleanup (Getting Tests to Run)
+
+These tickets address immediate issues preventing tests from running correctly based on the logs and structure.
+
+Ticket #T1: Fix Test Import Paths
+Priority: High
+Issue: Logs (MIGRATION_PROGRESS.md, specific test logs) indicate widespread Cannot find module errors due to incorrect relative paths after test file migration.
+Affected Files: Primarily files within tests/domain/, tests/integration/, tests/external/, tests/e2e/.
+Action:
+✅ Created scripts/fix-test-imports.js and scripts/fix-source-imports.js to fix import paths
+✅ Fixed import paths in all test files
+✅ Created a shell script (scripts/fix-test-suite.sh) that runs both fix scripts and documents manual steps
+
+Ticket #T2: Resolve Supabase Connectivity/Schema Issues in Tests
+Priority: High
+Issue: Logs show Supabase errors in integration/E2E tests: credentials not found, "relation does not exist", "column does not exist", foreign key violations.
+Affected Files: tests/helpers/apiTestHelper.js, tests/loadEnv.js, tests in tests/e2e/, tests/external/supabase/, tests/integration/ that interact with Supabase.
+Action:
+✅ Verified SUPABASE_URL, SUPABASE_KEY, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY exist in .env.test
+✅ Updated supabase-client.test.js to use a more reliable connection checking method
+✅ Added verifySupabaseConnection() helper function in apiTestHelper.js
+✅ Fixed axios import in personality.e2e.test.js
+⬜ Check for database schema issues in tests
+⬜ Ensure foreign key constraints are handled correctly
+
+Ticket #T3: Fix OpenAI API Parameter Errors
+Priority: High
+Issue: Logs (MIGRATION_PROGRESS.md, tests/integration/logs/evaluation_test_*.json) show errors like "response_format parameter not supported" or issues with messages format, indicating outdated API calls.
+Affected Files: Tests in tests/external/openai/, tests/integration/ involving OpenAI calls.
+Action:
+✅ Updated OpenAI client to use the new Responses API format
+✅ Fixed 'response_format' parameter to use 'text.format' instead
+✅ Updated ResponseFormat enum to use 'json_object' instead of 'json'
+✅ Fixed JSON response parsing in the client.js file
+✅ Successfully ran OpenAI API tests with the updated parameters
+
+Ticket #T4: Fix eventBus Mocking
+Priority: High
+Issue: Tests are failing due to eventBus not being properly mocked, events can't be verified.
+Affected Files: userService.test.js, challengeService.test.js and other domain tests that use eventBus.
+Action:
+✅ Created dedicated domainEventsMock.js module with proper mocking utilities
+✅ Implemented strategy for properly testing event publications in services
+✅ Successfully fixed and ran the user.service.test.js as a sample test
+⬜ Apply the same mocking pattern to other domain tests as needed
+
+Ticket #T5: Update Tests for ESM
+Priority: High
+Issue: Project has migrated to ES modules but tests still use CommonJS require.
+Affected Files: All test files using require() instead of import.
+Action:
+✅ Updated run-tests.js to use ES modules
+✅ Updated mockSetup.js to use ES modules
+✅ Updated loadEnv.js to use ES modules
+✅ Updated tests/domain/user/user.service.test.js to use ES modules
+✅ Updated src/core/user/services/UserService.js to use ES modules
+✅ Updated src/core/user/errors/UserErrors.js to use ES modules
+✅ Updated src/core/infra/errors/AppError.js to use ES modules
+✅ Ran migrate:esm:batch script to update all test files to ES modules syntax
+✅ Fixed import paths in UserService.js and other files
+✅ Updated sample-openai-test.test.js to use latest OpenAI API format
+⬜ Test and fix any remaining ESM compatibility issues as they're encountered
+
+Ticket #T6: Cleanup Test File Structure & Duplicates ✅
+Priority: Medium
+Issue: Potential duplicate tests (user-personality-interaction.test.js), misplaced tests, and remaining legacy files.
+Affected Files: Entire tests/ directory, especially tests/integration/ and tests/api/.
+Action:
+✅ Deleted duplicates of user-personality-interaction.test.js (3 copies were found in different directories)
+✅ Fixed axios imports in remaining test file to use proper ES module pattern
+✅ Deleted duplicate challengeWorkflow.test.js and fixed import paths in the remaining file
+✅ Moved all e2e tests to the tests/e2e directory and organized by domain
+✅ Created proper subdirectories for e2e tests (user, challenge, focusArea)
+✅ Fixed import paths in moved files
+✅ Moved environment-test.test.js to tests/setup/environment directory
+✅ Removed empty directories
+✅ Verified no legacy, domains, or old api directories exist for archival
+
+Phase 2: Refactoring & Alignment
+
+These tickets focus on updating test logic to match the current codebase architecture and patterns.
+
+Ticket #T7: Update Tests for Standardized Error Handling ⏳
+Priority: High
+Issue: Tests might be expecting generic Error or old custom errors, not the new domain-specific errors (UserNotFoundError, ChallengeValidationError, etc.) thrown by wrapped methods.
+Affected Files: All test files covering components that now use with*ErrorHandling.
+Action:
+✅ Updated Challenge model to throw ChallengeValidationError instead of generic Error
+✅ Updated Challenge model test to expect ChallengeValidationError
+✅ Updated ChallengeEvaluationService to use MissingParameterError for dependency validation
+✅ Updated ChallengeEvaluationService test to expect MissingParameterError
+⬜ Review other tests that assert on error types or messages
+⬜ Update expect(...).to.throw(...) assertions to expect the correct error class
+⬜ Verify error messages and properties match the new error structure
+
+Ticket #T8: Update Tests for DI Implementation ⏳
+Priority: High
+Issue: Tests might still be mocking dependencies using proxyquire or jest.mock instead of passing mocks via the constructor (DI).
+Affected Files: Primarily tests/unit/ and tests/domain/ tests for services, controllers, coordinators, repositories.
+Action:
+✅ Refactored ChallengeCoordinator.test.js to use proper DI instead of proxyquire
+✅ Refactored PersonalityCoordinator.test.js to use proper DI instead of proxyquire
+✅ Refactored evaluation-service-system-messages.test.js to use proper DI instead of proxyquire
+⬜ Refactor remaining tests to follow the pattern in MOCKING_PATTERNS.md
+⬜ Create mock objects/stubs for all constructor dependencies
+⬜ Instantiate the class under test by passing dependency mocks
+⬜ Remove all remaining proxyquire or jest.mock usage
+
+Ticket #T9: Update Tests for VOs, DTOs, Mappers ⏳
+Priority: Medium
+Issue: Tests might pass incorrect data types (primitives vs VOs) to services/coordinators, or assert on internal model properties instead of DTO properties in API/E2E tests.
+Affected Files: tests/domain/, tests/application/, tests/integration/, tests/e2e/.
+Action:
+✅ Updated userLifecycle.e2e.test.js to ensure requests use UserDTOMapper.fromRequest structure
+✅ Updated userLifecycle.e2e.test.js to verify response matches UserDTO structure
+✅ Updated personality.e2e.test.js to ensure requests use proper DTO formats
+✅ Updated personality.e2e.test.js to verify response matches PersonalityDTO structure
+✅ Updated personality.service.test.js to consistently use UserId Value Objects
+✅ Updated challengeRepository.test.js to use UserId and ChallengeId Value Objects
+✅ Updated UserService.test.js to use UserId Value Objects for all operations
+⬜ Continue reviewing domain tests to verify correct Value Object usage
+⬜ Ensure remaining API tests send requests matching DTOMapper.fromRequest structure
+⬜ Verify assertions in all E2E tests match DTO structures
+
+Ticket #T10: Ensure Correct Test Category Semantics ✅
+Priority: Medium
+Issue: Migrated tests might not perfectly align with the intended scope (e.g., a "domain" test might still try to make external calls).
+Affected Files: All files in tests/domain/, tests/integration/, tests/external/, tests/e2e/.
+Action:
+✅ Verify domain tests use only in-memory repositories and mock all external dependencies
+✅ Verify integration tests focus on cross-component/cross-domain interaction
+✅ Verify external tests directly target an external service
+✅ Verify E2E tests use the apiTestHelper or axios to make HTTP requests
+✅ Created TEST_SEMANTICS.md with detailed guidelines for each test category
+✅ Created TEST_MIGRATION_CHECKLIST.md with steps for migrating tests between categories
+✅ Created verification tool (tools/verify-test-categories.js) to identify tests with incorrect semantics
+✅ Created migration plan generator (tools/generate-migration-plan.js) to analyze and prioritize fixes
+✅ Created batch migration script (tools/batch-test-migration.js) to fix multiple tests at once
+✅ Updated E2E test fixer with better pattern matching for API calls (tools/fix-e2e-test-semantics.js)
+✅ Added npm scripts for test verification and migration (test:verify, test:migration-plan, etc.)
+✅ Updated PR template to include test category semantics verification
+
+Phase 3: Enhancement & Coverage
+
+These tickets focus on improving the quality and scope of the tests.
+
+Ticket #T11: Add Missing API/E2E Tests
+Priority: Medium
+Issue: The current E2E tests might not cover all critical API endpoints or user workflows.
+Affected Files: tests/e2e/
+Action:
+⬜ Review API endpoints defined in RouteFactory.js
+⬜ Identify critical user workflows
+⬜ Write new E2E tests for untested endpoints and workflows
+
+Ticket #T12: Enhance External Service Tests
+Priority: Medium
+Issue: Existing external tests might be basic connectivity checks. They could be enhanced to cover more scenarios.
+Affected Files: tests/external/
+Action:
+⬜ Review existing OpenAI and Supabase external tests
+⬜ Add tests for different API parameters
+⬜ Add tests for expected error conditions
+⬜ Verify response schemas match the external API documentation
+
+Ticket #T13: Review and Improve Assertions
+Priority: Low
+Issue: Existing tests might have weak assertions (e.g., just checking expect(result).to.exist).
+Affected Files: All test files.
+Action:
+⬜ Review assertions in existing tests
+⬜ Make assertions more specific
+⬜ Ensure tests verify not just the happy path but also side effects
+
+Next Steps:
+
+1. Continue with Phase 1: Focus on tickets T2-T5 to get the test suite into a fully runnable state
+2. Move to Phase 2: Refactor tests to align with the current architecture
+3. Finally address Phase 3: Enhance test coverage and quality
+
+Progress Update (March 29):
+- Created fix-test-imports.js and fix-source-imports.js scripts to address import path issues
+- Updated key files to use ES modules: run-tests.js, mockSetup.js, loadEnv.js, user.service.test.js, UserService.js, UserErrors.js, AppError.js
+- Created fix-test-suite.sh to run fixes and document manual steps
+- Verified Supabase credentials exist in .env.test
+- Implemented domainEvents mock in mockSetup.js

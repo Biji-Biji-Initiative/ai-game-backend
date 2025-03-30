@@ -1,22 +1,10 @@
+import { z } from "zod";
 'use strict';
-
-/**
- * Challenge Prompt Schema
- *
- * Defines the schema for validation of challenge prompt parameters
- * using Zod validation library.
- *
- * @module challengeSchema
- * @requires zod
- */
-
-const { z } = require('zod');
-
 /**
  * User schema - subset of fields required for challenge generation
  */
 const userSchema = z
-  .object({
+    .object({
     id: z.string().optional(),
     email: z.string().optional(),
     fullName: z.string().optional(),
@@ -26,14 +14,13 @@ const userSchema = z
     skillLevel: z.string().optional(),
     learningGoals: z.array(z.string()).optional(),
     completedChallenges: z.array(z.string()).or(z.number()).optional(),
-  })
-  .passthrough();
-
+})
+    .passthrough();
 /**
  * Challenge parameters schema - defines parameters for challenge generation
  */
 const challengeParamsSchema = z
-  .object({
+    .object({
     challengeType: z.string().optional(),
     challengeTypeCode: z.string().optional(),
     formatType: z.string().optional(),
@@ -46,40 +33,36 @@ const challengeParamsSchema = z
     includeContextualExamples: z.boolean().optional(),
     typeMetadata: z.record(z.any()).optional(),
     formatMetadata: z.record(z.any()).optional(),
-  })
-  .passthrough();
-
+})
+    .passthrough();
 /**
  * Game state schema - defines current game state for adaptive challenge generation
  */
 const gameStateSchema = z
-  .object({
+    .object({
     currentLevel: z.number().optional(),
     progress: z.number().optional(),
     streakCount: z.number().optional(),
     recentChallenges: z
-      .array(
-        z.object({
-          id: z.string().optional(),
-          title: z.string(),
-          challengeType: z.string().optional(),
-          focusArea: z.string().optional(),
-          difficulty: z.string().optional(),
-          score: z.number().optional(),
-        })
-      )
-      .optional(),
+        .array(z.object({
+        id: z.string().optional(),
+        title: z.string(),
+        challengeType: z.string().optional(),
+        focusArea: z.string().optional(),
+        difficulty: z.string().optional(),
+        score: z.number().optional(),
+    }))
+        .optional(),
     completedChallengeTypes: z.array(z.string()).optional(),
     strengths: z.array(z.string()).optional(),
     areasForImprovement: z.array(z.string()).optional(),
-  })
-  .passthrough();
-
+})
+    .passthrough();
 /**
  * Options schema - defines additional challenge generation options
  */
 const optionsSchema = z
-  .object({
+    .object({
     creativeVariation: z.number().min(0).max(1).optional().default(0.7),
     allowDynamicTypes: z.boolean().optional().default(false),
     suggestNovelTypes: z.boolean().optional().default(false),
@@ -89,19 +72,17 @@ const optionsSchema = z
     temperature: z.number().min(0).max(2).optional(),
     requireFeedbackRubric: z.boolean().optional().default(true),
     includeRecommendedResources: z.boolean().optional().default(false),
-  })
-  .passthrough();
-
+})
+    .passthrough();
 /**
  * Complete challenge prompt parameters schema
  */
 const challengePromptSchema = z.object({
-  user: userSchema,
-  challengeParams: challengeParamsSchema,
-  gameState: gameStateSchema.optional(),
-  options: optionsSchema.optional(),
+    user: userSchema,
+    challengeParams: challengeParamsSchema,
+    gameState: gameStateSchema.optional(),
+    options: optionsSchema.optional(),
 });
-
 /**
  * Validate challenge prompt parameters
  * @param {Object} params - Parameters to validate
@@ -109,22 +90,23 @@ const challengePromptSchema = z.object({
  * @throws {Error} If validation fails
  */
 function validateChallengePromptParams(params) {
-  try {
-    return challengePromptSchema.parse(params);
-  } catch (error) {
-    // Transform Zod validation errors to more user-friendly format
-    if (error.errors) {
-      const formattedErrors = error.errors
-        .map(err => `${err.path.join('.')}: ${err.message}`)
-        .join('; ');
-
-      throw new Error(`Challenge prompt parameter validation failed: ${formattedErrors}`);
+    try {
+        return challengePromptSchema.parse(params);
     }
-    throw error;
-  }
+    catch (error) {
+        // Transform Zod validation errors to more user-friendly format
+        if (error.errors) {
+            const formattedErrors = error.errors
+                .map(err => `${err.path.join('.')}: ${err.message}`)
+                .join('; ');
+            throw new Error(`Challenge prompt parameter validation failed: ${formattedErrors}`);
+        }
+        throw error;
+    }
 }
-
-module.exports = {
-  challengePromptSchema,
-  validateChallengePromptParams,
+export { challengePromptSchema };
+export { validateChallengePromptParams };
+export default {
+    challengePromptSchema,
+    validateChallengePromptParams
 };

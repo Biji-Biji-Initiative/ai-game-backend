@@ -2,6 +2,12 @@
 
 Welcome to the comprehensive documentation for the AI Fight Club API, a stateful web application that challenges users with dynamic, AI-generated cognitive challenges.
 
+## Important Update: Consolidated Documentation
+
+We have consolidated all markdown documentation from across the repository into this `/docs` directory. Please see [DOCUMENTATION.md](./DOCUMENTATION.md) for details on how the documentation is organized and how to find what you need.
+
+The documentation preserves its original directory structure, so files from `/src/core/common/` can be found at `/docs/src/core/common/`. A log file of all moved documents is available at [moved_files.log](./moved_files.log).
+
 ## Getting Started
 
 - [Setup Guide](../SETUP.md) - How to install and configure the application

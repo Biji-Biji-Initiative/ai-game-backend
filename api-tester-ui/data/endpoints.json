@@ -1,448 +1,14 @@
 {
   "endpoints": [
     {
-      "name": "Get Users",
-      "method": "GET",
-      "path": "/api/users",
-      "description": "Retrieves a list of users",
-      "category": "Users",
-      "parameters": [
-        {
-          "name": "page",
-          "in": "query",
-          "required": false,
-          "type": "integer",
-          "description": "Page number",
-          "default": "1"
-        },
-        {
-          "name": "limit",
-          "in": "query",
-          "required": false,
-          "type": "integer",
-          "description": "Results per page",
-          "default": "10"
-        }
-      ],
-      "responseExample": {
-        "users": [
-          {
-            "id": 1,
-            "name": "John Doe",
-            "email": "john@example.com",
-            "role": "admin"
-          },
-          {
-            "id": 2,
-            "name": "Jane Smith",
-            "email": "jane@example.com",
-            "role": "user"
-          }
-        ],
-        "total": 2,
-        "page": 1,
-        "limit": 10
-      }
-    },
-    {
-      "name": "Get User by ID",
-      "method": "GET",
-      "path": "/api/users/{id}",
-      "description": "Retrieves a specific user by ID",
-      "category": "Users",
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "type": "string",
-          "description": "User ID"
-        }
-      ],
-      "responseExample": {
-        "id": 1,
-        "name": "John Doe",
-        "email": "john@example.com",
-        "role": "admin",
-        "createdAt": "2023-01-15T08:30:00Z",
-        "updatedAt": "2023-03-20T14:15:00Z"
-      }
-    },
-    {
-      "name": "Create User",
+      "name": "Login",
       "method": "POST",
-      "path": "/api/users",
-      "description": "Creates a new user",
-      "category": "Users",
-      "parameters": [],
-      "requestBody": {
-        "name": "User object",
-        "required": true,
-        "content": {
-          "application/json": {
-            "schema": {
-              "type": "object",
-              "properties": {
-                "name": {
-                  "type": "string",
-                  "example": "New User"
-                },
-                "email": {
-                  "type": "string",
-                  "example": "newuser@example.com"
-                },
-                "role": {
-                  "type": "string",
-                  "example": "user"
-                }
-              },
-              "required": ["name", "email"]
-            }
-          }
-        }
-      },
-      "responseExample": {
-        "id": 3,
-        "name": "New User",
-        "email": "newuser@example.com",
-        "role": "user",
-        "createdAt": "2023-06-10T11:25:00Z",
-        "updatedAt": "2023-06-10T11:25:00Z"
-      }
-    },
-    {
-      "name": "Update User",
-      "method": "PUT",
-      "path": "/api/users/{id}",
-      "description": "Updates an existing user",
-      "category": "Users",
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "type": "string",
-          "description": "User ID"
-        }
-      ],
-      "requestBody": {
-        "name": "User object",
-        "required": true,
-        "content": {
-          "application/json": {
-            "schema": {
-              "type": "object",
-              "properties": {
-                "name": {
-                  "type": "string",
-                  "example": "Updated User"
-                },
-                "email": {
-                  "type": "string",
-                  "example": "updated@example.com"
-                },
-                "role": {
-                  "type": "string",
-                  "example": "admin"
-                }
-              }
-            }
-          }
-        }
-      },
-      "responseExample": {
-        "id": 1,
-        "name": "Updated User",
-        "email": "updated@example.com",
-        "role": "admin",
-        "createdAt": "2023-01-15T08:30:00Z",
-        "updatedAt": "2023-06-10T12:30:00Z"
-      }
-    },
-    {
-      "name": "Delete User",
-      "method": "DELETE",
-      "path": "/api/users/{id}",
-      "description": "Deletes a user",
-      "category": "Users",
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "type": "string",
-          "description": "User ID"
-        }
-      ],
-      "responseExample": {
-        "message": "User deleted successfully",
-        "id": 1
-      }
-    },
-    {
-      "name": "Get Products",
-      "method": "GET",
-      "path": "/api/products",
-      "description": "Retrieves a list of products",
-      "category": "Products",
-      "parameters": [
-        {
-          "name": "page",
-          "in": "query",
-          "required": false,
-          "type": "integer",
-          "description": "Page number",
-          "default": "1"
-        },
-        {
-          "name": "limit",
-          "in": "query",
-          "required": false,
-          "type": "integer",
-          "description": "Results per page",
-          "default": "10"
-        },
-        {
-          "name": "category",
-          "in": "query",
-          "required": false,
-          "type": "string",
-          "description": "Filter by category"
-        }
-      ],
-      "responseExample": {
-        "products": [
-          {
-            "id": 1,
-            "name": "Product 1",
-            "description": "Description for product 1",
-            "price": 19.99,
-            "category": "electronics"
-          },
-          {
-            "id": 2,
-            "name": "Product 2",
-            "description": "Description for product 2",
-            "price": 29.99,
-            "category": "clothing"
-          }
-        ],
-        "total": 2,
-        "page": 1,
-        "limit": 10
-      }
-    },
-    {
-      "name": "Get Product by ID",
-      "method": "GET",
-      "path": "/api/products/{id}",
-      "description": "Retrieves a specific product by ID",
-      "category": "Products",
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "type": "string",
-          "description": "Product ID"
-        }
-      ],
-      "responseExample": {
-        "id": 1,
-        "name": "Product 1",
-        "description": "Detailed description for product 1",
-        "price": 19.99,
-        "category": "electronics",
-        "inventory": 100,
-        "createdAt": "2023-02-10T10:00:00Z",
-        "updatedAt": "2023-02-10T10:00:00Z"
-      }
-    },
-    {
-      "name": "Create Product",
-      "method": "POST",
-      "path": "/api/products",
-      "description": "Creates a new product",
-      "category": "Products",
-      "parameters": [],
-      "requestBody": {
-        "name": "Product object",
-        "required": true,
-        "content": {
-          "application/json": {
-            "schema": {
-              "type": "object",
-              "properties": {
-                "name": {
-                  "type": "string",
-                  "example": "New Product"
-                },
-                "description": {
-                  "type": "string",
-                  "example": "Description for new product"
-                },
-                "price": {
-                  "type": "number",
-                  "example": 39.99
-                },
-                "category": {
-                  "type": "string",
-                  "example": "furniture"
-                }
-              },
-              "required": ["name", "price"]
-            }
-          }
-        }
-      },
-      "responseExample": {
-        "id": 3,
-        "name": "New Product",
-        "description": "Description for new product",
-        "price": 39.99,
-        "category": "furniture",
-        "inventory": 0,
-        "createdAt": "2023-06-10T13:45:00Z",
-        "updatedAt": "2023-06-10T13:45:00Z"
-      }
-    },
-    {
-      "name": "Get Orders",
-      "method": "GET",
-      "path": "/api/orders",
-      "description": "Retrieves a list of orders",
-      "category": "Orders",
-      "parameters": [
-        {
-          "name": "page",
-          "in": "query",
-          "required": false,
-          "type": "integer",
-          "description": "Page number",
-          "default": "1"
-        },
-        {
-          "name": "limit",
-          "in": "query",
-          "required": false,
-          "type": "integer",
-          "description": "Results per page",
-          "default": "10"
-        },
-        {
-          "name": "status",
-          "in": "query",
-          "required": false,
-          "type": "string",
-          "description": "Filter by status"
-        }
-      ],
-      "responseExample": {
-        "orders": [
-          {
-            "id": 1,
-            "userId": 1,
-            "totalAmount": 49.98,
-            "status": "completed",
-            "items": [
-              {
-                "productId": 1,
-                "quantity": 2,
-                "price": 19.99
-              },
-              {
-                "productId": 2,
-                "quantity": 1,
-                "price": 9.99
-              }
-            ],
-            "createdAt": "2023-05-15T14:30:00Z"
-          },
-          {
-            "id": 2,
-            "userId": 2,
-            "totalAmount": 29.99,
-            "status": "pending",
-            "items": [
-              {
-                "productId": 3,
-                "quantity": 1,
-                "price": 29.99
-              }
-            ],
-            "createdAt": "2023-06-01T10:15:00Z"
-          }
-        ],
-        "total": 2,
-        "page": 1,
-        "limit": 10
-      }
-    },
-    {
-      "name": "Create Order",
-      "method": "POST",
-      "path": "/api/orders",
-      "description": "Creates a new order",
-      "category": "Orders",
-      "parameters": [],
-      "requestBody": {
-        "name": "Order object",
-        "required": true,
-        "content": {
-          "application/json": {
-            "schema": {
-              "type": "object",
-              "properties": {
-                "userId": {
-                  "type": "integer",
-                  "example": 1
-                },
-                "items": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "productId": {
-                        "type": "integer",
-                        "example": 1
-                      },
-                      "quantity": {
-                        "type": "integer",
-                        "example": 2
-                      }
-                    }
-                  }
-                }
-              },
-              "required": ["userId", "items"]
-            }
-          }
-        }
-      },
-      "responseExample": {
-        "id": 3,
-        "userId": 1,
-        "totalAmount": 39.98,
-        "status": "pending",
-        "items": [
-          {
-            "productId": 1,
-            "quantity": 2,
-            "price": 19.99
-          }
-        ],
-        "createdAt": "2023-06-10T15:00:00Z"
-      }
-    },
-    {
-      "name": "Authenticate",
-      "method": "POST",
-      "path": "/api/auth/login",
-      "description": "Authenticates a user and returns a token",
+      "path": "/api/v1/auth/login",
+      "description": "Authenticates a user and returns a JWT token",
       "category": "Authentication",
       "parameters": [],
       "requestBody": {
-        "name": "Credentials",
+        "name": "Login credentials",
         "required": true,
         "content": {
           "application/json": {
@@ -455,7 +21,7 @@
                 },
                 "password": {
                   "type": "string",
-                  "example": "password123"
+                  "example": "securePassword123"
                 }
               },
               "required": ["email", "password"]
@@ -464,25 +30,75 @@
         }
       },
       "responseExample": {
-        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-        "user": {
-          "id": 1,
-          "name": "John Doe",
-          "email": "john@example.com",
-          "role": "admin"
-        },
-        "expiresIn": 3600
+        "success": true,
+        "data": {
+          "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+          "user": {
+            "id": "550e8400-e29b-41d4-a716-446655440000",
+            "email": "user@example.com",
+            "fullName": "John Doe",
+            "role": "user",
+            "createdAt": "2023-01-15T08:30:25.000Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "Sign Up",
+      "method": "POST",
+      "path": "/api/v1/auth/signup",
+      "description": "Creates a new user account and returns a JWT token",
+      "category": "Authentication",
+      "parameters": [],
+      "requestBody": {
+        "name": "Signup details",
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "example": "newuser@example.com"
+                },
+                "password": {
+                  "type": "string",
+                  "example": "securePassword123"
+                },
+                "fullName": {
+                  "type": "string",
+                  "example": "Jane Smith"
+                }
+              },
+              "required": ["email", "password", "fullName"]
+            }
+          }
+        }
+      },
+      "responseExample": {
+        "success": true,
+        "data": {
+          "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+          "user": {
+            "id": "6729a051-f5da-42e1-9626-142157770000",
+            "email": "newuser@example.com",
+            "fullName": "Jane Smith",
+            "role": "user",
+            "createdAt": "2023-05-22T14:56:38.000Z"
+          }
+        }
       }
     },
     {
       "name": "Refresh Token",
       "method": "POST",
-      "path": "/api/auth/refresh",
+      "path": "/api/v1/auth/refresh",
       "description": "Refreshes an authentication token",
       "category": "Authentication",
       "parameters": [],
       "requestBody": {
-        "name": "Refresh Token",
+        "name": "Refresh token",
         "required": true,
         "content": {
           "application/json": {
@@ -500,9 +116,662 @@
         }
       },
       "responseExample": {
-        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-        "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-        "expiresIn": 3600
+        "success": true,
+        "data": {
+          "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+          "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        }
+      }
+    },
+    {
+      "name": "Logout",
+      "method": "POST",
+      "path": "/api/v1/auth/logout",
+      "description": "Logs out the current user",
+      "category": "Authentication",
+      "parameters": [],
+      "responseExample": {
+        "success": true,
+        "message": "Successfully logged out"
+      }
+    },
+    {
+      "name": "Get Current User",
+      "method": "GET",
+      "path": "/api/v1/users/me",
+      "description": "Retrieves the current user's profile",
+      "category": "Users",
+      "parameters": [],
+      "responseExample": {
+        "success": true,
+        "data": {
+          "id": "550e8400-e29b-41d4-a716-446655440000",
+          "email": "user@example.com",
+          "fullName": "John Doe",
+          "role": "user",
+          "createdAt": "2023-01-15T08:30:25.000Z"
+        }
+      }
+    },
+    {
+      "name": "Update User Profile",
+      "method": "PUT",
+      "path": "/api/v1/users/me",
+      "description": "Updates the current user's profile",
+      "category": "Users",
+      "parameters": [],
+      "requestBody": {
+        "name": "User profile update",
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "fullName": {
+                  "type": "string",
+                  "example": "John Smith"
+                },
+                "preferences": {
+                  "type": "object",
+                  "example": {
+                    "theme": "dark",
+                    "notifications": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "responseExample": {
+        "success": true,
+        "data": {
+          "id": "550e8400-e29b-41d4-a716-446655440000",
+          "email": "user@example.com",
+          "fullName": "John Smith",
+          "role": "user",
+          "preferences": {
+            "theme": "dark",
+            "notifications": true
+          },
+          "updatedAt": "2023-06-10T12:30:00Z"
+        }
+      }
+    },
+    {
+      "name": "Get All Challenges",
+      "method": "GET",
+      "path": "/api/v1/challenges",
+      "description": "Retrieves a list of all challenges",
+      "category": "Challenges",
+      "parameters": [
+        {
+          "name": "page",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "description": "Page number",
+          "default": "1"
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "required": false,
+          "type": "integer",
+          "description": "Results per page",
+          "default": "10"
+        }
+      ],
+      "responseExample": {
+        "success": true,
+        "data": {
+          "challenges": [
+            {
+              "id": "c1",
+              "title": "Basic Array Operations",
+              "description": "Practice basic operations on arrays",
+              "difficulty": "beginner",
+              "type": "coding"
+            },
+            {
+              "id": "c2",
+              "title": "Async/Await in JavaScript",
+              "description": "Master asynchronous operations",
+              "difficulty": "intermediate",
+              "type": "coding"
+            }
+          ],
+          "pagination": {
+            "total": 50,
+            "page": 1,
+            "limit": 10
+          }
+        }
+      }
+    },
+    {
+      "name": "Get Challenge by ID",
+      "method": "GET",
+      "path": "/api/v1/challenges/{id}",
+      "description": "Retrieves a specific challenge by ID",
+      "category": "Challenges",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "type": "string",
+          "description": "Challenge ID"
+        }
+      ],
+      "responseExample": {
+        "success": true,
+        "data": {
+          "id": "c1",
+          "title": "Basic Array Operations",
+          "description": "Practice basic operations on arrays",
+          "content": "In this challenge, you'll implement several array manipulation functions...",
+          "difficulty": "beginner",
+          "type": "coding",
+          "createdAt": "2023-02-10T10:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "Submit Challenge Response",
+      "method": "POST",
+      "path": "/api/v1/challenges/{id}/responses",
+      "description": "Submits a response to a challenge",
+      "category": "Challenges",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "type": "string",
+          "description": "Challenge ID"
+        }
+      ],
+      "requestBody": {
+        "name": "Challenge response",
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "example": "function solution(arr) { return arr.map(x => x*2); }"
+                },
+                "language": {
+                  "type": "string",
+                  "example": "javascript"
+                }
+              },
+              "required": ["code", "language"]
+            }
+          }
+        }
+      },
+      "responseExample": {
+        "success": true,
+        "data": {
+          "id": "r1",
+          "challengeId": "c1",
+          "evaluation": {
+            "status": "passed",
+            "score": 95,
+            "feedback": "Good job! Your solution passes all test cases."
+          },
+          "submittedAt": "2023-06-10T15:30:00Z"
+        }
+      }
+    },
+    {
+      "name": "Generate Challenge",
+      "method": "POST",
+      "path": "/api/v1/challenges/generate",
+      "description": "Generates a personalized challenge",
+      "category": "Challenges",
+      "parameters": [],
+      "requestBody": {
+        "name": "Challenge preferences",
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "difficulty": {
+                  "type": "string",
+                  "example": "intermediate"
+                },
+                "type": {
+                  "type": "string",
+                  "example": "coding"
+                },
+                "focusArea": {
+                  "type": "string",
+                  "example": "algorithms"
+                }
+              }
+            }
+          }
+        }
+      },
+      "responseExample": {
+        "success": true,
+        "data": {
+          "id": "c3",
+          "title": "Depth-First Graph Traversal",
+          "description": "Implement a depth-first traversal algorithm",
+          "content": "In this challenge, you'll implement a depth-first traversal of a graph...",
+          "difficulty": "intermediate",
+          "type": "coding",
+          "focusArea": "algorithms",
+          "createdAt": "2023-06-10T15:45:00Z"
+        }
+      }
+    },
+    {
+      "name": "Get Personality Profile",
+      "method": "GET",
+      "path": "/api/v1/personality/profile",
+      "description": "Retrieves the current user's personality profile",
+      "category": "Personality",
+      "parameters": [],
+      "responseExample": {
+        "success": true,
+        "data": {
+          "traits": [
+            {
+              "name": "openness",
+              "score": 85,
+              "description": "High openness to new experiences"
+            },
+            {
+              "name": "conscientiousness",
+              "score": 70,
+              "description": "Above average conscientiousness"
+            }
+          ],
+          "insights": {
+            "learningStyle": "visual",
+            "strengths": ["problem-solving", "creativity"],
+            "weaknesses": ["time management"]
+          },
+          "lastUpdated": "2023-05-20T09:15:00Z"
+        }
+      }
+    },
+    {
+      "name": "Submit Personality Assessment",
+      "method": "POST",
+      "path": "/api/v1/personality/assessment/submit",
+      "description": "Submits answers to a personality assessment",
+      "category": "Personality",
+      "parameters": [],
+      "requestBody": {
+        "name": "Assessment answers",
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "answers": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "questionId": {
+                        "type": "string"
+                      },
+                      "answer": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "example": [
+                    {
+                      "questionId": "q1",
+                      "answer": "strongly_agree"
+                    },
+                    {
+                      "questionId": "q2",
+                      "answer": "neutral"
+                    }
+                  ]
+                }
+              },
+              "required": ["answers"]
+            }
+          }
+        }
+      },
+      "responseExample": {
+        "success": true,
+        "data": {
+          "profileUpdated": true,
+          "newInsights": true
+        }
+      }
+    },
+    {
+      "name": "Get Progress History",
+      "method": "GET",
+      "path": "/api/v1/progress/history",
+      "description": "Retrieves the user's progress history",
+      "category": "Progress",
+      "parameters": [],
+      "responseExample": {
+        "success": true,
+        "data": {
+          "overallProgress": 65,
+          "completedChallenges": 28,
+          "domains": [
+            {
+              "name": "frontend",
+              "progress": 80,
+              "challenges": 15
+            },
+            {
+              "name": "algorithms",
+              "progress": 60,
+              "challenges": 10
+            }
+          ],
+          "timeline": [
+            {
+              "date": "2023-05-01",
+              "progress": 45
+            },
+            {
+              "date": "2023-06-01",
+              "progress": 65
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get Evaluation Results",
+      "method": "GET",
+      "path": "/api/v1/evaluations/{id}",
+      "description": "Retrieves the results of a specific evaluation",
+      "category": "Evaluations",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "type": "string",
+          "description": "Evaluation ID"
+        }
+      ],
+      "responseExample": {
+        "success": true,
+        "data": {
+          "id": "e1",
+          "challengeId": "c1",
+          "userId": "550e8400-e29b-41d4-a716-446655440000",
+          "status": "completed",
+          "score": 95,
+          "feedback": "Good job! Your solution passes all test cases with good performance.",
+          "details": {
+            "testCases": [
+              {
+                "name": "Test Case 1",
+                "passed": true,
+                "output": "[2, 4, 6, 8]"
+              },
+              {
+                "name": "Test Case 2",
+                "passed": true,
+                "output": "[]"
+              }
+            ],
+            "metrics": {
+              "efficiency": 90,
+              "readability": 85,
+              "robustness": 92
+            }
+          },
+          "completedAt": "2023-06-01T14:30:00Z"
+        }
+      }
+    },
+    {
+      "name": "Get Adaptive Recommendations",
+      "method": "GET",
+      "path": "/api/v1/adaptive/profile",
+      "description": "Retrieves personalized learning recommendations",
+      "category": "Adaptive",
+      "parameters": [],
+      "responseExample": {
+        "success": true,
+        "data": {
+          "recommendedChallenges": [
+            {
+              "id": "c4",
+              "title": "Dynamic Programming Basics",
+              "relevance": 0.95,
+              "reason": "Based on your progress in algorithms"
+            },
+            {
+              "id": "c5",
+              "title": "Responsive Design Challenge",
+              "relevance": 0.85,
+              "reason": "Matches your learning style and interests"
+            }
+          ],
+          "learningProfile": {
+            "strengths": ["problem-solving", "creativity"],
+            "areasForImprovement": ["time complexity optimization"],
+            "lastUpdated": "2023-06-05T11:20:00Z"
+          },
+          "nextSteps": [
+            "Complete the Dynamic Programming challenge",
+            "Review your previous algorithms submissions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get User Journey Events",
+      "method": "GET",
+      "path": "/api/v1/user-journey/events",
+      "description": "Retrieves events from the user's learning journey",
+      "category": "UserJourney",
+      "parameters": [
+        {
+          "name": "startDate",
+          "in": "query",
+          "required": false,
+          "type": "string",
+          "description": "Start date (YYYY-MM-DD)",
+          "format": "date"
+        },
+        {
+          "name": "endDate",
+          "in": "query",
+          "required": false,
+          "type": "string",
+          "description": "End date (YYYY-MM-DD)",
+          "format": "date"
+        }
+      ],
+      "responseExample": {
+        "success": true,
+        "data": {
+          "events": [
+            {
+              "id": "evt1",
+              "type": "challenge_completed",
+              "timestamp": "2023-06-01T14:30:00Z",
+              "details": {
+                "challengeId": "c1",
+                "score": 95
+              }
+            },
+            {
+              "id": "evt2",
+              "type": "assessment_completed",
+              "timestamp": "2023-05-20T09:15:00Z",
+              "details": {
+                "assessmentType": "personality",
+                "insights": ["visual_learner", "creative_thinker"]
+              }
+            }
+          ],
+          "pagination": {
+            "total": 15,
+            "count": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "Get Focus Areas",
+      "method": "GET",
+      "path": "/api/v1/focus-areas",
+      "description": "Retrieves available focus areas for learning",
+      "category": "FocusAreas",
+      "parameters": [],
+      "responseExample": {
+        "success": true,
+        "data": {
+          "focusAreas": [
+            {
+              "id": "fa1",
+              "name": "Algorithms",
+              "description": "Data structures and algorithms for efficient problem solving",
+              "topics": ["sorting", "searching", "dynamic programming"]
+            },
+            {
+              "id": "fa2",
+              "name": "Frontend Development",
+              "description": "Building user interfaces and client-side applications",
+              "topics": ["html/css", "javascript", "react", "responsive design"]
+            },
+            {
+              "id": "fa3",
+              "name": "Backend Development",
+              "description": "Server-side programming and API development",
+              "topics": ["node.js", "express", "databases", "api design"]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get User Focus Areas",
+      "method": "GET",
+      "path": "/api/v1/focus-areas/user",
+      "description": "Retrieves the user's selected focus areas",
+      "category": "FocusAreas",
+      "parameters": [],
+      "responseExample": {
+        "success": true,
+        "data": {
+          "userFocusAreas": [
+            {
+              "id": "fa1",
+              "name": "Algorithms",
+              "progress": 75,
+              "priorityLevel": "high"
+            },
+            {
+              "id": "fa3",
+              "name": "Backend Development",
+              "progress": 45,
+              "priorityLevel": "medium"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Update User Focus Areas",
+      "method": "PUT",
+      "path": "/api/v1/focus-areas/user",
+      "description": "Updates the user's selected focus areas",
+      "category": "FocusAreas",
+      "parameters": [],
+      "requestBody": {
+        "name": "Focus area preferences",
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "focusAreas": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "priorityLevel": {
+                        "type": "string",
+                        "enum": ["high", "medium", "low"]
+                      }
+                    }
+                  },
+                  "example": [
+                    {
+                      "id": "fa1",
+                      "priorityLevel": "high"
+                    },
+                    {
+                      "id": "fa3",
+                      "priorityLevel": "medium"
+                    }
+                  ]
+                }
+              },
+              "required": ["focusAreas"]
+            }
+          }
+        }
+      },
+      "responseExample": {
+        "success": true,
+        "data": {
+          "updated": true,
+          "userFocusAreas": [
+            {
+              "id": "fa1",
+              "name": "Algorithms",
+              "progress": 75,
+              "priorityLevel": "high"
+            },
+            {
+              "id": "fa3",
+              "name": "Backend Development",
+              "progress": 45,
+              "priorityLevel": "medium"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "API Health Check",
+      "method": "GET",
+      "path": "/api/v1/health",
+      "description": "Checks the health status of the API",
+      "category": "System",
+      "parameters": [],
+      "responseExample": {
+        "status": "ok",
+        "uptime": 1234567,
+        "version": "1.0.0",
+        "timestamp": "2023-06-10T16:30:00Z"
       }
     }
   ]

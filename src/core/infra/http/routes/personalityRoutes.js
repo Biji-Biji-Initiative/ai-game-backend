@@ -1,57 +1,37 @@
+import express from 'express';
+import PersonalityController from '../../../personality/controllers/PersonalityController.js';
+import { authenticateUser } from '../middleware/auth.js';
 'use strict';
-const { personalityController } = require('../controllers/personalityController');
 
 /**
  * Personality Routes
- * Handles routes related to personality analysis and insights
+ * Handles routes related to user personality data and insights
  */
-// const express = require('express');
 const router = express.Router();
-// const PersonalityController = require('../core/personality/controllers/PersonalityController');
-const { authenticateUser } = require('../core/infra/http/middleware/auth');
-const {
-  validateBody,
-  validateParams,
-  validateQuery,
-} = require('../core/infra/http/middleware/validation');
-const {
-  updatePersonalityTraitsSchema,
-  updateAIAttitudesSchema,
-  profileQuerySchema,
-} = require('../core/personality/schemas/personalityApiSchemas');
-// const container = require('../config/container');
 
-// Create controller instance with dependencies
-const personalityController = new PersonalityController({
-  logger: container.get('logger'),
-  personalityService: container.get('personalityService'),
-  errorHandler: container.get('errorHandler'),
-});
-
-// Get personality profile
-router.get('/profile', authenticateUser, validateQuery(profileQuerySchema), (req, res, next) =>
-  personalityController.getPersonalityProfile(req, res, next)
-);
-
-// Generate insights for current user
-router.get('/insights', authenticateUser, (req, res, next) =>
-  personalityController.generateInsights(req, res, next)
-);
-
-// Update personality traits for current user
-router.put(
-  '/traits',
-  authenticateUser,
-  validateBody(updatePersonalityTraitsSchema),
-  (req, res, next) => personalityController.updatePersonalityTraits(req, res, next)
-);
-
-// Update AI attitudes for current user
-router.put(
-  '/attitudes',
-  authenticateUser,
-  validateBody(updateAIAttitudesSchema),
-  (req, res, next) => personalityController.updateAIAttitudes(req, res, next)
-);
-
-module.exports = router;
+/**
+ * Personality routes factory
+ * @param {PersonalityController} personalityController - Personality controller instance
+ * @returns {express.Router} Express router
+ */
+export default function personalityRoutes(personalityController) {
+    // Get user's personality profile
+    router.get('/profile', authenticateUser, (req, res) => personalityController.getPersonalityProfile(req, res));
+    
+    // Update personality traits
+    router.put('/traits', authenticateUser, (req, res) => personalityController.updatePersonalityTraits(req, res));
+    
+    // Update AI attitudes
+    router.put('/attitudes', authenticateUser, (req, res) => personalityController.updateAIAttitudes(req, res));
+    
+    // Generate insights from personality data
+    router.post('/insights/generate', authenticateUser, (req, res) => personalityController.generateInsights(req, res));
+    
+    // Get insights
+    router.get('/insights', authenticateUser, (req, res) => personalityController.getInsights(req, res));
+    
+    // Calculate challenge compatibility
+    router.post('/compatibility', authenticateUser, (req, res) => personalityController.calculateChallengeCompatibility(req, res));
+    
+    return router;
+}

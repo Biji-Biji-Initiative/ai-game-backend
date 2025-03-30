@@ -1,127 +1,105 @@
-'use strict';
-
 /**
  * Supabase Client for Database Access
  *
  * Infrastructure service for database operations using Supabase.
  * Moved from utilities to follow Domain-Driven Design principles.
  */
-
-const { createClient } = require('@supabase/supabase-js');
-const { logger } = require('../core/infra/logging/logger');
+import { createClient } from '@supabase/supabase-js';
+import { logger } from "../logging/logger.js";
 
 /**
- * Creates and configures a Supabase client
- * @param {Object} options - Configuration options
- * @returns {Object} Configured Supabase client
+ * Initialize Supabase client with proper error handling
  */
-function createSupabaseClient(options = {}) {
-  // Get Supabase credentials from environment variables or options
-  const SUPABASE_URL = options.url || process.env.SUPABASE_URL;
-  const SUPABASE_KEY = options.useServiceRole
-    ? options.key || process.env.SUPABASE_SERVICE_ROLE_KEY
-    : options.key || process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY;
+let supabaseClient = null;
 
-  // Log the environment variables for debugging (redact actual keys for security)
-  console.log('Supabase configuration:', {
-    SUPABASE_URL: SUPABASE_URL,
-    SUPABASE_KEY: SUPABASE_KEY ? `${SUPABASE_KEY.substring(0, 10)}...` : 'none',
-    useServiceRole: options.useServiceRole || false,
-    envVariables: {
-      SUPABASE_URL: process.env.SUPABASE_URL ? 'set' : 'missing',
-      SUPABASE_KEY: process.env.SUPABASE_KEY ? 'set' : 'missing',
-      SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY ? 'set' : 'missing',
-      SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'set' : 'missing',
+try {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.NODE_ENV === 'production' 
+    ? process.env.SUPABASE_SERVICE_ROLE_KEY 
+    : process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl) {
+    throw new Error('SUPABASE_URL environment variable is required');
+  }
+  
+  if (!supabaseKey) {
+    throw new Error('SUPABASE_KEY/SUPABASE_ANON_KEY (or SUPABASE_SERVICE_ROLE_KEY in production) environment variable is required');
+  }
+  
+  // Create the Supabase client
+  supabaseClient = createClient(supabaseUrl, supabaseKey, {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+    },
+    realtime: {
+      params: {
+        eventsPerSecond: 10,
+      },
     },
   });
-
-  // Check that we have the necessary credentials
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    // In development or test mode, return a mock client instead of failing
-    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
-      logger.warn('Supabase credentials not found, using mock client (development/test mode)');
-      return createMockSupabaseClient();
+  
+  // Try to make a simple query to verify the connection
+  (async () => {
+    try {
+      const { error } = await supabaseClient.from('users').select('count');
+      
+      if (error) {
+        logger.error('Supabase client initialization error:', {
+          error: error.message,
+          code: error.code,
+          hint: error.hint || 'Check your Supabase credentials and connection'
+        });
+      } else {
+        logger.info('Supabase client initialized successfully');
+      }
+    } catch (error) {
+      logger.error('Error testing Supabase connection:', {
+        error: error.message,
+        stack: error.stack
+      });
     }
-
-    logger.error('Supabase credentials not found in environment variables', {
-      namespace: 'app',
-    });
-    throw new Error('Supabase credentials not found in environment variables');
-  }
-
-  try {
-    // Create the Supabase client with the provided credentials
-    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY, {
-      auth: { persistSession: false },
-      ...options.clientOptions,
-    });
-
-    logger.info('Supabase client initialized successfully', {
-      isServiceRole: options.useServiceRole,
-    });
-    return supabaseClient;
-  } catch (error) {
-    logger.error('Failed to initialize Supabase client', { error: error.message });
-    throw error;
+  })();
+  
+  // Log successful initialization
+  logger.info('Supabase client configured', {
+    supabaseUrl,
+    environment: process.env.NODE_ENV
+  });
+} catch (error) {
+  // Log the error and create a mock client for development
+  logger.error('Failed to initialize Supabase client', {
+    error: error.message,
+    stack: error.stack
+  });
+  
+  // In development, provide a mock client to prevent crashes
+  if (process.env.NODE_ENV !== 'production') {
+    logger.warn('Creating mock Supabase client for development');
+    
+    supabaseClient = {
+      auth: {
+        signInWithPassword: () => Promise.resolve({ data: { user: { id: 'mock-id' }, session: { access_token: 'mock-token' } }, error: null }),
+        signUp: () => Promise.resolve({ data: { user: { id: 'mock-id' }, session: { access_token: 'mock-token' } }, error: null }),
+        signOut: () => Promise.resolve({ error: null }),
+        getUser: () => Promise.resolve({ data: { user: { id: 'mock-id', email: 'mock@example.com' } }, error: null })
+      },
+      from: (table) => ({
+        select: () => ({
+          eq: () => Promise.resolve({ data: null, error: null }),
+          single: () => Promise.resolve({ data: null, error: null }),
+          then: (callback) => Promise.resolve({ data: [], error: null }).then(callback)
+        }),
+        insert: () => Promise.resolve({ data: { id: 'mock-id' }, error: null }),
+        update: () => Promise.resolve({ data: { id: 'mock-id' }, error: null }),
+        delete: () => Promise.resolve({ data: {}, error: null })
+      })
+    };
+  } else {
+    // In production, re-throw the error
+    throw new Error(`Critical error: Unable to initialize Supabase client: ${error.message}`);
   }
 }
 
-// Create default client with anonymous key
-const supabaseClient = createSupabaseClient();
-
-// Create admin client with service role key
-const supabaseAdmin = createSupabaseClient({ useServiceRole: true });
-
-// Add this function to create a mock client
-/**
- *
- */
-function createMockSupabaseClient() {
-  // Create a simple mock client that won't fail tests
-  return {
-    auth: {
-      signUp: () => Promise.resolve({ data: { user: { id: 'mock-user-id' } }, error: null }),
-      signIn: () => Promise.resolve({ data: { user: { id: 'mock-user-id' } }, error: null }),
-      signOut: () => Promise.resolve({ error: null }),
-    },
-    from: table => ({
-      select: () => ({
-        eq: () => ({
-          single: () => Promise.resolve({ data: { id: 'mock-data-id' }, error: null }),
-          maybeSingle: () => Promise.resolve({ data: { id: 'mock-data-id' }, error: null }),
-          order: () => ({
-            limit: () => Promise.resolve({ data: [{ id: 'mock-data-id' }], error: null }),
-          }),
-          limit: () => Promise.resolve({ data: [{ id: 'mock-data-id' }], error: null }),
-          execute: () => Promise.resolve({ data: [{ id: 'mock-data-id' }], error: null }),
-        }),
-        execute: () => Promise.resolve({ data: [{ id: 'mock-data-id' }], error: null }),
-        order: () => ({
-          limit: () => Promise.resolve({ data: [{ id: 'mock-data-id' }], error: null }),
-        }),
-        limit: () => Promise.resolve({ data: [{ id: 'mock-data-id' }], error: null }),
-      }),
-      insert: () => Promise.resolve({ data: { id: 'mock-data-id' }, error: null }),
-      update: () => ({
-        eq: () => Promise.resolve({ data: { id: 'mock-data-id' }, error: null }),
-        match: () => Promise.resolve({ data: { id: 'mock-data-id' }, error: null }),
-      }),
-      delete: () => ({
-        eq: () => Promise.resolve({ data: { id: 'mock-data-id' }, error: null }),
-        match: () => Promise.resolve({ data: { id: 'mock-data-id' }, error: null }),
-      }),
-    }),
-    storage: {
-      from: () => ({
-        upload: () => Promise.resolve({ data: { path: 'mock-path' }, error: null }),
-        getPublicUrl: () => ({ data: { publicUrl: 'mock-url' } }),
-      }),
-    },
-  };
-}
-
-module.exports = {
-  supabaseClient,
-  supabaseAdmin,
-  createSupabaseClient,
-};
+export { supabaseClient };
+export default supabaseClient;

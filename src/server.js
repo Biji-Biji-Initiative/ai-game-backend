@@ -7,69 +7,80 @@
  * Provides a controlled startup and graceful shutdown process.
  */
 
-const { createServer } = require('http');
-const app = require('./app');
-const { logger } = require('./core/infra/logging/logger');
-const { initializeSupabase } = require('./core/infra/db/databaseConnection');
-
-// Get port from environment or default to 3000
-const port = process.env.PORT || 3000;
+import { createServer } from 'http';
+import app from './app.js';
+import { logger } from './core/infra/logging/logger.js';
+import { initializeSupabase } from './core/infra/db/databaseConnection.js';
+import config from './config/config.js';
 
 /**
- * Initialize application and start the server
+ * Start the server on the specified port
+ * @param {number} port - The port to start the server on
+ * @returns {Promise<http.Server>} The created server instance
  */
-async function startServer() {
+export async function startServer(port) {
+  // Use provided port, fallback to environment variable, then config, then default
+  // For production, standardize on 9000
+  const PORT = port || (process.env.NODE_ENV === 'production' ? 9000 : (process.env.PORT || config.server.port || 3000));
+  
   try {
     // Initialize database connection
     await initializeSupabase();
-
+    
     // Create HTTP server
     const server = createServer(app);
-
-    // Start listening for requests
-    server.listen(port, () => {
-      logger.info(`Server started successfully on port ${port}`);
+    
+    // Start listening on the port
+    server.listen(PORT, () => {
+      logger.info(`Server is running on port ${PORT}`);
+      logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+      logger.info(`API Documentation: http://localhost:${PORT}${process.env.API_DOCS_PATH || '/api-docs'}`);
+      logger.info(`API Tester UI: http://localhost:${PORT}${process.env.API_TESTER_PATH || '/tester'}`);
     });
-
+    
     // Handle server errors
-    server.on('error', error => {
-      logger.error('Server error', { error: error.message, stack: error.stack });
-      process.exit(1);
+    server.on('error', (error) => {
+      if (error.code === 'EADDRINUSE') {
+        logger.error(`Port ${PORT} is already in use`);
+      } else {
+        logger.error(`Server error: ${error.message}`, { error });
+      }
     });
-
+    
     // Handle graceful shutdown
     process.on('SIGTERM', () => gracefulShutdown(server));
     process.on('SIGINT', () => gracefulShutdown(server));
+    
+    return server;
   } catch (error) {
     logger.error('Failed to start server', { error: error.message, stack: error.stack });
-    process.exit(1);
+    throw error;
   }
 }
 
 /**
  * Gracefully shut down the server
- * @param {http.Server} server - HTTP server
+ * @param {http.Server} server - The server to shut down
  */
-async function gracefulShutdown(server) {
-  logger.info('Received shutdown signal, closing server...');
-
-  // Adding a dummy await to satisfy linter
-  await new Promise(resolve => {
-    server.close(() => {
-      logger.info('Server closed successfully');
-      resolve();
-      process.exit(0);
-    });
+export function gracefulShutdown(server) {
+  logger.info('Shutting down server gracefully...');
+  
+  server.close(() => {
+    logger.info('Server shut down successfully');
+    process.exit(0);
   });
-
-  // Force shutdown after timeout
+  
+  // Force shutdown after 10 seconds if the server doesn't close gracefully
   setTimeout(() => {
-    logger.error('Forced shutdown after timeout');
+    logger.error('Server did not shut down gracefully, forcing exit');
     process.exit(1);
   }, 10000);
 }
 
-// Start the server
-startServer();
+// Export for CommonJS compatibility
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { startServer, gracefulShutdown };
+}
 
-module.exports = { startServer, gracefulShutdown };
+// Default export for ES modules
+export default { startServer, gracefulShutdown };

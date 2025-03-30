@@ -1,65 +1,58 @@
+import { z } from "zod";
 'use strict';
-
-/**
- * User API Validation Schemas
- *
- * Defines input validation schemas for User domain API endpoints.
- */
-const { z } = require('zod');
-
 /**
  * Schema for validating user profile update requests
  */
 const updateUserSchema = z
-  .object({
+    .object({
     name: z.string().min(1).max(100).optional(),
     professionalTitle: z.string().min(1).max(100).optional(),
     location: z.string().max(100).optional(),
     country: z.string().max(100).optional(),
     preferences: z
-      .object({
+        .object({
         theme: z.enum(['light', 'dark', 'system']).optional(),
         emailNotifications: z.boolean().optional(),
         pushNotifications: z.boolean().optional(),
-      })
-      .optional(),
+    })
+        .optional(),
     settings: z.record(z.any()).optional(),
-  })
-  .strict();
-
+})
+    .strict();
 /**
  * Schema for validating focus area update requests
  */
 const updateFocusAreaSchema = z
-  .object({
+    .object({
     focusArea: z.string().min(1).max(50),
-  })
-  .strict();
-
+})
+    .strict();
 /**
  * Schema for validating user creation requests
  */
 const createUserSchema = z
-  .object({
+    .object({
     email: z.string().email(),
     name: z.string().min(1).max(100),
     displayName: z.string().min(1).max(50).optional(),
     role: z.enum(['user', 'admin']).optional().default('user'),
-  })
-  .strict();
-
+})
+    .strict();
 /**
  * Schema for validating user ID parameter
  */
 const userIdSchema = z
-  .object({
+    .object({
     id: z.string().uuid(),
-  })
-  .strict();
-
-module.exports = {
-  updateUserSchema,
-  updateFocusAreaSchema,
-  createUserSchema,
-  userIdSchema,
+})
+    .strict();
+export { updateUserSchema };
+export { updateFocusAreaSchema };
+export { createUserSchema };
+export { userIdSchema };
+export default {
+    updateUserSchema,
+    updateFocusAreaSchema,
+    createUserSchema,
+    userIdSchema
 };

@@ -1,16 +1,6 @@
+import { logger } from "../../infra/logging/logger.js";
 'use strict';
-
-/**
- * Prompt Error Handler
- *
- * Specialized error handling for prompt-related operations
- *
- * @module promptErrorHandler
- */
-
-const { logger } = require('../../../core/infra/logging/logger');
 // const AppError = require('../../../core/infra/errors/AppError');
-
 /**
  * Handle LLM prompt generation errors
  * @param {Error} error - Caught error
@@ -18,20 +8,14 @@ const { logger } = require('../../../core/infra/logging/logger');
  * @returns {Error} Enhanced error for logging
  */
 function handlePromptError(error, context = 'prompt generation') {
-  const enhancedError =
-    error instanceof AppError
-      ? error
-      : new AppError(`Error during ${context}: ${error.message}`, 500);
-
+  const enhancedError = error instanceof AppError ? error : new AppError(`Error during ${context}: ${error.message}`, 500);
   logger.error(`Prompt error: ${enhancedError.message}`, {
     context,
     originalError: error.message,
-    stack: error.stack,
+    stack: error.stack
   });
-
   return enhancedError;
 }
-
 /**
  * Validate that a generated response meets requirements
  * @param {Object} response - Generated response
@@ -43,15 +27,15 @@ function validateGeneratedResponse(response, requiredFields = [], context = 'res
   if (!response) {
     throw new AppError(`Empty ${context} received from the model`, 500);
   }
-
   for (const field of requiredFields) {
     if (response[field] === undefined || response[field] === null) {
       throw new AppError(`Missing required field '${field}' in generated ${context}`, 500);
     }
   }
 }
-
-module.exports = {
+export { handlePromptError };
+export { validateGeneratedResponse };
+export default {
   handlePromptError,
-  validateGeneratedResponse,
+  validateGeneratedResponse
 };

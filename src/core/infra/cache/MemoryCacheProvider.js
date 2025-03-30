@@ -1,17 +1,6 @@
+import NodeCache from "node-cache";
+import { logger } from "../logging/logger.js";
 'use strict';
-
-/**
- * Memory Cache Provider
- *
- * In-memory implementation of the cache provider interface for CacheService.
- * Provides an in-memory alternative to Redis for local development and testing.
- *
- * @module MemoryCacheProvider
- */
-
-const NodeCache = require('node-cache');
-const { logger } = require('../../logging/logger');
-
 /**
  * Memory Cache Provider class
  */
@@ -26,32 +15,31 @@ class MemoryCacheProvider {
    */
   constructor(options = {}) {
     this.options = {
-      ttl: options.ttl || 300, // 5 minutes
-      checkPeriod: options.checkPeriod || 60, // 1 minute
+      ttl: options.ttl || 300,
+      // 5 minutes
+      checkPeriod: options.checkPeriod || 60,
+      // 1 minute
       useClones: options.useClones !== undefined ? options.useClones : false,
-      enablePatterns: options.enablePatterns !== undefined ? options.enablePatterns : true,
+      enablePatterns: options.enablePatterns !== undefined ? options.enablePatterns : true
     };
-
-    this.logger = logger.child({ component: 'memory-cache-provider' });
-
+    this.logger = logger.child({
+      component: 'memory-cache-provider'
+    });
     // Initialize cache
     this.cache = new NodeCache({
       stdTTL: this.options.ttl,
       checkperiod: this.options.checkPeriod,
-      useClones: this.options.useClones,
+      useClones: this.options.useClones
     });
-
     // Track cache events
     this.cache.on('expired', (key, _value) => {
       this.logger.debug(`Cache key expired: ${key}`);
     });
-
     this.logger.info('Memory cache provider initialized', {
       defaultTTL: this.options.ttl,
-      checkPeriod: this.options.checkPeriod,
+      checkPeriod: this.options.checkPeriod
     });
   }
-
   /**
    * Get a value from cache
    * @param {string} key - Cache key
@@ -61,21 +49,18 @@ class MemoryCacheProvider {
     return Promise.resolve().then(() => {
       try {
         const value = this.cache.get(key);
-
         if (value === undefined) {
           return null;
         }
-
         return value;
       } catch (error) {
         this.logger.error(`Error getting value from memory cache for key: ${key}`, {
-          error: error.message,
+          error: error.message
         });
         return null;
       }
     });
   }
-
   /**
    * Set a value in cache
    * @param {string} key - Cache key
@@ -91,32 +76,34 @@ class MemoryCacheProvider {
       } catch (error) {
         this.logger.error(`Error setting value in memory cache for key: ${key}`, {
           error: error.message,
-          ttl,
+          ttl
         });
         return false;
       }
     });
   }
-
   /**
    * Delete a value from cache
    * @param {string} key - Cache key
    * @returns {Promise<number>} Number of keys deleted
    */
-  del(key) {
+  delete(key) {
     return Promise.resolve().then(() => {
       try {
         const deleted = this.cache.del(key);
         return deleted;
       } catch (error) {
         this.logger.error(`Error deleting value from memory cache for key: ${key}`, {
-          error: error.message,
+          error: error.message
         });
         return 0;
       }
     });
   }
-
+  // Alias del to delete for backward compatibility
+  del(key) {
+    return this.delete(key);
+  }
   /**
    * Delete values from cache by pattern
    * @param {string} pattern - Cache key pattern
@@ -129,30 +116,25 @@ class MemoryCacheProvider {
           this.logger.warn('Pattern matching is disabled for memory cache');
           return 0;
         }
-
         // Convert Redis-style pattern to JavaScript regex
         const regexPattern = this._patternToRegex(pattern);
-
         // Get all keys and filter by pattern
         const allKeys = this.cache.keys();
         const matchingKeys = allKeys.filter(key => regexPattern.test(key));
-
         if (matchingKeys.length === 0) {
           return 0;
         }
-
         // Delete matching keys
         const deleted = this.cache.del(matchingKeys);
         return deleted;
       } catch (error) {
         this.logger.error(`Error deleting values from memory cache for pattern: ${pattern}`, {
-          error: error.message,
+          error: error.message
         });
         return 0;
       }
     });
   }
-
   /**
    * Get keys from cache by pattern
    * @param {string} pattern - Cache key pattern
@@ -165,29 +147,24 @@ class MemoryCacheProvider {
           this.logger.warn('Pattern matching is disabled for memory cache');
           return [];
         }
-
         // If no pattern or wildcard pattern, return all keys
         if (!pattern || pattern === '*') {
           return this.cache.keys();
         }
-
         // Convert Redis-style pattern to JavaScript regex
         const regexPattern = this._patternToRegex(pattern);
-
         // Get all keys and filter by pattern
         const allKeys = this.cache.keys();
         const matchingKeys = allKeys.filter(key => regexPattern.test(key));
-
         return matchingKeys;
       } catch (error) {
         this.logger.error(`Error getting keys from memory cache for pattern: ${pattern}`, {
-          error: error.message,
+          error: error.message
         });
         return [];
       }
     });
   }
-
   /**
    * Clear all values from cache
    * @returns {Promise<boolean>} True if successful
@@ -199,13 +176,19 @@ class MemoryCacheProvider {
         return true;
       } catch (error) {
         this.logger.error('Error clearing memory cache', {
-          error: error.message,
+          error: error.message
         });
         return false;
       }
     });
   }
-
+  /**
+   * Flush all values from cache (alias for clear)
+   * @returns {Promise<boolean>} True if successful
+   */
+  flush() {
+    return this.clear();
+  }
   /**
    * Convert Redis-style pattern to JavaScript regex
    * @param {string} pattern - Redis-style pattern
@@ -215,16 +198,12 @@ class MemoryCacheProvider {
   _patternToRegex(pattern) {
     // Escape special regex characters
     let regexString = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
     // Replace Redis wildcards with regex equivalents
-    regexString = regexString
-      .replace(/\\\*/g, '.*') // * becomes .*
-      .replace(/\\\?/g, '.') // ? becomes .
-      .replace(/\\\[([^\]]+)\\\]/g, '[$1]'); // [a-z] stays as [a-z]
-
+    regexString = regexString.replace(/\\\*/g, '.*') // * becomes .*
+    .replace(/\\\?/g, '.') // ? becomes .
+    .replace(/\\\[([^\]]+)\\\]/g, '[$1]'); // [a-z] stays as [a-z]
     return new RegExp(`^${regexString}$`);
   }
-
   /**
    * Get cache statistics
    * @returns {Object} Cache statistics
@@ -233,22 +212,22 @@ class MemoryCacheProvider {
     try {
       const stats = this.cache.getStats();
       const keys = this.cache.keys();
-
       return {
         keyCount: keys.length,
         hits: stats.hits,
         misses: stats.misses,
         ksize: stats.ksize,
-        vsize: stats.vsize,
+        vsize: stats.vsize
       };
     } catch (error) {
       this.logger.error('Error getting memory cache stats', {
-        error: error.message,
+        error: error.message
       });
-      return { error: error.message };
+      return {
+        error: error.message
+      };
     }
   }
-
   /**
    * Check if key exists in cache
    * @param {string} key - Cache key
@@ -260,13 +239,12 @@ class MemoryCacheProvider {
         return this.cache.has(key);
       } catch (error) {
         this.logger.error(`Error checking if key exists in memory cache: ${key}`, {
-          error: error.message,
+          error: error.message
         });
         return false;
       }
     });
   }
-
   /**
    * Get remaining TTL for a key
    * @param {string} key - Cache key
@@ -276,27 +254,23 @@ class MemoryCacheProvider {
     return Promise.resolve().then(() => {
       try {
         const ttl = this.cache.getTtl(key);
-
         if (ttl === undefined) {
           return -2; // Key doesn't exist
         }
-
         if (ttl === 0) {
           return -1; // No TTL (does not expire)
         }
-
         // Convert from timestamp to seconds
         const remainingTtl = Math.max(0, Math.floor((ttl - Date.now()) / 1000));
         return remainingTtl;
       } catch (error) {
         this.logger.error(`Error getting TTL for key in memory cache: ${key}`, {
-          error: error.message,
+          error: error.message
         });
         return -2;
       }
     });
   }
-
   /**
    * Set TTL for an existing key
    * @param {string} key - Cache key
@@ -309,17 +283,15 @@ class MemoryCacheProvider {
         if (!this.cache.has(key)) {
           return false;
         }
-
         return this.cache.ttl(key, ttl);
       } catch (error) {
         this.logger.error(`Error setting TTL for key in memory cache: ${key}`, {
           error: error.message,
-          ttl,
+          ttl
         });
         return false;
       }
     });
   }
 }
-
-module.exports = MemoryCacheProvider;
+export default MemoryCacheProvider;

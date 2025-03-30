@@ -1,31 +1,13 @@
+import { focusAreaLogger } from "../../infra/logging/domainLogger.js";
+import { FocusAreaError } from "../errors/focusAreaErrors.js";
+import { withServiceErrorHandling, createErrorMapper } from "../../infra/errors/errorStandardization.js";
 'use strict';
-
-/**
- * Focus Area Thread Service
- * 
- * Manages conversation threads for focus area generation
- * Uses persistent storage for thread state via OpenAIStateManager
- * 
- * @module focusAreaThreadService
- * @requires OpenAIStateManager
- * @requires logger
- */
-
-const { focusAreaLogger } = require('../../../core/infra/logging/domainLogger');
-const { FocusAreaError } = require('../errors/focusAreaErrors');
-const {
-  withServiceErrorHandling,
-  createErrorMapper
-} = require('../../../core/infra/errors/errorStandardization');
-
 // Create an error mapper for the focus area thread service
 const focusAreaThreadErrorMapper = createErrorMapper({
   'Error': FocusAreaError
 }, FocusAreaError);
-
 // Define a constant for the context prefix
 const FOCUS_AREA_CONTEXT_PREFIX = 'focus_area_';
-
 /**
  * Service that manages conversation threads for focus area generation
  */
@@ -39,14 +21,15 @@ class FocusAreaThreadService {
   /**
    * Method constructor
    */
-  constructor({ openAIStateManager, logger }) {
+  constructor({
+    openAIStateManager,
+    logger
+  }) {
     if (!openAIStateManager) {
       throw new Error('FocusAreaThreadService requires openAIStateManager dependency');
     }
-
     this.openAIStateManager = openAIStateManager;
     this.logger = logger || focusAreaLogger.child('threadService');
-    
     // Apply standardized error handling to methods
     this.createThread = withServiceErrorHandling(this.createThread.bind(this), {
       methodName: 'createThread',
@@ -54,21 +37,18 @@ class FocusAreaThreadService {
       logger: this.logger,
       errorMapper: focusAreaThreadErrorMapper
     });
-    
     this.findOrCreateThread = withServiceErrorHandling(this.findOrCreateThread.bind(this), {
       methodName: 'findOrCreateThread',
       domainName: 'focusArea',
       logger: this.logger,
       errorMapper: focusAreaThreadErrorMapper
     });
-    
     this.getLastResponseId = withServiceErrorHandling(this.getLastResponseId.bind(this), {
       methodName: 'getLastResponseId',
       domainName: 'focusArea',
       logger: this.logger,
       errorMapper: focusAreaThreadErrorMapper
     });
-    
     this.updateWithResponseId = withServiceErrorHandling(this.updateWithResponseId.bind(this), {
       methodName: 'updateWithResponseId',
       domainName: 'focusArea',
@@ -76,7 +56,6 @@ class FocusAreaThreadService {
       errorMapper: focusAreaThreadErrorMapper
     });
   }
-
   /**
    * Generate a unique context identifier for a focus area thread
    * @param {string} userId - User ID to generate context for
@@ -90,7 +69,6 @@ class FocusAreaThreadService {
   generateContextId(userId) {
     return `${FOCUS_AREA_CONTEXT_PREFIX}${userId}`;
   }
-
   /**
    * Create a new thread for focus area generation
    * @param {string} userId - User ID for whom to create the thread
@@ -107,41 +85,30 @@ class FocusAreaThreadService {
     if (!userId) {
       throw new Error('User ID is required to create a focus area thread');
     }
-
-    this.logger.info('Creating new focus area conversation state', { userId });
-
+    this.logger.info('Creating new focus area conversation state', {
+      userId
+    });
     // Create a unique context identifier
     const context = this.generateContextId(userId);
-    
     // Create thread metadata for storage
     const threadMetadata = {
       type: 'focus-area',
       purpose: 'Generate personalized focus areas for user',
       ...metadata
     };
-    
     // Create persistent conversation state
-    const state = await this.openAIStateManager.createConversationState(
-      userId, 
-      context, 
-      threadMetadata
-    );
-    
+    const state = await this.openAIStateManager.createConversationState(userId, context, threadMetadata);
     const stateId = state.id;
-    
     if (!stateId) {
       throw new Error('Failed to create conversation state for focus area generation');
     }
-
-    this.logger.info('Successfully created focus area conversation state', { 
-      userId, 
+    this.logger.info('Successfully created focus area conversation state', {
+      userId,
       stateId,
       context
     });
-    
     return stateId;
   }
-
   /**
    * Get an existing thread for a user or create a new one
    * @param {string} userId - User ID for whom to find or create a thread
@@ -158,29 +125,21 @@ class FocusAreaThreadService {
     if (!userId) {
       throw new Error('User ID is required');
     }
-
-    this.logger.info('Finding or creating focus area conversation state', { userId });
-
+    this.logger.info('Finding or creating focus area conversation state', {
+      userId
+    });
     // Generate context from userId
     const context = this.generateContextId(userId);
-    
     // Create thread metadata for storage
     const threadMetadata = {
       type: 'focus-area',
       purpose: 'Generate personalized focus areas for user',
       ...metadata
     };
-    
     // Find or create persistent conversation state
-    const state = await this.openAIStateManager.findOrCreateConversationState(
-      userId, 
-      context, 
-      threadMetadata
-    );
-    
+    const state = await this.openAIStateManager.findOrCreateConversationState(userId, context, threadMetadata);
     return state.id;
   }
-
   /**
    * Get the last response ID from a thread
    * @param {string} stateId - State/Thread ID to get last response from
@@ -195,7 +154,6 @@ class FocusAreaThreadService {
     if (!stateId) {
       throw new Error('State ID is required');
     }
-
     try {
       return await this.openAIStateManager.getLastResponseId(stateId);
     } catch (error) {
@@ -206,7 +164,6 @@ class FocusAreaThreadService {
       return null;
     }
   }
-
   /**
    * Update thread with new response ID
    * @param {string} stateId - State/Thread ID to update
@@ -223,16 +180,12 @@ class FocusAreaThreadService {
     if (!stateId || !responseId) {
       return false;
     }
-
     await this.openAIStateManager.updateLastResponseId(stateId, responseId);
-    
-    this.logger.debug('Updated conversation state with response ID', { 
-      stateId, 
-      responseId 
+    this.logger.debug('Updated conversation state with response ID', {
+      stateId,
+      responseId
     });
-    
     return true;
   }
 }
-
-module.exports = FocusAreaThreadService; 
+export default FocusAreaThreadService;

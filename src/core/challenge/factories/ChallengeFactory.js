@@ -1,20 +1,10 @@
+import { challengeLogger } from "../../infra/logging/domainLogger.js";
+import Challenge from "../models/Challenge.js";
+import challengeErrors from "../errors/ChallengeErrors.js";
 'use strict';
-
-/**
- * Challenge Factory
- * 
- * Factory responsible for creating Challenge domain entities.
- * Encapsulates the logic for determining parameters, validating them,
- * and creating valid Challenge instances ready for persistence.
- * 
- * Following Domain-Driven Design principles, this factory handles the complex
- * creation logic that would otherwise be scattered across services or coordinators.
- */
-
-const { challengeLogger } = require('../../../core/infra/logging/domainLogger');
-const Challenge = require('../models/Challenge');
-const { ChallengeGenerationError } = require('../errors/ChallengeErrors');
-
+const {
+  ChallengeGenerationError
+} = challengeErrors;
 /**
  * Factory for creating Challenge domain entities
  */
@@ -26,16 +16,20 @@ class ChallengeFactory {
    * @param {Object} dependencies.focusAreaValidationService - Service for validating focus areas
    * @param {Object} [dependencies.logger] - Logger instance
    */
-  constructor({ challengeConfigService, focusAreaValidationService, logger }) {
+  constructor({
+    challengeConfigService,
+    focusAreaValidationService,
+    logger
+  }) {
     if (!challengeConfigService) {
       throw new Error('challengeConfigService is required for ChallengeFactory');
     }
-    
     this.challengeConfigService = challengeConfigService;
     this.focusAreaValidationService = focusAreaValidationService;
-    this.logger = logger || challengeLogger.child({ component: 'factory:challenge' });
+    this.logger = logger || challengeLogger.child({
+      component: 'factory:challenge'
+    });
   }
-
   /**
    * Create a Challenge entity with validated parameters
    * @param {Object} params - Challenge creation parameters
@@ -52,7 +46,7 @@ class ChallengeFactory {
    */
   async createChallenge(params) {
     try {
-      const { 
+      const {
         user,
         recentChallenges = [],
         challengeTypeCode,
@@ -63,12 +57,10 @@ class ChallengeFactory {
         difficultySettings,
         config
       } = params;
-      
       // Validate user
       if (!user) {
         throw new ChallengeGenerationError('User is required to create a challenge');
       }
-      
       // Determine challenge parameters
       const challengeParams = await this.determineParameters({
         user,
@@ -80,22 +72,21 @@ class ChallengeFactory {
         difficultyManager,
         difficultySettings
       });
-      
       // Validate parameters against config if provided
       if (config) {
         await this.validateParameters(challengeParams, config);
       }
-      
       // Fetch challenge type and format type metadata to enrich the challenge
       const enrichedParams = await this.enrichWithMetadata(challengeParams);
-      
       // Create the challenge entity
       const challenge = new Challenge({
         id: Challenge.createNewId(),
         userId: user.email || user.id,
         title: `${enrichedParams.typeMetadata?.name || 'Challenge'}: ${enrichedParams.focusArea}`,
-        description: '',  // Will be filled by the generation service
-        instructions: '', // Will be filled by the generation service
+        description: '',
+        // Will be filled by the generation service
+        instructions: '',
+        // Will be filled by the generation service
         challengeType: enrichedParams.challengeTypeCode,
         formatType: enrichedParams.formatTypeCode,
         focusArea: enrichedParams.focusArea,
@@ -107,14 +98,14 @@ class ChallengeFactory {
         formatMetadata: enrichedParams.formatMetadata,
         difficultySettings: enrichedParams.difficultySettings
       });
-      
       return challenge;
     } catch (error) {
-      this.logger.error('Error creating challenge', { error: error.message });
+      this.logger.error('Error creating challenge', {
+        error: error.message
+      });
       throw new ChallengeGenerationError(`Failed to create challenge: ${error.message}`);
     }
   }
-
   /**
    * Determine challenge parameters based on available inputs
    * @param {Object} params - Parameter determination inputs
@@ -132,7 +123,6 @@ class ChallengeFactory {
       difficultyManager,
       difficultySettings
     } = params;
-    
     // If all parameters are provided, use them directly
     if (challengeTypeCode && formatTypeCode && focusArea && difficulty) {
       return {
@@ -143,48 +133,34 @@ class ChallengeFactory {
         difficultySettings: difficultySettings || this.calculateDefaultDifficultySettings(difficulty)
       };
     }
-    
     // If difficultyManager is provided and parameters are missing, use it for recommendations
     if (difficultyManager && (!challengeTypeCode || !focusArea)) {
       // Get optimal next challenge recommendation
       const recommendation = difficultyManager.getNextChallengeRecommendation(user, recentChallenges);
-      
       const determinedParams = {
         challengeTypeCode: challengeTypeCode || recommendation.challengeType,
         formatTypeCode: formatTypeCode || recommendation.formatType,
         focusArea: focusArea || recommendation.focusArea,
         difficulty: difficulty || recommendation.difficulty
       };
-      
       // Calculate optimal difficulty if not explicitly provided
       if (!difficultySettings && difficultyManager) {
-        determinedParams.difficultySettings = difficultyManager.calculateOptimalDifficulty(
-          user, 
-          recentChallenges, 
-          determinedParams.challengeTypeCode
-        );
+        determinedParams.difficultySettings = difficultyManager.calculateOptimalDifficulty(user, recentChallenges, determinedParams.challengeTypeCode);
       } else {
-        determinedParams.difficultySettings = difficultySettings || 
-          this.calculateDefaultDifficultySettings(determinedParams.difficulty);
+        determinedParams.difficultySettings = difficultySettings || this.calculateDefaultDifficultySettings(determinedParams.difficulty);
       }
-      
       return determinedParams;
     }
-    
     // Use the challenge config service for recommendations when parameters are missing
-    const recommendedParams = await this.challengeConfigService
-      .getRecommendedChallengeParameters(user, recentChallenges);
-    
+    const recommendedParams = await this.challengeConfigService.getRecommendedChallengeParameters(user, recentChallenges);
     return {
       challengeTypeCode: challengeTypeCode || recommendedParams.challengeType.code,
       formatTypeCode: formatTypeCode || recommendedParams.formatType.code,
       focusArea: focusArea || recommendedParams.focusArea,
       difficulty: difficulty || recommendedParams.difficulty,
-      difficultySettings: difficultySettings || 
-        this.calculateDefaultDifficultySettings(difficulty || recommendedParams.difficulty)
+      difficultySettings: difficultySettings || this.calculateDefaultDifficultySettings(difficulty || recommendedParams.difficulty)
     };
   }
-
   /**
    * Calculate default difficulty settings for a given difficulty level
    * @param {string} difficultyLevel - Difficulty level (easy, medium, hard)
@@ -193,7 +169,6 @@ class ChallengeFactory {
    */
   calculateDefaultDifficultySettings(difficultyLevel) {
     const level = difficultyLevel || 'medium';
-    
     return {
       level,
       complexity: level === 'hard' ? 0.8 : level === 'medium' ? 0.6 : 0.4,
@@ -201,7 +176,6 @@ class ChallengeFactory {
       timeAllocation: level === 'hard' ? 600 : level === 'medium' ? 480 : 360 // in seconds
     };
   }
-
   /**
    * Validate challenge parameters against provided configuration
    * @param {Object} params - Challenge parameters
@@ -215,13 +189,11 @@ class ChallengeFactory {
     if (!validTypes.some(type => type.code === params.challengeTypeCode)) {
       throw new ChallengeGenerationError(`Invalid challenge type: ${params.challengeTypeCode}`);
     }
-    
     // Validate format type
     const validFormatTypes = await this.challengeConfigService.getAllFormatTypes();
     if (!validFormatTypes.some(format => format.code === params.formatTypeCode)) {
       throw new ChallengeGenerationError(`Invalid format type: ${params.formatTypeCode}`);
     }
-    
     // Validate focus area using the validation service
     if (this.focusAreaValidationService) {
       const focusAreaValid = await this.focusAreaValidationService.exists(params.focusArea);
@@ -235,16 +207,13 @@ class ChallengeFactory {
         throw new ChallengeGenerationError(`Invalid focus area: ${params.focusArea}`);
       }
     }
-    
     // Validate difficulty level
     const validDifficulties = ['easy', 'medium', 'hard', 'beginner', 'intermediate', 'advanced'];
     if (!validDifficulties.includes(params.difficulty)) {
       throw new ChallengeGenerationError(`Invalid difficulty level: ${params.difficulty}`);
     }
-    
     return true;
   }
-
   /**
    * Enrich challenge parameters with metadata from config service
    * @param {Object} params - Challenge parameters
@@ -252,14 +221,14 @@ class ChallengeFactory {
    * @private
    */
   async enrichWithMetadata(params) {
-    const { challengeTypeCode, formatTypeCode } = params;
-    
+    const {
+      challengeTypeCode,
+      formatTypeCode
+    } = params;
     // Get challenge type metadata
     const typeMetadata = await this.challengeConfigService.getChallengeTypeByCode(challengeTypeCode);
-    
     // Get format type metadata
     const formatMetadata = await this.challengeConfigService.getFormatTypeByCode(formatTypeCode);
-    
     return {
       ...params,
       typeMetadata,
@@ -267,5 +236,4 @@ class ChallengeFactory {
     };
   }
 }
-
-module.exports = ChallengeFactory; 
+export default ChallengeFactory;

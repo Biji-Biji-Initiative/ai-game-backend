@@ -3,461 +3,122 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>API Tester UI</title>
-    <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="css/themes.css">
+    <title>AI Backend Game Testing Tool</title>
+    
+    <!-- CSS styles -->
+    <link rel="stylesheet" href="./style.css">
 </head>
 <body>
     <div class="app-container">
         <header class="app-header">
             <div class="logo">
-                <img src="img/logo.png" alt="API Tester UI Logo">
-                <h1>API Tester UI</h1>
+                <h1>AI Backend Game - Testing Tool</h1>
             </div>
             <div class="header-controls">
-                <button id="theme-toggle" class="theme-toggle" title="Toggle dark/light theme">
-                    <svg class="theme-icon theme-icon-light" viewBox="0 0 24 24">
-                        <path d="M12 9c1.65 0 3 1.35 3 3s-1.35 3-3 3-3-1.35-3-3 1.35-3 3-3M12 5c-3.87 0-7 3.13-7 7s3.13 7 7 7 7-3.13 7-7-3.13-7-7-7zM12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/>
-                    </svg>
-                    <svg class="theme-icon theme-icon-dark" viewBox="0 0 24 24">
-                        <path d="M12 2c5.52 0 10 4.48 10 10s-4.48 10-10 10-10-4.48-10-10 4.48-10 10-10zM12 6c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6z"/>
-                    </svg>
+                <button id="show-logs-btn" class="btn btn-secondary" title="Show Test Logs">
+                    <span class="logs-icon">📋</span> View Logs
+                </button>
+                <button id="theme-toggle" class="btn btn-icon" title="Toggle Dark Mode">
+                    <span class="theme-icon">🌙</span>
                 </button>
             </div>
         </header>
         
-        <main class="main-content">
-            <div class="sidebar">
-                <div class="sidebar-section">
-                    <h2>Endpoints</h2>
-                    <div class="endpoint-search">
-                        <input type="text" id="endpoint-search" placeholder="Search endpoints...">
-                    </div>
-                    <div class="endpoints-list" id="endpoints-list">
-                        <!-- Endpoints will be inserted here -->
-                        <div class="loading-placeholder">Loading endpoints...</div>
-                    </div>
-                </div>
-                
-                <div class="sidebar-section">
-                    <h2>History</h2>
-                    <div class="history-toolbar">
-                        <button id="clear-history-btn" title="Clear History"><span class="icon-trash"></span></button>
-                    </div>
-                    <div class="history-list" id="history-list">
-                        <!-- History items will be inserted here -->
-                        <div class="empty-state">No history yet</div>
-                    </div>
+        <main class="app-main">
+            <div class="flow-sidebar">
+                <h2>Test Flows</h2>
+                <div class="flow-menu" id="flow-menu">
+                    <!-- Flows will be added here dynamically -->
+                    <div class="loading">Loading flows...</div>
                 </div>
             </div>
             
             <div class="content">
-                <div class="request-section">
-                    <div class="request-header">
-                        <h2>Request</h2>
-                        <div class="request-actions">
-                            <button id="send-request-btn" class="primary-button">Send Request</button>
-                            <button id="save-request-btn" title="Save Request"><span class="icon-save"></span></button>
-                            <button id="clear-request-btn" title="Clear Request"><span class="icon-clear"></span></button>
-                        </div>
-                    </div>
-                    
-                    <div class="request-url-container">
-                        <div class="method-selector">
-                            <select id="http-method">
-                                <option value="GET">GET</option>
-                                <option value="POST">POST</option>
-                                <option value="PUT">PUT</option>
-                                <option value="DELETE">DELETE</option>
-                                <option value="PATCH">PATCH</option>
-                                <option value="HEAD">HEAD</option>
-                                <option value="OPTIONS">OPTIONS</option>
-                            </select>
-                        </div>
-                        <div class="url-input-wrapper">
-                            <input type="text" id="request-url" placeholder="Enter API URL...">
-                        </div>
-                    </div>
-                    
-                    <div class="request-tabs-container">
-                        <div class="tabs-list" id="request-tabs-list">
-                            <button class="tab active" data-tab="params">Params</button>
-                            <button class="tab" data-tab="headers">Headers</button>
-                            <button class="tab" data-tab="body">Body</button>
-                            <button class="tab" data-tab="auth">Auth</button>
-                        </div>
-                        
-                        <div class="tab-content" id="tab-content-params">
-                            <div class="params-container">
-                                <div class="params-table-container">
-                                    <table class="params-table" id="params-table">
-                                        <thead>
-                                            <tr>
-                                                <th class="param-enabled"></th>
-                                                <th class="param-name">Name</th>
-                                                <th class="param-value">Value</th>
-                                                <th class="param-actions"></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="params-rows">
-                                            <!-- Param rows will be inserted here -->
-                                            <tr class="empty-row">
-                                                <td colspan="4">No parameters</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div class="params-actions">
-                                    <button id="add-param-btn" class="add-row-btn">Add Parameter</button>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="tab-content" id="tab-content-headers" style="display: none;">
-                            <div class="headers-container">
-                                <div class="headers-table-container">
-                                    <table class="headers-table" id="headers-table">
-                                        <thead>
-                                            <tr>
-                                                <th class="header-enabled"></th>
-                                                <th class="header-name">Name</th>
-                                                <th class="header-value">Value</th>
-                                                <th class="header-actions"></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="headers-rows">
-                                            <!-- Header rows will be inserted here -->
-                                            <tr class="empty-row">
-                                                <td colspan="4">No headers</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div class="headers-actions">
-                                    <button id="add-header-btn" class="add-row-btn">Add Header</button>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="tab-content" id="tab-content-body" style="display: none;">
-                            <div class="body-container">
-                                <div class="body-type-selector">
-                                    <select id="body-type">
-                                        <option value="none">None</option>
-                                        <option value="json">JSON</option>
-                                        <option value="form-data">Form Data</option>
-                                        <option value="x-www-form-urlencoded">Form URL Encoded</option>
-                                        <option value="text">Text</option>
-                                        <option value="binary">Binary</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="body-editor-container">
-                                    <div class="body-editor" id="body-editor-none">
-                                        <div class="empty-state">No body for this request</div>
-                                    </div>
-                                    
-                                    <div class="body-editor" id="body-editor-json" style="display: none;">
-                                        <div class="json-editor-container">
-                                            <div class="editor-toolbar">
-                                                <button id="format-json-btn">Format</button>
-                                                <button id="copy-json-btn">Copy</button>
-                                            </div>
-                                            <div class="json-editor" id="json-editor">
-                                                <textarea id="json-editor-textarea" placeholder="Enter JSON..."></textarea>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="body-editor" id="body-editor-form-data" style="display: none;">
-                                        <div class="form-data-table-container">
-                                            <table class="form-data-table" id="form-data-table">
-                                                <thead>
-                                                    <tr>
-                                                        <th class="form-data-enabled"></th>
-                                                        <th class="form-data-name">Name</th>
-                                                        <th class="form-data-value">Value</th>
-                                                        <th class="form-data-type">Type</th>
-                                                        <th class="form-data-actions"></th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody id="form-data-rows">
-                                                    <!-- Form data rows will be inserted here -->
-                                                    <tr class="empty-row">
-                                                        <td colspan="5">No form data</td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                        <div class="form-data-actions">
-                                            <button id="add-form-data-btn" class="add-row-btn">Add Field</button>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="body-editor" id="body-editor-x-www-form-urlencoded" style="display: none;">
-                                        <div class="url-encoded-table-container">
-                                            <table class="url-encoded-table" id="url-encoded-table">
-                                                <thead>
-                                                    <tr>
-                                                        <th class="url-encoded-enabled"></th>
-                                                        <th class="url-encoded-name">Name</th>
-                                                        <th class="url-encoded-value">Value</th>
-                                                        <th class="url-encoded-actions"></th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody id="url-encoded-rows">
-                                                    <!-- URL encoded rows will be inserted here -->
-                                                    <tr class="empty-row">
-                                                        <td colspan="4">No form data</td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                        <div class="url-encoded-actions">
-                                            <button id="add-url-encoded-btn" class="add-row-btn">Add Field</button>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="body-editor" id="body-editor-text" style="display: none;">
-                                        <textarea id="text-editor-textarea" placeholder="Enter text..."></textarea>
-                                    </div>
-                                    
-                                    <div class="body-editor" id="body-editor-binary" style="display: none;">
-                                        <div class="binary-input-container">
-                                            <input type="file" id="binary-file-input">
-                                            <div class="file-info" id="binary-file-info"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="tab-content" id="tab-content-auth" style="display: none;">
-                            <div class="auth-container">
-                                <div class="auth-type-selector">
-                                    <select id="auth-type">
-                                        <option value="none">No Auth</option>
-                                        <option value="basic">Basic Auth</option>
-                                        <option value="bearer">Bearer Token</option>
-                                        <option value="api-key">API Key</option>
-                                        <option value="oauth2">OAuth 2.0</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="auth-form-container">
-                                    <div class="auth-form" id="auth-form-none">
-                                        <div class="empty-state">No authentication required</div>
-                                    </div>
-                                    
-                                    <div class="auth-form" id="auth-form-basic" style="display: none;">
-                                        <div class="form-row">
-                                            <label for="basic-auth-username">Username</label>
-                                            <input type="text" id="basic-auth-username" placeholder="Username">
-                                        </div>
-                                        <div class="form-row">
-                                            <label for="basic-auth-password">Password</label>
-                                            <input type="password" id="basic-auth-password" placeholder="Password">
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="auth-form" id="auth-form-bearer" style="display: none;">
-                                        <div class="form-row">
-                                            <label for="bearer-token">Token</label>
-                                            <input type="text" id="bearer-token" placeholder="Bearer token">
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="auth-form" id="auth-form-api-key" style="display: none;">
-                                        <div class="form-row">
-                                            <label for="api-key-name">Key Name</label>
-                                            <input type="text" id="api-key-name" placeholder="Key name">
-                                        </div>
-                                        <div class="form-row">
-                                            <label for="api-key-value">Key Value</label>
-                                            <input type="text" id="api-key-value" placeholder="Key value">
-                                        </div>
-                                        <div class="form-row">
-                                            <label for="api-key-location">Added To</label>
-                                            <select id="api-key-location">
-                                                <option value="header">Header</option>
-                                                <option value="query">Query Parameter</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="auth-form" id="auth-form-oauth2" style="display: none;">
-                                        <div class="form-row">
-                                            <label for="oauth2-token">Access Token</label>
-                                            <input type="text" id="oauth2-token" placeholder="OAuth 2.0 token">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                <div class="flow-steps" id="flow-steps">
+                    <div class="welcome-message">
+                        <h2>Welcome to the AI Backend Game Testing Tool</h2>
+                        <p>This tool helps you test your AI Backend Game step by step.</p>
+                        <p>Select a flow from the menu on the left to begin testing.</p>
+                        <ol>
+                            <li>Select a flow (like "User Setup Flow")</li>
+                            <li>Follow the steps in order</li>
+                            <li>Fill in the required information</li>
+                            <li>Click "Run This Step" to test each part</li>
+                            <li>View the results and continue to the next step</li>
+                        </ol>
+                        <p>If you encounter any errors, helpful explanations will be provided, and all errors are automatically logged for troubleshooting.</p>
                     </div>
                 </div>
                 
-                <div class="response-section" id="response-section">
-                    <div class="response-header">
-                        <h2>Response</h2>
-                        <div class="response-status" id="response-status"></div>
+                <div class="step-details hidden" id="step-details">
+                    <div class="step-header">
+                        <h2 id="step-title">Step Details</h2>
+                        <span id="step-description" class="step-description"></span>
                     </div>
                     
-                    <div id="response-tabs" class="tabs-container"></div>
-                    <div id="response-contents" class="tab-contents-container"></div>
+                    <div class="step-form">
+                        <div class="form-inputs" id="form-inputs">
+                            <!-- Form inputs will be generated here based on the step -->
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button id="run-step-btn" class="btn btn-primary">Run This Step</button>
+                            <button id="clear-form-btn" class="btn">Clear Form</button>
+                        </div>
+                    </div>
+                    
+                    <div class="result-panel hidden" id="result-panel">
+                        <h3>Result</h3>
+                        <div class="result-status" id="result-status"></div>
+                        <div class="result-content" id="result-content"></div>
+                    </div>
                 </div>
             </div>
         </main>
         
-        <footer class="app-footer">
-            <div class="footer-content">
-                <p>&copy; 2023 API Tester UI</p>
-                <div class="footer-links">
-                    <a href="#" id="about-link">About</a>
-                    <a href="#" id="help-link">Help</a>
+        <div id="loading-indicator" class="loading-indicator">
+            <div class="spinner"></div>
+            <span>Running test...</span>
+        </div>
+        
+        <div id="logs-panel" class="logs-panel">
+            <div class="logs-header">
+                <h2>Test Logs</h2>
+                <div class="logs-actions">
+                    <button id="clear-logs-btn" class="btn btn-secondary btn-sm">Clear Logs</button>
+                    <button id="copy-logs-btn" class="btn btn-secondary btn-sm">Copy to Clipboard</button>
+                    <button id="close-logs-btn" class="btn btn-icon">✕</button>
                 </div>
             </div>
+            <div class="logs-content" id="logs-content">
+                <div class="logs-filter">
+                    <label>
+                        <input type="checkbox" id="filter-debug" checked> DEBUG
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filter-info" checked> INFO
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filter-warning" checked> WARNING
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filter-error" checked> ERROR
+                    </label>
+                    <input type="text" id="logs-search" placeholder="Search logs...">
+                </div>
+                <div class="logs-list" id="logs-list">
+                    <!-- Logs will be populated here -->
+                    <div class="empty-logs">No logs to display.</div>
+                </div>
+            </div>
+        </div>
+        
+        <footer class="app-footer">
+            <p>AI Backend Game Testing Tool - All errors are automatically logged for troubleshooting</p>
         </footer>
     </div>
     
-    <!-- Modals -->
-    <div class="modal" id="settings-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Settings</h2>
-                <button class="close-modal-btn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="settings-section">
-                    <h3>API Settings</h3>
-                    <div class="form-row">
-                        <label for="setting-api-base-url">Base URL</label>
-                        <input type="text" id="setting-api-base-url" placeholder="https://api.example.com">
-                    </div>
-                    <div class="form-row">
-                        <label for="setting-api-version">API Version</label>
-                        <input type="text" id="setting-api-version" placeholder="v1">
-                    </div>
-                    <div class="form-row">
-                        <label for="setting-use-api-version">Use API Version in URL</label>
-                        <div class="toggle-switch">
-                            <input type="checkbox" id="setting-use-api-version" checked>
-                            <label for="setting-use-api-version"></label>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <label for="setting-request-timeout">Request Timeout (ms)</label>
-                        <input type="number" id="setting-request-timeout" min="0" step="1000" value="30000">
-                    </div>
-                </div>
-                
-                <div class="settings-section">
-                    <h3>UI Settings</h3>
-                    <div class="form-row">
-                        <label for="setting-theme">Theme</label>
-                        <select id="setting-theme">
-                            <option value="light">Light</option>
-                            <option value="dark">Dark</option>
-                            <option value="system">System Default</option>
-                        </select>
-                    </div>
-                    <div class="form-row">
-                        <label for="setting-max-history">Max History Items</label>
-                        <input type="number" id="setting-max-history" min="1" max="100" value="50">
-                    </div>
-                    <div class="form-row">
-                        <label for="setting-default-response-tab">Default Response Tab</label>
-                        <select id="setting-default-response-tab">
-                            <option value="formatted">Formatted</option>
-                            <option value="raw">Raw</option>
-                            <option value="headers">Headers</option>
-                            <option value="preview">Preview</option>
-                        </select>
-                    </div>
-                    <div class="form-row">
-                        <label for="setting-show-advanced">Show Advanced Options</label>
-                        <div class="toggle-switch">
-                            <input type="checkbox" id="setting-show-advanced">
-                            <label for="setting-show-advanced"></label>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button id="reset-settings-btn" class="secondary-button">Reset to Defaults</button>
-                <button id="save-settings-btn" class="primary-button">Save Settings</button>
-            </div>
-        </div>
-    </div>
-    
-    <div class="modal" id="about-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>About API Tester UI</h2>
-                <button class="close-modal-btn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="about-content">
-                    <div class="app-logo">
-                        <img src="img/logo.png" alt="API Tester UI Logo">
-                    </div>
-                    <h3>API Tester UI</h3>
-                    <p class="version">Version 1.0.0</p>
-                    <p>A lightweight and powerful tool for testing and exploring APIs.</p>
-                    <p>Features:</p>
-                    <ul>
-                        <li>Send HTTP requests to any API</li>
-                        <li>Support for various HTTP methods and authentication types</li>
-                        <li>Request history and replay functionality</li>
-                        <li>Formatted response viewing with syntax highlighting</li>
-                        <li>Save and organize API endpoints</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div id="notifications" class="notifications-container"></div>
-    
-    <script type="module" src="js/main.js"></script>
-    <script>
-    // Add theme toggle functionality
-    document.addEventListener('DOMContentLoaded', () => {
-        const themeToggleBtn = document.getElementById('theme-toggle');
-        if (themeToggleBtn) {
-            themeToggleBtn.addEventListener('click', () => {
-                if (window.apiTesterApp && window.apiTesterApp.getComponent) {
-                    try {
-                        // Try to use the imported function via the app component
-                        const config = window.apiTesterApp.getComponent('config');
-                        if (config) {
-                            const theme = config.get('theme', 'light');
-                            config.set('theme', theme === 'dark' ? 'light' : 'dark');
-                        }
-                    } catch (error) {
-                        console.error('Error toggling theme:', error);
-                        // Fallback to direct import
-                        import('./js/utils/css-utils.js')
-                            .then(module => {
-                                module.toggleTheme();
-                            })
-                            .catch(err => {
-                                console.error('Failed to load theme module:', err);
-                            });
-                    }
-                } else {
-                    // Direct import if app is not available
-                    import('./js/utils/css-utils.js')
-                        .then(module => {
-                            module.toggleTheme();
-                        })
-                        .catch(err => {
-                            console.error('Failed to load theme module:', err);
-                        });
-                }
-            });
-        }
-    });
-    </script>
+    <!-- Script files -->
+    <script type="module" src="./js/main.js"></script>
 </body>
 </html> 

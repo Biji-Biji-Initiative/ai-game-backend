@@ -1,5 +1,6 @@
+import domainEvents from "../../common/events/domainEvents.js";
+import { logger } from "../../infra/logging/logger.js";
 'use strict';
-
 /**
  * Personality Domain Events
  *
@@ -7,9 +8,11 @@
  * Following DDD principles, these events are used to communicate changes
  * in the domain to other domains.
  */
-const { EventTypes, eventBus, DomainEvent } = require('../../common/events/domainEvents');
-const { logger } = require('../../../core/infra/logging/logger');
-
+const {
+  EventTypes,
+  eventBus,
+  DomainEvent
+} = domainEvents;
 /**
  * Publish an event when a personality trait is identified
  * @param {string} userEmail - Email of the user
@@ -24,20 +27,22 @@ async function publishTraitIdentified(userEmail, traitName, traitScore, source) 
       userEmail,
       trait: {
         name: traitName,
-        score: traitScore,
+        score: traitScore
       },
-      source,
+      source
     });
-    logger.debug('Published personality trait identified event', { userEmail, traitName });
+    logger.debug('Published personality trait identified event', {
+      userEmail,
+      traitName
+    });
   } catch (error) {
     logger.error('Error publishing personality trait identified event', {
       error: error.message,
       userEmail,
-      traitName,
+      traitName
     });
   }
 }
-
 /**
  * Publish an event when a personality profile is updated
  * @param {string} userEmail - Email of the user
@@ -50,18 +55,19 @@ async function publishProfileUpdated(userEmail, profile) {
       userEmail,
       profile: {
         dominantTraits: profile.dominantTraits || [],
-        traitScores: profile.traitScores || {},
-      },
+        traitScores: profile.traitScores || {}
+      }
     });
-    logger.debug('Published personality profile updated event', { userEmail });
+    logger.debug('Published personality profile updated event', {
+      userEmail
+    });
   } catch (error) {
     logger.error('Error publishing personality profile updated event', {
       error: error.message,
-      userEmail,
+      userEmail
     });
   }
 }
-
 /**
  * Set up personality event subscriptions
  */
@@ -69,33 +75,32 @@ async function registerPersonalityEventHandlers() {
   // Subscribe to evaluation completed events to extract personality traits
   eventBus.subscribe(EventTypes.EVALUATION_COMPLETED, async event => {
     logger.debug('Handling evaluation completed event for personality analysis', {
-      evaluationId: event.payload.evaluationId,
+      evaluationId: event.payload.evaluationId
     });
-
     // Extract traits from evaluation result if available
     const traits = event.payload.result.traits;
-
     if (traits && Object.keys(traits).length > 0) {
       logger.info('Processing personality traits from evaluation', {
         userEmail: event.payload.userEmail,
-        traitCount: Object.keys(traits).length,
+        traitCount: Object.keys(traits).length
       });
-
       // In a real implementation, we would update the user's personality profile here
       // For now, we just log the traits
       for (const [traitName, traitScore] of Object.entries(traits)) {
         logger.debug('Identified trait from evaluation', {
           userEmail: event.payload.userEmail,
           traitName,
-          traitScore,
+          traitScore
         });
       }
     }
   });
 }
-
-module.exports = {
+export { publishTraitIdentified };
+export { publishProfileUpdated };
+export { registerPersonalityEventHandlers };
+export default {
   publishTraitIdentified,
   publishProfileUpdated,
-  registerPersonalityEventHandlers,
+  registerPersonalityEventHandlers
 };

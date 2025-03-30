@@ -1,329 +1,357 @@
+import { logger } from "../logging/logger.js";
 'use strict';
-
 /**
  * Cache Service
- * 
- * Provides caching capabilities for the application.
- * Used to cache frequently accessed data to reduce database load.
+ *
+ * Provides a standardized interface for caching data in the application.
+ * This service is provider-agnostic and works with any cache implementation
+ * that follows the defined provider interface.
+ *
+ * @module CacheService
  */
-
-const NodeCache = require('node-cache');
-const {
-  applyServiceErrorHandling,
-  createErrorMapper
-} = require('../errors/centralizedErrorUtils');
-
-const {
-  CacheError,
-  CacheKeyNotFoundError,
-  CacheInitializationError,
-  CacheOperationError
-} = require('../errors/InfraErrors');
-
-// Create an error mapper for the cache service
-const cacheErrorMapper = createErrorMapper(
-  {
-    CacheKeyNotFoundError: CacheKeyNotFoundError,
-    CacheInitializationError: CacheInitializationError,
-    CacheOperationError: CacheOperationError,
-    Error: CacheError
+// Default TTL values by domain and operation type (in seconds)
+const DEFAULT_TTL = {
+  // Short-lived caches
+  SHORT: 60,
+  // 1 minute
+  // Medium-lived caches
+  MEDIUM: 300,
+  // 5 minutes
+  // Long-lived caches
+  LONG: 1800,
+  // 30 minutes
+  // Domain and operation specific TTLs
+  USER: {
+    BY_ID: 600,
+    // 10 minutes
+    BY_EMAIL: 600,
+    // 10 minutes
+    LIST: 120,
+    // 2 minutes
+    SEARCH: 60,
+    // 1 minute
+    PROFILE: 600 // 10 minutes
   },
-  CacheError
-);
-
+  CHALLENGE: {
+    BY_ID: 600,
+    // 10 minutes
+    BY_USER: 300,
+    // 5 minutes
+    LIST: 120,
+    // 2 minutes
+    SEARCH: 60,
+    // 1 minute
+    CONFIG: 1800 // 30 minutes
+  },
+  FOCUS_AREA: {
+    BY_ID: 600,
+    // 10 minutes
+    BY_USER: 300,
+    // 5 minutes
+    LIST: 120 // 2 minutes
+  },
+  EVALUATION: {
+    BY_ID: 600,
+    // 10 minutes
+    BY_USER: 300,
+    // 5 minutes
+    BY_CHALLENGE: 300,
+    // 5 minutes
+    LIST: 120 // 2 minutes
+  },
+  PERSONALITY: {
+    BY_ID: 900,
+    // 15 minutes
+    BY_USER: 900,
+    // 15 minutes
+    TRAITS: 1800 // 30 minutes
+  },
+  RECOMMENDATION: {
+    BY_ID: 300,
+    // 5 minutes
+    BY_USER: 300,
+    // 5 minutes
+    LIST: 120 // 2 minutes
+  }
+};
 /**
- * Cache Service class
+ * Cache Service Class - Implements the caching functionality
  */
 class CacheService {
   /**
    * Create a new cache service
-   * @param {Object} options - Cache options
-   * @param {number} options.stdTTL - Standard TTL in seconds (default: 300)
-   * @param {boolean} options.checkperiod - Check period in seconds (default: 60)
-   * @param {boolean} options.useClones - Whether to clone objects (default: false)
-   * @param {string} options.namespace - Cache namespace for logging
-   * @param {Object} options.logger - Logger instance
+   * @param {Object} cacheProvider - The underlying cache provider (Redis, Memory, etc.)
+   * @param {Object} options - Cache service options
+   * @param {number} options.defaultTTL - Default TTL in seconds
+   * @param {boolean} options.logHits - Whether to log cache hits
+   * @param {boolean} options.logMisses - Whether to log cache misses
+   * @param {boolean} options.enabled - Whether the cache is enabled
    */
-  constructor(options = {}) {
-    const {
-      stdTTL = 300, // 5 minutes default TTL
-      checkperiod = 60, // Check for expired keys every 60 seconds
-      useClones = false, // Don't clone objects (better performance)
-      namespace = 'cache',
-      logger
-    } = options;
-    
-    if (!logger) {
-      throw new CacheInitializationError('Logger is required for CacheService');
-    }
-
-    try {
-      this.cache = new NodeCache({
-        stdTTL,
-        checkperiod,
-        useClones
-      });
-    } catch (error) {
-      throw new CacheInitializationError(error.message, { cause: error });
-    }
-
-    this.logger = logger;
-    this.namespace = namespace;
-    this.stats = {
+  constructor(cacheProvider, options = {}) {
+    this.provider = cacheProvider;
+    this.logger = options.logger || logger.child({
+      component: 'cache-service'
+    });
+    this.defaultTTL = options.defaultTTL || DEFAULT_TTL.MEDIUM;
+    this.logHits = options.logHits !== undefined ? options.logHits : true;
+    this.logMisses = options.logMisses !== undefined ? options.logMisses : true;
+    this.enabled = options.enabled !== undefined ? options.enabled : true;
+    this.metrics = {
       hits: 0,
       misses: 0,
-      sets: 0
+      sets: 0,
+      deletes: 0
     };
-
-    // Apply standardized error handling to methods
-    this.get = applyServiceErrorHandling(this, 'get', {
-      domainName: 'infra',
-      logger: this.logger,
-      errorMapper: cacheErrorMapper
-    });
-
-    this.set = applyServiceErrorHandling(this, 'set', {
-      domainName: 'infra',
-      logger: this.logger,
-      errorMapper: cacheErrorMapper
-    });
-
-    this.delete = applyServiceErrorHandling(this, 'delete', {
-      domainName: 'infra',
-      logger: this.logger,
-      errorMapper: cacheErrorMapper
-    });
-
-    this.clear = applyServiceErrorHandling(this, 'clear', {
-      domainName: 'infra',
-      logger: this.logger,
-      errorMapper: cacheErrorMapper
-    });
-
-    this.keys = applyServiceErrorHandling(this, 'keys', {
-      domainName: 'infra',
-      logger: this.logger,
-      errorMapper: cacheErrorMapper
-    });
-
-    this.getStats = applyServiceErrorHandling(this, 'getStats', {
-      domainName: 'infra',
-      logger: this.logger,
-      errorMapper: cacheErrorMapper
-    });
-
-    this.getOrSet = applyServiceErrorHandling(this, 'getOrSet', {
-      domainName: 'infra',
-      logger: this.logger,
-      errorMapper: cacheErrorMapper
-    });
   }
-
   /**
-   * Get an item from the cache
+   * Get TTL for a specific key based on its domain and operation
    * @param {string} key - Cache key
-   * @returns {*} Cached value or undefined if not found
+   * @param {number} defaultTTL - Default TTL if no specific TTL is found
+   * @returns {number} TTL in seconds
    */
-  /**
-   * Method get
-   */
-  get(key) {
-    const value = this.cache.get(key);
-    
-    if (value === undefined) {
-      this.stats.misses++;
-      this.logger.debug(`Cache miss for key: ${key}`, { 
-        operation: 'get',
-        key,
-        result: 'miss',
-        stats: this.stats
-      });
-      return undefined;
+  getTTL(key, defaultTTL) {
+    if (!key || typeof key !== 'string') {
+      return defaultTTL || this.defaultTTL;
     }
-    
-    this.stats.hits++;
-    this.logger.debug(`Cache hit for key: ${key}`, { 
-      operation: 'get',
-      key,
-      result: 'hit',
-      stats: this.stats
-    });
-    
-    return value;
+    // Extract domain and operation from key
+    const parts = key.split(':');
+    if (parts.length < 3) {
+      return defaultTTL || this.defaultTTL;
+    }
+    const domain = parts[0].toUpperCase();
+    const operation = parts[1].toUpperCase();
+    // Check for domain and operation specific TTL
+    if (DEFAULT_TTL[domain] && DEFAULT_TTL[domain][operation]) {
+      return DEFAULT_TTL[domain][operation];
+    }
+    // Check for domain specific TTL
+    if (DEFAULT_TTL[domain] && DEFAULT_TTL[domain].DEFAULT) {
+      return DEFAULT_TTL[domain].DEFAULT;
+    }
+    // Use provided defaultTTL or instance default
+    return defaultTTL || this.defaultTTL;
   }
-
   /**
-   * Set an item in the cache
+   * Get value from cache
    * @param {string} key - Cache key
-   * @param {*} value - Value to cache
-   * @param {number} ttl - Time to live in seconds (optional)
-   * @returns {boolean} True if successful
+   * @returns {Promise<*>} Cached value or null if not found
    */
-  /**
-   * Method set
-   */
-  set(key, value, ttl) {
-    const success = this.cache.set(key, value, ttl);
-    
-    if (success) {
-      this.stats.sets++;
-      this.logger.debug(`Set cache key: ${key}`, { 
-        operation: 'set',
-        key,
-        ttl: ttl || 'default',
-        stats: this.stats
-      });
-    } else {
-      throw new CacheOperationError('set', `Failed to set key: ${key}`);
+  async get(key) {
+    if (!this.enabled) {
+      return null;
     }
-    
-    return success;
-  }
-
-  /**
-   * Remove an item from the cache
-   * @param {string} key - Cache key
-   * @returns {number} Number of items removed
-   */
-  /**
-   * Method delete
-   */
-  delete(key) {
     try {
-      const count = this.cache.del(key);
-      
-      this.logger.debug(`Deleted cache key: ${key}`, { 
-        operation: 'delete',
-        key,
-        count,
-        stats: this.stats
-      });
-      
-      return count;
-    } catch (error) {
-      throw new CacheOperationError('delete', error.message, { cause: error });
-    }
-  }
-
-  /**
-   * Check if a key exists in the cache
-   * @param {string} key - Cache key
-   * @returns {boolean} True if key exists
-   */
-  /**
-   * Method has
-   */
-  has(key) {
-    try {
-      return this.cache.has(key);
-    } catch (error) {
-      throw new CacheOperationError('has', error.message, { cause: error });
-    }
-  }
-
-  /**
-   * Clear all items from the cache
-   */
-  /**
-   * Method clear
-   */
-  clear() {
-    try {
-      this.cache.flushAll();
-      this.logger.info('Cache cleared', { 
-        operation: 'clear',
-        stats: this.stats
-      });
-      
-      // Reset stats
-      this.stats = {
-        hits: 0,
-        misses: 0,
-        sets: 0
-      };
-    } catch (error) {
-      throw new CacheOperationError('clear', error.message, { cause: error });
-    }
-  }
-
-  /**
-   * Get all keys in the cache
-   * @param {string} [pattern] - Optional pattern to filter keys (uses simple string matching)
-   * @returns {Array<string>} Array of cache keys
-   */
-  /**
-   * Method keys
-   */
-  keys(pattern) {
-    try {
-      const allKeys = this.cache.keys();
-      
-      if (!pattern) {
-        return allKeys;
+      const value = await this.provider.get(key);
+      if (value !== null && value !== undefined) {
+        this.metrics.hits++;
+        if (this.logHits) {
+          this.logger.debug(`Cache hit: ${key}`);
+        }
+        // Parse JSON if the value is a string and looks like JSON
+        if (typeof value === 'string' && (value.startsWith('{') || value.startsWith('['))) {
+          try {
+            return JSON.parse(value);
+          } catch (e) {
+            return value;
+          }
+        }
+        return value;
       }
-      
-      return allKeys.filter(key => key.includes(pattern));
-    } catch (error) {
-      throw new CacheOperationError('keys', error.message, { cause: error });
-    }
-  }
-
-  /**
-   * Get cache statistics
-   * @returns {Object} Cache statistics
-   */
-  /**
-   * Method getStats
-   */
-  getStats() {
-    try {
-      const cacheStats = this.cache.getStats();
-      return {
-        ...this.stats,
-        keys: this.cache.keys().length,
-        ...cacheStats
-      };
-    } catch (error) {
-      throw new CacheOperationError('getStats', error.message, { cause: error });
-    }
-  }
-
-  /**
-   * Get or set cache value with a factory function
-   * @param {string} key - Cache key
-   * @param {Function} factory - Function to generate value if not in cache
-   * @param {number} ttl - Time to live in seconds (optional)
-   * @returns {Promise<*>} Value from cache or factory
-   */
-  async getOrSet(key, factory, ttl) {
-    const value = this.get(key);
-    
-    if (value !== undefined) {
-      return value;
-    }
-    
-    try {
-      const newValue = await factory();
-      
-      if (newValue !== undefined) {
-        this.set(key, newValue, ttl);
+      this.metrics.misses++;
+      if (this.logMisses) {
+        this.logger.debug(`Cache miss: ${key}`);
       }
-      
-      return newValue;
+      return null;
     } catch (error) {
-      this.logger.error(`Error in cache factory for key: ${key}`, { 
-        operation: 'getOrSet',
-        key,
+      this.logger.error(`Error getting cache value for key ${key}`, {
         error: error.message,
         stack: error.stack
       });
-      
-      throw new CacheOperationError('getOrSet', `Factory function failed for key: ${key}`, {
-        cause: error,
-        metadata: { key }
-      });
+      return null;
     }
   }
+  /**
+   * Set value in cache
+   * @param {string} key - Cache key
+   * @param {*} value - Value to cache
+   * @param {number} ttl - Time to live in seconds
+   * @returns {Promise<boolean>} True if successfully set, false otherwise
+   */
+  async set(key, value, ttl) {
+    if (!this.enabled) {
+      return false;
+    }
+    if (value === undefined || value === null) {
+      this.logger.debug(`Not caching null/undefined value for key: ${key}`);
+      return false;
+    }
+    try {
+      // Use domain-specific TTL if not provided
+      const effectiveTTL = ttl || this.getTTL(key);
+      // Convert objects to JSON strings
+      const valueToStore = typeof value === 'object' ? JSON.stringify(value) : value;
+      await this.provider.set(key, valueToStore, effectiveTTL);
+      this.metrics.sets++;
+      this.logger.debug(`Cache set: ${key} (TTL: ${effectiveTTL}s)`);
+      return true;
+    } catch (error) {
+      this.logger.error(`Error setting cache value for key ${key}`, {
+        error: error.message,
+        stack: error.stack
+      });
+      return false;
+    }
+  }
+  /**
+   * Delete value from cache
+   * @param {string} key - Cache key
+   * @returns {Promise<boolean>} True if successfully deleted, false otherwise
+   */
+  async del(key) {
+    if (!this.enabled) {
+      return false;
+    }
+    try {
+      await this.provider.del(key);
+      this.metrics.deletes++;
+      this.logger.debug(`Cache deleted: ${key}`);
+      return true;
+    } catch (error) {
+      this.logger.error(`Error deleting cache key ${key}`, {
+        error: error.message,
+        stack: error.stack
+      });
+      return false;
+    }
+  }
+  /**
+   * Delete values from cache by pattern
+   * @param {string} pattern - Cache key pattern
+   * @returns {Promise<number>} Number of keys deleted
+   */
+  async delPattern(pattern) {
+    if (!this.enabled) {
+      return 0;
+    }
+    try {
+      const count = await this.provider.delPattern(pattern);
+      this.metrics.deletes += count;
+      this.logger.debug(`Deleted ${count} cache keys matching pattern: ${pattern}`);
+      return count;
+    } catch (error) {
+      this.logger.error(`Error deleting cache keys with pattern ${pattern}`, {
+        error: error.message,
+        stack: error.stack
+      });
+      return 0;
+    }
+  }
+  /**
+   * Get value from cache or execute factory function to get and cache value
+   * @param {string} key - Cache key
+   * @param {Function} factory - Factory function to execute if value not in cache
+   * @param {number} ttl - Time to live in seconds
+   * @returns {Promise<*>} Value from cache or factory function
+   */
+  async getOrSet(key, factory, ttl) {
+    if (!this.enabled) {
+      return factory();
+    }
+    // Try to get value from cache first
+    const cachedValue = await this.get(key);
+    if (cachedValue !== null && cachedValue !== undefined) {
+      return cachedValue;
+    }
+    try {
+      // Execute factory function to get value
+      const startTime = Date.now();
+      const value = await factory();
+      const duration = Date.now() - startTime;
+      // Cache the value if not null/undefined and factory execution took significant time
+      if (value !== null && value !== undefined) {
+        // Only cache if factory took more than 50ms to execute or it's an array/object
+        // This prevents caching trivial operations
+        if (duration > 50 || Array.isArray(value) || typeof value === 'object' && value !== null) {
+          await this.set(key, value, ttl);
+          // Log performance benefit
+          this.logger.debug(`Cached value for key ${key} (factory took ${duration}ms)`);
+        }
+      }
+      return value;
+    } catch (error) {
+      this.logger.error(`Error in getOrSet factory for key ${key}`, {
+        error: error.message,
+        stack: error.stack
+      });
+      throw error;
+    }
+  }
+  /**
+   * Get cache keys matching a pattern
+   * @param {string} pattern - Cache key pattern
+   * @returns {Promise<Array<string>>} Array of matching keys
+   */
+  async keys(pattern) {
+    if (!this.enabled) {
+      return [];
+    }
+    try {
+      return await this.provider.keys(pattern);
+    } catch (error) {
+      this.logger.error(`Error getting cache keys with pattern ${pattern}`, {
+        error: error.message,
+        stack: error.stack
+      });
+      return [];
+    }
+  }
+  /**
+   * Clear all cache
+   * @returns {Promise<boolean>} True if successfully cleared, false otherwise
+   */
+  async clear() {
+    if (!this.enabled) {
+      return false;
+    }
+    try {
+      await this.provider.clear();
+      this.logger.info('Cache cleared');
+      return true;
+    } catch (error) {
+      this.logger.error('Error clearing cache', {
+        error: error.message,
+        stack: error.stack
+      });
+      return false;
+    }
+  }
+  /**
+   * Get cache metrics
+   * @returns {Object} Cache metrics
+   */
+  getMetrics() {
+    return {
+      ...this.metrics,
+      hitRatio: this.metrics.hits + this.metrics.misses > 0 ? this.metrics.hits / (this.metrics.hits + this.metrics.misses) : 0,
+      timestamp: new Date().toISOString()
+    };
+  }
+  /**
+   * Reset cache metrics
+   */
+  resetMetrics() {
+    this.metrics = {
+      hits: 0,
+      misses: 0,
+      sets: 0,
+      deletes: 0
+    };
+    this.logger.debug('Cache metrics reset');
+  }
 }
-
-module.exports = CacheService; 
+export { CacheService };
+export { DEFAULT_TTL };
+export default {
+  CacheService,
+  DEFAULT_TTL
+};

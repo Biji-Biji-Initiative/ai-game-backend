@@ -1,5 +1,6 @@
+import domainEvents from "../../common/events/domainEvents.js";
+import { logger } from "../../infra/logging/logger.js";
 'use strict';
-
 /**
  * Focus Area Domain Events
  *
@@ -7,9 +8,10 @@
  * Following DDD principles, these events are used to communicate changes
  * in the domain to other domains.
  */
-const { EventTypes, eventBus } = require('../../common/events/domainEvents');
-const { logger } = require('../../../core/infra/logging/logger');
-
+const {
+  EventTypes,
+  eventBus
+} = domainEvents;
 /**
  * Publish an event when a focus area is created
  * @param {string} focusAreaId - ID of the focus area
@@ -20,18 +22,20 @@ async function publishFocusAreaCreated(focusAreaId, name) {
   try {
     await eventBus.publishEvent(EventTypes.FOCUS_AREA_CREATED, {
       focusAreaId,
-      name,
+      name
     });
-    logger.debug('Published focus area created event', { focusAreaId, name });
+    logger.debug('Published focus area created event', {
+      focusAreaId,
+      name
+    });
   } catch (error) {
     logger.error('Error publishing focus area created event', {
       error: error.message,
       focusAreaId,
-      name,
+      name
     });
   }
 }
-
 /**
  * Publish an event when a focus area is updated
  * @param {string} focusAreaId - ID of the focus area
@@ -42,17 +46,18 @@ async function publishFocusAreaUpdated(focusAreaId, changes) {
   try {
     await eventBus.publishEvent(EventTypes.FOCUS_AREA_UPDATED, {
       focusAreaId,
-      changes,
+      changes
     });
-    logger.debug('Published focus area updated event', { focusAreaId });
+    logger.debug('Published focus area updated event', {
+      focusAreaId
+    });
   } catch (error) {
     logger.error('Error publishing focus area updated event', {
       error: error.message,
-      focusAreaId,
+      focusAreaId
     });
   }
 }
-
 /**
  * Publish an event when a user's focus area is set
  * @param {string} userId - ID of the user
@@ -63,18 +68,20 @@ async function publishUserFocusAreaSet(userId, focusArea) {
   try {
     await eventBus.publishEvent(EventTypes.USER_FOCUS_AREA_SET, {
       userId,
-      focusArea,
+      focusArea
     });
-    logger.debug('Published user focus area set event', { userId, focusArea });
+    logger.debug('Published user focus area set event', {
+      userId,
+      focusArea
+    });
   } catch (error) {
     logger.error('Error publishing user focus area set event', {
       error: error.message,
       userId,
-      focusArea,
+      focusArea
     });
   }
 }
-
 /**
  * Set up focus area event subscriptions
  */
@@ -82,44 +89,42 @@ async function registerFocusAreaEventHandlers() {
   // When a user is created, suggest initial focus areas
   eventBus.subscribe(EventTypes.USER_CREATED, async event => {
     logger.debug('Handling user created event', {
-      userId: event.payload.userId,
+      userId: event.payload.userId
     });
-
     // In a real implementation, we would suggest initial focus areas
     logger.info('Initial focus areas would be suggested for new user', {
-      userId: event.payload.userId,
+      userId: event.payload.userId
     });
   });
-
   // When personality traits are updated, adjust focus area recommendations
   eventBus.subscribe(EventTypes.PERSONALITY_PROFILE_UPDATED, async event => {
     logger.debug('Handling personality profile updated event', {
-      userId: event.payload.userId,
+      userId: event.payload.userId
     });
-
     // In a real implementation, we would adjust focus area recommendations
     logger.info('Focus area recommendations would be adjusted based on personality', {
-      userId: event.payload.userId,
+      userId: event.payload.userId
     });
   });
-
   // When multiple challenges are completed, adjust focus area recommendations
   eventBus.subscribe(EventTypes.ACHIEVEMENT_UNLOCKED, async event => {
     logger.debug('Handling achievement unlocked event', {
       userId: event.payload.userId,
-      achievement: event.payload.achievement,
+      achievement: event.payload.achievement
     });
-
     // In a real implementation, we would update focus area recommendations
     logger.info('Focus area recommendations would be adjusted based on achievements', {
-      userId: event.payload.userId,
+      userId: event.payload.userId
     });
   });
 }
-
-module.exports = {
+export { publishFocusAreaCreated };
+export { publishFocusAreaUpdated };
+export { publishUserFocusAreaSet };
+export { registerFocusAreaEventHandlers };
+export default {
   publishFocusAreaCreated,
   publishFocusAreaUpdated,
   publishUserFocusAreaSet,
-  registerFocusAreaEventHandlers,
+  registerFocusAreaEventHandlers
 };

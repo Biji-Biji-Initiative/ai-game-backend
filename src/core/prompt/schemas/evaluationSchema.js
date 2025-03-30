@@ -1,65 +1,50 @@
+import { z } from "zod";
 'use strict';
-
-/**
- * Evaluation Prompt Schema
- *
- * Defines the schema for validation of evaluation prompt parameters
- * using Zod validation library with strict type definitions.
- *
- * @module evaluationSchema
- * @requires zod
- */
-
-const { z } = require('zod');
-
 /**
  * Type metadata schema with specific types
  */
 const typeMetadataSchema = z
-  .object({
+    .object({
     timeEstimate: z.number().int().positive(),
     complexity: z.number().int().min(1).max(10),
     skillsRequired: z.array(z.string()).min(1),
     isInteractive: z.boolean(),
     requiresCode: z.boolean(),
     additionalParams: z
-      .record(z.union([z.string(), z.number().int(), z.boolean(), z.array(z.string())]))
-      .optional(),
-  })
-  .strict();
-
+        .record(z.union([z.string(), z.number().int(), z.boolean(), z.array(z.string())]))
+        .optional(),
+})
+    .strict();
 /**
  * Format metadata schema with specific types
  */
 const formatMetadataSchema = z
-  .object({
+    .object({
     responseFormat: z.enum(['text', 'code', 'json', 'markdown', 'multiple-choice']),
     wordLimit: z.number().int().positive().optional(),
     timeLimit: z.number().int().positive().optional(),
     allowedResources: z.array(z.string()),
     submissionFormat: z.string(),
     additionalParams: z
-      .record(z.union([z.string(), z.number().int(), z.boolean(), z.array(z.string())]))
-      .optional(),
-  })
-  .strict();
-
+        .record(z.union([z.string(), z.number().int(), z.boolean(), z.array(z.string())]))
+        .optional(),
+})
+    .strict();
 /**
  * Content schema with strict object structure
  */
 const contentSchema = z
-  .object({
+    .object({
     context: z.string(),
     scenario: z.string(),
     instructions: z.string(),
-  })
-  .strict();
-
+})
+    .strict();
 /**
  * Challenge schema with required fields
  */
 const challengeSchema = z
-  .object({
+    .object({
     id: z.string(),
     title: z.string().min(1),
     challengeType: z.string(),
@@ -69,48 +54,40 @@ const challengeSchema = z
     focusArea: z.string(),
     difficulty: z.string(),
     content: contentSchema,
-    questions: z.array(
-      z
+    questions: z.array(z
         .object({
-          id: z.string(),
-          text: z.string().min(1),
-          type: z.string(),
-        })
-        .strict()
-    ),
-    evaluationCriteria: z.record(
-      z
+        id: z.string(),
+        text: z.string().min(1),
+        type: z.string(),
+    })
+        .strict()),
+    evaluationCriteria: z.record(z
         .object({
-          description: z.string(),
-          weight: z.number(),
-        })
-        .strict()
-    ),
+        description: z.string(),
+        weight: z.number(),
+    })
+        .strict()),
     typeMetadata: typeMetadataSchema,
     formatMetadata: formatMetadataSchema,
-  })
-  .strict();
-
+})
+    .strict();
 /**
  * User response schema with strict typing
  */
 const userResponseSchema = z.union([
-  z.string(),
-  z.array(
-    z
-      .object({
+    z.string(),
+    z.array(z
+        .object({
         questionId: z.string(),
         answer: z.string(),
-      })
-      .strict()
-  ),
+    })
+        .strict()),
 ]);
-
 /**
  * User schema with required fields
  */
 const userSchema = z
-  .object({
+    .object({
     id: z.string(),
     email: z.string().email(),
     fullName: z.string(),
@@ -120,28 +97,26 @@ const userSchema = z
     skillLevel: z.string(),
     learningGoals: z.array(z.string()),
     completedChallenges: z.number().int().nonnegative(),
-  })
-  .strict();
-
+})
+    .strict();
 /**
  * Evaluation history schema with required fields
  */
 const evaluationHistorySchema = z
-  .object({
+    .object({
     previousScore: z.number().min(0).max(100),
     previousCategoryScores: z.record(z.number().min(0).max(100)),
     consistentStrengths: z.array(z.string()),
     persistentWeaknesses: z.array(z.string()),
     evaluationCount: z.number().int().nonnegative(),
     improvementTrend: z.enum(['improving', 'stable', 'declining', 'mixed', 'insufficient_data']),
-  })
-  .strict();
-
+})
+    .strict();
 /**
  * Options schema with required fields
  */
 const optionsSchema = z
-  .object({
+    .object({
     threadId: z.string().optional(),
     previousResponseId: z.string().optional(),
     temperature: z.number().min(0).max(2),
@@ -155,41 +130,38 @@ const optionsSchema = z
     includeDetailedFeedback: z.boolean(),
     strictScoring: z.boolean(),
     feedbackLanguage: z.string(),
-  })
-  .strict();
-
+})
+    .strict();
 /**
  * Complete evaluation prompt parameters schema with strict validation
  */
 const evaluationPromptSchema = z
-  .object({
+    .object({
     challenge: challengeSchema,
     userResponse: userResponseSchema,
     user: userSchema,
     evaluationHistory: evaluationHistorySchema.optional(),
     options: optionsSchema,
-  })
-  .strict();
-
+})
+    .strict();
 /**
  * Scoring metrics schema for evaluation results
  */
 const scoringMetricsSchema = z
-  .object({
+    .object({
     accuracy: z.number().min(0).max(100),
     completeness: z.number().min(0).max(100),
     creativity: z.number().min(0).max(100).optional(),
     technicalCorrectness: z.number().min(0).max(100).optional(),
     communication: z.number().min(0).max(100).optional(),
     problemSolving: z.number().min(0).max(100).optional(),
-  })
-  .strict();
-
+})
+    .strict();
 /**
  * Evaluation result schema
  */
 const evaluationResultSchema = z
-  .object({
+    .object({
     score: z.number().min(0).max(100),
     categoryScores: z.record(z.number().min(0).max(100)),
     overallFeedback: z.string().min(20),
@@ -199,9 +171,8 @@ const evaluationResultSchema = z
     nextSteps: z.array(z.string()).min(1),
     code: z.string().optional(),
     timestamp: z.string().datetime(),
-  })
-  .strict();
-
+})
+    .strict();
 /**
  * Validate evaluation prompt parameters
  * @param {Object} params - Parameters to validate
@@ -209,32 +180,43 @@ const evaluationResultSchema = z
  * @throws {Error} If validation fails
  */
 function validateEvaluationPromptParams(params) {
-  try {
-    return evaluationPromptSchema.parse(params);
-  } catch (error) {
-    // Transform Zod validation errors to more user-friendly format
-    if (error.errors) {
-      const formattedErrors = error.errors
-        .map(err => `${err.path.join('.')}: ${err.message}`)
-        .join('; ');
-
-      throw new Error(`Evaluation prompt parameter validation failed: ${formattedErrors}`);
+    try {
+        return evaluationPromptSchema.parse(params);
     }
-    throw error;
-  }
+    catch (error) {
+        // Transform Zod validation errors to more user-friendly format
+        if (error.errors) {
+            const formattedErrors = error.errors
+                .map(err => `${err.path.join('.')}: ${err.message}`)
+                .join('; ');
+            throw new Error(`Evaluation prompt parameter validation failed: ${formattedErrors}`);
+        }
+        throw error;
+    }
 }
-
-module.exports = {
-  evaluationPromptSchema,
-  validateEvaluationPromptParams,
-  evaluationResultSchema,
-  typeMetadataSchema,
-  formatMetadataSchema,
-  challengeSchema,
-  userResponseSchema,
-  userSchema,
-  evaluationHistorySchema,
-  optionsSchema,
-  scoringMetricsSchema,
-  contentSchema,
+export { evaluationPromptSchema };
+export { validateEvaluationPromptParams };
+export { evaluationResultSchema };
+export { typeMetadataSchema };
+export { formatMetadataSchema };
+export { challengeSchema };
+export { userResponseSchema };
+export { userSchema };
+export { evaluationHistorySchema };
+export { optionsSchema };
+export { scoringMetricsSchema };
+export { contentSchema };
+export default {
+    evaluationPromptSchema,
+    validateEvaluationPromptParams,
+    evaluationResultSchema,
+    typeMetadataSchema,
+    formatMetadataSchema,
+    challengeSchema,
+    userResponseSchema,
+    userSchema,
+    evaluationHistorySchema,
+    optionsSchema,
+    scoringMetricsSchema,
+    contentSchema
 };

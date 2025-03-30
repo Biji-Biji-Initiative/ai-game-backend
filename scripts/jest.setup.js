@@ -5,8 +5,12 @@
  * across all test suites. It provides centralized setup/teardown logic and
  * common test utilities to reduce duplication across test files.
  */
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Set longer timeout for all tests
 jest.setTimeout(15000);
@@ -37,7 +41,7 @@ process.env.LOG_LEVEL = process.env.LOG_LEVEL || 'info';
 
 /**
  * Common test utilities
- * These can be imported in test files using: const { setupLogDir, mockLogger } = require('../jest.setup');
+ * These can be imported in test files using: import { setupLogDir, mockLogger } from '../jest.setup.js';
  */
 
 /**
@@ -102,7 +106,7 @@ const cleanupTempFile = filePath => {
 };
 
 // Export utilities for use in test files
-module.exports = {
+export {
   setupLogDir,
   mockLogger,
   spyOnLogger,

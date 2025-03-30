@@ -1,20 +1,14 @@
+import { z } from "zod";
+import { logger } from "../../infra/logging/logger.js";
+import apiStandards from "../common/apiStandards.js";
+import messageFormatter from "../../infra/openai/messageFormatter.js";
 'use strict';
-
-/**
- * Engagement Optimization Prompt Builder
- *
- * Builds prompts for optimizing user engagement based on their
- * interaction patterns, personality traits, and learning preferences.
- *
- * @module EngagementOptimizationPromptBuilder
- * @requires logger
- */
-
-const { z } = require('zod');
-const { logger } = require('../../../core/infra/logging/logger');
-const { _appendApiInstructions } = require('../common/apiStandards');
-const { formatForResponsesApi } = require('../../core/infra/openai/messageFormatter');
-
+const {
+  _appendApiInstructions
+} = apiStandards;
+const {
+  formatForResponsesApi
+} = messageFormatter;
 // Schema definition for engagement optimization prompt parameters
 const engagementOptimizationSchema = z.object({
   user: z.object({
@@ -22,77 +16,54 @@ const engagementOptimizationSchema = z.object({
     name: z.string().optional(),
     role: z.string().optional(),
     joinedAt: z.string().optional(),
-    skillLevel: z.string().optional(),
+    skillLevel: z.string().optional()
   }),
   engagementMetrics: z.object({
     sessionsCompleted: z.number().optional(),
-    averageSessionLength: z.number().optional(), // in minutes
+    averageSessionLength: z.number().optional(),
+    // in minutes
     completionRate: z.number().min(0).max(100).optional(),
     challengeAttempts: z.number().optional(),
     lastActive: z.string().optional(),
     activeStreak: z.number().optional(),
-    dropoffPoints: z
-      .array(
-        z.object({
-          challengeId: z.string(),
-          title: z.string(),
-          dropoffRate: z.number().min(0).max(100),
-        })
-      )
-      .optional(),
-    engagementTrend: z.enum(['increasing', 'decreasing', 'stable', 'fluctuating']).optional(),
+    dropoffPoints: z.array(z.object({
+      challengeId: z.string(),
+      title: z.string(),
+      dropoffRate: z.number().min(0).max(100)
+    })).optional(),
+    engagementTrend: z.enum(['increasing', 'decreasing', 'stable', 'fluctuating']).optional()
   }),
-  personalityProfile: z
-    .object({
-      dominantTraits: z.array(z.string()).optional(),
-      motivationalFactors: z.array(z.string()).optional(),
-      engagementPreferences: z.record(z.number()).optional(),
-      communicationStyle: z.string().optional(),
-    })
-    .optional(),
-  learningPreferences: z
-    .object({
-      preferredChallengeTypes: z.array(z.string()).optional(),
-      preferredDifficulty: z.string().optional(),
-      preferredTopics: z.array(z.string()).optional(),
-      learningStyle: z.string().optional(),
-      preferredFeedbackStyle: z.string().optional(),
-    })
-    .optional(),
-  userFeedback: z
-    .array(
-      z.object({
-        category: z.string(),
-        sentiment: z.enum(['positive', 'neutral', 'negative']),
-        content: z.string(),
-        timestamp: z.string(),
-      })
-    )
-    .optional(),
+  personalityProfile: z.object({
+    dominantTraits: z.array(z.string()).optional(),
+    motivationalFactors: z.array(z.string()).optional(),
+    engagementPreferences: z.record(z.number()).optional(),
+    communicationStyle: z.string().optional()
+  }).optional(),
+  learningPreferences: z.object({
+    preferredChallengeTypes: z.array(z.string()).optional(),
+    preferredDifficulty: z.string().optional(),
+    preferredTopics: z.array(z.string()).optional(),
+    learningStyle: z.string().optional(),
+    preferredFeedbackStyle: z.string().optional()
+  }).optional(),
+  userFeedback: z.array(z.object({
+    category: z.string(),
+    sentiment: z.enum(['positive', 'neutral', 'negative']),
+    content: z.string(),
+    timestamp: z.string()
+  })).optional(),
   systemGoals: z.object({
-    primaryGoal: z.enum([
-      'increaseCompletionRate',
-      'extendSessionLength',
-      'improveStreak',
-      'reduceDropoff',
-      'increaseChallengeDiversity',
-      'improveOverallSatisfaction',
-    ]),
+    primaryGoal: z.enum(['increaseCompletionRate', 'extendSessionLength', 'improveStreak', 'reduceDropoff', 'increaseChallengeDiversity', 'improveOverallSatisfaction']),
     secondaryGoals: z.array(z.string()).optional(),
-    constraintsToConsider: z.array(z.string()).optional(),
+    constraintsToConsider: z.array(z.string()).optional()
   }),
-  availableEngagementStrategies: z
-    .array(
-      z.object({
-        id: z.string(),
-        name: z.string(),
-        description: z.string(),
-        applicableUserTypes: z.array(z.string()).optional(),
-      })
-    )
-    .optional(),
+  availableEngagementStrategies: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    description: z.string(),
+    applicableUserTypes: z.array(z.string()).optional()
+  })).optional()
 });
-
 /**
  * Validate the engagement optimization prompt parameters
  * @param {Object} params - Parameters for the prompt
@@ -105,12 +76,11 @@ function validateEngagementOptimizationPromptParams(params) {
   } catch (error) {
     logger.error('Invalid engagement optimization parameters', {
       error: error.message,
-      params,
+      params
     });
     throw new Error(`Invalid engagement optimization parameters: ${error.message}`);
   }
 }
-
 /**
  * Build an engagement optimization prompt
  * @param {Object} params - Parameters for the prompt
@@ -119,12 +89,10 @@ function validateEngagementOptimizationPromptParams(params) {
 function _build(params) {
   // Validate parameters
   const validatedParams = validateEngagementOptimizationPromptParams(params);
-
   logger.debug('Building engagement optimization prompt', {
     userId: validatedParams.user.id,
-    primaryGoal: validatedParams.systemGoals.primaryGoal,
+    primaryGoal: validatedParams.systemGoals.primaryGoal
   });
-
   // Extract key information
   const {
     user,
@@ -133,9 +101,8 @@ function _build(params) {
     learningPreferences,
     userFeedback,
     systemGoals,
-    availableEngagementStrategies,
+    availableEngagementStrategies
   } = validatedParams;
-
   // Build the system message
   const systemMessage = `
 You are an AI engagement optimization specialist for an adaptive learning platform.
@@ -157,77 +124,47 @@ ${engagementMetrics.lastActive ? `- Last Active: ${engagementMetrics.lastActive}
 ${engagementMetrics.activeStreak ? `- Active Streak: ${engagementMetrics.activeStreak} days` : ''}
 ${engagementMetrics.engagementTrend ? `- Engagement Trend: ${engagementMetrics.engagementTrend}` : ''}
 
-${
-  engagementMetrics.dropoffPoints && engagementMetrics.dropoffPoints.length > 0
-    ? `
+${engagementMetrics.dropoffPoints && engagementMetrics.dropoffPoints.length > 0 ? `
 DROPOFF POINTS:
 ${engagementMetrics.dropoffPoints.map(point => `- ${point.title} (Drop-off Rate: ${point.dropoffRate}%)`).join('\n')}
-`
-    : ''
-}
+` : ''}
 
-${
-  personalityProfile
-    ? `
+${personalityProfile ? `
 PERSONALITY PROFILE:
 ${personalityProfile.dominantTraits && personalityProfile.dominantTraits.length > 0 ? `- Dominant Traits: ${personalityProfile.dominantTraits.join(', ')}` : ''}
 ${personalityProfile.motivationalFactors && personalityProfile.motivationalFactors.length > 0 ? `- Motivational Factors: ${personalityProfile.motivationalFactors.join(', ')}` : ''}
 ${personalityProfile.communicationStyle ? `- Communication Style: ${personalityProfile.communicationStyle}` : ''}
-${
-  personalityProfile.engagementPreferences
-    ? `- Engagement Preferences: ${Object.entries(personalityProfile.engagementPreferences)
-      .map(([key, value]) => `${key}: ${value}`)
-      .join(', ')}`
-    : ''
-}
-`
-    : ''
-}
+${personalityProfile.engagementPreferences ? `- Engagement Preferences: ${Object.entries(personalityProfile.engagementPreferences).map(([key, value]) => `${key}: ${value}`).join(', ')}` : ''}
+` : ''}
 
-${
-  learningPreferences
-    ? `
+${learningPreferences ? `
 LEARNING PREFERENCES:
 ${learningPreferences.preferredChallengeTypes && learningPreferences.preferredChallengeTypes.length > 0 ? `- Preferred Challenge Types: ${learningPreferences.preferredChallengeTypes.join(', ')}` : ''}
 ${learningPreferences.preferredDifficulty ? `- Preferred Difficulty: ${learningPreferences.preferredDifficulty}` : ''}
 ${learningPreferences.preferredTopics && learningPreferences.preferredTopics.length > 0 ? `- Preferred Topics: ${learningPreferences.preferredTopics.join(', ')}` : ''}
 ${learningPreferences.learningStyle ? `- Learning Style: ${learningPreferences.learningStyle}` : ''}
 ${learningPreferences.preferredFeedbackStyle ? `- Preferred Feedback Style: ${learningPreferences.preferredFeedbackStyle}` : ''}
-`
-    : ''
-}
+` : ''}
 
-${
-  userFeedback && userFeedback.length > 0
-    ? `
+${userFeedback && userFeedback.length > 0 ? `
 USER FEEDBACK:
 ${userFeedback.map(feedback => `- ${feedback.category} (${feedback.sentiment}): '${feedback.content}'`).join('\n')}
-`
-    : ''
-}
+` : ''}
 
 SYSTEM GOALS:
 - Primary Goal: ${systemGoals.primaryGoal}
 ${systemGoals.secondaryGoals && systemGoals.secondaryGoals.length > 0 ? `- Secondary Goals: ${systemGoals.secondaryGoals.join(', ')}` : ''}
 ${systemGoals.constraintsToConsider && systemGoals.constraintsToConsider.length > 0 ? `- Constraints: ${systemGoals.constraintsToConsider.join(', ')}` : ''}
 
-${
-  availableEngagementStrategies && availableEngagementStrategies.length > 0
-    ? `
+${availableEngagementStrategies && availableEngagementStrategies.length > 0 ? `
 AVAILABLE ENGAGEMENT STRATEGIES:
-${availableEngagementStrategies
-    .map(
-      strategy => `
+${availableEngagementStrategies.map(strategy => `
 - ID: ${strategy.id}
   Name: ${strategy.name}
   Description: ${strategy.description}
   ${strategy.applicableUserTypes ? `Applicable User Types: ${strategy.applicableUserTypes.join(', ')}` : ''}
-`
-    )
-    .join('')}
-`
-    : ''
-}
+`).join('')}
+` : ''}
 
 INSTRUCTIONS:
 1. Analyze the user's engagement patterns and preferences
@@ -271,20 +208,18 @@ YOUR RESPONSE SHOULD BE FORMATTED IN THIS JSON STRUCTURE:
     'longTermStrategy': 'Ongoing approach'
   }
 }`;
-
   // Create a user prompt
   const userPrompt = `Generate engagement optimization strategies for user ${user.id || 'anonymous'} based on their activity patterns, preferences, and learning history.`;
-
   // Log success
   logger.debug('Successfully built engagement optimization prompt', {
-    userId: user.id,
+    userId: user.id
   });
-
   // Return formatted for Responses API
   return formatForResponsesApi(userPrompt, systemMessage);
 }
-
-module.exports = {
+export { _build as build };
+export { validateEngagementOptimizationPromptParams };
+export default {
   build: _build,
-  validateEngagementOptimizationPromptParams,
+  validateEngagementOptimizationPromptParams
 };

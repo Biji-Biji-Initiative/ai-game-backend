@@ -1,40 +1,31 @@
+import express from 'express';
+import AdaptiveController from '../../../adaptive/controllers/AdaptiveController.js';
+import { authenticateUser } from '../middleware/auth.js';
 'use strict';
-const { adaptiveController } = require('../controllers/adaptiveController');
 
 /**
  * Adaptive Routes
- * Handles routes related to adaptive learning features
+ * Handles routes related to adaptive difficulty and personalization
  */
-// const express = require('express');
 const router = express.Router();
-// const AdaptiveController = require('../core/adaptive/controllers/AdaptiveController');
-const { authenticateUser } = require('../core/infra/http/middleware/auth');
-// const container = require('../config/container');
 
-// Create controller instance with dependencies
-const adaptiveController = new AdaptiveController({
-  logger: container.get('logger'),
-  adaptiveService: container.get('adaptiveService'),
-});
-
-// Get personalized recommendations
-router.get('/recommendations', authenticateUser, (req, res) =>
-  adaptiveController.getRecommendations(req, res)
-);
-
-// Generate a dynamic challenge
-router.get('/challenge/generate', authenticateUser, (req, res) =>
-  adaptiveController.generateChallenge(req, res)
-);
-
-// Adjust difficulty based on user performance
-router.post('/difficulty/adjust', authenticateUser, (req, res) =>
-  adaptiveController.adjustDifficulty(req, res)
-);
-
-// Calculate optimal difficulty
-router.get('/difficulty/calculate', authenticateUser, (req, res) =>
-  adaptiveController.calculateDifficulty(req, res)
-);
-
-module.exports = router;
+/**
+ * Adaptive routes factory
+ * @param {AdaptiveController} adaptiveController - Adaptive controller instance
+ * @returns {express.Router} Express router
+ */
+export default function adaptiveRoutes(adaptiveController) {
+    // Get adaptive settings for a user
+    router.get('/settings', authenticateUser, (req, res) => adaptiveController.getAdaptiveSettings(req, res));
+    
+    // Update adaptive settings
+    router.put('/settings', authenticateUser, (req, res) => adaptiveController.updateAdaptiveSettings(req, res));
+    
+    // Get challenge recommendations
+    router.get('/recommendations', authenticateUser, (req, res) => adaptiveController.getRecommendations(req, res));
+    
+    // Record difficulty feedback
+    router.post('/feedback', authenticateUser, (req, res) => adaptiveController.recordDifficultyFeedback(req, res));
+    
+    return router;
+}

@@ -143,13 +143,13 @@ export class AuthManager {
             );
             
             // Check response
-            if (!response || !response.token) {
+            if (!response || !response.data || !response.data.token) {
                 throw new Error("Invalid server response");
             }
             
             // Save token and user
-            this.token = response.token;
-            this.user = response.user;
+            this.token = response.data.token;
+            this.user = response.data.user;
             
             // Save to storage
             this._saveToStorage();
@@ -200,18 +200,18 @@ export class AuthManager {
             const response = await this.apiClient.makeRequest(
                 "POST",
                 "/api/v1/auth/signup",
-                { name, email, password },
+                { fullName: name, email, password },
                 { addAuthToken: false }
             );
             
             // Check response
-            if (!response || !response.token) {
+            if (!response || !response.data || !response.data.token) {
                 throw new Error("Invalid server response");
             }
             
             // Save token and user
-            this.token = response.token;
-            this.user = response.user;
+            this.token = response.data.token;
+            this.user = response.data.user;
             
             // Save to storage
             this._saveToStorage();

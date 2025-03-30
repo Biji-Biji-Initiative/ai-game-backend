@@ -1,534 +1,673 @@
+import DifficultyLevel from "../../models/config/DifficultyLevel.js";
+import difficultyLevelMapper from "../../mappers/DifficultyLevelMapper.js";
+import { challengeLogger } from "../../../infra/logging/domainLogger.js";
+import { supabaseClient } from "../../../infra/db/supabaseClient.js";
+import { ValidationError, DatabaseError, EntityNotFoundError } from "../../../infra/repositories/BaseRepository.js";
+import { withRepositoryErrorHandling, createErrorMapper } from "../../../infra/errors/errorStandardization.js";
+import challengeErrors from "../../errors/ChallengeErrors.js";
 'use strict';
 
-/**
- * Difficulty Level Repository
- * 
- * Manages data access for difficulty level configuration.
- * Acts as the bridge between the domain model and database.
- */
-
-const DifficultyLevel = require('../../models/config/DifficultyLevel');
-const difficultyLevelMapper = require('../../mappers/DifficultyLevelMapper');
-const { challengeLogger } = require('../../../../core/infra/logging/domainLogger');
-const { 
-  BaseRepository,
-  DatabaseError 
-} = require('../../../../core/infra/repositories/BaseRepository');
-const { supabaseClient } = require('../../../../core/infra/db/supabaseClient');
-const {
-  applyRepositoryErrorHandling,
-  applyServiceErrorHandling,
-  applyControllerErrorHandling,
-  createErrorMapper
-} = require('../../../core/infra/errors/centralizedErrorUtils');
-
 // Import domain-specific error classes
-const {
-  ChallengeError,
-  ChallengeNotFoundError,
-  ChallengeValidationError,
-  ChallengeProcessingError,
-} = require('../errors/ChallengeErrors');
+const { 
+  ChallengeError, 
+  ChallengeNotFoundError, 
+  ChallengeValidationError, 
+  ChallengeProcessingError 
+} = challengeErrors;
 
-// Create an error mapper for repositories
-const challengeRepositoryErrorMapper = createErrorMapper(
-  {
+// Define error mapper for difficulty level repository
+const difficultyLevelErrorMapper = createErrorMapper({
     EntityNotFoundError: ChallengeNotFoundError,
     ValidationError: ChallengeValidationError,
-    DatabaseError: ChallengeError,
-  },
-  ChallengeError
-);
-
-// Cache TTL constants
-const CACHE_TTL = {
-  ALL: 3600, // 1 hour
-  SINGLE: 1800 // 30 minutes
-};
+    DatabaseError: ChallengeProcessingError,
+}, ChallengeProcessingError);
 
 /**
  * Repository for managing difficulty level configurations
  * Provides data access operations for difficulty levels in challenges
- * @extends BaseRepository
  */
-class DifficultyLevelRepository extends BaseRepository {
+class DifficultyLevelRepository {
   /**
    * Create a new DifficultyLevelRepository
-   * @param {Object} options - Repository options
-   * @param {Object} options.db - Database client
-   * @param {Object} options.logger - Logger instance
-   * @param {Object} options.cache - Cache service for configuration data (optional)
+   * @param {Object} supabase - Supabase client instance for database operations
+   * @param {Object} logger - Logger instance for recording repository operations
    */
-  constructor(options = {}) {
-    super({
-      db: options.db || supabaseClient,
-      tableName: 'difficulty_levels',
-      domainName: 'challenge:difficultyLevel',
-      logger: options.logger || challengeLogger.child({ component: 'repository:difficultyLevel' }),
-      maxRetries: 3
-    });
+  constructor(supabase, logger) {
+    this.supabase = supabase || supabaseClient;
+    this.tableName = 'difficulty_levels';
+    this.logger = logger || challengeLogger.child({ component: 'repository:difficultyLevel' });
+    this.domainName = 'challenge:difficultyLevel';
     
-    this.cache = options.cache;
+    // Apply repository error handling with standardized pattern
+    this.findAll = withRepositoryErrorHandling(
+      this.findAll.bind(this),
+      {
+        methodName: 'findAll',
+        domainName: this.domainName,
+        logger: this.logger,
+        errorMapper: difficultyLevelErrorMapper
+      }
+    );
     
-    // Apply standardized error handling to methods
-    this.findAll = applyRepositoryErrorHandling(this, 'findAll');
-    this.findByCode = applyRepositoryErrorHandling(this, 'findByCode');
-    this.findById = applyRepositoryErrorHandling(this, 'findById');
-    this.findBySortOrderRange = applyRepositoryErrorHandling(this, 'findBySortOrderRange');
-    this.findEasiest = applyRepositoryErrorHandling(this, 'findEasiest');
-    this.findHardest = applyRepositoryErrorHandling(this, 'findHardest');
-    this.save = applyRepositoryErrorHandling(this, 'save');
-    this.delete = applyRepositoryErrorHandling(this, 'delete');
-    this.seed = applyRepositoryErrorHandling(this, 'seed');
+    this.findByCode = withRepositoryErrorHandling(
+      this.findByCode.bind(this),
+      {
+        methodName: 'findByCode',
+        domainName: this.domainName,
+        logger: this.logger,
+        errorMapper: difficultyLevelErrorMapper
+      }
+    );
+    
+    this.findById = withRepositoryErrorHandling(
+      this.findById.bind(this),
+      {
+        methodName: 'findById',
+        domainName: this.domainName,
+        logger: this.logger,
+        errorMapper: difficultyLevelErrorMapper
+      }
+    );
+    
+    this.findBySortOrderRange = withRepositoryErrorHandling(
+      this.findBySortOrderRange.bind(this),
+      {
+        methodName: 'findBySortOrderRange',
+        domainName: this.domainName,
+        logger: this.logger,
+        errorMapper: difficultyLevelErrorMapper
+      }
+    );
+    
+    this.findEasiest = withRepositoryErrorHandling(
+      this.findEasiest.bind(this),
+      {
+        methodName: 'findEasiest',
+        domainName: this.domainName,
+        logger: this.logger,
+        errorMapper: difficultyLevelErrorMapper
+      }
+    );
+    
+    this.findHardest = withRepositoryErrorHandling(
+      this.findHardest.bind(this),
+      {
+        methodName: 'findHardest',
+        domainName: this.domainName,
+        logger: this.logger,
+        errorMapper: difficultyLevelErrorMapper
+      }
+    );
+    
+    this.save = withRepositoryErrorHandling(
+      this.save.bind(this),
+      {
+        methodName: 'save',
+        domainName: this.domainName,
+        logger: this.logger,
+        errorMapper: difficultyLevelErrorMapper
+      }
+    );
+    
+    this.delete = withRepositoryErrorHandling(
+      this.delete.bind(this),
+      {
+        methodName: 'delete',
+        domainName: this.domainName,
+        logger: this.logger,
+        errorMapper: difficultyLevelErrorMapper
+      }
+    );
+    
+    this.seed = withRepositoryErrorHandling(
+      this.seed.bind(this),
+      {
+        methodName: 'seed',
+        domainName: this.domainName,
+        logger: this.logger,
+        errorMapper: difficultyLevelErrorMapper
+      }
+    );
   }
-
+  
   /**
    * Find all active difficulty levels
    * @returns {Promise<Array<DifficultyLevel>>} Array of difficulty levels
-   * @throws {ChallengeRepositoryError} If database operation fails
+   * @throws {ChallengeProcessingError} If database operation fails
    */
-  findAll() {
-    // If cache is available, try to get from cache first
-    if (this.cache) {
-      const cacheKey = 'difficultyLevel:all';
-      const cachedData = await this.cache.get(cacheKey);
-      
-      if (cachedData) {
-        this._log('debug', 'Retrieved difficulty levels from cache', { count: cachedData.length });
-        return difficultyLevelMapper.toDomainCollection(cachedData);
-      }
-    }
-
-    const { data, error } = await this.db
-      .from(this.tableName)
-      .select('*')
-      .eq('is_active', true)
-      .order('sort_order');
-
+  async findAll() {
+    const {
+      data,
+      error
+    } = await this.supabase.from(this.tableName).select('*').eq('is_active', true).order('sort_order');
     if (error) {
-      this._log('error', 'Error fetching difficulty levels', { error });
+      this.logger.error('Error fetching difficulty levels', {
+        error
+      });
       throw new DatabaseError(`Failed to fetch difficulty levels: ${error.message}`, {
         cause: error,
         entityType: this.domainName,
         operation: 'findAll'
       });
     }
-
-    // Cache the result if cache is available
-    if (this.cache && data) {
-      await this.cache.set('difficultyLevel:all', data, CACHE_TTL.ALL);
-      this._log('debug', 'Cached difficulty levels', { count: data.length });
-    }
-
     return difficultyLevelMapper.toDomainCollection(data || []);
   }
-
+  
   /**
    * Find a difficulty level by its code
    * @param {string} code - Difficulty level code
    * @returns {Promise<DifficultyLevel|null>} Difficulty level or null if not found
    * @throws {ChallengeValidationError} If code is invalid
-   * @throws {ChallengeRepositoryError} If database operation fails
+   * @throws {ChallengeProcessingError} If database operation fails
    */
-  findByCode(code) {
-    this._validateRequiredParams({ code }, ['code']);
-
-    // If cache is available, try to get from cache first
-    if (this.cache) {
-      const cacheKey = `difficultyLevel:code:${code}`;
-      const cachedData = await this.cache.get(cacheKey);
-      
-      if (cachedData) {
-        this._log('debug', 'Retrieved difficulty level from cache', { code });
-        return difficultyLevelMapper.toDomain(cachedData);
-      }
+  async findByCode(code) {
+    if (!code) {
+      throw new ValidationError('Difficulty level code is required', {
+        entityType: this.domainName
+      });
     }
-
-    const { data, error } = await this.db
-      .from(this.tableName)
-      .select('*')
-      .eq('code', code)
-      .maybeSingle();
-
+    
+    const {
+      data,
+      error
+    } = await this.supabase.from(this.tableName).select('*').eq('code', code).maybeSingle();
     if (error) {
-      this._log('error', 'Error fetching difficulty level by code', { code, error });
+      this.logger.error('Error fetching difficulty level by code', {
+        code,
+        error
+      });
       throw new DatabaseError(`Failed to fetch difficulty level: ${error.message}`, {
         cause: error,
         entityType: this.domainName,
         operation: 'findByCode',
-        metadata: { code }
+        metadata: {
+          code
+        }
       });
     }
-
-    // Cache the result if cache is available
-    if (this.cache) {
-      await this.cache.set(`difficultyLevel:code:${code}`, data, CACHE_TTL.SINGLE);
-      this._log('debug', 'Cached difficulty level', { code });
-    }
-
     return difficultyLevelMapper.toDomain(data);
   }
-
+  
   /**
    * Find a difficulty level by its ID
    * @param {string} id - Difficulty level ID
    * @returns {Promise<DifficultyLevel|null>} Difficulty level or null if not found
    * @throws {ChallengeValidationError} If ID is invalid
-   * @throws {ChallengeRepositoryError} If database operation fails
+   * @throws {ChallengeProcessingError} If database operation fails
    */
-  findById(id) {
-    this._validateId(id);
-
-    // If cache is available, try to get from cache first
-    if (this.cache) {
-      const cacheKey = `difficultyLevel:id:${id}`;
-      const cachedData = await this.cache.get(cacheKey);
-      
-      if (cachedData) {
-        this._log('debug', 'Retrieved difficulty level from cache', { id });
-        return difficultyLevelMapper.toDomain(cachedData);
-      }
+  async findById(id) {
+    if (!id) {
+      throw new ValidationError('Difficulty level ID is required', {
+        entityType: this.domainName
+      });
     }
-
-    const { data, error } = await this.db
-      .from(this.tableName)
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-
+    
+    const {
+      data,
+      error
+    } = await this.supabase.from(this.tableName).select('*').eq('id', id).maybeSingle();
     if (error) {
-      this._log('error', 'Error fetching difficulty level by ID', { id, error });
+      this.logger.error('Error fetching difficulty level by ID', {
+        id,
+        error
+      });
       throw new DatabaseError(`Failed to fetch difficulty level: ${error.message}`, {
         cause: error,
         entityType: this.domainName,
         operation: 'findById',
-        metadata: { id }
+        metadata: {
+          id
+        }
       });
     }
-
-    // Cache the result if cache is available
-    if (this.cache) {
-      await this.cache.set(`difficultyLevel:id:${id}`, data, CACHE_TTL.SINGLE);
-      this._log('debug', 'Cached difficulty level', { id });
-    }
-
     return difficultyLevelMapper.toDomain(data);
   }
-
+  
   /**
    * Find difficulty levels by sort order range
    * @param {number} minOrder - Minimum sort order (inclusive)
    * @param {number} maxOrder - Maximum sort order (inclusive)
    * @returns {Promise<Array<DifficultyLevel>>} Array of difficulty levels
    * @throws {ChallengeValidationError} If parameters are invalid
-   * @throws {ChallengeRepositoryError} If database operation fails
+   * @throws {ChallengeProcessingError} If database operation fails
    */
-  findBySortOrderRange(minOrder, maxOrder) {
-    this._validateRangeParams({ minOrder, maxOrder }, ['minOrder', 'maxOrder']);
-
-    // If cache is available, try to get from cache first
-    if (this.cache) {
-      const cacheKey = `difficultyLevel:range:${minOrder}-${maxOrder}`;
-      const cachedData = await this.cache.get(cacheKey);
-      
-      if (cachedData) {
-        this._log('debug', 'Retrieved difficulty levels from cache', { 
-          minOrder, maxOrder, count: cachedData.length 
-        });
-        return difficultyLevelMapper.toDomainCollection(cachedData);
-      }
+  async findBySortOrderRange(minOrder, maxOrder) {
+    if (minOrder === undefined || maxOrder === undefined) {
+      throw new ValidationError('Min and max sort order are required', {
+        entityType: this.domainName
+      });
     }
-
-    const { data, error } = await this.db
-      .from(this.tableName)
-      .select('*')
-      .gte('sort_order', minOrder)
-      .lte('sort_order', maxOrder)
-      .eq('is_active', true)
-      .order('sort_order');
-
+    
+    if (typeof minOrder !== 'number' || typeof maxOrder !== 'number') {
+      throw new ValidationError('Sort order values must be numbers', {
+        entityType: this.domainName
+      });
+    }
+    
+    if (minOrder > maxOrder) {
+      throw new ValidationError('Min sort order cannot be greater than max sort order', {
+        entityType: this.domainName
+      });
+    }
+    
+    const {
+      data,
+      error
+    } = await this.supabase.from(this.tableName).select('*').gte('sort_order', minOrder).lte('sort_order', maxOrder).eq('is_active', true).order('sort_order');
+    
     if (error) {
-      this._log('error', 'Error fetching difficulty levels by sort order range', { minOrder, maxOrder, error });
+      this.logger.error('Error fetching difficulty levels by sort order range', {
+        minOrder,
+        maxOrder,
+        error
+      });
       throw new DatabaseError(`Failed to fetch difficulty levels: ${error.message}`, {
         cause: error,
         entityType: this.domainName,
         operation: 'findBySortOrderRange',
-        metadata: { minOrder, maxOrder }
+        metadata: {
+          minOrder,
+          maxOrder
+        }
       });
     }
-
-    // Cache the result if cache is available
-    if (this.cache && data) {
-      await this.cache.set(`difficultyLevel:range:${minOrder}-${maxOrder}`, data, CACHE_TTL.SINGLE);
-      this._log('debug', 'Cached difficulty levels by range', { 
-        minOrder, maxOrder, count: data.length 
-      });
-    }
-
     return difficultyLevelMapper.toDomainCollection(data || []);
   }
-
+  
   /**
    * Find easiest difficulty level
    * @returns {Promise<DifficultyLevel|null>} Easiest difficulty level or null if none found
-   * @throws {ChallengeRepositoryError} If database operation fails
+   * @throws {ChallengeProcessingError} If database operation fails
    */
-  findEasiest() {
-    // If cache is available, try to get from cache first
-    if (this.cache) {
-      const cacheKey = 'difficultyLevel:easiest';
-      const cachedData = await this.cache.get(cacheKey);
-      
-      if (cachedData) {
-        this._log('debug', 'Retrieved easiest difficulty level from cache');
-        return difficultyLevelMapper.toDomain(cachedData);
-      }
-    }
-
-    const { data, error } = await this.db
-      .from(this.tableName)
-      .select('*')
-      .eq('is_active', true)
-      .order('sort_order')
-      .limit(1)
-      .maybeSingle();
-
+  async findEasiest() {
+    const {
+      data,
+      error
+    } = await this.supabase.from(this.tableName).select('*').eq('is_active', true).order('sort_order').limit(1).maybeSingle();
     if (error) {
-      this._log('error', 'Error fetching easiest difficulty level', { error });
+      this.logger.error('Error fetching easiest difficulty level', {
+        error
+      });
       throw new DatabaseError(`Failed to fetch difficulty level: ${error.message}`, {
         cause: error,
         entityType: this.domainName,
         operation: 'findEasiest'
       });
     }
-
-    // Cache the result if cache is available
-    if (this.cache) {
-      await this.cache.set('difficultyLevel:easiest', data, CACHE_TTL.SINGLE);
-      this._log('debug', 'Cached easiest difficulty level');
-    }
-
     return difficultyLevelMapper.toDomain(data);
   }
-
+  
   /**
    * Find hardest difficulty level
    * @returns {Promise<DifficultyLevel|null>} Hardest difficulty level or null if none found
-   * @throws {ChallengeRepositoryError} If database operation fails
+   * @throws {ChallengeProcessingError} If database operation fails
    */
-  findHardest() {
-    // If cache is available, try to get from cache first
-    if (this.cache) {
-      const cacheKey = 'difficultyLevel:hardest';
-      const cachedData = await this.cache.get(cacheKey);
-      
-      if (cachedData) {
-        this._log('debug', 'Retrieved hardest difficulty level from cache');
-        return difficultyLevelMapper.toDomain(cachedData);
-      }
-    }
-
-    const { data, error } = await this.db
-      .from(this.tableName)
-      .select('*')
-      .eq('is_active', true)
-      .order('sort_order', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
+  async findHardest() {
+    const {
+      data,
+      error
+    } = await this.supabase.from(this.tableName).select('*').eq('is_active', true).order('sort_order', {
+      ascending: false
+    }).limit(1).maybeSingle();
     if (error) {
-      this._log('error', 'Error fetching hardest difficulty level', { error });
+      this.logger.error('Error fetching hardest difficulty level', {
+        error
+      });
       throw new DatabaseError(`Failed to fetch difficulty level: ${error.message}`, {
         cause: error,
         entityType: this.domainName,
         operation: 'findHardest'
       });
     }
-
-    // Cache the result if cache is available
-    if (this.cache) {
-      await this.cache.set('difficultyLevel:hardest', data, CACHE_TTL.SINGLE);
-      this._log('debug', 'Cached hardest difficulty level');
-    }
-
     return difficultyLevelMapper.toDomain(data);
   }
-
+  
   /**
    * Save a difficulty level
    * @param {DifficultyLevel} difficultyLevel - Difficulty level to save
    * @returns {Promise<DifficultyLevel>} Saved difficulty level
    * @throws {ChallengeValidationError} If difficulty level is invalid
-   * @throws {ChallengeRepositoryError} If database operation fails
+   * @throws {ChallengeProcessingError} If database operation fails
    */
-  save(difficultyLevel) {
-    this._validateInstance(difficultyLevel, DifficultyLevel);
-
-    const dbData = difficultyLevelMapper.toPersistence(difficultyLevel);
-    
-    // Check if this is an update or insert
-    const existing = await this.findByCode(difficultyLevel.code);
-    
-    let result;
-    if (existing) {
-      // Update
-      const { data, error } = await this.db
-        .from(this.tableName)
-        .update(dbData)
-        .eq('id', difficultyLevel.id)
-        .select()
-        .single();
-
-      if (error) {
-        this._log('error', 'Error updating difficulty level', { id: difficultyLevel.id, error });
-        throw new DatabaseError(`Failed to update difficulty level: ${error.message}`, {
-          cause: error,
-          entityType: this.domainName,
-          operation: 'save.update',
-          metadata: { id: difficultyLevel.id }
-        });
-      }
-      
-      result = data;
-    } else {
-      // Insert
-      const { data, error } = await this.db
-        .from(this.tableName)
-        .insert(dbData)
-        .select()
-        .single();
-
-      if (error) {
-        this._log('error', 'Error creating difficulty level', { code: difficultyLevel.code, error });
-        throw new DatabaseError(`Failed to create difficulty level: ${error.message}`, {
-          cause: error,
-          entityType: this.domainName,
-          operation: 'save.insert',
-          metadata: { code: difficultyLevel.code }
-        });
-      }
-      
-      result = data;
+  async save(difficultyLevel) {
+    if (!difficultyLevel) {
+      throw new ValidationError('Difficulty level is required', {
+        entityType: this.domainName
+      });
     }
-
-    // Invalidate cache if we're using caching
-    if (this.cache) {
-      try {
-        // Clear specific cache keys
-        await this.cache.delete('difficultyLevel:all');
-        await this.cache.delete(`difficultyLevel:code:${difficultyLevel.code}`);
-        await this.cache.delete(`difficultyLevel:id:${difficultyLevel.id}`);
-        await this.cache.delete('difficultyLevel:easiest');
-        await this.cache.delete('difficultyLevel:hardest');
-        
-        // Clear range caches since order might have changed
-        const rangeKeys = this.cache.keys('difficultyLevel:range:') || [];
-        for (const key of rangeKeys) {
-          await this.cache.delete(key);
+    
+    if (!(difficultyLevel instanceof DifficultyLevel)) {
+      throw new ValidationError('Can only save DifficultyLevel instances', {
+        entityType: this.domainName
+      });
+    }
+    
+    try {
+      const dbData = difficultyLevelMapper.toPersistence(difficultyLevel);
+      
+      // Check if this is an update or insert
+      const existing = await this.findByCode(difficultyLevel.code);
+      let result;
+      
+      if (existing) {
+        // Update
+        const {
+          data,
+          error
+        } = await this.supabase.from(this.tableName).update(dbData).eq('id', difficultyLevel.id).select().single();
+        if (error) {
+          this.logger.error('Error updating difficulty level', {
+            id: difficultyLevel.id,
+            error
+          });
+          throw new DatabaseError(`Failed to update difficulty level: ${error.message}`, {
+            cause: error,
+            entityType: this.domainName,
+            operation: 'save.update',
+            metadata: {
+              id: difficultyLevel.id
+            }
+          });
         }
-        
-        this._log('debug', 'Invalidated difficulty level caches', { code: difficultyLevel.code });
-      } catch (cacheError) {
-        this._log('warn', 'Failed to invalidate difficulty level caches', { 
-          error: cacheError.message, 
-          code: difficultyLevel.code 
-        });
-        // Non-critical error, don't throw
+        result = data;
+      } else {
+        // Insert
+        const {
+          data,
+          error
+        } = await this.supabase.from(this.tableName).insert(dbData).select().single();
+        if (error) {
+          this.logger.error('Error creating difficulty level', {
+            code: difficultyLevel.code,
+            error
+          });
+          throw new DatabaseError(`Failed to create difficulty level: ${error.message}`, {
+            cause: error,
+            entityType: this.domainName,
+            operation: 'save.insert',
+            metadata: {
+              code: difficultyLevel.code
+            }
+          });
+        }
+        result = data;
       }
+      
+      // Invalidate cache if we're using caching
+      if (this.cache) {
+        try {
+          // Clear specific cache keys
+          await this.cache.delete('difficultyLevel:all');
+          await this.cache.delete(`difficultyLevel:code:${difficultyLevel.code}`);
+          await this.cache.delete(`difficultyLevel:id:${difficultyLevel.id}`);
+          await this.cache.delete('difficultyLevel:easiest');
+          await this.cache.delete('difficultyLevel:hardest');
+          // Clear range caches since order might have changed
+          const rangeKeys = this.cache.keys('difficultyLevel:range:') || [];
+          for (const key of rangeKeys) {
+            await this.cache.delete(key);
+          }
+          this.logger.debug('Invalidated difficulty level caches', {
+            code: difficultyLevel.code
+          });
+        } catch (cacheError) {
+          this.logger.warn('Failed to invalidate difficulty level caches', {
+            error: cacheError.message,
+            code: difficultyLevel.code
+          });
+          // Non-critical error, don't throw
+        }
+      }
+      
+      return difficultyLevelMapper.toDomain(result);
+    } catch (error) {
+      // If it's already one of our known error types, just rethrow it
+      if (error instanceof ValidationError || error instanceof DatabaseError || error instanceof EntityNotFoundError) {
+        throw error;
+      }
+      
+      // Otherwise, wrap it in a database error
+      this.logger.error('Error in save', {
+        code: difficultyLevel?.code,
+        error: error.message,
+        stack: error.stack
+      });
+      
+      throw new DatabaseError(`Failed to save difficulty level: ${error.message}`, {
+        cause: error,
+        entityType: this.domainName,
+        operation: 'save',
+        metadata: {
+          code: difficultyLevel.code
+        }
+      });
     }
-
-    return difficultyLevelMapper.toDomain(result);
   }
-
+  
   /**
    * Delete a difficulty level
    * @param {string} code - Difficulty level code
    * @returns {Promise<boolean>} True if deleted
    * @throws {ChallengeValidationError} If code is invalid
-   * @throws {ChallengeRepositoryError} If database operation fails
+   * @throws {ChallengeProcessingError} If database operation fails
    */
-  delete(code) {
-    this._validateRequiredParams({ code }, ['code']);
-
-    const { error } = await this.db
-      .from(this.tableName)
-      .delete()
-      .eq('code', code);
-
-    if (error) {
-      this._log('error', 'Error deleting difficulty level', { code, error });
+  async delete(code) {
+    if (!code) {
+      throw new ValidationError('Difficulty level code is required', {
+        entityType: this.domainName
+      });
+    }
+    
+    try {
+      const {
+        error
+      } = await this.supabase.from(this.tableName).delete().eq('code', code);
+      if (error) {
+        this.logger.error('Error deleting difficulty level', {
+          code,
+          error
+        });
+        throw new DatabaseError(`Failed to delete difficulty level: ${error.message}`, {
+          cause: error,
+          entityType: this.domainName,
+          operation: 'delete',
+          metadata: {
+            code
+          }
+        });
+      }
+      
+      // Invalidate cache if we're using caching
+      if (this.cache) {
+        try {
+          // Clear specific cache keys
+          await this.cache.delete('difficultyLevel:all');
+          await this.cache.delete(`difficultyLevel:code:${code}`);
+          await this.cache.delete('difficultyLevel:easiest');
+          await this.cache.delete('difficultyLevel:hardest');
+          // Clear range caches since order might have changed
+          const rangeKeys = this.cache.keys('difficultyLevel:range:') || [];
+          for (const key of rangeKeys) {
+            await this.cache.delete(key);
+          }
+          this.logger.debug('Invalidated difficulty level caches', {
+            code
+          });
+        } catch (cacheError) {
+          this.logger.warn('Failed to invalidate difficulty level caches', {
+            error: cacheError.message,
+            code
+          });
+          // Non-critical error, don't throw
+        }
+      }
+      
+      return true;
+    } catch (error) {
+      // If it's already one of our known error types, just rethrow it
+      if (error instanceof ValidationError || error instanceof DatabaseError || error instanceof EntityNotFoundError) {
+        throw error;
+      }
+      
+      // Otherwise, wrap it in a database error
+      this.logger.error('Error in delete', {
+        code,
+        error: error.message,
+        stack: error.stack
+      });
+      
       throw new DatabaseError(`Failed to delete difficulty level: ${error.message}`, {
         cause: error,
         entityType: this.domainName,
         operation: 'delete',
-        metadata: { code }
+        metadata: {
+          code
+        }
       });
     }
-
-    // Invalidate cache if we're using caching
-    if (this.cache) {
-      try {
-        // Clear specific cache keys
-        await this.cache.delete('difficultyLevel:all');
-        await this.cache.delete(`difficultyLevel:code:${code}`);
-        await this.cache.delete('difficultyLevel:easiest');
-        await this.cache.delete('difficultyLevel:hardest');
-        
-        // Clear range caches since order might have changed
-        const rangeKeys = this.cache.keys('difficultyLevel:range:') || [];
-        for (const key of rangeKeys) {
-          await this.cache.delete(key);
-        }
-        
-        this._log('debug', 'Invalidated difficulty level caches', { code });
-      } catch (cacheError) {
-        this._log('warn', 'Failed to invalidate difficulty level caches', { 
-          error: cacheError.message, 
-          code 
-        });
-        // Non-critical error, don't throw
-      }
-    }
-
-    return true;
   }
-
+  
   /**
    * Seed the database with initial difficulty levels
    * @param {Array<Object>} difficultyLevels - Difficulty levels to seed
-   * @returns {Promise<void>} Promise that resolves when seeding is complete
+   * @returns {Promise<Array<DifficultyLevel>>} Array of seeded difficulty levels
    * @throws {ChallengeValidationError} If difficulty level data is invalid
-   * @throws {ChallengeRepositoryError} If database operation fails
+   * @throws {ChallengeProcessingError} If database operation fails
    */
-  seed(difficultyLevels) {
-    this._validateArray(difficultyLevels, 'difficultyLevels');
-
-    // Create DifficultyLevel instances
-    const levels = difficultyLevels.map(data => new DifficultyLevel(data));
-    
-    // Save each level
-    for (const level of levels) {
-      await this.save(level);
+  async seed(difficultyLevels) {
+    if (!Array.isArray(difficultyLevels) || difficultyLevels.length === 0) {
+      throw new ValidationError('Valid difficulty levels array is required for seeding', {
+        entityType: this.domainName
+      });
     }
-
-    // Invalidate all caches if we're using caching
-    if (this.cache) {
-      try {
-        const allKeys = this.cache.keys('difficultyLevel:') || [];
-        for (const key of allKeys) {
-          await this.cache.delete(key);
+    
+    try {
+      // Create DifficultyLevel instances
+      const levels = difficultyLevels.map(data => new DifficultyLevel(data));
+      
+      // Save each level using Promise.all for parallel execution
+      const results = await Promise.all(levels.map(level => this.save(level)));
+      
+      // Invalidate all caches if we're using caching
+      if (this.cache) {
+        try {
+          const allKeys = this.cache.keys('difficultyLevel:') || [];
+          for (const key of allKeys) {
+            await this.cache.delete(key);
+          }
+          this.logger.debug('Invalidated all difficulty level caches after seeding');
+        } catch (cacheError) {
+          this.logger.warn('Failed to invalidate difficulty level caches after seeding', {
+            error: cacheError.message
+          });
+          // Non-critical error, don't throw
         }
-        this._log('debug', 'Invalidated all difficulty level caches after seeding');
-      } catch (cacheError) {
-        this._log('warn', 'Failed to invalidate difficulty level caches after seeding', { 
-          error: cacheError.message
+      }
+      
+      this.logger.info('Successfully seeded difficulty levels', {
+        count: levels.length
+      });
+      
+      return results;
+    } catch (error) {
+      // If it's already one of our known error types, just rethrow it
+      if (error instanceof ValidationError || error instanceof DatabaseError || error instanceof EntityNotFoundError) {
+        throw error;
+      }
+      
+      // Otherwise, wrap it in a database error
+      this.logger.error('Error seeding difficulty levels', {
+        error: error.message,
+        stack: error.stack
+      });
+      
+      throw new DatabaseError(`Failed to seed difficulty levels: ${error.message}`, {
+        cause: error,
+        entityType: this.domainName,
+        operation: 'seed'
+      });
+    }
+  }
+  
+  // Helper methods for validation
+  
+  _log(level, message, metadata = {}) {
+    if (this.logger && typeof this.logger[level] === 'function') {
+      this.logger[level](message, {
+        ...metadata,
+        component: 'repository:difficultyLevel'
+      });
+    }
+  }
+  
+  _validateId(id) {
+    if (!id) {
+      throw new ValidationError('ID is required', {
+        entityType: this.domainName
+      });
+    }
+  }
+  
+  _validateRequiredParams(params, requiredParams) {
+    if (!params || typeof params !== 'object') {
+      throw new ValidationError('Parameters object is required', {
+        entityType: this.domainName
+      });
+    }
+    
+    for (const param of requiredParams) {
+      if (params[param] === undefined || params[param] === null) {
+        throw new ValidationError(`Parameter '${param}' is required`, {
+          entityType: this.domainName
         });
-        // Non-critical error, don't throw
       }
     }
+  }
+  
+  _validateRangeParams(params, requiredParams) {
+    this._validateRequiredParams(params, requiredParams);
     
-    this._log('info', 'Successfully seeded difficulty levels', { count: levels.length });
+    const { minOrder, maxOrder } = params;
+    if (typeof minOrder !== 'number' || typeof maxOrder !== 'number') {
+      throw new ValidationError('Range parameters must be numbers', {
+        entityType: this.domainName
+      });
+    }
+    
+    if (minOrder > maxOrder) {
+      throw new ValidationError('Minimum order cannot be greater than maximum order', {
+        entityType: this.domainName
+      });
+    }
+  }
+  
+  _validateInstance(instance, expectedClass) {
+    if (!instance) {
+      throw new ValidationError(`${expectedClass.name} instance is required`, {
+        entityType: this.domainName
+      });
+    }
+    
+    if (!(instance instanceof expectedClass)) {
+      throw new ValidationError(`Can only save ${expectedClass.name} instances`, {
+        entityType: this.domainName
+      });
+    }
+  }
+  
+  _validateArray(array, name) {
+    if (!Array.isArray(array)) {
+      throw new ValidationError(`${name} must be an array`, {
+        entityType: this.domainName
+      });
+    }
+    
+    if (array.length === 0) {
+      throw new ValidationError(`${name} cannot be empty`, {
+        entityType: this.domainName
+      });
+    }
   }
 }
 
-module.exports = DifficultyLevelRepository; 
+export default DifficultyLevelRepository;

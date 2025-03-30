@@ -1,51 +1,36 @@
-/**
- * External Test: OpenAI Integration for Evaluations
- * 
- * Tests the direct integration with the OpenAI API for generating 
- * evaluations of challenge responses.
- */
-
-const { expect } = require('chai');
-const { OpenAIClient } = require('../../src/infra/openai');
-
-const testEnv = require('../../loadEnv');
-
-const { skipIfMissingEnv } = require('../../helpers/testHelpers');
-require('dotenv').config();
-
-describe('External: OpenAI Evaluation Integration', function() {
-  
-  before(function() {
-    skipIfMissingEnv(this, 'openai');
-  });
-
-  // Configure longer timeout for external API calls
-  this.timeout(30000);
-  
-  let openaiClient;
-  
-  before(function() {
-    // Skip tests if OpenAI API key is not available
-    if (!testEnv.getTestConfig().openai.apiKey) {
-      console.warn('OPENAI_API_KEY not found, skipping external tests');
-      this.skip();
-    }
-    
-    // Initialize OpenAI client
-    openaiClient = new OpenAIClient({ apiKey: testEnv.getTestConfig().openai.apiKey
+import { expect } from "chai";
+import openai from "../../../src/infra/openai";
+import testEnv from "../../loadEnv.js";
+import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
+import { config } from "dotenv";
+const { OpenAIClient } = openai;
+({ config }.config());
+describe('External: OpenAI Evaluation Integration', function () {
+    before(function () {
+        skipIfMissingEnv(this, 'openai');
     });
-  });
-  
-  it('should generate evaluation of challenge response using OpenAI', async function() {
-    // Create the evaluation prompt
-    const challenge = {
-      title: 'Logic Puzzle Challenge',
-      content: {
-        description: 'Solve the grid puzzle with 5 people and their drinks.'
-      }
-    };
-    
-    const userResponse = `First, I start by setting up a grid with 5 positions and noting what we know:
+    // Configure longer timeout for external API calls
+    this.timeout(30000);
+    let openaiClient;
+    before(function () {
+        // Skip tests if OpenAI API key is not available
+        if (!testEnv.getTestConfig().openai.apiKey) {
+            console.warn('OPENAI_API_KEY not found, skipping external tests');
+            this.skip();
+        }
+        // Initialize OpenAI client
+        openaiClient = new OpenAIClient({ apiKey: testEnv.getTestConfig().openai.apiKey
+        });
+    });
+    it('should generate evaluation of challenge response using OpenAI', async function () {
+        // Create the evaluation prompt
+        const challenge = {
+            title: 'Logic Puzzle Challenge',
+            content: {
+                description: 'Solve the grid puzzle with 5 people and their drinks.'
+            }
+        };
+        const userResponse = `First, I start by setting up a grid with 5 positions and noting what we know:
     1. Alice's cup contains water.
     2. Bob is sitting in the middle.
     3. The person drinking coffee is sitting at one of the ends.
@@ -64,8 +49,7 @@ describe('External: OpenAI Evaluation Integration', function() {
     Position 3: Bob (tea)
     Position 4: Elliot (orange juice)
     Position 5: Dana (coffee)`;
-    
-    const promptText = `Evaluate the following response to a critical thinking challenge.
+        const promptText = `Evaluate the following response to a critical thinking challenge.
     
     Challenge: ${challenge.title}
     ${challenge.content.description}
@@ -85,57 +69,50 @@ describe('External: OpenAI Evaluation Integration', function() {
         "originality": 6
       }
     }`;
-    
-    // Call OpenAI API
-    const completion = await openaiClient.responses.create({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are an evaluator for critical thinking challenges. Provide an assessment of the user\'s solution with constructive feedback.'
-        },
-        {
-          role: 'user',
-          content: promptText
-        }
-      ],
-      response_format: { type: 'json_object' }
+        // Call OpenAI API
+        const completion = await openaiClient.responses.create({
+            model: 'gpt-4o',
+            messages: [
+                {
+                    role: 'system',
+                    content: 'You are an evaluator for critical thinking challenges. Provide an assessment of the user\'s solution with constructive feedback.'
+                },
+                {
+                    role: 'user',
+                    content: promptText
+                }
+            ],
+            response_format: { type: 'json_object' }
+        });
+        // Verify the OpenAI response
+        expect(completion).to.exist;
+        expect(completion.choices).to.be.an('array').with.lengthOf.at.least(1);
+        expect(completion.choices[0].message).to.exist;
+        expect(completion.choices[0].message.content).to.be.a('string');
+        // Parse and verify the content
+        const evaluationData = JSON.parse(completion.choices[0].message.content);
+        expect(evaluationData).to.be.an('object');
+        expect(evaluationData.overall_score).to.be.a('number').within(1, 10);
+        expect(evaluationData.feedback).to.be.a('string').and.not.empty;
+        expect(evaluationData.strengths).to.be.an('array').with.lengthOf.at.least(1);
+        expect(evaluationData.areas_for_improvement).to.be.an('array');
+        expect(evaluationData.category_scores).to.be.an('object');
+        expect(evaluationData.category_scores.clarity).to.be.a('number').within(1, 10);
+        expect(evaluationData.category_scores.reasoning).to.be.a('number').within(1, 10);
+        expect(evaluationData.category_scores.originality).to.be.a('number').within(1, 10);
+        console.log('Evaluation Score:', evaluationData.overall_score);
+        console.log('Strengths:', evaluationData.strengths.join(', '));
     });
-    
-    // Verify the OpenAI response
-    expect(completion).to.exist;
-    expect(completion.choices).to.be.an('array').with.lengthOf.at.least(1);
-    expect(completion.choices[0].message).to.exist;
-    expect(completion.choices[0].message.content).to.be.a('string');
-    
-    // Parse and verify the content
-    const evaluationData = JSON.parse(completion.choices[0].message.content);
-    expect(evaluationData).to.be.an('object');
-    expect(evaluationData.overall_score).to.be.a('number').within(1, 10);
-    expect(evaluationData.feedback).to.be.a('string').and.not.empty;
-    expect(evaluationData.strengths).to.be.an('array').with.lengthOf.at.least(1);
-    expect(evaluationData.areas_for_improvement).to.be.an('array');
-    expect(evaluationData.category_scores).to.be.an('object');
-    expect(evaluationData.category_scores.clarity).to.be.a('number').within(1, 10);
-    expect(evaluationData.category_scores.reasoning).to.be.a('number').within(1, 10);
-    expect(evaluationData.category_scores.originality).to.be.a('number').within(1, 10);
-    
-    console.log('Evaluation Score:', evaluationData.overall_score);
-    console.log('Strengths:', evaluationData.strengths.join(', '));
-  });
-  
-  it('should evaluate different quality responses appropriately', async function() {
-    // Create the evaluation prompt with a poor quality response
-    const challenge = {
-      title: 'AI Ethics Challenge',
-      content: {
-        description: 'Discuss the ethical implications of using AI for hiring decisions.'
-      }
-    };
-    
-    const poorResponse = 'AI in hiring is good but can be bad too.';
-    
-    const promptText = `Evaluate the following response to a critical thinking challenge.
+    it('should evaluate different quality responses appropriately', async function () {
+        // Create the evaluation prompt with a poor quality response
+        const challenge = {
+            title: 'AI Ethics Challenge',
+            content: {
+                description: 'Discuss the ethical implications of using AI for hiring decisions.'
+            }
+        };
+        const poorResponse = 'AI in hiring is good but can be bad too.';
+        const promptText = `Evaluate the following response to a critical thinking challenge.
     
     Challenge: ${challenge.title}
     ${challenge.content.description}
@@ -155,32 +132,28 @@ describe('External: OpenAI Evaluation Integration', function() {
         "originality": 6
       }
     }`;
-    
-    // Call OpenAI API
-    const completion = await openaiClient.responses.create({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are an evaluator for critical thinking challenges. Provide an assessment of the user\'s solution with constructive feedback.'
-        },
-        {
-          role: 'user',
-          content: promptText
-        }
-      ],
-      response_format: { type: 'json_object' }
+        // Call OpenAI API
+        const completion = await openaiClient.responses.create({
+            model: 'gpt-4o',
+            messages: [
+                {
+                    role: 'system',
+                    content: 'You are an evaluator for critical thinking challenges. Provide an assessment of the user\'s solution with constructive feedback.'
+                },
+                {
+                    role: 'user',
+                    content: promptText
+                }
+            ],
+            response_format: { type: 'json_object' }
+        });
+        // Parse the response
+        const evaluationData = JSON.parse(completion.choices[0].message.content);
+        // Verify the response reflects the poor quality
+        expect(evaluationData.overall_score).to.be.below(5);
+        expect(evaluationData.feedback).to.include('lack');
+        expect(evaluationData.areas_for_improvement.length).to.be.at.least(2);
+        console.log('Poor Response Score:', evaluationData.overall_score);
+        console.log('Areas for Improvement:', evaluationData.areas_for_improvement.join(', '));
     });
-    
-    // Parse the response
-    const evaluationData = JSON.parse(completion.choices[0].message.content);
-    
-    // Verify the response reflects the poor quality
-    expect(evaluationData.overall_score).to.be.below(5);
-    expect(evaluationData.feedback).to.include('lack');
-    expect(evaluationData.areas_for_improvement.length).to.be.at.least(2);
-    
-    console.log('Poor Response Score:', evaluationData.overall_score);
-    console.log('Areas for Improvement:', evaluationData.areas_for_improvement.join(', '));
-  });
-}); 
+});

@@ -1,34 +1,34 @@
+import express from 'express';
+import UserJourneyController from '../../../userJourney/controllers/UserJourneyController.js';
+import { authenticateUser } from '../middleware/auth.js';
 'use strict';
-const { userJourneyController } = require('../controllers/userJourneyController');
 
-// const express = require('express');
+/**
+ * User Journey Routes
+ * Handles routes related to user learning journey tracking
+ */
 const router = express.Router();
-// const UserJourneyController = require('../core/userJourney/controllers/UserJourneyController');
-const { authenticateUser, requireAdmin } = require('../core/infra/http/middleware/auth');
-// const container = require('../config/container');
 
-// Create controller instance with injected dependencies
-const userJourneyController = new UserJourneyController({
-  userJourneyCoordinator: container.get('userJourneyCoordinator'),
-  userRepository: container.get('userRepository'),
-});
-
-// Track user event
-router.post('/events', (req, res, next) => userJourneyController.trackEvent(req, res, next));
-
-// Get user journey events
-router.get('/users/:email/events', authenticateUser, (req, res, next) =>
-  userJourneyController.getUserEvents(req, res, next)
-);
-
-// Get user activity summary
-router.get('/users/:email/activity', authenticateUser, (req, res, next) =>
-  userJourneyController.getUserActivitySummary(req, res, next)
-);
-
-// Get user engagement metrics
-router.get('/users/:email/engagement', authenticateUser, (req, res, next) =>
-  userJourneyController.getUserEngagementMetrics(req, res, next)
-);
-
-module.exports = router;
+/**
+ * User journey routes factory
+ * @param {UserJourneyController} userJourneyController - User journey controller instance
+ * @returns {express.Router} Express router
+ */
+export default function userJourneyRoutes(userJourneyController) {
+    // Get current user's journey
+    router.get('/', authenticateUser, (req, res) => userJourneyController.getUserJourney(req, res));
+    
+    // Start a new journey event
+    router.post('/events', authenticateUser, (req, res) => userJourneyController.startJourneyEvent(req, res));
+    
+    // Complete a journey event
+    router.put('/events/:eventId/complete', authenticateUser, (req, res) => userJourneyController.completeJourneyEvent(req, res));
+    
+    // Get journey events
+    router.get('/events', authenticateUser, (req, res) => userJourneyController.getJourneyEvents(req, res));
+    
+    // Get journey statistics
+    router.get('/stats', authenticateUser, (req, res) => userJourneyController.getJourneyStats(req, res));
+    
+    return router;
+}

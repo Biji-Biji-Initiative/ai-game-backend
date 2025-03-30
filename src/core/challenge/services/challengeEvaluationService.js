@@ -3,15 +3,17 @@
  * 
  * Domain service that handles the evaluation of challenge responses.
  * Provides functionality to evaluate responses and stream evaluation results.
+ * Updated to use AIClient and AIStateManager ports instead of direct OpenAI dependencies.
  */
 
 'use strict';
 
-const { createErrorMapper, withServiceErrorHandling } = require('../../../core/infra/errors/errorStandardization');
-const { ChallengeError } = require('../errors/ChallengeErrors');
-const promptBuilder = require('../../prompt/promptBuilder');
-const { PROMPT_TYPES } = require('../../prompt/promptTypes');
-const { formatForResponsesApi } = require('../../core/infra/openai/messageFormatter');
+import { createErrorMapper, withServiceErrorHandling } from '../../../core/infra/errors/errorStandardization.js';
+import { ChallengeError } from '../errors/ChallengeErrors.js';
+import promptBuilder from '../../prompt/promptBuilder.js';
+import { PROMPT_TYPES } from '../../prompt/promptTypes.js';
+import messageFormatter from "../../infra/openai/messageFormatter.js";
+import { MissingParameterError } from "../../../core/infra/errors/MissingParameterError.js";
 
 /**
  * Service for handling challenge response evaluations
@@ -20,24 +22,25 @@ class ChallengeEvaluationService {
   /**
    * Create a new ChallengeEvaluationService
    * @param {Object} dependencies - Service dependencies
-   * @param {Object} dependencies.openAIClient - Client for OpenAI API calls
-   * @param {Object} dependencies.openAIStateManager - Manager for OpenAI conversation state
+   * @param {Object} dependencies.aiClient - AI client port interface
+   * @param {Object} dependencies.aiStateManager - AI state manager port interface
    * @param {Object} dependencies.openAIConfig - Configuration for OpenAI
    * @param {Object} dependencies.logger - Logger instance
+   * @throws {MissingParameterError} When required dependencies are missing
    */
   constructor(dependencies = {}) {
-    const { openAIClient, openAIStateManager, openAIConfig, logger } = dependencies;
+    const { aiClient, aiStateManager, openAIConfig, logger } = dependencies;
     
-    if (!openAIClient) {
-      throw new Error('openAIClient is required for ChallengeEvaluationService');
+    if (!aiClient) {
+      throw new MissingParameterError('aiClient', 'ChallengeEvaluationService.constructor');
     }
     
-    if (!openAIStateManager) {
-      throw new Error('openAIStateManager is required for ChallengeEvaluationService');
+    if (!aiStateManager) {
+      throw new MissingParameterError('aiStateManager', 'ChallengeEvaluationService.constructor');
     }
     
-    this.openAIClient = openAIClient;
-    this.openAIStateManager = openAIStateManager;
+    this.aiClient = aiClient;
+    this.aiStateManager = aiStateManager;
     this.openAIConfig = openAIConfig || {};
     this.logger = logger || console;
     this.MessageRole = {
@@ -82,20 +85,20 @@ class ChallengeEvaluationService {
       throw new Error('Responses are required for evaluation');
     }
     
-    const threadId = options.threadId;
+    const threadId = options.threadId || options.stateId;
     if (!threadId) {
-      throw new Error('Thread ID is required for evaluation');
+      throw new Error('Thread ID or State ID is required for evaluation');
     }
     
-    // Get or create a conversation state for this evaluation
-    const conversationState = await this.openAIStateManager.findOrCreateConversationState(
+    // Get or create a conversation state for this evaluation using aiStateManager
+    const conversationState = await this.aiStateManager.findOrCreateConversationState(
       challenge.userId, 
       `evaluation_${threadId}`,
       { createdAt: new Date().toISOString() }
     );
     
     // Get the previous response ID for conversation continuity
-    const previousResponseId = await this.openAIStateManager.getLastResponseId(conversationState.id);
+    const previousResponseId = await this.aiStateManager.getLastResponseId(conversationState.id);
     
     this.logger.debug('Retrieved previous response ID for stateful conversation', {
       challengeId: challenge.id,
@@ -139,8 +142,8 @@ class ChallengeEvaluationService {
       challengeId: challenge.id
     });
     
-    // Format messages for OpenAI API
-    const formattedMessages = formatForResponsesApi(
+    // Format messages for AI service
+    const formattedMessages = messageFormatter.formatForResponsesApi(
       prompt,
       systemMessage || `You are an AI evaluation expert specializing in providing fair and constructive feedback on ${challengeTypeName} challenges.
 Always return your evaluation as a JSON object with scoring, feedback, strengths, and improvement suggestions, formatted as valid, parsable JSON.
@@ -149,14 +152,14 @@ ${promptOptions.typeMetadata.evaluationNote || ''}
 ${promptOptions.formatMetadata.evaluationNote || ''}`
     );
     
-    // Call the OpenAI API for evaluation
-    this.logger.debug('Calling OpenAI API for evaluation', { 
+    // Call the AI service for evaluation using aiClient
+    this.logger.debug('Calling AI service for evaluation', { 
       challengeId: challenge.id, 
       stateId: conversationState.id,
       hasLastResponseId: !!previousResponseId
     });
     
-    const response = await this.openAIClient.sendJsonMessage(formattedMessages, {
+    const response = await this.aiClient.sendJsonMessage(formattedMessages, {
       model: this.openAIConfig.model || 'gpt-4o',
       temperature: 0.7,
       responseFormat: 'json',
@@ -164,7 +167,7 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`
     });
     
     // Update the conversation state with the new response ID
-    await this.openAIStateManager.updateLastResponseId(conversationState.id, response.responseId);
+    await this.aiStateManager.updateLastResponseId(conversationState.id, response.responseId);
     
     this.logger.debug('Updated conversation state with new response ID', {
       challengeId: challenge.id,
@@ -218,20 +221,20 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`
       throw new Error('onChunk callback is required for streaming evaluations');
     }
     
-    const threadId = options.threadId;
+    const threadId = options.threadId || options.stateId;
     if (!threadId) {
-      throw new Error('Thread ID is required for evaluation');
+      throw new Error('Thread ID or State ID is required for evaluation');
     }
     
-    // Get or create a conversation state for this evaluation
-    const conversationState = await this.openAIStateManager.findOrCreateConversationState(
+    // Get or create a conversation state for this evaluation using aiStateManager
+    const conversationState = await this.aiStateManager.findOrCreateConversationState(
       challenge.userId, 
       `evaluation_stream_${threadId}`,
       { createdAt: new Date().toISOString() }
     );
     
     // Get the previous response ID for conversation continuity
-    const previousResponseId = await this.openAIStateManager.getLastResponseId(conversationState.id);
+    const previousResponseId = await this.aiStateManager.getLastResponseId(conversationState.id);
     
     this.logger.debug('Retrieved previous response ID for stateful conversation', {
       challengeId: challenge.id,
@@ -264,22 +267,15 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`
       options: promptOptions
     });
     
-    this.logger.debug('Generated evaluation prompt for streaming', { 
+    this.logger.debug('Generated streaming evaluation prompt', { 
       promptLength: prompt.length, 
       challengeId: challenge.id
     });
     
-    // Add streaming instructions to the prompt
-    const streamingPrompt = `${prompt}\n\nIMPORTANT: Format your response as a continuous stream, providing each part of the evaluation as soon as it's ready. Start with overall feedback, then detailed analysis of each response, followed by strengths and improvement suggestions.`;
-    
-    // Format messages for OpenAI API
-    const formattedMessages = formatForResponsesApi(
-      streamingPrompt,
-      systemMessage || `You are an AI evaluation expert providing real-time feedback on ${challengeTypeName} challenges.
-Your evaluation should be structured but conversational, providing immediate value as you analyze the responses.
-This is a ${formatTypeName} type challenge, so adapt your evaluation criteria accordingly.
-${promptOptions.typeMetadata.evaluationNote || ''}
-${promptOptions.formatMetadata.evaluationNote || ''}`
+    // Format messages for AI service
+    const formattedMessages = messageFormatter.formatForResponsesApi(
+      prompt,
+      systemMessage || `You are an AI evaluation expert specializing in providing real-time feedback on ${challengeTypeName} challenges.`
     );
     
     // Set up streaming options
@@ -302,17 +298,17 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`
       }
     };
     
-    // Start streaming
+    // Start streaming using aiClient
     this.logger.info('Starting evaluation stream', { 
       challengeId: challenge.id, 
       threadId
     });
     
-    await this.openAIClient.streamMessage(formattedMessages, streamOptions);
+    await this.aiClient.streamMessage(formattedMessages, streamOptions);
     
     // Update the conversation state with the new response ID (if available)
     if (streamOptions.responseId) {
-      await this.openAIStateManager.updateLastResponseId(conversationState.id, streamOptions.responseId);
+      await this.aiStateManager.updateLastResponseId(conversationState.id, streamOptions.responseId);
     }
     
     this.logger.info('Completed evaluation stream', { 
@@ -322,4 +318,4 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`
   }
 }
 
-module.exports = ChallengeEvaluationService;
+export default ChallengeEvaluationService;
