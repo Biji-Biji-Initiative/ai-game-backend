@@ -10,7 +10,6 @@ import challengeErrors from "../../errors/ChallengeErrors.js";
 
 // Import domain-specific error classes
 const { 
-  ChallengeError, 
   ChallengeNotFoundError, 
   ChallengeValidationError, 
   ChallengeProcessingError 
@@ -509,7 +508,9 @@ class FocusAreaConfigRepository {
             return focusAreaMapper.toDomain(result);
         } catch (error) {
             // If it's already one of our known error types, just rethrow it
-            if (error instanceof ValidationError || error instanceof DatabaseError || error instanceof EntityNotFoundError) {
+            if (error instanceof ValidationError || 
+                error instanceof DatabaseError || 
+                error instanceof EntityNotFoundError) {
                 throw error;
             }
             
@@ -565,14 +566,17 @@ class FocusAreaConfigRepository {
                     code,
                     error
                 });
-                throw new DatabaseError(`Failed to delete focus area from catalog: ${error.message}`, {
-                    cause: error,
-                    entityType: this.domainName,
-                    operation: 'delete',
-                    metadata: {
-                        code
+                throw new DatabaseError(
+                    `Failed to delete focus area from catalog: ${error.message}`, 
+                    {
+                        cause: error,
+                        entityType: this.domainName,
+                        operation: 'delete',
+                        metadata: {
+                            code
+                        }
                     }
-                });
+                );
             }
             
             // Invalidate relevant cache keys
@@ -596,7 +600,9 @@ class FocusAreaConfigRepository {
             return true;
         } catch (error) {
             // If it's already one of our known error types, just rethrow it
-            if (error instanceof ValidationError || error instanceof DatabaseError || error instanceof EntityNotFoundError) {
+            if (error instanceof ValidationError || 
+                error instanceof DatabaseError || 
+                error instanceof EntityNotFoundError) {
                 throw error;
             }
             
@@ -607,14 +613,17 @@ class FocusAreaConfigRepository {
                 stack: error.stack
             });
             
-            throw new DatabaseError(`Failed to delete focus area: ${error.message}`, {
-                cause: error,
-                entityType: this.domainName,
-                operation: 'delete',
-                metadata: {
-                    code
+            throw new DatabaseError(
+                `Failed to delete focus area: ${error.message}`, 
+                {
+                    cause: error,
+                    entityType: this.domainName,
+                    operation: 'delete',
+                    metadata: {
+                        code
+                    }
                 }
-            });
+            );
         }
     }
     
@@ -646,7 +655,9 @@ class FocusAreaConfigRepository {
             return results;
         } catch (error) {
             // If it's already one of our known error types, just rethrow it
-            if (error instanceof ValidationError || error instanceof DatabaseError || error instanceof EntityNotFoundError) {
+            if (error instanceof ValidationError || 
+                error instanceof DatabaseError || 
+                error instanceof EntityNotFoundError) {
                 throw error;
             }
             
@@ -708,10 +719,18 @@ class FocusAreaConfigRepository {
     }
 }
 
+// Use lazy initialization for the singleton
+let _instance = null;
+function getRepositoryInstance() {
+    if (!_instance) {
+        _instance = new FocusAreaConfigRepository();
+    }
+    return _instance;
+}
+
 // Export singleton instance and class
-const focusAreaConfigRepository = new FocusAreaConfigRepository();
+export const focusAreaConfigRepository = getRepositoryInstance();
 export { FocusAreaConfigRepository };
-export { focusAreaConfigRepository };
 export default {
     FocusAreaConfigRepository,
     focusAreaConfigRepository

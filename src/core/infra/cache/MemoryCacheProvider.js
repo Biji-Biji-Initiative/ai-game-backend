@@ -1,6 +1,91 @@
-import NodeCache from "node-cache";
 import { logger } from "../logging/logger.js";
 'use strict';
+
+// Dynamic import for NodeCache to handle ES modules properly
+let NodeCache;
+try {
+  // Try to load NodeCache dynamically
+  NodeCache = (await import('node-cache')).default;
+} catch (error) {
+  console.error('Failed to import NodeCache:', error);
+  // Create a simple in-memory cache implementation as fallback
+  NodeCache = class SimpleCache {
+    constructor() {
+      this.cache = new Map();
+      this.ttls = new Map();
+      this.stats = { hits: 0, misses: 0, ksize: 0, vsize: 0 };
+    }
+    
+    get(key) {
+      if (this.has(key)) {
+        this.stats.hits++;
+        return this.cache.get(key);
+      }
+      this.stats.misses++;
+      return undefined;
+    }
+    
+    set(key, value, ttl) {
+      this.cache.set(key, value);
+      if (ttl) {
+        const expiry = Date.now() + (ttl * 1000);
+        this.ttls.set(key, expiry);
+      }
+      this.stats.ksize = this.cache.size;
+      return true;
+    }
+    
+    del(key) {
+      const deleted = this.cache.delete(key);
+      this.ttls.delete(key);
+      return deleted ? 1 : 0;
+    }
+    
+    keys() {
+      return Array.from(this.cache.keys());
+    }
+    
+    flushAll() {
+      this.cache.clear();
+      this.ttls.clear();
+      return true;
+    }
+    
+    getStats() {
+      return { ...this.stats };
+    }
+    
+    has(key) {
+      if (!this.cache.has(key)) return false;
+      
+      const expiry = this.ttls.get(key);
+      if (expiry && Date.now() > expiry) {
+        this.cache.delete(key);
+        this.ttls.delete(key);
+        return false;
+      }
+      return true;
+    }
+    
+    getTtl(key) {
+      return this.ttls.get(key) || 0;
+    }
+    
+    ttl(key, ttlValue) {
+      if (this.cache.has(key)) {
+        const expiry = Date.now() + (ttlValue * 1000);
+        this.ttls.set(key, expiry);
+        return true;
+      }
+      return false;
+    }
+    
+    on(event, callback) {
+      // Simple event system (does nothing in this implementation)
+    }
+  };
+}
+
 /**
  * Memory Cache Provider class
  */
@@ -32,8 +117,9 @@ class MemoryCacheProvider {
       useClones: this.options.useClones
     });
     // Track cache events
-    this.cache.on('expired', (key, _value) => {
-      this.logger.debug(`Cache key expired: ${key}`);
+    // eslint-disable-next-line no-unused-vars
+    this.cache.on('expired', (event, callback) => {
+      this.logger.debug(`Cache key expired: ${event}`);
     });
     this.logger.info('Memory cache provider initialized', {
       defaultTTL: this.options.ttl,

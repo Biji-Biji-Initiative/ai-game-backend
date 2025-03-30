@@ -126,6 +126,7 @@ pm2 delete ai-fight-club-api 2>/dev/null || true
 # Set NODE_ENV environment variable
 export NODE_ENV=$ENVIRONMENT
 export PORT=$PORT
+export NODE_OPTIONS="--import-map=import-map.json"
 
 # Test the database connection
 echo "Testing database connection..."

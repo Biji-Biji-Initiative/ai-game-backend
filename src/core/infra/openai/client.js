@@ -1,4 +1,5 @@
 import domainLogger from "../logging/domainLogger.js";
+// eslint-disable-next-line no-unused-vars
 import { ResponseFormat, StreamEventType, TruncationStrategy, ToolChoice } from "./types.js";
 import errors from "./errors.js";
 import { formatForResponsesApi } from "./messageFormatter.js";
@@ -11,7 +12,7 @@ import { OpenAI } from "openai";
  * A client for interacting with OpenAI's Responses API
  * for stateful conversation management via previous_response_id.
  */
-const { apiLogger, logger } = domainLogger;
+const { apiLogger } = domainLogger;
 const { OpenAIRequestError, OpenAIResponseError, OpenAIResponseHandlingError, createOpenAIError } = errors;
 /**
  * Class for making requests to the OpenAI API
@@ -298,7 +299,8 @@ class OpenAIClient {
     /**
      * Method processResponse
      */
-    processResponse(response, options) {
+    // eslint-disable-next-line no-unused-vars
+    processResponse(response, _options) {
         // Validate and normalize the response structure
         const validatedResponse = this.validateResponseStructure(response);
         // Log appropriate information based on response content
@@ -345,6 +347,11 @@ class OpenAIClient {
     }
     /**
      * Send a message to OpenAI's Responses API
+     * 
+     * NOTE: As of 2025, OpenAI API has changed how response formats are specified:
+     * - The 'response_format' parameter is deprecated and replaced with 'text.format'
+     * - The 'json' format is replaced with 'json_object', 'text', or 'json_schema'
+     * 
      * @param {Object} messages - Message object with input and optional instructions
      * @param {Object} options - Request options
      * @returns {Promise<Object>} OpenAI API response
@@ -382,8 +389,12 @@ class OpenAIClient {
                 ...(options.tools && options.tools.length > 0 && { tools: options.tools }),
                 // Include tool_choice if provided
                 ...(options.toolChoice && { tool_choice: options.toolChoice }),
-                // Include response format if provided
-                ...(options.responseFormat && { response_format: { type: options.responseFormat } }),
+                // Include response format if provided - UPDATED to use text.format structure
+                ...(options.responseFormat && { 
+                    text: { 
+                        format: options.responseFormat 
+                    } 
+                }),
                 // Link to a previous response if provided
                 ...(options.previousResponseId && { previous_response_id: options.previousResponseId }),
                 // Apply truncation strategy if specified
@@ -431,7 +442,7 @@ class OpenAIClient {
             // Add JSON format to options
             const jsonOptions = {
                 ...options,
-                responseFormat: ResponseFormat.JSON,
+                responseFormat: ResponseFormat.JSON_OBJECT,
                 // Validate metadata if provided
                 ...(options.metadata && { metadata: this.validateMetadata(options.metadata) }),
                 // Use ToolChoice enum if tool_choice is provided

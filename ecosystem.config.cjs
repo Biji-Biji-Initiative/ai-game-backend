@@ -3,6 +3,7 @@ module.exports = {
     {
       name: "ai-fight-club-api",
       script: "src/index.js",
+      node_args: "--import-map=import-map.json",
       env: {
         NODE_ENV: "development",
         PORT: 3000,

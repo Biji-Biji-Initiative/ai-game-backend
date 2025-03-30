@@ -24,6 +24,16 @@ const config = {
         // API tester UI path
         testerPath: process.env.API_TESTER_PATH || '/tester',
     },
+    // CORS configuration
+    cors: {
+        // In production, use env var for allowed origins; in dev, allow all
+        allowedOrigins: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*',
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+        exposedHeaders: ['X-Request-Id', 'X-Response-Time'],
+        credentials: true,
+        maxAge: 86400 // 24 hours
+    },
     // Supabase configuration
     supabase: {
         url: process.env.SUPABASE_URL,

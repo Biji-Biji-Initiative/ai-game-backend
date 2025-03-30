@@ -29,7 +29,7 @@ class UserMapper {
             try {
                 focusAreas = JSON.parse(focusAreas);
             }
-            catch (e) {
+            catch {
                 focusAreas = focusAreas.split(',').map(area => area.trim());
             }
         }
@@ -39,7 +39,7 @@ class UserMapper {
             try {
                 preferences = JSON.parse(preferences);
             }
-            catch (e) {
+            catch {
                 preferences = {};
             }
         }

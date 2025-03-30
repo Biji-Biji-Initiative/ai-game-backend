@@ -27,7 +27,7 @@ class ProgressMapper {
             try {
                 skillLevels = JSON.parse(skillLevels);
             }
-            catch (e) {
+            catch {
                 skillLevels = {};
             }
         }
@@ -36,7 +36,7 @@ class ProgressMapper {
             try {
                 statistics = JSON.parse(statistics);
             }
-            catch (e) {
+            catch {
                 statistics = {
                     totalChallenges: 0,
                     averageScore: 0,
@@ -53,7 +53,7 @@ class ProgressMapper {
             try {
                 completedChallenges = JSON.parse(completedChallenges);
             }
-            catch (e) {
+            catch {
                 completedChallenges = [];
             }
         }
@@ -63,7 +63,7 @@ class ProgressMapper {
             try {
                 strengths = JSON.parse(strengths);
             }
-            catch (e) {
+            catch {
                 strengths = [];
             }
         }
@@ -72,7 +72,7 @@ class ProgressMapper {
             try {
                 weaknesses = JSON.parse(weaknesses);
             }
-            catch (e) {
+            catch {
                 weaknesses = [];
             }
         }

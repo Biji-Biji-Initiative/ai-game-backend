@@ -1,6 +1,10 @@
 import BaseCoordinator from "../BaseCoordinator.js";
 import appError from "../../core/infra/errors/AppError.js";
-import { Email, ChallengeId, FocusArea, createEmail, createChallengeId, createFocusArea } from "../../core/common/valueObjects/index.js";
+import { 
+    Email, ChallengeId, FocusArea,
+    createEmail, createChallengeId, createFocusArea,
+    ensureVO
+} from "../../core/common/valueObjects/index.js";
 'use strict';
 const { AppError } = appError;
 /**
@@ -60,9 +64,9 @@ class ProgressCoordinator extends BaseCoordinator {
     updateProgressAfterChallenge(userEmail, focusArea, challengeId, evaluation) {
         return this.executeOperation(async () => {
             // Convert parameters to value objects if needed
-            const emailVO = userEmail instanceof Email ? userEmail : createEmail(userEmail);
-            const focusAreaVO = focusArea instanceof FocusArea ? focusArea : createFocusArea(focusArea);
-            const challengeIdVO = challengeId instanceof ChallengeId ? challengeId : createChallengeId(challengeId);
+            const emailVO = ensureVO(userEmail, Email, createEmail);
+            const focusAreaVO = ensureVO(focusArea, FocusArea, createFocusArea);
+            const challengeIdVO = ensureVO(challengeId, ChallengeId, createChallengeId);
             // Validate value objects
             if (!emailVO) {
                 throw new AppError(`Invalid email format: ${userEmail}`, 400, {
@@ -130,7 +134,7 @@ class ProgressCoordinator extends BaseCoordinator {
     getProgressSummary(userEmail) {
         return this.executeOperation(async () => {
             // Convert email to value object if needed
-            const emailVO = userEmail instanceof Email ? userEmail : createEmail(userEmail);
+            const emailVO = ensureVO(userEmail, Email, createEmail);
             // Validate value object
             if (!emailVO) {
                 throw new AppError(`Invalid email format: ${userEmail}`, 400, {
@@ -169,8 +173,8 @@ class ProgressCoordinator extends BaseCoordinator {
     getFocusAreaProgress(userEmail, focusArea) {
         return this.executeOperation(async () => {
             // Convert parameters to value objects if needed
-            const emailVO = userEmail instanceof Email ? userEmail : createEmail(userEmail);
-            const focusAreaVO = focusArea instanceof FocusArea ? focusArea : createFocusArea(focusArea);
+            const emailVO = ensureVO(userEmail, Email, createEmail);
+            const focusAreaVO = ensureVO(focusArea, FocusArea, createFocusArea);
             // Validate value objects
             if (!emailVO) {
                 throw new AppError(`Invalid email format: ${userEmail}`, 400, {

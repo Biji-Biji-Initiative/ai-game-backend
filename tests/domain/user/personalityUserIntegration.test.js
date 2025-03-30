@@ -1,13 +1,14 @@
+/* eslint-env jest, mocha */
+
 import { expect } from "chai";
 import sinon from "sinon";
 import PersonalityCoordinator from "../../../src/application/PersonalityCoordinator.js";
-import UserService from "../../../src/core/user/services/UserService.js";
 import User from "../../../src/core/user/models/User.js";
 import domainEvents from "../../../src/core/common/events/domainEvents.js";
 import appLogger from "../../../src/core/infra/logging/appLogger";
 import { registerEventHandlers } from "../../../src/application/EventHandlers.js";
 const { EventTypes, eventBus } = domainEvents;
-import { appLogger } from "";
+
 describe('Personality-User Integration', () => {
     let personalityCoordinator;
     let userServiceMock;
@@ -153,6 +154,10 @@ describe('Personality-User Integration', () => {
                 get: sinon.stub()
             };
             containerMock.get.withArgs('personalityCoordinator').returns(personalityCoordinator);
+            containerMock.get.withArgs('logger').returns(loggerStub);
+            containerMock.get.withArgs('applicationEventHandlers').returns({
+                registerEventHandlers: sinon.stub()
+            });
             // Register event handlers
             registerEventHandlers(containerMock);
             // Trigger the event

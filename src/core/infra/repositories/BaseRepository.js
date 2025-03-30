@@ -441,12 +441,15 @@ class BaseRepository {
    */
   async withTransaction(fn, options = {}) {
     const { publishEvents = true, eventBus = this.eventBus } = options;
+    
+    this._log('debug', 'Starting transaction');
     const transaction = await this.beginTransaction();
+    
     let collectedEvents = [];
     
     try {
-      // Execute the function with transaction
-      const result = await fn(transaction);
+      // Call the provided function with the transaction
+      let result = await fn(transaction);
       
       // Extract domain events if they were returned
       if (result && typeof result === 'object' && result.domainEvents) {

@@ -6,8 +6,8 @@ import { supabaseClient } from "../../infra/db/supabaseClient.js";
 import { logger } from "../../infra/logging/logger.js";
 import domainEvents from "../../common/events/domainEvents.js";
 import { ValidationError, DatabaseError } from "../../infra/repositories/BaseRepository.js";
-import { UserJourneyError, UserJourneyNotFoundError, UserJourneyValidationError, UserJourneyRepositoryError } from "../errors/UserJourneyErrors.js";
-import { createErrorMapper, createErrorCollector, withRepositoryErrorHandling } from "../../infra/errors/errorStandardization.js";
+import { UserJourneyNotFoundError, UserJourneyValidationError, UserJourneyError } from "../errors/userJourneyErrors.js";
+import { createErrorMapper, withRepositoryErrorHandling } from "../../infra/errors/errorStandardization.js";
 'use strict';
 const {
   eventBus
@@ -16,7 +16,7 @@ const {
 const userJourneyErrorMapper = createErrorMapper({
   EntityNotFoundError: UserJourneyNotFoundError,
   ValidationError: UserJourneyValidationError,
-  DatabaseError: UserJourneyRepositoryError
+  DatabaseError: UserJourneyError
 }, UserJourneyError);
 /**
  * User Journey Repository Class
@@ -102,6 +102,7 @@ class UserJourneyRepository {
       challengeId,
       timestamp: new Date().toISOString()
     };
+    
     // Validate with Zod schema
     const validationResult = UserJourneyEventCreateSchema.safeParse(eventObject);
     if (!validationResult.success) {
@@ -113,8 +114,10 @@ class UserJourneyRepository {
         validationErrors: validationResult.error.flatten()
       });
     }
+    
     // Use validated data
     const validData = validationResult.data;
+    
     // Create domain model instance
     const userJourneyEvent = new UserJourneyEvent({
       id: uuidv4(),
@@ -124,6 +127,7 @@ class UserJourneyRepository {
       challengeId: validData.challengeId,
       timestamp: validData.timestamp
     });
+    
     // Add domain event for journey event creation
     userJourneyEvent.addDomainEvent('UserJourneyEventRecorded', {
       eventId: userJourneyEvent.id,
@@ -131,14 +135,18 @@ class UserJourneyRepository {
       eventType: userJourneyEvent.eventType,
       timestamp: userJourneyEvent.timestamp
     });
+    
     // Collect domain events for publishing after successful save
     const domainEvents = userJourneyEvent.getDomainEvents ? userJourneyEvent.getDomainEvents() : [];
+    
     // Clear the events from the entity to prevent double-publishing
     if (domainEvents.length > 0 && userJourneyEvent.clearDomainEvents) {
       userJourneyEvent.clearDomainEvents();
     }
+    
     // Convert to database format using mapper
     const dbEvent = userJourneyEventMapper.toPersistence(userJourneyEvent);
+    
     // Validate database format with Zod schema
     const dbValidationResult = UserJourneyEventDatabaseSchema.safeParse(dbEvent);
     if (!dbValidationResult.success) {
@@ -150,43 +158,44 @@ class UserJourneyRepository {
         validationErrors: dbValidationResult.error.flatten()
       });
     }
-    // Insert into database
-    const {
-      data,
-      error
-    } = await this.supabase.from('user_journey_events').insert(dbEvent).select().single();
-    if (error) {
-      throw new DatabaseError(`Failed to insert user journey event: ${error.message}`, {
-        cause: error,
-        entityType: 'userJourney',
-        operation: 'recordEvent'
+    
+    // Use transaction to ensure domain events are only published after successful commit
+    return await this.withTransaction(async (transaction) => {
+      this.logger.debug('Inserting user journey event in transaction', {
+        eventType,
+        userEmail: email,
+        id: userJourneyEvent.id
       });
-    }
-    this.logger.info(`User journey event ${eventType} recorded for ${email}`);
-    // Return domain model instance using mapper
-    const savedEvent = userJourneyEventMapper.toDomain(data);
-    // Publish collected domain events AFTER successful persistence
-    const errorCollector = createErrorCollector();
-    if (domainEvents.length > 0) {
-      try {
-        this.logger.debug('Publishing collected domain events', {
-          id: savedEvent.id,
-          eventCount: domainEvents.length
-        });
-        // Publish the events one by one in sequence (maintaining order)
-        for (const event of domainEvents) {
-          await this.eventBus.publish(event.type, event.data);
-        }
-      } catch (eventError) {
-        // Collect but don't throw errors from event publishing
-        errorCollector.collect(eventError, 'event_publishing');
-        this.logger.error('Error publishing domain events', {
-          id: savedEvent.id,
-          error: eventError.message
+      
+      // Insert into database using the transaction
+      const { data, error } = await transaction
+        .from('user_journey_events')
+        .insert(dbEvent)
+        .select()
+        .single();
+        
+      if (error) {
+        throw new DatabaseError(`Failed to insert user journey event: ${error.message}`, {
+          cause: error,
+          entityType: 'userJourney',
+          operation: 'recordEvent'
         });
       }
-    }
-    return savedEvent;
+      
+      this.logger.info(`User journey event ${eventType} recorded for ${email}`);
+      
+      // Return domain model instance using mapper along with collected domain events
+      const savedEvent = userJourneyEventMapper.toDomain(data);
+      
+      // Return both the result and the domain events to publish after commit
+      return {
+        result: savedEvent,
+        domainEvents: domainEvents
+      };
+    }, {
+      publishEvents: true,
+      eventBus: this.eventBus
+    });
   }
 
   /**

@@ -30,9 +30,9 @@ const MessageRole = {
 const ResponseFormat = {
     /** Plain text response (default) */
     TEXT: 'text',
-    /** JSON response */
+    /** JSON response in object format */
     JSON_OBJECT: 'json_object',
-    /** JSON schema response */
+    /** JSON response with schema validation */
     JSON_SCHEMA: 'json_schema',
 };
 // Message content types

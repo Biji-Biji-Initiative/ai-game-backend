@@ -155,6 +155,10 @@ describe('Personality-User Integration', () => {
                 get: sinon.stub()
             };
             containerMock.get.withArgs('personalityCoordinator').returns(personalityCoordinator);
+            containerMock.get.withArgs('logger').returns(loggerStub);
+            containerMock.get.withArgs('applicationEventHandlers').returns({
+                registerEventHandlers: sinon.stub()
+            });
             // Register event handlers
             registerEventHandlers(containerMock);
             // Trigger the event

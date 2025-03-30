@@ -1,6 +1,10 @@
 import BaseCoordinator from "../BaseCoordinator.js";
 import { FocusAreaError } from "../../core/focusArea/errors/focusAreaErrors.js";
-import { createUserId, createEmail, createFocusArea, Email, UserId, FocusArea } from "../../core/common/valueObjects/index.js";
+import { 
+    createUserId, createEmail, createFocusArea, 
+    Email, UserId, FocusArea,
+    ensureVO 
+} from "../../core/common/valueObjects/index.js";
 'use strict';
 /**
  * FocusAreaManagementCoordinator class
@@ -50,7 +54,7 @@ class FocusAreaManagementCoordinator extends BaseCoordinator {
     getFocusAreas(userId, options = {}) {
         return this.executeOperation(async () => {
             // Convert to value object if needed
-            const userIdVO = userId instanceof UserId ? userId : createUserId(userId);
+            const userIdVO = ensureVO(userId, UserId, createUserId);
             if (!userIdVO) {
                 throw new FocusAreaError(`Invalid user ID: ${userId}`, 400);
             }
@@ -95,7 +99,7 @@ class FocusAreaManagementCoordinator extends BaseCoordinator {
     getFocusAreasForUser(userEmail, options = {}) {
         return this.executeOperation(async () => {
             // Convert to value object if needed
-            const emailVO = userEmail instanceof Email ? userEmail : createEmail(userEmail);
+            const emailVO = ensureVO(userEmail, Email, createEmail);
             if (!emailVO) {
                 throw new FocusAreaError(`Invalid email: ${userEmail}`, 400);
             }
@@ -123,7 +127,7 @@ class FocusAreaManagementCoordinator extends BaseCoordinator {
     setFocusAreasForUser(email, focusAreas) {
         return this.executeOperation(async () => {
             // Convert to value object if needed
-            const emailVO = email instanceof Email ? email : createEmail(email);
+            const emailVO = ensureVO(email, Email, createEmail);
             if (!emailVO) {
                 throw new FocusAreaError(`Invalid email: ${email}`, 400);
             }
@@ -141,12 +145,7 @@ class FocusAreaManagementCoordinator extends BaseCoordinator {
             const focusAreaVOs = Array.isArray(focusAreas)
                 ? focusAreas.map(fa => {
                     if (typeof fa === 'string') {
-                        const faVO = createFocusArea(fa);
-                        if (!faVO) {
-                            this.logger.warn(`Invalid focus area code: ${fa}, skipping`);
-                            return null;
-                        }
-                        return faVO;
+                        return ensureVO(fa, FocusArea, createFocusArea);
                     }
                     return fa;
                 }).filter(Boolean)
@@ -190,11 +189,11 @@ class FocusAreaManagementCoordinator extends BaseCoordinator {
     setUserFocusArea(email, focusArea) {
         return this.executeOperation(async () => {
             // Convert to value objects if needed
-            const emailVO = email instanceof Email ? email : createEmail(email);
+            const emailVO = ensureVO(email, Email, createEmail);
+            const focusAreaVO = ensureVO(focusArea, FocusArea, createFocusArea);
             if (!emailVO) {
                 throw new FocusAreaError(`Invalid email: ${email}`, 400);
             }
-            const focusAreaVO = focusArea instanceof FocusArea ? focusArea : createFocusArea(focusArea);
             if (!focusAreaVO) {
                 throw new FocusAreaError(`Invalid focus area: ${focusArea}`, 400);
             }

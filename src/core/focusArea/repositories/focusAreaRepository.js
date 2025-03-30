@@ -5,8 +5,10 @@ import { FocusAreaNotFoundError, FocusAreaPersistenceError, FocusAreaValidationE
 import domainEvents from "../../common/events/domainEvents.js";
 import { supabaseClient } from "../../infra/db/supabaseClient.js";
 import { BaseRepository, EntityNotFoundError, ValidationError, DatabaseError } from "../../infra/repositories/BaseRepository.js";
-import { focusAreaSchema } from "../schemas/focusAreaValidation.js";
+// Importing but not using directly - needed for schema definitions
+// import { focusAreaSchema } from "../schemas/focusAreaValidation.js";
 import { withRepositoryErrorHandling, createErrorMapper, createErrorCollector } from "../../infra/errors/errorStandardization.js";
+import { v4 as uuidv4 } from "uuid";
 
 const { eventBus, EventTypes } = domainEvents;
 
@@ -384,7 +386,8 @@ class FocusAreaRepository extends BaseRepository {
      * @throws {FocusAreaValidationError} If focus area data is invalid
      * @throws {FocusAreaPersistenceError} If database operation fails
      */
-    async saveBatch(userId, focusAreas, _trx = null) {
+    // eslint-disable-next-line no-unused-vars
+    async saveBatch(userId, focusAreas, _unused = null) {
         // Validate parameters
         this._validateRequiredParams({ userId }, ['userId']);
         
@@ -418,7 +421,8 @@ class FocusAreaRepository extends BaseRepository {
             });
         });
         
-        return this.withTransaction(async (_trx) => {
+        // eslint-disable-next-line no-unused-vars
+        return this.withTransaction(async (_unused) => {
             // Save each focus area individually, tracking domain events
             const savedAreas = [];
             const allDomainEvents = [];
@@ -554,12 +558,15 @@ class FocusAreaRepository extends BaseRepository {
     }
 }
 
-// Export a singleton instance and the class
-const focusAreaRepository = new FocusAreaRepository();
+// Use lazy initialization for the singleton
+let _instance = null;
+function getRepositoryInstance() {
+    if (!_instance) {
+        _instance = new FocusAreaRepository();
+    }
+    return _instance;
+}
 
-export { FocusAreaRepository };
-export { focusAreaRepository };
-export default {
-    FocusAreaRepository,
-    focusAreaRepository
-};
+// Export the singleton getter and the class
+export const focusAreaRepository = getRepositoryInstance();
+export default FocusAreaRepository;

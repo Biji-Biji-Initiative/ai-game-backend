@@ -3,14 +3,14 @@ import PersonalityRepository from "../../core/personality/repositories/Personali
 import ProgressRepository from "../../core/progress/repositories/ProgressRepository.js";
 import AdaptiveRepository from "../../core/adaptive/repositories/AdaptiveRepository.js";
 import { ChallengeRepositoryWrapper } from "../../core/challenge/repositories/ChallengeRepositoryWrapper.js";
-import { FocusAreaRepository } from "../../core/focusArea/repositories/focusAreaRepository.js";
+import FocusAreaRepository from "../../core/focusArea/repositories/focusAreaRepository.js";
 import EvaluationCategoryRepository from "../../core/evaluation/repositories/evaluationCategoryRepository.js";
 import EvaluationRepository from "../../core/evaluation/repositories/evaluationRepository.js";
 import UserJourneyRepository from "../../core/userJourney/repositories/UserJourneyRepository.js";
-import { ChallengeTypeRepository } from "../../core/challenge/config/index.js";
-import { FormatTypeRepository } from "../../core/challenge/config/index.js";
-import { FocusAreaConfigRepository } from "../../core/challenge/config/index.js";
-import { DifficultyLevelRepository } from "../../core/challenge/config/index.js";
+import ChallengeTypeRepository from "../../core/challenge/repositories/config/ChallengeTypeRepository.js";
+import FormatTypeRepository from "../../core/challenge/repositories/config/FormatTypeRepository.js";
+import FocusAreaConfigRepository from "../../core/challenge/repositories/config/FocusAreaConfigRepository.js";
+import DifficultyLevelRepository from "../../core/challenge/repositories/config/DifficultyLevelRepository.js";
 'use strict';
 /**
  * Repository Components Registration
@@ -64,17 +64,33 @@ function registerRepositoryComponents(container) {
     }, true);
     // Register challenge configuration repositories
     container.register('challengeTypeRepository', c => {
-        return new ChallengeTypeRepository(c.get('supabase'), c.get('challengeLogger'), c.get('configCache'));
+        return new ChallengeTypeRepository({
+            db: c.get('supabase'),
+            logger: c.get('challengeLogger'),
+            cache: c.get('configCache')
+        });
     }, true);
     container.register('formatTypeRepository', c => {
-        return new FormatTypeRepository(c.get('supabase'), c.get('challengeLogger'), c.get('configCache'));
+        return new FormatTypeRepository({
+            db: c.get('supabase'),
+            logger: c.get('challengeLogger'),
+            cache: c.get('configCache')
+        });
     }, true);
     // Global focus area configuration (stored in 'challenge_focus_areas' table)
     container.register('focusAreaConfigRepository', c => {
-        return new FocusAreaConfigRepository(c.get('supabase'), c.get('challengeLogger'), c.get('configCache'));
+        return new FocusAreaConfigRepository({
+            db: c.get('supabase'),
+            logger: c.get('challengeLogger'),
+            cache: c.get('configCache')
+        });
     }, true);
     container.register('difficultyLevelRepository', c => {
-        return new DifficultyLevelRepository(c.get('supabase'), c.get('challengeLogger'), c.get('configCache'));
+        return new DifficultyLevelRepository({
+            db: c.get('supabase'),
+            logger: c.get('challengeLogger'),
+            cache: c.get('configCache')
+        });
     }, true);
 }
 

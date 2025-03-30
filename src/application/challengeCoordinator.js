@@ -2,7 +2,11 @@ import { challengeLogger } from "../core/infra/logging/domainLogger.js";
 import BaseCoordinator from "./BaseCoordinator.js";
 import Challenge from "../core/challenge/models/Challenge.js";
 import challengeErrors from "../core/challenge/errors/ChallengeErrors.js";
-import { createEmail, createChallengeId, createFocusArea, createDifficultyLevel, Email, ChallengeId, FocusArea, DifficultyLevel } from "../core/common/valueObjects/index.js";
+import { 
+    createEmail, createChallengeId, createFocusArea, createDifficultyLevel, 
+    Email, ChallengeId, FocusArea, DifficultyLevel, 
+    ensureVO 
+} from "../core/common/valueObjects/index.js";
 'use strict';
 // Import domain errors
 const { ChallengeNotFoundError, ChallengeGenerationError, ChallengeResponseError } = challengeErrors;
@@ -78,9 +82,9 @@ class ChallengeCoordinator extends BaseCoordinator {
         };
         return this.executeOperation(async () => {
             // Create value objects for validation and domain logic
-            const emailVO = userEmail instanceof Email ? userEmail : createEmail(userEmail);
-            const focusAreaVO = focusArea instanceof FocusArea ? focusArea : (focusArea ? createFocusArea(focusArea) : null);
-            const difficultyVO = difficulty instanceof DifficultyLevel ? difficulty : (difficulty ? createDifficultyLevel(difficulty) : null);
+            const emailVO = ensureVO(userEmail, Email, createEmail);
+            const focusAreaVO = focusArea ? ensureVO(focusArea, FocusArea, createFocusArea) : null;
+            const difficultyVO = difficulty ? ensureVO(difficulty, DifficultyLevel, createDifficultyLevel) : null;
             // Validate input using value objects
             if (!emailVO) {
                 throw new ChallengeGenerationError('Invalid user email');
@@ -158,13 +162,8 @@ class ChallengeCoordinator extends BaseCoordinator {
         };
         return this.executeOperation(async () => {
             // Convert to value objects if needed using the standardized pattern
-            const challengeIdVO = challengeId instanceof ChallengeId 
-                ? challengeId 
-                : createChallengeId(challengeId);
-                
-            const emailVO = userEmail instanceof Email 
-                ? userEmail 
-                : createEmail(userEmail);
+            const challengeIdVO = ensureVO(challengeId, ChallengeId, createChallengeId);
+            const emailVO = ensureVO(userEmail, Email, createEmail);
             
             // Validate and throw domain-specific errors
             if (!challengeIdVO) {

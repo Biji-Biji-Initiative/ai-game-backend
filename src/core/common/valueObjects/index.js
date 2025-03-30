@@ -14,7 +14,8 @@ function createEmail(email) {
     try {
         return email ? new Email(email) : null;
     }
-    catch (error) {
+    // eslint-disable-next-line no-unused-vars
+    catch (_error) {
         return null;
     }
 }
@@ -27,7 +28,8 @@ function createUserId(userId) {
     try {
         return userId ? new UserId(userId) : null;
     }
-    catch (error) {
+    // eslint-disable-next-line no-unused-vars
+    catch (_error) {
         return null;
     }
 }
@@ -40,7 +42,8 @@ function createChallengeId(challengeId) {
     try {
         return challengeId ? new ChallengeId(challengeId) : null;
     }
-    catch (error) {
+    // eslint-disable-next-line no-unused-vars
+    catch (_error) {
         return null;
     }
 }
@@ -53,7 +56,8 @@ function createFocusArea(focusArea) {
     try {
         return focusArea ? new FocusArea(focusArea) : null;
     }
-    catch (error) {
+    // eslint-disable-next-line no-unused-vars
+    catch (_error) {
         return null;
     }
 }
@@ -66,7 +70,8 @@ function createDifficultyLevel(difficulty) {
     try {
         return difficulty !== undefined ? new DifficultyLevel(difficulty) : null;
     }
-    catch (error) {
+    // eslint-disable-next-line no-unused-vars
+    catch (_error) {
         return null;
     }
 }
@@ -80,7 +85,8 @@ function createTraitScore(traitCode, score) {
     try {
         return traitCode && score !== undefined ? new TraitScore(traitCode, score) : null;
     }
-    catch (error) {
+    // eslint-disable-next-line no-unused-vars
+    catch (_error) {
         return null;
     }
 }

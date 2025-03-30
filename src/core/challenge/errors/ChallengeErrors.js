@@ -1,3 +1,4 @@
+// eslint-disable-next-line import/no-unresolved
 import { AppError } from "../../infra/errors/ErrorHandler.js";
 'use strict';
 /**
@@ -76,15 +77,34 @@ class ChallengeRepositoryError extends ChallengeError {
         this.metadata = options.metadata || {};
     }
 }
+/**
+ * Challenge Generation Error
+ * Thrown when there's an issue with the challenge generation process
+ */
+class ChallengeGenerationError extends ChallengeError {
+    /**
+     * Create a new ChallengeGenerationError instance
+     * @param {string} message - Error message describing the generation issue
+     * @param {Object} options - Additional error options
+     * @param {Error} [options.cause] - The original error that caused this error
+     */
+    constructor(message = 'Failed to generate challenge', options = {}) {
+        super(message, 500);
+        this.name = 'ChallengeGenerationError';
+        this.cause = options.cause || null;
+    }
+}
 export { ChallengeError };
 export { ChallengeNotFoundError };
 export { ChallengeValidationError };
 export { ChallengeProcessingError };
 export { ChallengeRepositoryError };
+export { ChallengeGenerationError };
 export default {
     ChallengeError,
     ChallengeNotFoundError,
     ChallengeValidationError,
     ChallengeProcessingError,
-    ChallengeRepositoryError
+    ChallengeRepositoryError,
+    ChallengeGenerationError
 };

@@ -1,4 +1,4 @@
-import UserJourney from "../models/UserJourney.js";
+import UserJourneyEvent from "../models/UserJourneyEvent.js";
 'use strict';
 /**
  * UserJourneyMapper class
@@ -8,7 +8,7 @@ class UserJourneyMapper {
     /**
      * Convert a database record to a UserJourney domain entity
      * @param {Object} data - Database user journey record
-     * @returns {UserJourney} UserJourney domain entity
+     * @returns {UserJourneyEvent} UserJourneyEvent domain entity
      */
     toDomain(data) {
         if (!data) {
@@ -25,7 +25,7 @@ class UserJourneyMapper {
             try {
                 eventData = JSON.parse(eventData);
             }
-            catch (e) {
+            catch {
                 eventData = {};
             }
         }
@@ -42,12 +42,12 @@ class UserJourneyMapper {
             clientVersion: data.client_version || data.clientVersion,
             createdAt,
         };
-        // Create and return a new UserJourney domain entity
-        return new UserJourney(journeyData);
+        // Create and return a new UserJourneyEvent domain entity
+        return new UserJourneyEvent(journeyData);
     }
     /**
-     * Convert a UserJourney domain entity to database format
-     * @param {UserJourney} userJourney - UserJourney domain entity
+     * Convert a UserJourneyEvent domain entity to database format
+     * @param {UserJourneyEvent} userJourney - UserJourneyEvent domain entity
      * @returns {Object} Database-ready object
      */
     toPersistence(userJourney) {
@@ -79,9 +79,9 @@ class UserJourneyMapper {
         };
     }
     /**
-     * Convert an array of database records to UserJourney domain entities
+     * Convert an array of database records to UserJourneyEvent domain entities
      * @param {Array<Object>} dataArray - Array of database records
-     * @returns {Array<UserJourney>} Array of UserJourney domain entities
+     * @returns {Array<UserJourneyEvent>} Array of UserJourneyEvent domain entities
      */
     toDomainCollection(dataArray) {
         if (!Array.isArray(dataArray)) {
@@ -90,8 +90,8 @@ class UserJourneyMapper {
         return dataArray.map(data => this.toDomain(data));
     }
     /**
-     * Convert an array of UserJourney domain entities to database format
-     * @param {Array<UserJourney>} journeyItems - Array of UserJourney domain entities
+     * Convert an array of UserJourneyEvent domain entities to database format
+     * @param {Array<UserJourneyEvent>} journeyItems - Array of UserJourneyEvent domain entities
      * @returns {Array<Object>} Array of database-ready objects
      */
     toPersistenceCollection(journeyItems) {

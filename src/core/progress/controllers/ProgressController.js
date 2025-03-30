@@ -1,5 +1,5 @@
-import { withControllerErrorHandling, createErrorMapper } from "../../infra/errors/errorStandardization.js";
-import { ProgressError, ProgressNotFoundError, ProgressValidationError, ProgressProcessingError } from "../errors/ProgressErrors.js";
+import { withControllerErrorHandling } from "../../infra/errors/errorStandardization.js";
+import { ProgressError, ProgressNotFoundError, ProgressValidationError, ProgressProcessingError } from "../errors/progressErrors.js";
 import { ProgressDTOMapper } from "../dtos/ProgressDTO.js";
 'use strict';
 // Error mappings for controllers
@@ -174,7 +174,13 @@ class ProgressController {
             });
         }
         // Record challenge completion
-        const progress = await this.progressService.recordChallengeCompletion(req.user.id, params.challengeId, params.challengeScore, completionTime, evaluationData || {});
+        const progress = await this.progressService.recordChallengeCompletion(
+            req.user.id, 
+            params.challengeId, 
+            params.challengeScore, 
+            completionTime, 
+            evaluationData || {}
+        );
         // Convert to DTO
         const progressDto = ProgressDTOMapper.toDTO(progress);
         // Return updated progress

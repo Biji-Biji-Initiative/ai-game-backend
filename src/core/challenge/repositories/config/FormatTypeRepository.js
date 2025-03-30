@@ -15,11 +15,12 @@ const {
   ChallengeValidationError,
   ChallengeProcessingError
 } = challengeErrors;
-// Create an error mapper for repositories
+// Map repository errors to domain errors
 const formatTypeErrorMapper = createErrorMapper({
-  EntityNotFoundError: ChallengeNotFoundError,
-  ValidationError: ChallengeValidationError,
+  // Specific error mappings
   DatabaseError: ChallengeProcessingError,
+  EntityNotFoundError: ChallengeNotFoundError,
+  ValidationError: ChallengeValidationError
 }, ChallengeProcessingError);
 /**
  * Repository for managing format type configuration data

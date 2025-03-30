@@ -31,6 +31,21 @@ async function log(level, message, meta = {}) {
     console.error(`[PromptBuilder] Error logging: ${err.message}`);
   }
 }
+
+/**
+ * Format prompt input and instructions for Responses API format
+ * @param {string} input - The prompt input text
+ * @param {string|null} instructions - Optional system instructions
+ * @returns {Object} Formatted object for Responses API
+ * @private
+ */
+function formatForResponsesApi(input, instructions) {
+  return {
+    input: input,
+    instructions: instructions
+  };
+}
+
 /**
  * Register all the default prompt builders
  * @private
@@ -199,7 +214,9 @@ async function buildPrompt(type, params) {
  * @public
  */
 async function createBuilder(type) {
-  const builder = getBuilder(type);
+  // Validate type by ensuring builder exists
+  await getBuilder(type);
+  
   return async params => {
     try {
       return await buildPrompt(type, params);

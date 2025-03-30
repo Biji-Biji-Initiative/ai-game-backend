@@ -25,7 +25,7 @@ class UserJourneyEventMapper {
             try {
                 eventData = JSON.parse(eventData);
             }
-            catch (e) {
+            catch {
                 eventData = {};
             }
         }
@@ -35,7 +35,7 @@ class UserJourneyEventMapper {
             try {
                 metadata = JSON.parse(metadata);
             }
-            catch (e) {
+            catch {
                 metadata = {};
             }
         }

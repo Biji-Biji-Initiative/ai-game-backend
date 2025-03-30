@@ -4,28 +4,27 @@
   "description": "A stateful web app that challenges users with dynamic, AI-generated cognitive challenges to highlight their unique Human Edge",
   "main": "index.js",
   "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
   "bin": {
     "responses-cli": "./cli.js"
   },
   "scripts": {
-    "start": "./start.sh",
-    "dev": "./start.sh development",
-    "prod": "./start.sh production",
+    "start": "node --import-map=import-map.json ./start.sh",
+    "dev": "node --import-map=import-map.json ./start.sh development",
+    "prod": "node --import-map=import-map.json ./start.sh production",
     "test": "jest",
-    
     "pm2:status": "pm2 list",
     "pm2:logs": "pm2 logs ai-fight-club-api",
     "pm2:monitor": "pm2 monit",
     "stop": "./stop.sh",
     "restart": "./restart.sh",
-    
     "verify": "node scripts/verify-server.js",
     "verify:start": "node scripts/verify-server.js --start-server",
     "verify:prod": "node scripts/verify-server.js --production",
-    
     "setup:env": "node scripts/setup/setup-env.js",
     "setup:verify": "node scripts/verify-setup.js",
-    
     "db:migrate": "node scripts/setup/run-migrations.js",
     "db:push": "npx supabase db push",
     "db:reset": "npx supabase db reset",
@@ -33,7 +32,6 @@
     "db:seed:challenges": "node scripts/setup/seed-data.js --challenges",
     "db:seed:users": "node scripts/setup/seed-data.js --users",
     "db:seed:reset": "node scripts/setup/seed-data.js --all --reset",
-    
     "test:domain": "node scripts/run-tests.js domain",
     "test:unit": "jest --config=jest.unit.config.json",
     "test:integration": "jest --config=jest.integration.config.json",
@@ -45,24 +43,20 @@
     "test:skip-supabase": "node scripts/run-tests.js --skip-supabase",
     "test:focus": "node scripts/run-tests.js --focus",
     "test:verify": "node tools/verify-test-categories.js",
-    
     "lint": "eslint src/app.js src/server.js --quiet",
     "lint:fix": "eslint src/app.js src/server.js --quiet --fix",
+    "lint:tests": "eslint tests/ --quiet",
+    "lint:tests:fix": "eslint tests/ --quiet --fix",
     "format": "prettier --write \"src/**/*.js\" \"scripts/**/*.js\" \"tests/**/*.js\" \"*.md\"",
     "format:check": "prettier --check \"src/**/*.js\" \"scripts/**/*.js\" \"tests/**/*.js\" \"*.md\"",
-    
     "quality": "node scripts/utils/verify-code-quality.js",
     "quality:jsdoc": "node scripts/utils/verify-code-quality.js --jsdoc-only",
     "quality:fixable": "node scripts/utils/verify-code-quality.js --fixable",
-    
     "cleanup:scripts": "node scripts/utils/cleanup-temp-scripts.js",
-    
     "dev:user": "node scripts/dev/create-test-user.js",
     "dev:token": "node scripts/dev/get-token.js",
     "dev:evaluations": "node scripts/dev/view-evaluations.js",
-    
     "prepare": "husky && husky install",
-    
     "swagger:validate": "node src/scripts/validateSwagger.js",
     "swagger:gen": "node -e \"import swaggerJSDoc from 'swagger-jsdoc'; import options from './src/config/swagger.js'; import fs from 'fs'; const spec = swaggerJSDoc(options); fs.writeFileSync('./openapi.json', JSON.stringify(spec, null, 2));\""
   },

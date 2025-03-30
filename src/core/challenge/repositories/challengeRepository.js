@@ -1,4 +1,4 @@
-import { v4 as _uuidv4 } from "uuid";
+import { v4 as uuidv4 } from "uuid";
 import Challenge from "../models/Challenge.js";
 import challengeMapper from "../mappers/ChallengeMapper.js";
 import challengeSchema from "../schemas/ChallengeSchema.js";
@@ -6,14 +6,20 @@ import challengeErrors from "../errors/ChallengeErrors.js";
 import domainEvents from "../../common/events/domainEvents.js";
 import { supabaseClient } from "../../infra/db/supabaseClient.js";
 import { BaseRepository, EntityNotFoundError, ValidationError, DatabaseError } from "../../infra/repositories/BaseRepository.js";
-import { createErrorMapper, createErrorCollector as _createErrorCollector, withRepositoryErrorHandling } from "../../infra/errors/errorStandardization.js";
-import { ChallengeId } from '../../common/valueObjects/ChallengeId.js';
-import { UserId } from '../../common/valueObjects/UserId.js';
-import { Email } from '../../common/valueObjects/Email.js';
-import { FocusArea } from '../../common/valueObjects/FocusArea.js';
+import { createErrorMapper, createErrorCollector, withRepositoryErrorHandling } from "../../infra/errors/errorStandardization.js";
+import ChallengeId from '../../common/valueObjects/ChallengeId.js';
+import UserId from '../../common/valueObjects/UserId.js';
+import Email from '../../common/valueObjects/Email.js';
+import FocusArea from '../../common/valueObjects/FocusArea.js';
 'use strict';
-const { ChallengeSchema, _ChallengeUpdateSchema, ChallengeSearchSchema, SearchOptionsSchema } = challengeSchema;
-const { ChallengeNotFoundError, ChallengePersistenceError, ChallengeValidationError, ChallengeDuplicateError, _InvalidChallengeStatusTransitionError, ChallengeRepositoryError, ChallengeError } = challengeErrors;
+const { ChallengeSchema, ChallengeSearchSchema, SearchOptionsSchema } = challengeSchema;
+const { 
+    ChallengeNotFoundError, 
+    ChallengePersistenceError, 
+    ChallengeValidationError, 
+    ChallengeRepositoryError, 
+    ChallengeError 
+} = challengeErrors;
 const { eventBus, EventTypes } = domainEvents;
 // Create an error mapper for the challenge domain
 const challengeErrorMapper = createErrorMapper({
@@ -69,6 +75,26 @@ class ChallengeRepository extends BaseRepository {
             this.findRecentByUserId.bind(this),
             {
                 methodName: 'findRecentByUserId',
+                domainName: this.domainName,
+                logger: this.logger,
+                errorMapper: challengeErrorMapper
+            }
+        );
+        
+        this.findByUserEmail = withRepositoryErrorHandling(
+            this.findByUserEmail.bind(this),
+            {
+                methodName: 'findByUserEmail',
+                domainName: this.domainName,
+                logger: this.logger,
+                errorMapper: challengeErrorMapper
+            }
+        );
+        
+        this.findRecentByUserEmail = withRepositoryErrorHandling(
+            this.findRecentByUserEmail.bind(this),
+            {
+                methodName: 'findRecentByUserEmail',
                 domainName: this.domainName,
                 logger: this.logger,
                 errorMapper: challengeErrorMapper
@@ -224,6 +250,20 @@ class ChallengeRepository extends BaseRepository {
         }, 'findByUserId', { userId, options });
     }
     /**
+     * Find recent challenges by user ID
+     * @param {string|UserId} userIdOrIdVO - User ID or UserId value object
+     * @param {number} limit - Maximum number of results to return
+     * @returns {Promise<Array<Challenge>>} Array of challenges
+     * @throws {ChallengeRepositoryError} If database operation fails
+     */
+    async findRecentByUserId(userIdOrIdVO, limit = 5) {
+        return this.findByUserId(userIdOrIdVO, { 
+            limit, 
+            sortBy: 'createdAt', 
+            sortDir: 'desc' 
+        });
+    }
+    /**
      * Find challenges by user email
      * @param {string|Email} emailOrEmailVO - User email or Email value object
      * @param {Object} options - Query options
@@ -360,7 +400,7 @@ class ChallengeRepository extends BaseRepository {
             const savedData = this._snakeToCamel(data);
             const savedChallenge = challengeMapper.toDomain(savedData);
             // Create an error collector for non-critical operations
-            const errorCollector = _createErrorCollector();
+            const errorCollector = createErrorCollector();
             if (domainEvents.length > 0) {
                 try {
                     this._log('debug', 'Publishing collected domain events', {
@@ -675,7 +715,7 @@ class ChallengeRepository extends BaseRepository {
         return this.search({}, options);
     }
     /**
-     * Convert camelCase field name to snake_case for database queries
+     * Helper method to convert camelCase field name to snake_case
      * @param {string} field - Field name in camelCase
      * @returns {string} Field name in snake_case
      */
@@ -683,11 +723,16 @@ class ChallengeRepository extends BaseRepository {
         return field.replace(/([A-Z])/g, '_$1').toLowerCase();
     }
 }
-// Export a singleton instance and the class
-const challengeRepository = new ChallengeRepository();
-export { ChallengeRepository };
-export { challengeRepository };
-export default {
-    ChallengeRepository,
-    challengeRepository
-};
+
+// Use a function to get the singleton instance (lazy initialization)
+let _instance = null;
+function getRepositoryInstance() {
+    if (!_instance) {
+        _instance = new ChallengeRepository();
+    }
+    return _instance;
+}
+
+// Export the singleton getter and the class
+export const challengeRepository = getRepositoryInstance();
+export default ChallengeRepository;

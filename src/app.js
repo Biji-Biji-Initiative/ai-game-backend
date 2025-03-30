@@ -10,32 +10,17 @@ import swaggerUi from 'swagger-ui-express';
 import swaggerJsDoc from 'swagger-jsdoc';
 import swaggerOptions from './config/swagger.js';
 
-// In development mode, use mock dependencies
-let container;
-let config;
-
-// Always use the real container in production mode
-console.log(`Running in ${process.env.NODE_ENV} mode`);
-
 // Import container for dependency injection
-try {
-    ({ container } = await import('./config/container.js'));
-    config = container.get('config');
-    
-    // Log the environment configuration
-    console.log('Environment:', {
-        NODE_ENV: process.env.NODE_ENV,
-        SUPABASE_URL: process.env.SUPABASE_URL ? 'set' : 'missing', 
-        SUPABASE_KEY: process.env.SUPABASE_KEY ? 'set' : 'missing'
-    });
-    
-    console.log('Using strict container in all environments - dependencies must be properly configured');
-} catch (error) {
-    console.error('Error loading container:', error);
-    
-    // This is a critical error in all environments
-    throw new Error('Failed to load dependency container: ' + error.message);
-}
+import { container } from './config/container.js';
+const config = container.get('config');
+
+// Log application startup information
+console.log(`Running in ${process.env.NODE_ENV} mode`);
+console.log('Environment:', {
+    NODE_ENV: process.env.NODE_ENV,
+    SUPABASE_URL: process.env.SUPABASE_URL ? 'set' : 'missing', 
+    SUPABASE_KEY: process.env.SUPABASE_KEY ? 'set' : 'missing'
+});
 
 // Get dependencies from container
 import { logger } from './core/infra/logging/logger.js';
@@ -44,15 +29,15 @@ import {
   errorLogger,
   correlationIdMiddleware,
 } from './core/infra/logging/logger.js';
+// eslint-disable-next-line import/no-unresolved
 import { errorHandler, notFoundHandler } from './core/infra/errors/ErrorHandler.js';
 import { responseFormatterMiddleware } from './core/infra/http/responseFormatter.js';
 import RouteFactory from './core/infra/http/routes/RouteFactory.js';
 
-// Import domain events system
-import { eventBus as _eventBus, EventTypes as _EventTypes } from './core/common/events/domainEvents.js';
+// Import domain events system - now used directly in event handling registration
+import { registerEventHandlers } from './application/EventHandlers.js';
 
 // Register application event handlers (moved from inline to a separate file)
-import { registerEventHandlers } from './application/EventHandlers.js';
 registerEventHandlers(container);
 
 // Register domain event handlers (moved to a separate file)
@@ -67,16 +52,38 @@ const app = express();
 
 // Basic middleware
 app.use(cors({
-  origin: '*',  // Allow all origins in development mode
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['X-Request-Id', 'X-Response-Time'],
-  credentials: true,
-  maxAge: 86400 // 24 hours
+  origin: config.isProduction 
+    ? (origin, callback) => {
+        // In production, allow only whitelisted origins
+        if (!origin || (Array.isArray(config.cors.allowedOrigins) && config.cors.allowedOrigins.includes(origin))) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      }
+    : config.cors.allowedOrigins, // In development, use the value from config (defaults to '*')
+  methods: config.cors.methods,
+  allowedHeaders: config.cors.allowedHeaders,
+  exposedHeaders: config.cors.exposedHeaders,
+  credentials: config.cors.credentials,
+  maxAge: config.cors.maxAge
 }));
 
 // Handle OPTIONS requests for CORS preflight
-app.options('*', cors());
+app.options('*', cors(config.isProduction 
+  ? {
+      origin: (origin, callback) => {
+        if (!origin || (Array.isArray(config.cors.allowedOrigins) && config.cors.allowedOrigins.includes(origin))) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      }
+    }
+  : {
+      origin: config.cors.allowedOrigins
+    }
+));
 
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
@@ -95,7 +102,7 @@ app.use(correlationIdMiddleware);
 app.use(requestLogger);
 
 // Initialize Swagger
-try {
+function initializeSwagger() {
   // For development mode, use a simple static Swagger UI without depending on JSDoc
   if (config.isDevelopment) {
     // Create a minimal OpenAPI document
@@ -285,48 +292,22 @@ try {
     );
     logger.info(`API documentation available at ${config.fullDocsUrl}`);
   }
+}
+
+try {
+  initializeSwagger();
 } catch (error) {
-  logger.warn(`Failed to initialize Swagger UI: ${error.message}`);
-  console.error('Swagger initialization error:', error);
+  logger.error(`Failed to initialize Swagger UI: ${error.message}`, { 
+    error: error.message,
+    stack: error.stack 
+  });
   
-  // Create a simple documentation page instead
+  // Create a minimal error route instead of complex HTML
   app.use(config.api.docsPath, (req, res) => {
-    res.send(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>API Documentation</title>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <style>
-            body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; }
-            h1 { color: #333; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-            .error { color: #bf1650; background: #ffeff1; padding: 10px; border-radius: 4px; margin: 20px 0; }
-            .message { margin: 20px 0; padding: 10px; background: #f9f9f9; border-radius: 4px; }
-            .note { background: #fffde7; padding: 10px; border-radius: 4px; margin: 20px 0; border-left: 4px solid #ffeb3b; }
-            code { background: #f5f5f5; padding: 2px 4px; border-radius: 3px; font-family: monospace; }
-            .stack { font-family: monospace; white-space: pre-wrap; font-size: 12px; background: #f5f5f5; padding: 10px; overflow: auto; max-height: 300px; }
-          </style>
-        </head>
-        <body>
-          <h1>API Documentation</h1>
-          <p class="message">Swagger UI initialization failed. The API documentation will be available in production.</p>
-          <div class="error">
-            <strong>Error:</strong> ${error.message}
-          </div>
-          <div class="stack">
-            ${error.stack || 'No stack trace available'}
-          </div>
-          <p class="note">
-            <strong>Note:</strong> If you're running in development mode, make sure all required Swagger definition properties are properly initialized.
-            Check the <code>src/config/swagger.js</code> file and ensure it's correctly configured.
-          </p>
-          <p>
-            <strong>Available API endpoints:</strong> Check the <code>${config.api.prefix}</code> path for API endpoints.
-          </p>
-        </body>
-      </html>
-    `);
+    res.status(500).json({
+      error: 'API Documentation Unavailable',
+      message: 'Swagger UI failed to initialize. Please check server logs.'
+    });
   });
 }
 
@@ -358,35 +339,55 @@ registerAllDomainEventHandlers();
 // Initialize route factory
 const routeFactory = new RouteFactory(container);
 
-// Mount all routes using the route factory - this is now async
-(async () => {
-  try {
-    await routeFactory.mountAll(app, config.api.prefix);
-    logger.info(`Routes mounted successfully at ${config.api.prefix}`);
+// Mount all routes and finalize application setup
+async function mountRoutesAndFinalize() {
+  // Ensure API prefix routes are mounted at root level as well
+  app.use('/api', (req, res, next) => {
+    // Redirect to versioned API
+    if (req.path === '/' || req.path === '') {
+      return res.redirect(`${config.api.prefix}/health`);
+    }
     
-    // Handle 404 errors - moved inside to ensure routes are mounted first
-    app.use(notFoundHandler);
+    // For docs, redirect to the docs path
+    if (req.path === '/docs') {
+      return res.redirect(config.api.docsPath);
+    }
     
-    // Global error logging and handling
-    app.use(errorLogger);
-    app.use(errorHandler);
-    
-    logger.info('Application initialized successfully');
-  } catch (error) {
-    logger.error(`Failed to mount routes: ${error.message}`, { error });
-    
-    // Add fallback error handler
-    app.use((req, res) => {
-      res.status(500).json({
-        error: 'Application initialization failed',
-        message: 'The server encountered an error during startup'
-      });
-    });
-  }
-})().catch(error => {
+    // Otherwise pass through to the next handler (which will likely be 404)
+    next();
+  });
+
+  // Make sure required tester static resources exist
+  app.use('/tester', express.static(path.join(__dirname, '../public/tester')));
+  logger.info('Tester UI static files mounted at /tester');
+  
+  // Mount the actual API routes
+  await routeFactory.mountAll(app, config.api.prefix);
+  logger.info(`Routes mounted successfully at ${config.api.prefix}`);
+  
+  // Handle 404 errors - moved inside to ensure routes are mounted first
+  app.use(notFoundHandler);
+  
+  // Global error logging and handling
+  app.use(errorLogger);
+  app.use(errorHandler);
+  
+  logger.info('Application initialized successfully');
+}
+
+// Initialize routes and handle any errors
+mountRoutesAndFinalize().catch(error => {
   logger.error(`Critical error during application initialization: ${error.message}`, { 
     error,
     stack: error.stack 
+  });
+  
+  // Add critical failure handler
+  app.use((req, res) => {
+    res.status(500).json({
+      error: 'Application initialization failed',
+      message: 'The server encountered an error during startup'
+    });
   });
 });
 

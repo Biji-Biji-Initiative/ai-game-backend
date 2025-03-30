@@ -1,7 +1,6 @@
 import { createErrorMapper, withServiceErrorHandling } from "../../infra/errors/errorStandardization.js";
-import { UserJourneyError, UserJourneyNotFoundError, UserJourneyValidationError, UserJourneyProcessingError } from "../errors/UserJourneyErrors.js";
+import { UserJourneyError, UserJourneyNotFoundError, UserJourneyValidationError, UserJourneyProcessingError } from "../errors/userJourneyErrors.js";
 import { logger } from "../../infra/logging/logger.js";
-import { v4 as uuidv4 } from "uuid";
 import { userJourneyLogger } from "../../infra/logging/domainLogger.js";
 'use strict';
 // Create an error mapper for services
@@ -11,9 +10,7 @@ const userJourneyErrorMapper = createErrorMapper({
   UserJourneyProcessingError: UserJourneyProcessingError,
   Error: UserJourneyError
 }, UserJourneyError);
-const {
-  _userJourneyLogger
-} = userJourneyLogger;
+
 /**
  * User journey phases and constants
  */
@@ -289,8 +286,6 @@ class UserJourneyService {
     const scores = sortedEvents.map(event => event.data?.score).filter(Boolean);
     const averageScore = scores.length > 0 ? scores.reduce((sum, score) => sum + score, 0) / scores.length : 0;
     // Calculate streak days
-    const uniqueDays = new Set();
-    const streakDays = 0;
     // Sort by date ascending for streak calculation
     const datesSorted = [...challengeEvents].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)).map(event => {
       const date = new Date(event.timestamp);

@@ -5,8 +5,8 @@
  * extends BaseRepository and follows the project's architectural patterns.
  */
 
-import { ChallengeRepository } from '../../challenge/repositories/ChallengeRepository.js';
-import { withRepositoryErrorHandling, createErrorMapper } from '../../infra/errors/errorStandardization.js';
+import ChallengeRepository from '../../challenge/repositories/challengeRepository.js';
+import { createErrorMapper } from '../../infra/errors/errorStandardization.js';
 import challengeErrors from '../errors/ChallengeErrors.js';
 
 const { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeRepositoryError } = challengeErrors;
@@ -25,8 +25,8 @@ class ChallengeRepositoryWrapper extends ChallengeRepository {
         // Call parent constructor
         super(options);
         
-        // Create error mapper for consistent error mapping
-        const errorMapper = createErrorMapper({
+        // Create error mapper for consistent error mapping (used by parent class)
+        createErrorMapper({
             EntityNotFoundError: ChallengeNotFoundError,
             ValidationError: ChallengeValidationError,
             DatabaseError: ChallengeRepositoryError
@@ -34,9 +34,6 @@ class ChallengeRepositoryWrapper extends ChallengeRepository {
         
         // Make sure initialization flag is set
         this._initialized = true;
-        
-        // Add consistent error handling to any additional methods
-        // that might be added in the future
     }
     
     /**
@@ -48,8 +45,16 @@ class ChallengeRepositoryWrapper extends ChallengeRepository {
     }
 }
 
-// Create singleton instance
-const challengeRepositoryWrapper = new ChallengeRepositoryWrapper();
+// Use lazy initialization for the singleton
+let _instance = null;
+function getWrapperInstance() {
+    if (!_instance) {
+        _instance = new ChallengeRepositoryWrapper();
+    }
+    return _instance;
+}
 
-export { ChallengeRepositoryWrapper, challengeRepositoryWrapper };
+// Export the singleton getter and the class
+export const challengeRepositoryWrapper = getWrapperInstance();
+export { ChallengeRepositoryWrapper };
 export default challengeRepositoryWrapper; 

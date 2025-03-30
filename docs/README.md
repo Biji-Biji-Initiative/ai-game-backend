@@ -79,6 +79,9 @@ Welcome to the backend documentation. This directory contains detailed informati
 - [Error Handling](./architecture/error-handling.md) - Standard error handling practices
 - [Authentication](./architecture/authentication.md) - Authentication implementation details
 - [Authorization](./architecture/authorization.md) - Authorization model and implementation
+- [Security](./architecture/security.md) - Security architecture and best practices
+- [Dependency Injection](./architecture/dependency-injection.md) - DI approach and best practices
+- [Value Objects](./architecture/value-objects.md) - Value Objects and standardized patterns
 - [Data Model](./architecture/data-model.md) - Database schema and relationships
 
 ### Domain Documentation

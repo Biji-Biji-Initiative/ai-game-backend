@@ -1,5 +1,5 @@
 import { logger } from "../../infra/logging/logger.js";
-import { UserJourneyError, UserJourneyNotFoundError, UserJourneyValidationError, UserJourneyProcessingError } from "../errors/UserJourneyErrors.js";
+import { UserJourneyError, UserJourneyNotFoundError, UserJourneyValidationError, UserJourneyProcessingError } from "../errors/userJourneyErrors.js";
 import { UserJourneyDTOMapper } from "../dtos/UserJourneyDTO.js";
 import AppError from '../../infra/errors/AppError.js';
 import { withControllerErrorHandling } from "../../infra/errors/errorStandardization.js";
@@ -103,7 +103,12 @@ class UserJourneyController {
       throw new AppError('User not found', 404);
     }
     // Record the event
-    const event = await this.userJourneyCoordinator.recordUserEvent(params.userEmail, params.eventType, params.eventData || {}, params.challengeId);
+    const event = await this.userJourneyCoordinator.recordUserEvent(
+      params.userEmail, 
+      params.eventType, 
+      params.eventData || {}, 
+      params.challengeId
+    );
     // Convert to DTO
     const eventDto = UserJourneyDTOMapper.toDTO(event);
     return res.status(201).json({

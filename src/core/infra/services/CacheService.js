@@ -151,7 +151,7 @@ class CacheService {
         if (typeof value === 'string' && (value.startsWith('{') || value.startsWith('['))) {
           try {
             return JSON.parse(value);
-          } catch (e) {
+          } catch {
             return value;
           }
         }
@@ -332,7 +332,9 @@ class CacheService {
   getMetrics() {
     return {
       ...this.metrics,
-      hitRatio: this.metrics.hits + this.metrics.misses > 0 ? this.metrics.hits / (this.metrics.hits + this.metrics.misses) : 0,
+      hitRatio: this.metrics.hits + this.metrics.misses > 0 
+        ? this.metrics.hits / (this.metrics.hits + this.metrics.misses) 
+        : 0,
       timestamp: new Date().toISOString()
     };
   }

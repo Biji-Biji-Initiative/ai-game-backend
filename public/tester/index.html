@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Tester</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        a {
+            color: #0366d6;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .card {
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 16px;
+            margin: 16px 0;
+        }
+        button {
+            background-color: #0366d6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0255b8;
+        }
+    </style>
+</head>
+<body>
+    <h1>API Tester UI</h1>
+    <p>This simple UI allows you to test the API endpoints.</p>
+    
+    <div class="card">
+        <h2>Health Check</h2>
+        <button onclick="checkHealth()">Test Health Endpoint</button>
+        <div id="healthResult"></div>
+    </div>
+    
+    <div class="card">
+        <h2>API Documentation</h2>
+        <p>Access the full API documentation:</p>
+        <a href="/api/docs" target="_blank">Open API Docs</a>
+    </div>
+
+    <script>
+        async function checkHealth() {
+            const resultDiv = document.getElementById('healthResult');
+            resultDiv.innerHTML = "Loading...";
+            
+            try {
+                const response = await fetch('/api/v1/health');
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p style="color: red">Error: ${error.message}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html> 
