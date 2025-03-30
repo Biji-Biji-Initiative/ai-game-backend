@@ -2,6 +2,7 @@ import domainEvents from "../../common/events/domainEvents.js";
 import { userSchema } from "../../user/schemas/userSchema.js";
 import { Email, FocusArea } from "../../common/valueObjects/index.js";
 import { UserValidationError, UserInvalidStateError } from "../../user/errors/UserErrors.js";
+import { v4 as uuidv4 } from "uuid";
 'use strict';
 /**
  * User domain model
@@ -424,6 +425,15 @@ class User {
     updateActivity() {
         this.lastActive = new Date().toISOString();
         this.updatedAt = this.lastActive;
+        
+        // Record domain event for activity update
+        if (this.id) {
+            this.addDomainEvent(EventTypes.USER_ACTIVITY_UPDATED, {
+                userId: this.id,
+                timestamp: this.lastActive
+            });
+        }
+        
         return this;
     }
     /**
@@ -497,6 +507,11 @@ class User {
      * @throws {UserValidationError} If data is invalid
      */
     static fromDatabase(data) {
+        // This static factory method should be moved to a dedicated UserFactory class
+        // to better separate concerns according to DDD principles.
+        // For backward compatibility, we're keeping this method with a deprecation warning.
+        console.warn('DEPRECATION WARNING: User.fromDatabase() is deprecated. Use UserFactory.createFromDatabase() instead.');
+        
         if (!data) {
             throw new UserValidationError('Database data is required to create User instance');
         }

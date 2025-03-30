@@ -102,12 +102,13 @@ Move the existing API code into the packages/api directory and preserve the ESM 
 - ESM JavaScript structure preserved
 - Package.json configured with "type": "module"
 - Import paths updated for ESM compatibility
-- DDD architecture properly maintained
+- DDD architecture properly maintained with flattened directory structure
+- Repository interfaces properly placed in domain/ports directory
 - API starts successfully in the new structure
 
 **Implementation Details:**
 1. Create packages/api/package.json with appropriate dependencies and "type": "module"
-2. Move source code to packages/api/src/ maintaining the DDD structure
+2. Move source code to packages/api/src/ maintaining the DDD structure, but flatten from core/domain to domain
 3. Update all import paths for ESM compatibility:
    ```javascript
    // Before (may vary based on current structure)
@@ -118,13 +119,31 @@ Move the existing API code into the packages/api directory and preserve the ESM 
    // or for package dependencies
    import { someUtil } from '@ai-fight-club/shared';
    ```
-4. Ensure core DDD directories are preserved:
-   - core/domain/ (entities, value objects, aggregates)
-   - core/application/ (use cases, application services)
-   - core/services/ (domain services)
-   - infrastructure/ (repositories, external services)
+4. Ensure core DDD directories are preserved and properly structured:
+   - domain/ (entities, value objects, aggregates)
+     - entities/
+     - valueObjects/
+     - services/ (domain services)
+     - ports/
+       - repositories/ (repository interfaces)
+   - application/ (use cases, application services)
+   - infrastructure/ (external services, DI container)
+     - di/ (dependency injection setup)
    - interfaces/ (controllers, adapters)
-5. Test API startup and functionality
+5. Ensure proper placement of repository interfaces:
+   ```javascript
+   // packages/api/src/domain/ports/repositories/UserRepository.js
+   export class UserRepository {
+     /**
+      * @param {string} id 
+      * @returns {Promise<User>}
+      */
+     findById(id) { throw new Error('Method not implemented') }
+     
+     // Other methods...
+   }
+   ```
+6. Test API startup and functionality
 
 **Potential Challenges:**
 - ESM requires explicit file extensions (.js)
@@ -257,14 +276,17 @@ Extract database functionality into a separate package for better separation of 
 - Repository implementations created for data access
 - Database models created
 - Migration and seeding scripts set up
+- Repository implementations depend on interfaces from API package
 - API successfully uses the database package
 
 **Implementation Details:**
 1. Create packages/database/package.json with dependencies and "type": "module"
 2. Move Supabase integration code to packages/database/src/
-3. Implement repository pattern for each entity:
+3. Implement repository pattern that depends on interfaces from API package:
    ```javascript
    // packages/database/src/repositories/userRepository.js
+   import { UserRepository } from '@ai-fight-club/api/src/domain/ports/repositories/UserRepository.js';
+   
    export function createUserRepository(supabaseClient) {
      return {
        async findById(id) {
@@ -275,20 +297,35 @@ Extract database functionality into a separate package for better separation of 
            .single();
            
          if (error) throw error;
-         return data;
+         return mapToUserDomain(data); // Convert DB record to domain entity
        },
        // Other methods...
      };
    }
    ```
 4. Create database models
-5. Set up migration and seeding scripts
-6. Test API integration with the database package
+5. Create mappers to transform DB records to domain entities:
+   ```javascript
+   // packages/database/src/mappers/userMapper.js
+   import { User } from '@ai-fight-club/api/src/domain/entities/User.js';
+   import { Email } from '@ai-fight-club/api/src/domain/valueObjects/Email.js';
+
+   export function mapToUserDomain(dbRecord) {
+     return new User(
+       dbRecord.id,
+       new Email(dbRecord.email),
+       dbRecord.name
+     );
+   }
+   ```
+6. Set up migration and seeding scripts
+7. Test API integration with the database package
 
 **Potential Challenges:**
 - Maintaining ESM compatibility
 - Proper error handling across package boundaries
 - Ensuring domain models can be properly constructed from repository data
+- Keeping domain logic out of database package
 
 ### MONO-008: Implement database versioning and migrations
 
@@ -467,19 +504,25 @@ Establish a robust process for deploying to different environments with proper s
 - Monitoring and alerting set up
 - Rollback mechanisms created
 - Infrastructure-as-code implemented
+- Clear versioning strategy established
 - Deployment process is documented
 
 **Implementation Details:**
-1. Configure environment-specific settings
-2. Implement canary deployment process:
+1. Start with simple versioning strategy:
+   - Use conventional commits for version determination
+   - Use Git tags for versioning the entire repo
+   - Delay implementation of Lerna/Changesets until truly needed
+   - Document the versioning strategy
+2. Configure environment-specific settings
+3. Implement canary deployment process:
    ```yaml
    - name: Deploy canary
      run: npm run deploy:canary
    ```
-3. Set up monitoring and alerting
-4. Create automated rollback triggers
-5. Implement infrastructure using Terraform or similar
-6. Document the deployment process
+4. Set up monitoring and alerting
+5. Create automated rollback triggers
+6. Implement infrastructure using Terraform or similar
+7. Document the deployment process
 
 **Potential Challenges:**
 - Environment-specific configurations
@@ -617,4 +660,253 @@ Ensure the team is comfortable with the new monorepo structure and development w
 - Resistance to workflow changes
 - Time constraints for training
 
-## Total Estimated Effort: 19 days (3-4 weeks with buffer) 
+## Additional Architecture Tickets
+
+### ARCH-101: Implement Architectural Dependency Linting
+
+**Description:**  
+Enforce clean architecture boundaries using dependency linting tools to prevent accidental cross-layer violations.
+
+**Priority:** Medium  
+**Estimated Effort:** 0.5 days
+
+**Acceptance Criteria:**
+- Architectural rules defined for each package
+- Rules enforce that domain doesn't depend on infrastructure
+- Tool like dependency-cruiser configured to enforce boundaries
+- CI pipeline includes architectural validation
+- Developer documentation on architecture boundaries
+
+**Implementation Details:**
+1. Install dependency-cruiser:
+   ```bash
+   npm install dependency-cruiser --save-dev
+   ```
+2. Create configuration file (.dependency-cruiser.js):
+   ```javascript
+   module.exports = {
+     forbidden: [
+       {
+         name: 'no-domain-to-infrastructure',
+         comment: 'Domain layer must not depend on infrastructure',
+         severity: 'error',
+         from: { path: '^packages/api/src/domain/' },
+         to: { path: '^packages/api/src/infrastructure/' }
+       },
+       {
+         name: 'no-application-to-database',
+         comment: 'Application layer must not depend directly on database',
+         severity: 'error',
+         from: { path: '^packages/api/src/application/' },
+         to: { path: '^packages/database/' }
+       },
+       {
+         name: 'shared-cannot-import-other-packages',
+         comment: 'Shared package must be self-contained',
+         severity: 'error',
+         from: { path: '^packages/shared/' },
+         to: { path: '^packages/(api|database|ui-tester)/' }
+       }
+     ]
+   };
+   ```
+3. Add to CI pipeline:
+   ```yaml
+   - name: Check architecture dependencies
+     run: npx depcruise --validate .dependency-cruiser.js packages
+   ```
+4. Add to package.json scripts:
+   ```json
+   "arch:check": "depcruise --validate .dependency-cruiser.js packages"
+   ```
+5. Document architectural rules in README.md
+
+**Potential Challenges:**
+- Balancing strictness with flexibility for special cases
+- False positives in complex dependency graphs
+- Initial setup overhead with existing codebase
+
+### TEST-101: Implement Contract Testing
+
+**Description:**  
+Set up contract testing between API providers and consumers to ensure compatible interfaces.
+
+**Priority:** Medium  
+**Estimated Effort:** 1 day
+
+**Acceptance Criteria:**
+- Contract testing tool selected (e.g., Pact, OpenAPI)
+- Contracts defined for key API endpoints
+- Tests verify API/consumer compatibility
+- Contract tests run in CI pipeline
+- Process documented for adding new contracts
+
+**Implementation Details:**
+1. Select and install appropriate tool (e.g., Pact):
+   ```bash
+   npm install @pact-foundation/pact --save-dev
+   ```
+2. Define contracts for main API endpoints:
+   ```javascript
+   // packages/api/tests/contracts/userContract.js
+   import { Pact } from '@pact-foundation/pact';
+   
+   // Define API provider contract
+   const provider = new Pact({
+     consumer: 'ui-tester',
+     provider: 'api',
+     port: 1234,
+     log: './logs/pact.log',
+     dir: './pacts'
+   });
+   
+   // Define interactions...
+   ```
+3. Implement consumer tests in ui-tester package
+4. Configure CI to run contract tests:
+   ```yaml
+   - name: Run contract tests
+     run: npm run test:contracts
+   ```
+5. Add script to validate contracts:
+   ```json
+   "test:contracts": "pact-provider-verifier ./pacts/*.json"
+   ```
+6. Document contract testing workflow
+
+**Potential Challenges:**
+- Learning curve for contract testing concepts
+- Maintaining contracts as API evolves
+- Handling dynamic API responses
+- Integration with existing test workflow
+
+### CONFIG-101: Define Configuration Strategy
+
+**Description:**  
+Establish a unified approach to configuration management across packages.
+
+**Priority:** High  
+**Estimated Effort:** 0.5 days
+
+**Acceptance Criteria:**
+- Decision on per-package vs. root .env files
+- Environment-specific configs (.env.development, .env.production)
+- Configuration validation with schema
+- Documentation on configuration management
+- Secrets management strategy defined
+
+**Implementation Details:**
+1. Document config approach (per-package with shared defaults):
+   ```
+   /
+   ├── .env                   # Shared default values
+   ├── .env.development       # Development overrides
+   ├── .env.production        # Production overrides
+   └── packages/
+       ├── api/
+       │   └── .env           # API-specific environment variables
+       └── database/
+           └── .env           # Database-specific environment variables
+   ```
+2. Set up dotenv with environment-specific files:
+   ```javascript
+   // packages/api/src/config.js
+   import dotenv from 'dotenv';
+   import { z } from 'zod';
+   import path from 'path';
+   
+   // Load environment variables
+   dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+   dotenv.config({ path: path.resolve(process.cwd(), `.env.${process.env.NODE_ENV || 'development'}`) });
+   dotenv.config({ path: path.resolve(process.cwd(), 'packages/api/.env') });
+   ```
+3. Implement config validation with zod:
+   ```javascript
+   const configSchema = z.object({
+     PORT: z.string().transform(val => parseInt(val, 10)),
+     DATABASE_URL: z.string().url(),
+     // other config values...
+   });
+   
+   export const config = configSchema.parse(process.env);
+   ```
+4. Establish secret management process
+5. Create example configs and documentation
+
+**Potential Challenges:**
+- Balancing flexibility with consistency
+- Handling secrets securely
+- Configuration inheritance and overrides
+- Validation across multiple packages
+
+### DX-101: Configure Path Aliases
+
+**Description:**  
+Improve developer experience with path aliases for cleaner imports.
+
+**Priority:** Low  
+**Estimated Effort:** 0.5 days
+
+**Acceptance Criteria:**
+- Path aliases configured in TypeScript packages
+- ESM path aliases set up for JavaScript packages
+- Jest configured to understand aliases
+- ESLint understands aliases
+- Documentation on using path aliases
+
+**Implementation Details:**
+1. Configure TypeScript path aliases in tsconfig.json:
+   ```json
+   {
+     "compilerOptions": {
+       "paths": {
+         "@domain/*": ["src/domain/*"],
+         "@app/*": ["src/application/*"],
+         "@infra/*": ["src/infrastructure/*"],
+         "@interfaces/*": ["src/interfaces/*"]
+       }
+     }
+   }
+   ```
+2. Set up ESM package imports for JavaScript:
+   ```javascript
+   // packages/api/package.json
+   {
+     "imports": {
+       "#domain/*": "./src/domain/*.js",
+       "#app/*": "./src/application/*.js",
+       "#infra/*": "./src/infrastructure/*.js"
+     }
+   }
+   ```
+3. Configure Jest moduleNameMapper:
+   ```javascript
+   moduleNameMapper: {
+     '^@domain/(.*)$': '<rootDir>/src/domain/$1',
+     '^@app/(.*)$': '<rootDir>/src/application/$1'
+   }
+   ```
+4. Update ESLint settings:
+   ```javascript
+   settings: {
+     'import/resolver': {
+       typescript: {},
+       alias: {
+         map: [
+           ['@domain', './src/domain'],
+           ['@app', './src/application']
+         ],
+         extensions: ['.js', '.ts']
+       }
+     }
+   }
+   ```
+5. Document usage in README.md
+
+**Potential Challenges:**
+- Different alias configurations between TypeScript and JavaScript
+- Tool compatibility with path aliases
+- Consistent usage across the team
+- Initial refactoring effort
+
+## Total Estimated Effort: 21 days (4-5 weeks with buffer) 

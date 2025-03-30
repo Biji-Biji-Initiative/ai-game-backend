@@ -1,7 +1,9 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
 import sinon from "sinon";
 import ChallengeEvaluationService from "../../../../src/core/challenge/services/challengeEvaluationService.js";
 import { MissingParameterError } from "../../../../src/core/infra/errors/MissingParameterError.js";
+import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError, ChallengeRepositoryError, ChallengeGenerationError } from "../../../src/core/challenge/errors/ChallengeErrors.js";
 'use strict';
 /**
  * Unit Tests for ChallengeEvaluationService
@@ -101,7 +103,7 @@ describe('ChallengeEvaluationService', () => {
                 await challengeEvaluationService.evaluateResponses(null, testResponses);
                 expect.fail('Should have thrown an error');
             }
-            catch (error) {
+            catch (ChallengeError) {
                 expect(error.message).to.include('Challenge is required');
             }
         });
@@ -110,7 +112,7 @@ describe('ChallengeEvaluationService', () => {
                 await challengeEvaluationService.evaluateResponses(testChallenge, []);
                 expect.fail('Should have thrown an error');
             }
-            catch (error) {
+            catch (ChallengeError) {
                 expect(error.message).to.include('Responses are required');
             }
         });
@@ -119,7 +121,7 @@ describe('ChallengeEvaluationService', () => {
                 await challengeEvaluationService.evaluateResponses(testChallenge, testResponses, {});
                 expect.fail('Should have thrown an error');
             }
-            catch (error) {
+            catch (ChallengeError) {
                 expect(error.message).to.include('Thread ID or State ID is required');
             }
         });
@@ -205,7 +207,7 @@ describe('ChallengeEvaluationService', () => {
                 await challengeEvaluationService.streamEvaluation(null, testResponses, testCallbacks);
                 expect.fail('Should have thrown an error');
             }
-            catch (error) {
+            catch (ChallengeError) {
                 expect(error.message).to.include('Challenge is required');
             }
         });
@@ -214,7 +216,7 @@ describe('ChallengeEvaluationService', () => {
                 await challengeEvaluationService.streamEvaluation(testChallenge, [], testCallbacks);
                 expect.fail('Should have thrown an error');
             }
-            catch (error) {
+            catch (ChallengeError) {
                 expect(error.message).to.include('Responses are required');
             }
         });
@@ -223,7 +225,7 @@ describe('ChallengeEvaluationService', () => {
                 await challengeEvaluationService.streamEvaluation(testChallenge, testResponses, {});
                 expect.fail('Should have thrown an error');
             }
-            catch (error) {
+            catch (ChallengeError) {
                 expect(error.message).to.include('onChunk callback is required');
             }
         });
@@ -232,7 +234,7 @@ describe('ChallengeEvaluationService', () => {
                 await challengeEvaluationService.streamEvaluation(testChallenge, testResponses, testCallbacks, {});
                 expect.fail('Should have thrown an error');
             }
-            catch (error) {
+            catch (ChallengeError) {
                 expect(error.message).to.include('Thread ID or State ID is required');
             }
         });

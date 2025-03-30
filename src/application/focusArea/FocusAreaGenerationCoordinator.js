@@ -1,5 +1,10 @@
 import BaseCoordinator from "@/application/BaseCoordinator.js";
 import { FocusAreaError } from "../../core/focusArea/errors/focusAreaErrors.js";
+import { 
+    UserId, 
+    createUserId,
+    ensureVO 
+} from "../../core/common/valueObjects/index.js";
 'use strict';
 /**
  * FocusAreaGenerationCoordinator class
@@ -108,28 +113,36 @@ class FocusAreaGenerationCoordinator extends BaseCoordinator {
      * Creates a new thread in the focus area service and updates the user record with
      * the thread ID for future interactions. This setup is required before generation.
      *
-     * @param {string} userId - User ID for whom to create the thread.
+     * @param {string|UserId} userId - User ID or UserId value object for whom to create the thread.
      * @returns {Promise<string>} Thread ID that can be used for focus area generation.
      * @throws {FocusAreaError} If thread creation fails or user update fails critically.
      */
     createFocusAreaThread(userId) {
         return this.executeOperation(async () => {
+            // Convert to value object if needed
+            const userIdVO = ensureVO(userId, UserId, createUserId);
+            if (!userIdVO) {
+                throw new FocusAreaError(`Invalid user ID: ${userId}`, 400);
+            }
+            
             // Use thread service to create thread
-            const threadId = await this.focusAreaThreadService.createThread(userId);
+            const threadId = await this.focusAreaThreadService.createThread(userIdVO.value);
             try {
                 // Try to update user record with the new thread ID using userService instead of repository
-                await this.userService.updateUser(userId, { focus_area_thread_id: threadId });
+                await this.userService.updateUser(userIdVO, { focus_area_thread_id: threadId });
             }
             catch (updateError) {
                 // Log the error but continue, since we already have the thread ID
                 this.logger.warn('Could not update user record with thread ID', {
-                    userId,
+                    userId: userIdVO.value,
                     threadId,
                     error: updateError.message,
                 });
             }
             return threadId;
-        }, 'createFocusAreaThread', { userId }, FocusAreaError);
+        }, 'createFocusAreaThread', { 
+            userId: userId instanceof UserId ? userId.value : userId 
+        }, FocusAreaError);
     }
     /**
      * Regenerate focus areas for a user.
@@ -142,35 +155,50 @@ class FocusAreaGenerationCoordinator extends BaseCoordinator {
      * 5. Generating new focus areas based on current data
      * 6. Persisting the new focus areas
      *
-     * @param {string} userId - User ID for whom to regenerate focus areas.
+     * @param {string|UserId} userId - User ID or UserId value object for whom to regenerate focus areas.
      * @returns {Promise<Array>} Newly generated and persisted focus area objects.
      * @throws {FocusAreaError} If any step in the regeneration process fails.
      */
     regenerateFocusAreas(userId) {
         return this.executeOperation(async () => {
-            // Get user data using userService instead of repository
-            const userData = await this.userService.getUserById(userId);
-            if (!userData) {
-                throw new FocusAreaError(`User with ID ${userId} not found`, 404);
+            // Convert to value object if needed
+            const userIdVO = ensureVO(userId, UserId, createUserId);
+            if (!userIdVO) {
+                throw new FocusAreaError(`Invalid user ID: ${userId}`, 400);
             }
+            
+            // Get user data using userService instead of repository
+            const userData = await this.userService.getUserById(userIdVO);
+            if (!userData) {
+                throw new FocusAreaError(`User with ID ${userIdVO.value} not found`, 404);
+            }
+            
             // Get challenge history using challengeService instead of repository
-            const challengeHistory = await this.challengeService.getUserChallengeHistory(userId);
+            const challengeHistory = await this.challengeService.getUserChallengeHistory(userIdVO);
+            
             // Get user progress data using progressService instead of repository
-            const progressData = await this.progressService.getUserProgress(userId);
+            const progressData = await this.progressService.getUserProgress(userIdVO);
+            
             // Delete existing focus areas to start fresh using focusAreaService
-            await this.focusAreaService.deleteAllForUser(userId);
+            await this.focusAreaService.deleteAllForUser(userIdVO.value);
+            
             // Ensure user has a conversation thread for focus area generation
             if (!userData.focus_area_thread_id) {
                 // Create a new thread for the user
-                const threadId = await this.createFocusAreaThread(userId);
+                const threadId = await this.createFocusAreaThread(userIdVO);
                 userData.focus_area_thread_id = threadId;
             }
+            
             // Generate new focus areas with force refresh flag
             const generatedFocusAreas = await this.generateFocusAreasFromUserData(userData, challengeHistory || [], progressData || {}, { forceRefresh: true });
+            
             // Persist the generated focus areas to the database using focusAreaService
-            await this.focusAreaService.save(userId, generatedFocusAreas);
+            await this.focusAreaService.save(userIdVO, generatedFocusAreas);
+            
             return generatedFocusAreas;
-        }, 'regenerateFocusAreas', { userId }, FocusAreaError);
+        }, 'regenerateFocusAreas', { 
+            userId: userId instanceof UserId ? userId.value : userId 
+        }, FocusAreaError);
     }
 }
 export default FocusAreaGenerationCoordinator;

@@ -1,6 +1,7 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
-import openai from "@/infra/openai";
-import types from "@/infra/openai/types";
+import openai from '../../../../src/infra/openai.js';
+import types from '../../../../src/infra/openai/types.js';
 import { v4 as uuidv4 } from "uuid";
 import testEnv from "../../../loadEnv.js";
 import { skipIfMissingEnv } from "../../../helpers/testHelpers.js";
@@ -90,7 +91,7 @@ Include relevant learning objectives and keywords in your JSON response.`
 const TEST_TIMEOUT = 30000;
 describe('Challenge Generation Responses API Integration', function () {
     // Set longer timeout for API calls
-    this.timeout(30000);
+    jest.setTimeout(30000);
     before(function () {
         skipIfMissingEnv(this, 'openai');
     });

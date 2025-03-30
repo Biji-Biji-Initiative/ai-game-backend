@@ -21,10 +21,11 @@ const {
 class ChallengeTypeRepository {
   /**
    * Create a new ChallengeTypeRepository
-   * @param {Object} supabase - Supabase client
-   * @param {Object} logger - Logger instance
+   * @param {Object} options - Repository dependencies using object destructuring
+   * @param {Object} options.supabase - Supabase client for database operations
+   * @param {Object} options.logger - Logger instance for repository-specific logging
    */
-  constructor(supabase, logger) {
+  constructor({ supabase, logger } = {}) {
     this.supabase = supabase || supabaseClient;
     this.tableName = 'challenge_types';
     this.logger = logger || challengeLogger.child({

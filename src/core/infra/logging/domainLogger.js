@@ -16,6 +16,7 @@ const httpLogger = new Logger('infra:http');
 const dbLogger = new Logger('infra:db');
 const apiLogger = new Logger('infra:api');
 const eventsLogger = new Logger('infra:events');
+const systemLogger = new Logger('system');
 // Create application-level logger
 const appLogger = new Logger('app');
 export { userLogger };
@@ -32,6 +33,7 @@ export { httpLogger };
 export { dbLogger };
 export { apiLogger };
 export { eventsLogger };
+export { systemLogger };
 export { appLogger };
 export default {
     userLogger,
@@ -48,5 +50,6 @@ export default {
     dbLogger,
     apiLogger,
     eventsLogger,
+    systemLogger,
     appLogger
 };

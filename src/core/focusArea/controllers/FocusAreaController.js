@@ -1,6 +1,7 @@
 import { logger } from "../../infra/logging/logger.js";
 import { FocusAreaError, FocusAreaNotFoundError, FocusAreaGenerationError, FocusAreaValidationError } from "../../focusArea/errors/focusAreaErrors.js";
 import { withControllerErrorHandling } from "../../infra/errors/errorStandardization.js";
+import { Email, FocusArea, createEmail, createFocusArea } from "../../common/valueObjects/index.js";
 'use strict';
 /**
  * Focus Area Controller
@@ -104,8 +105,16 @@ class FocusAreaController {
     const {
       email
     } = req.params;
-    // Email validation is handled by middleware
-    const focusAreas = await this.focusAreaCoordinator.getFocusAreasForUser(email);
+    
+    // Create Email Value Object from primitive
+    const emailVO = createEmail(email);
+    if (!emailVO) {
+      throw new FocusAreaValidationError(`Invalid email format: ${email}`);
+    }
+    
+    // Pass Email Value Object to coordinator
+    const focusAreas = await this.focusAreaCoordinator.getFocusAreasForUser(emailVO);
+    
     return res.status(200).json({
       status: 'success',
       results: focusAreas.length,
@@ -127,8 +136,31 @@ class FocusAreaController {
     const {
       focusAreas
     } = req.body;
-    // Email and focusAreas validation handled by middleware
-    await this.focusAreaCoordinator.setFocusAreasForUser(email, focusAreas);
+    
+    // Create Email Value Object from primitive
+    const emailVO = createEmail(email);
+    if (!emailVO) {
+      throw new FocusAreaValidationError(`Invalid email format: ${email}`);
+    }
+    
+    // Convert focus areas to Value Objects if they're strings
+    const focusAreaVOs = Array.isArray(focusAreas) 
+      ? focusAreas.map(fa => {
+          if (typeof fa === 'string') {
+            const focusAreaVO = createFocusArea(fa);
+            if (!focusAreaVO) {
+              this.logger.warn(`Invalid focus area format: ${fa}, skipping`);
+              return null;
+            }
+            return focusAreaVO;
+          }
+          return fa; // If not a string, pass through as is
+        }).filter(Boolean)
+      : [];
+    
+    // Pass Value Objects to coordinator
+    await this.focusAreaCoordinator.setFocusAreasForUser(emailVO, focusAreaVOs);
+    
     return res.status(200).json({
       status: 'success',
       message: 'Focus areas updated successfully'
@@ -147,9 +179,19 @@ class FocusAreaController {
     const {
       limit
     } = req.query;
-    // Email and limit validation handled by middleware
+    
+    // Create Email Value Object from primitive
+    const emailVO = createEmail(email);
+    if (!emailVO) {
+      throw new FocusAreaValidationError(`Invalid email format: ${email}`);
+    }
+    
+    // Validate and parse limit
     const limitValue = limit ? parseInt(limit) : 3;
-    const recommendations = await this.focusAreaCoordinator.getRecommendedFocusAreas(email, limitValue);
+    
+    // Pass Email Value Object to coordinator
+    const recommendations = await this.focusAreaCoordinator.getRecommendedFocusAreas(emailVO, limitValue);
+    
     return res.status(200).json({
       status: 'success',
       results: recommendations.length,
@@ -171,13 +213,23 @@ class FocusAreaController {
       category,
       difficulty
     } = req.body;
+    
+    // Create FocusArea Value Object if possible
+    let focusAreaVO = null;
+    if (name) {
+      focusAreaVO = createFocusArea(name);
+      // Note: We don't validate here because a new focus area might not exist yet,
+      // and we want the domain service to handle the validation logic
+    }
+    
     // Input validation handled by middleware
     const focusArea = await this.focusAreaCoordinator.generateFocusArea({
-      name,
+      name: focusAreaVO ? focusAreaVO.value : name,
       description,
       category: category || 'general',
       difficulty: difficulty || 'intermediate'
     });
+    
     return res.status(201).json({
       status: 'success',
       data: {

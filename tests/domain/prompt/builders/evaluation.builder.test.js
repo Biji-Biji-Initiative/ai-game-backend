@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
 import sinon from "sinon";
 import proxyquire from "proxyquire";
@@ -53,7 +54,7 @@ const EvaluationPromptBuilder = proxyquire('../../../../src/core/prompt/builders
 });
 describe('Evaluation Prompt with Responses API Integration', () => {
     // Set longer timeout for API calls
-    this.timeout(30000);
+    jest.setTimeout(30000);
     beforeEach(() => {
         // Reset mock history
         sinon.resetHistory();

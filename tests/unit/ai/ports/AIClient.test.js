@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
 import AIClient from "../../../../src/core/ai/ports/AIClient.js";
 'use strict';

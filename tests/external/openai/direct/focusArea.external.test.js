@@ -1,6 +1,7 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
-import openai from "@/infra/openai";
-import types from "@/infra/openai/types";
+import openai from '../../../../src/infra/openai.js';
+import types from '../../../../src/infra/openai/types.js';
 import testEnv from "../../../loadEnv.js";
 import { skipIfMissingEnv } from "../../../helpers/testHelpers.js";
 import { config } from "dotenv";
@@ -12,7 +13,7 @@ describe('External: OpenAI Focus Area Integration', function () {
         skipIfMissingEnv(this, 'openai');
     });
     // Configure longer timeout for external API calls
-    this.timeout(30000);
+    jest.setTimeout(30000);
     let openAIClient;
     before(function () {
         // Skip tests if OpenAI API key is not available

@@ -1,225 +1,243 @@
-# User Domain API
+# User API Reference
 
-This document outlines the User domain API endpoints, request/response formats, and authentication requirements.
+This document provides details for the User API endpoints in the AI Gaming Backend.
 
-## Domain Responsibilities
+## Overview
 
-The User domain is responsible for:
-- User identity and authentication
-- User profile management
-- Focus area selection
-- User preferences and settings
-
-## Authentication
-
-All endpoints require authentication using a Bearer token:
-
-```
-Authorization: Bearer <token>
-```
-
-## Error Handling
-
-The API uses standard HTTP status codes and returns error responses in the following format:
-
-```json
-{
-  "status": "error",
-  "error": {
-    "message": "Error message",
-    "domain": "user",
-    "errorType": "ERROR_TYPE",
-    "requestId": "request-id"
-  }
-}
-```
+The User API allows you to manage user profiles, preferences, and settings. All endpoints require authentication unless otherwise specified.
 
 ## Endpoints
 
 ### Get Current User
 
-Get the currently authenticated user's profile.
+Retrieves the profile of the currently authenticated user.
 
-**URL:** `/api/users/me`
+```
+GET /api/users/me
+```
 
-**Method:** `GET`
+**Authentication Required:** Yes
 
 **Response:**
-
 ```json
 {
   "status": "success",
-  "message": "User profile retrieved successfully",
-  "statusCode": 200,
   "data": {
     "user": {
-      "id": "user-id",
+      "id": "user-123",
       "email": "user@example.com",
-      "name": "User Name",
-      "displayName": "Display Name",
-      "bio": "User bio",
-      "preferences": {
-        "theme": "dark",
-        "emailNotifications": true
-      },
-      "focusArea": "productivity",
-      "createdAt": "2023-01-01T00:00:00Z",
-      "updatedAt": "2023-01-01T00:00:00Z"
+      "fullName": "John Doe",
+      "professionalTitle": "Software Engineer",
+      "roles": ["user"],
+      "focusArea": "backend-development",
+      "profileComplete": true
     }
-  }
+  },
+  "message": "User profile retrieved successfully"
 }
 ```
 
 ### Update Current User
 
-Update the currently authenticated user's profile.
+Updates the profile of the currently authenticated user.
 
-**URL:** `/api/users/me`
+```
+PUT /api/users/me
+```
 
-**Method:** `PUT`
+**Authentication Required:** Yes
 
-**Body:**
-
+**Request Body:**
 ```json
 {
-  "name": "Updated Name",
-  "displayName": "New Display Name",
-  "bio": "Updated bio",
+  "fullName": "John Smith",
+  "professionalTitle": "Senior Developer",
   "preferences": {
     "theme": "dark",
-    "emailNotifications": false
+    "notifications": true
   }
 }
 ```
 
 **Response:**
-
 ```json
 {
   "status": "success",
-  "message": "User profile updated successfully",
-  "statusCode": 200,
   "data": {
     "user": {
-      "id": "user-id",
+      "id": "user-123",
       "email": "user@example.com",
-      "name": "Updated Name",
-      "displayName": "New Display Name",
-      "bio": "Updated bio",
+      "fullName": "John Smith",
+      "professionalTitle": "Senior Developer",
+      "roles": ["user"],
+      "focusArea": "backend-development",
       "preferences": {
         "theme": "dark",
-        "emailNotifications": false
+        "notifications": true
       },
-      "focusArea": "productivity",
-      "updatedAt": "2023-01-01T00:00:00Z"
+      "profileComplete": true
     }
-  }
+  },
+  "message": "User profile updated successfully"
 }
 ```
 
 ### Set Focus Area
 
-Set the focus area for the current user.
+Set the primary focus area for the user.
 
-**URL:** `/api/users/me/focus-area`
+```
+POST /api/users/focus-area
+```
 
-**Method:** `PUT`
+**Authentication Required:** Yes
 
-**Body:**
-
+**Request Body:**
 ```json
 {
-  "focusArea": "productivity"
+  "focusArea": "backend-development"
 }
 ```
 
 **Response:**
-
 ```json
 {
   "status": "success",
-  "message": "Focus area updated successfully",
-  "statusCode": 200,
   "data": {
     "user": {
-      "id": "user-id",
+      "id": "user-123",
       "email": "user@example.com",
-      "name": "User Name",
-      "focusArea": "productivity",
-      "updatedAt": "2023-01-01T00:00:00Z"
+      "fullName": "John Smith",
+      "focusArea": "backend-development",
+      "profileComplete": true
     }
-  }
+  },
+  "message": "Focus area updated successfully"
 }
 ```
 
-### Get User By ID (Admin only)
+### Get User by ID (Admin Only)
 
-Get a user by their ID. Requires admin privileges.
+Retrieves a user by their ID. This endpoint is restricted to administrators.
 
-**URL:** `/api/users/:id`
+```
+GET /api/users/:id
+```
 
-**Method:** `GET`
+**Authentication Required:** Yes (Admin role)
 
-**Parameters:**
-- `id`: User ID (UUID)
+**Path Parameters:**
+- `id` - The ID of the user to retrieve
 
 **Response:**
-
 ```json
 {
   "status": "success",
-  "message": "User retrieved successfully",
-  "statusCode": 200,
   "data": {
     "user": {
-      "id": "user-id",
+      "id": "user-123",
       "email": "user@example.com",
-      "name": "User Name",
-      "displayName": "Display Name",
-      "bio": "User bio",
-      "preferences": {
-        "theme": "dark",
-        "emailNotifications": true
-      },
-      "focusArea": "productivity",
-      "createdAt": "2023-01-01T00:00:00Z",
-      "updatedAt": "2023-01-01T00:00:00Z"
+      "fullName": "John Smith",
+      "professionalTitle": "Senior Developer",
+      "roles": ["user"],
+      "focusArea": "backend-development",
+      "createdAt": "2023-01-15T10:30:00Z",
+      "lastLogin": "2023-04-20T15:45:22Z"
     }
-  }
+  },
+  "message": "User retrieved successfully"
 }
 ```
 
-### List All Users (Admin only)
+### List All Users (Admin Only)
 
-List all users. Requires admin privileges.
+Retrieves a list of all users. This endpoint is restricted to administrators.
 
-**URL:** `/api/users`
+```
+GET /api/users
+```
 
-**Method:** `GET`
+**Authentication Required:** Yes (Admin role)
 
 **Response:**
-
 ```json
 {
   "status": "success",
-  "message": "Retrieved 2 users successfully",
-  "statusCode": 200,
   "data": {
     "users": [
       {
-        "id": "user-id-1",
+        "id": "user-123",
         "email": "user1@example.com",
-        "name": "User One",
-        "createdAt": "2023-01-01T00:00:00Z"
+        "fullName": "John Smith",
+        "roles": ["user"],
+        "focusArea": "backend-development"
       },
       {
-        "id": "user-id-2",
+        "id": "user-124",
         "email": "user2@example.com",
-        "name": "User Two",
-        "createdAt": "2023-01-01T00:00:00Z"
+        "fullName": "Jane Doe",
+        "roles": ["user", "admin"],
+        "focusArea": "frontend-development"
       }
     ]
-  }
+  },
+  "message": "Retrieved 2 users successfully"
+}
+```
+
+### Create User (Test Only)
+
+Creates a new user. This endpoint is for testing purposes only.
+
+```
+POST /api/users
+```
+
+**Authentication Required:** No
+
+**Request Body:**
+```json
+{
+  "email": "newuser@example.com",
+  "firstName": "New",
+  "lastName": "User",
+  "password": "password123"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "user": {
+      "id": "user-125",
+      "email": "newuser@example.com",
+      "fullName": "New User",
+      "roles": ["user"]
+    }
+  },
+  "message": "User created successfully"
+}
+```
+
+## Error Handling
+
+### Common User API Errors
+
+| Status Code | Error Message | Description |
+|-------------|---------------|-------------|
+| 400 | "Email is required" | Missing required email field |
+| 400 | "Focus area is required" | Missing focus area in request |
+| 404 | "User not found" | The requested user does not exist |
+| 403 | "Unauthorized access" | The user does not have permission for this action |
+
+### Example Error Response
+
+```json
+{
+  "status": "error",
+  "message": "User not found"
 }
 ```
 

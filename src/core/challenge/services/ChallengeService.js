@@ -4,6 +4,7 @@ import { withServiceErrorHandling, createErrorMapper } from "../../infra/errors/
 import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError } from "../../challenge/errors/ChallengeErrors.js";
 import challengeErrors from "../../challenge/errors/ChallengeErrors.js";
 import { Email, ChallengeId, FocusArea, createEmail, createChallengeId, createFocusArea } from "../../common/valueObjects/index.js";
+import ChallengeFactory from "../models/ChallengeFactory.js";
 'use strict';
 
 const { ValidationError } = challengeErrors;
@@ -260,16 +261,15 @@ class ChallengeService {
      */
     async saveChallenge(challengeData) {
         this.logger.debug('Saving new challenge', { challengeData });
-        // Generate UUID if not provided
-        const challenge = {
-            ...challengeData,
-            id: challengeData.id || uuidv4(),
-            createdAt: challengeData.createdAt || new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        };
+        
+        // Use factory to create the challenge instead of direct object creation
+        const challenge = ChallengeFactory.createChallenge(challengeData);
+        
         const savedChallenge = await this.repository.save(challenge);
+        
         // Invalidate relevant caches
         await this._invalidateChallengeRelatedCaches(savedChallenge);
+        
         return savedChallenge;
     }
     /**

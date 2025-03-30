@@ -1,133 +1,102 @@
-# AI Fight Club API Documentation
+# Documentation
 
-Welcome to the comprehensive documentation for the AI Fight Club API, a stateful web application that challenges users with dynamic, AI-generated cognitive challenges.
+Welcome to the AI Gaming Backend documentation. This directory contains all the guides, references, and architectural documentation for the project.
 
-## Important Update: Consolidated Documentation
+## Directory Structure
 
-We have consolidated all markdown documentation from across the repository into this `/docs` directory. Please see [DOCUMENTATION.md](./DOCUMENTATION.md) for details on how the documentation is organized and how to find what you need.
-
-The documentation preserves its original directory structure, so files from `/src/core/common/` can be found at `/docs/src/core/common/`. A log file of all moved documents is available at [moved_files.log](./moved_files.log).
+- [**Architecture**](./architecture/): System architecture documentation
+- [**API**](./api/): API documentation and references
+- [**Guides**](./guides/): Development and usage guides
+- [**Testing**](./testing/): Testing strategies and patterns
+- [**Tools**](./tools/): Documentation verification and maintenance tools
+- [**_Historical**](./_historical/): Archived documentation (for reference only)
 
 ## Getting Started
 
-- [Setup Guide](../SETUP.md) - How to install and configure the application
-- [Quick Start](../QUICK_START.md) - Get up and running quickly
-- [Testing](../TESTING.md) - How to run and write tests
-- [Deployment](../DEPLOYMENT.md) - How to deploy the application
-- [Contributing](../CONTRIBUTING.md) - Guidelines for contributing
-- [Glossary](../GLOSSARY.md) - Terminology and concepts
+New team members should start with these documents:
 
-## Architecture
+1. [Project Overview](./project-overview.md)
+2. [Development Environment Setup](./guides/development-environment.md)
+3. [Developer Onboarding Guide](./guides/onboarding-guide.md)
+4. [Architecture Overview](./architecture/README.md)
+5. [API Documentation](./api/README.md)
 
-The [architecture/](./architecture/) section contains detailed documentation on the design of the system:
+## Key Documentation
 
-- Domain-Driven Design approach
-- Layered architecture
-- Domain events
-- Prompt system
-- State management
-- [Architectural Decision Records](./architecture/adr/)
+### Architecture
 
-## API Reference
+- [DDD Principles](./architecture/ddd-principles.md)
+- [Layered Architecture](./architecture/application-layer.md)
+- [Error Handling](./architecture/error-handling.md)
+- [Logging Architecture](./architecture/logging-architecture.md)
+- [Database Schema](./architecture/database-schema.md)
+- [Security Practices](./architecture/security-practices.md)
 
-The [api/](./api/) section provides comprehensive documentation for the API endpoints:
+### Guides
 
-- Authentication and authorization
-- User API
-- Personality API
-- Challenge API 
-- Focus Area API
-- Evaluation API
+- [Developer Onboarding](./guides/onboarding-guide.md)
+- [Production Guide](./guides/production-guide.md)
+- [ESM Migration Guide](./guides/esm-migration-guide.md)
+- [Testing Strategy](./testing/README.md)
+- [Documentation Standards](./DOCUMENTATION_STANDARDS.md)
+- [Troubleshooting Guide](./guides/troubleshooting.md)
+- [Contribution Workflow](./guides/contribution-workflow.md)
+- [Performance Optimization](./guides/performance-optimization.md)
+- [Monitoring and Logging](./guides/monitoring-logging.md)
 
-## Domain Documentation
+### API
 
-The [domains/](./domains/) section contains detailed information about each domain:
+- [API Common Patterns](./api/common-patterns.md)
+- [API Versioning Strategy](./api/versioning-strategy.md)
+- [Endpoint Documentation](./api/endpoints.md)
 
-- Challenge Domain
-- User Domain
-- Evaluation Domain
-- Focus Area Domain
-- Personality Domain
-- Progress Domain
+## Documentation Project
 
-## Workflows
+We are currently working on improving and expanding our documentation. See the following resources:
 
-The [workflows/](./workflows/) section illustrates key end-to-end processes:
+- [Documentation Completion Plan](./DOCUMENTATION_COMPLETION_PLAN.md): Our plan for addressing remaining documentation tasks
+- [Documentation Progress](./DOCUMENTATION_PROGRESS.md): Current status of documentation improvements
+- [Documentation Restructure Summary](./DOCUMENTATION_RESTRUCTURE_SUMMARY.md): Overview of recent documentation reorganization
+- [Documentation Verification Plan](./DOCUMENTATION_VERIFICATION_PLAN.md): Our approach to verifying documentation accuracy
 
-- User onboarding and first challenge generation
-- Challenge lifecycle from creation to evaluation
+### Documentation Verification
 
-## External API Integration
+We've completed our documentation gaps initiative (DOC-012) and are now focusing on verification (DOC-011). To help with this effort:
 
-The [external-apis/](./external-apis/) section documents integration with external services:
+1. Check out our [Verification Plan](./DOCUMENTATION_VERIFICATION_PLAN.md) for details on our approach
+2. Use the [Verification Checklist](./tools/verification-checklist.md) when reviewing documentation
+3. Run the [link checker](./tools/link-checker.js) to validate links in documentation
+4. Report issues using JIRA tickets with the "DOC-VERIFY-###" format
 
-- OpenAI Responses API
-- Supabase
+## Contributing to Documentation
 
-## Backend Documentation
+When contributing to documentation, please follow these guidelines:
 
-Welcome to the backend documentation. This directory contains detailed information about the backend architecture, components, and development guidelines.
+1. Place architectural documentation in the `/architecture` directory
+2. Place API documentation in the `/api` directory
+3. Place how-to guides in the `/guides` directory
+4. Place testing documentation in the `/testing` directory
+5. Use Markdown for all documentation files
+6. Include links to related documentation where appropriate
+7. Keep documentation up-to-date with code changes
 
-### Recently Updated Documentation
+Do not directly modify files in the `_historical` directory as these are kept for reference purposes only.
 
-- **[Caching Architecture](./caching-architecture.md)** - Comprehensive guide to our centralized caching system with Redis and in-memory providers
+## Documentation Standards
 
-### Architecture Documentation
+1. Use clear, concise language
+2. Include code examples where appropriate
+3. Format code blocks with the appropriate language for syntax highlighting
+4. Use headings to organize content (H1 for document title, H2 for major sections)
+5. Use bullet points and numbered lists for clarity
+6. Include diagrams when explaining complex systems or workflows
+7. Link to other relevant documentation
 
-- [Overview](./architecture/overview.md) - High-level architecture overview
-- [API Design](./architecture/api-design.md) - API design principles and standards
-- [Error Handling](./architecture/error-handling.md) - Standard error handling practices
-- [Authentication](./architecture/authentication.md) - Authentication implementation details
-- [Authorization](./architecture/authorization.md) - Authorization model and implementation
-- [Security](./architecture/security.md) - Security architecture and best practices
-- [Dependency Injection](./architecture/dependency-injection.md) - DI approach and best practices
-  - [DI Container Guidelines](./architecture/DIContainerGuidelines.md) - When to use singletons and other DI best practices 
-  - [DI Container Examples](./architecture/DIContainerExamples.md) - Practical examples of using the DI container
-- [Value Objects](./architecture/value-objects.md) - Value Objects and standardized patterns
-- [Data Model](./architecture/data-model.md) - Database schema and relationships
-- [Core Business Logic](./architecture/core-business-logic.md) - Domain models, aggregates, entities, and repositories
-- [Event System](./architecture/event-system.md) - How the event system works
-- [Result Pattern](./architecture/result-pattern.md) - Result pattern for error handling
-- [Service Layer](./architecture/service-layer.md) - Application services and use cases
-- [Swagger Configuration](./architecture/swagger-configuration.md) - API documentation setup and configuration
+## Requesting Documentation Updates
 
-### Domain Documentation
+If you notice missing or outdated documentation, please create a JIRA ticket using the "DOC" project and include:
 
-- [User Domain](./domains/user-domain.md) - User management and related features
-- [Challenge Domain](./domains/challenge-domain.md) - Challenge management and logic
-- [Evaluation Domain](./domains/evaluation-domain.md) - Evaluation system and criteria
-- [Focus Area Domain](./domains/focus-area-domain.md) - Focus area management
-- [Personality Domain](./domains/personality-domain.md) - Personality traits and analysis
-
-### API Documentation
-
-- [API Overview](./api/overview.md) - API principles and usage
-- [User API](./api/user-api.md) - User-related endpoints
-- [Challenge API](./api/challenge-api.md) - Challenge-related endpoints
-- [Evaluation API](./api/evaluation-api.md) - Evaluation-related endpoints
-- [Focus Area API](./api/focus-area-api.md) - Focus area-related endpoints
-- [Personality API](./api/personality-api.md) - Personality-related endpoints
-
-### Development Guidelines
-
-- [Coding Standards](./coding-standards.md) - Code style and best practices
-- [Testing Strategy](./testing-strategy.md) - Testing approach and guidelines
-- [Import Conventions](./IMPORT_CONVENTIONS.md) - Import path conventions
-
-### External Services
-
-- [External APIs](./external-apis/README.md) - Integration with external services
-
-### Workflows
-
-- [Development Workflow](./workflows/development.md) - Development process
-- [Deployment Workflow](./workflows/deployment.md) - Deployment process and environments
-- [CI Workflow Security](./workflows/ci-workflow.md) - CI workflow security considerations and implementation
-
-### Refactoring
-
-- [Refactoring Guide](./refactoring/README.md) - Guidelines for refactoring code
-
-### Contributing
-
-Please follow the [contributing guidelines](../CONTRIBUTING.md) when making changes to the documentation.
+1. The specific document needing updates
+2. The information that's missing or incorrect
+3. Any relevant code references or context
+4. The priority of the documentation update

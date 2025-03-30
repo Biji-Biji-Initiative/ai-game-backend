@@ -26,7 +26,8 @@ const domainErrors = {
   focusArea: ['FocusAreaError', 'FocusAreaNotFoundError', 'FocusAreaValidationError', 'FocusAreaGenerationError', 'FocusAreaPersistenceError', 'FocusAreaAccessDeniedError'],
   evaluation: ['EvaluationError', 'EvaluationNotFoundError', 'EvaluationValidationError', 'EvaluationProcessingError', 'EvaluationRepositoryError'],
   infra: ['AppError', 'InfrastructureError', 'CacheError', 'CacheKeyNotFoundError', 'CacheInitializationError', 'CacheOperationError', 'MissingParameterError', 'ApiIntegrationError'],
-  adaptive: ['AdaptiveError', 'AdaptiveNotFoundError', 'AdaptiveValidationError', 'AdaptiveProcessingError', 'AdaptiveRepositoryError']
+  adaptive: ['AdaptiveError', 'AdaptiveNotFoundError', 'AdaptiveValidationError', 'AdaptiveProcessingError', 'AdaptiveRepositoryError'],
+  ai: ['AIError', 'AINotFoundError', 'AIValidationError', 'AIProcessingError', 'AIRepositoryError', 'AIIntegrationError']
 };
 
 // Import paths for errors
@@ -37,13 +38,23 @@ const errorImportPaths = {
   focusArea: '../../../src/core/focusArea/errors/focusAreaErrors.js',
   evaluation: '../../../src/core/evaluation/errors/evaluationErrors.js',
   infra: '../../../src/core/infra/errors/AppError.js',
-  adaptive: '../../../src/core/adaptive/errors/adaptiveErrors.js'
+  adaptive: '../../../src/core/adaptive/errors/adaptiveErrors.js',
+  ai: '../../../src/core/ai/errors/AIErrors.js'
 };
 
-console.log('🔍 Finding test files with generic error handling...');
+// Process command line arguments
+const domains = process.argv[2] === 'all' ? 
+  Object.keys(domainErrors) : 
+  (process.argv[2] ? [process.argv[2]] : ['challenge']);
 
-// Find test files starting with a specific domain to fix
-const testFiles = globSync('tests/domain/challenge/*.test.js', { cwd: projectRoot });
+console.log(`🔍 Finding test files for domains: ${domains.join(', ')}...`);
+
+// Find test files for specified domains
+const testFiles = domains.flatMap(domain => {
+  const files = globSync(`tests/**/${domain}/**/*.test.js`, { cwd: projectRoot });
+  console.log(`Found ${files.length} tests for ${domain} domain`);
+  return files;
+});
 
 // Track files modified
 let filesModified = 0;
@@ -55,12 +66,18 @@ for (const file of testFiles) {
   let modified = false;
   
   // Determine which domain the test file is most likely related to
-  let primaryDomain = 'challenge';  // Default to challenge domain
+  let primaryDomain = null;
   for (const domain of Object.keys(domainErrors)) {
     if (file.includes(`/${domain}/`) || file.includes(`${domain}.`)) {
       primaryDomain = domain;
       break;
     }
+  }
+  
+  // Skip file if we can't determine the domain
+  if (!primaryDomain) {
+    console.log(`⚠️ Skipping ${file} - could not determine domain`);
+    continue;
   }
   
   console.log(`\nProcessing ${file} (Primary domain: ${primaryDomain})`);
@@ -147,6 +164,35 @@ for (const file of testFiles) {
     modified = true;
   }
   
+  // Step 5: Fix StandardErrorCodes references
+  updatedContent = content.replace(
+    /StandardErrorCodes\.(User|Challenge|Personality|FocusArea|Evaluation|Infra|Adaptive)/g,
+    (match, domain) => {
+      console.log(`  Replacing StandardErrorCodes.${domain} with DomainErrorCodes.${domain}`);
+      return `DomainErrorCodes.${domain}`;
+    }
+  );
+  
+  if (updatedContent !== content) {
+    // Check if we need to add DomainErrorCodes import
+    if (!content.includes('import { DomainErrorCodes }')) {
+      const domainErrorCodesImport = 'import { DomainErrorCodes } from "../../../src/core/infra/errors/DomainErrorCodes.js";\n';
+      const lastImportIndex = updatedContent.lastIndexOf('import ');
+      if (lastImportIndex !== -1) {
+        const lastImportEnd = updatedContent.indexOf('\n', lastImportIndex) + 1;
+        updatedContent = updatedContent.substring(0, lastImportEnd) + domainErrorCodesImport + updatedContent.substring(lastImportEnd);
+      }
+    }
+    
+    // If we have both StandardErrorCodes and DomainErrorCodes, remove StandardErrorCodes
+    if (updatedContent.includes('import { StandardErrorCodes }') && updatedContent.includes('import { DomainErrorCodes }')) {
+      updatedContent = updatedContent.replace(/import\s*{\s*StandardErrorCodes\s*}\s*from\s*["'].*?["'];?\n/, '');
+    }
+    
+    content = updatedContent;
+    modified = true;
+  }
+  
   // Save the updated file if modified
   if (modified) {
     writeFileSync(filePath, content, 'utf-8');
@@ -162,4 +208,6 @@ console.log(`\nNext steps:`);
 console.log(`1. Review the changes to ensure they make sense in each context`);
 console.log(`2. Run the tests to make sure they pass or fail as expected`);
 console.log(`3. Fix any remaining files manually as needed`);
-console.log(`4. Update other domains (user, personality, etc.) by changing the glob pattern`); 
+console.log(`\nUsage:`);
+console.log(`- Run for a specific domain: node scripts/fix-error-handling.js user`);
+console.log(`- Run for all domains: node scripts/fix-error-handling.js all`); 

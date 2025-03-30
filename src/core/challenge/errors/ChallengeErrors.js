@@ -1,5 +1,6 @@
 // eslint-disable-next-line import/no-unresolved
-import { AppError, StandardErrorCodes } from "../../infra/errors/ErrorHandler.js";
+import { AppError } from "../../infra/errors/ErrorHandler.js";
+import { ChallengeErrorCodes } from "../../infra/errors/DomainErrorCodes.js";
 'use strict';
 /**
  * Base class for Challenge domain errors
@@ -14,7 +15,7 @@ class ChallengeError extends AppError {
     constructor(message = 'Challenge operation failed', statusCode = 400, options = {}) {
         super(message, statusCode, {
             ...options,
-            errorCode: options.errorCode || 'CHALLENGE_ERROR'
+            errorCode: options.errorCode || ChallengeErrorCodes.PROCESSING
         });
         this.name = 'ChallengeError';
     }
@@ -31,7 +32,7 @@ class ChallengeNotFoundError extends ChallengeError {
     constructor(identifier = '') {
         const message = identifier ? `Challenge not found: ${identifier}` : 'Challenge not found';
         super(message, 404, {
-            errorCode: StandardErrorCodes.NOT_FOUND,
+            errorCode: ChallengeErrorCodes.NOT_FOUND,
             metadata: { identifier }
         });
         this.name = 'ChallengeNotFoundError';
@@ -49,7 +50,7 @@ class ChallengeValidationError extends ChallengeError {
      */
     constructor(message = 'Invalid challenge data', validationErrors = null) {
         super(message, 400, {
-            errorCode: StandardErrorCodes.VALIDATION_ERROR,
+            errorCode: ChallengeErrorCodes.VALIDATION,
             metadata: { validationErrors }
         });
         this.name = 'ChallengeValidationError';
@@ -68,7 +69,7 @@ class ChallengeProcessingError extends ChallengeError {
     constructor(message = 'Failed to process challenge', options = {}) {
         super(message, 500, {
             ...options,
-            errorCode: StandardErrorCodes.DOMAIN_ERROR
+            errorCode: ChallengeErrorCodes.PROCESSING
         });
         this.name = 'ChallengeProcessingError';
     }
@@ -88,7 +89,7 @@ class ChallengeRepositoryError extends ChallengeError {
     constructor(message = 'Failed to perform challenge repository operation', options = {}) {
         super(message, 500, {
             ...options,
-            errorCode: StandardErrorCodes.DATABASE_ERROR,
+            errorCode: ChallengeErrorCodes.REPOSITORY,
             cause: options.cause,
             metadata: options.metadata
         });
@@ -109,7 +110,7 @@ class ChallengeGenerationError extends ChallengeError {
     constructor(message = 'Failed to generate challenge', options = {}) {
         super(message, 500, {
             ...options,
-            errorCode: options.errorCode || 'CHALLENGE_GENERATION_ERROR',
+            errorCode: options.errorCode || ChallengeErrorCodes.GENERATION_FAILED,
             cause: options.cause
         });
         this.name = 'ChallengeGenerationError';

@@ -16,6 +16,13 @@ import DifficultyLevelRepository from "../../core/challenge/repositories/config/
  * Repository Components Registration
  *
  * This module registers all repository components in the DI container.
+ * 
+ * All repositories are registered as singletons because:
+ * 1. They manage shared database connections which benefit from connection pooling
+ * 2. They don't maintain request-specific state between operations
+ * 3. Their instance variables (like db client, logger) are themselves thread-safe
+ * 4. Configuration repositories benefit from shared internal caching
+ * 5. They improve performance by reducing connection overhead across requests
  */
 /**
  * Register repository components in the container
@@ -89,11 +96,11 @@ function registerRepositoryComponents(container) {
     }, true);
     // Global focus area configuration (stored in 'challenge_focus_areas' table)
     container.register('focusAreaConfigRepository', c => {
-        return new FocusAreaConfigRepository(
-            c.get('supabase'),
-            c.get('challengeLogger'),
-            c.get('configCache')
-        );
+        return new FocusAreaConfigRepository({
+            supabase: c.get('supabase'),
+            logger: c.get('challengeLogger'),
+            cache: c.get('configCache')
+        });
     }, true);
     container.register('difficultyLevelRepository', c => {
         return new DifficultyLevelRepository({

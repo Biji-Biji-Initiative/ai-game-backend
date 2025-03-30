@@ -16,43 +16,68 @@ async function checkOpenAIStatus(openAIClient) {
   const logger = apiLogger.child({
     service: 'openai-health-check'
   });
+  
   try {
-    // Start timing
-    const startTime = Date.now();
-    // Simple test message using the model's echo capability
-    // This is the lightest possible call we can make to verify API connectivity
-    const testMessage = {
-      input: 'System check. Please respond with the word \'healthy\' and nothing else.'
-    };
-    const options = {
-      model: 'gpt-3.5-turbo',
-      // Use the fastest/cheapest model for health checks
-      temperature: 0,
-      // Use 0 temperature for deterministic responses
-      max_tokens: 10 // Limit the tokens to keep the check lightweight
-    };
-    // Send the message and await response
-    const _response = await openAIClient.sendMessage(testMessage, options);
-    // Calculate response time
-    const responseTime = Date.now() - startTime;
-    // If we get here without errors, the API is responsive
+    // Use the client's built-in health check which includes circuit breaker status
+    const healthResult = await openAIClient.checkHealth();
+    
+    // Handle mock mode
+    if (healthResult.status === 'mock') {
+      return {
+        status: 'warning',
+        message: 'OpenAI API is in mock mode (no API key)',
+        circuitBreaker: healthResult.circuitBreaker
+      };
+    }
+    
+    // Handle unhealthy status
+    if (healthResult.status === 'unhealthy') {
+      return {
+        status: 'error',
+        message: `OpenAI API connection error: ${healthResult.error}`,
+        error: healthResult.error,
+        code: healthResult.code,
+        circuitBreaker: healthResult.circuitBreaker
+      };
+    }
+    
+    // Return healthy status with circuit breaker info
     return {
       status: 'healthy',
       message: 'OpenAI API connection is healthy',
-      responseTime: responseTime,
-      model: options.model
+      models: healthResult.details?.modelsAvailable || 'unknown',
+      circuitBreaker: healthResult.circuitBreaker
     };
   } catch (error) {
     logger.warn('OpenAI health check failed', {
-      error: error.message
+      error: error.message,
+      isCircuitBreakerError: error.isCircuitBreakerError || false
     });
+    
+    // Special handling for circuit breaker errors
+    if (error.isCircuitBreakerError || error.code === 'circuit_open') {
+      return {
+        status: 'error',
+        message: 'OpenAI API circuit breaker is open - API is temporarily unavailable',
+        error: error.message,
+        circuitBreaker: {
+          status: 'open',
+          reason: error.message
+        }
+      };
+    }
+    
     return {
       status: 'error',
       message: `OpenAI API connection error: ${error.message}`,
-      error: error.message
+      error: error.message,
+      circuitBreaker: {
+        status: 'unknown'
+      }
     };
   }
 }
+
 export { checkOpenAIStatus };
 export default {
   checkOpenAIStatus

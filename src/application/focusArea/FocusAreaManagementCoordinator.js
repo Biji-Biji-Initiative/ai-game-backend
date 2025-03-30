@@ -153,9 +153,11 @@ class FocusAreaManagementCoordinator extends BaseCoordinator {
             // Validate focus areas using the validation service
             for (const fa of focusAreaVOs) {
                 const focusAreaValue = fa instanceof FocusArea ? fa.value : fa;
-                const isValid = await this.focusAreaValidationService.validateFocusArea(focusAreaValue);
-                if (!isValid) {
-                    this.logger.warn(`Invalid focus area: ${focusAreaValue}, removing from list`);
+                const validationResult = await this.focusAreaValidationService.validate(focusAreaValue);
+                if (!validationResult.isValid) {
+                    this.logger.warn(`Invalid focus area: ${focusAreaValue}, removing from list`, {
+                        errors: validationResult.errors
+                    });
                     const index = focusAreaVOs.indexOf(fa);
                     if (index > -1) {
                         focusAreaVOs.splice(index, 1);
@@ -198,9 +200,11 @@ class FocusAreaManagementCoordinator extends BaseCoordinator {
                 throw new FocusAreaError(`Invalid focus area: ${focusArea}`, 400);
             }
             // Validate the focus area using the validation service
-            const isValid = await this.focusAreaValidationService.validateFocusArea(focusAreaVO.value);
-            if (!isValid) {
-                throw new FocusAreaError(`Invalid focus area: ${focusAreaVO.value}`, 400);
+            const validationResult = await this.focusAreaValidationService.validate(focusAreaVO.value);
+            if (!validationResult.isValid) {
+                throw new FocusAreaError(`Invalid focus area: ${focusAreaVO.value}`, 400, {
+                    errors: validationResult.errors
+                });
             }
             // Get the user using userService
             const user = await this.userService.getUserByEmail(emailVO.value);
@@ -213,7 +217,7 @@ class FocusAreaManagementCoordinator extends BaseCoordinator {
                 throw new FocusAreaError(`Invalid user ID: ${user.id}`, 500);
             }
             // Update the user's focus area using userService
-            const updates = { focus_area: focusAreaVO.value };
+            const updates = { focusArea: focusAreaVO.value };
             const updatedUser = await this.userService.updateUser(emailVO.value, updates);
             // Publish a domain event if event bus is available
             if (this.eventBus && this.EventTypes) {

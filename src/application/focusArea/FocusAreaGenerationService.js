@@ -3,6 +3,7 @@ import { FocusAreaGenerationError } from "../../core/focusArea/errors/focusAreaE
 import { withServiceErrorHandling, createErrorMapper } from "../../core/infra/errors/errorStandardization.js";
 import { formatJson } from "../../core/infra/openai/responseHandler.js";
 import FocusArea from "../../core/focusArea/models/FocusArea.js";
+import FocusAreaFactory from "../../core/focusArea/factories/FocusAreaFactory.js";
 import promptBuilder from "../../core/prompt/promptBuilder.js";
 'use strict';
 
@@ -12,6 +13,10 @@ import promptBuilder from "../../core/prompt/promptBuilder.js";
  * Application service for generating personalized focus areas based on user data.
  * This service orchestrates between multiple domains (user, challenge, progress)
  * and coordinates with external AI services.
+ * 
+ * The service follows the Factory Pattern by using FocusAreaFactory to create
+ * domain entities rather than directly instantiating them. This encapsulates
+ * creation logic and ensures validation rules are consistently applied.
  */
 
 // Create an error mapper for the focus area generation service
@@ -31,14 +36,15 @@ class FocusAreaGenerationService {
      * @param {Object} dependencies.MessageRole - Message roles constants
      * @param {Object} dependencies.openAIStateManager - OpenAI state manager for managing conversation state
      * @param {Object} dependencies.logger - Logger instance
+     * @param {Object} dependencies.focusAreaFactory - Factory for creating FocusArea entities
      */
     constructor({ 
         openAIClient, 
         promptBuilder: customPromptBuilder = promptBuilder, 
         formatJson: customFormatJson = formatJson, 
-        FocusArea: CustomFocusArea = FocusArea, 
         MessageRole, 
-        openAIStateManager, 
+        openAIStateManager,
+        focusAreaFactory = FocusAreaFactory,
         logger 
     }) {
         // Validate critical dependencies
@@ -51,12 +57,26 @@ class FocusAreaGenerationService {
         if (!MessageRole) {
             throw new Error('MessageRole is required for FocusAreaGenerationService');
         }
+        
+        // Validate the focus area factory has required methods
+        if (!focusAreaFactory) {
+            throw new Error('focusAreaFactory is required for FocusAreaGenerationService');
+        }
+        
+        // Verify the factory has the required method for creating focus area entities
+        if (typeof focusAreaFactory.createCollectionFromAIGeneration !== 'function') {
+            throw new Error('focusAreaFactory must implement createCollectionFromAIGeneration method');
+        }
+        
+        if (typeof focusAreaFactory.createFromAIGeneration !== 'function') {
+            throw new Error('focusAreaFactory must implement createFromAIGeneration method');
+        }
 
         // Store dependencies
         this.openAIClient = openAIClient;
         this.promptBuilder = customPromptBuilder;
         this.formatJson = customFormatJson;
-        this.FocusArea = CustomFocusArea;
+        this.focusAreaFactory = focusAreaFactory;
         this.MessageRole = MessageRole;
         this.openAIStateManager = openAIStateManager;
         this.logger = logger || focusAreaLogger.child({ service: 'FocusAreaGenerationService' });
@@ -72,6 +92,16 @@ class FocusAreaGenerationService {
 
     /**
      * Generate personalized focus areas based on user profile and history
+     * 
+     * This method coordinates the focus area generation process by:
+     * 1. Managing conversation state with the OpenAI service
+     * 2. Building appropriate prompts using the prompt builder
+     * 3. Making API calls to generate focus area content
+     * 4. Using the FocusAreaFactory to create proper domain entities from the response
+     * 
+     * Following the Factory Pattern, this method delegates entity creation to the
+     * FocusAreaFactory rather than directly instantiating FocusArea entities.
+     * 
      * @param {Object} userData - User profile and data
      * @param {Array} challengeHistory - User's challenge history
      * @param {Object} progressData - User's progression data
@@ -80,7 +110,7 @@ class FocusAreaGenerationService {
      * @param {string} options.previousResponseId - Previous response ID for context
      * @param {number} options.temperature - Temperature for generation
      * @param {number} options.count - Number of focus areas to generate
-     * @returns {Promise<Array<FocusArea>>} Generated focus areas
+     * @returns {Promise<Array<FocusArea>>} Generated focus areas as domain entities
      * @throws {FocusAreaGenerationError} If there's an issue with the generation
      */
     async generateFocusAreas(userData, challengeHistory = [], progressData = {}, options = {}) {
@@ -192,33 +222,36 @@ Format your entire response as valid, parsable JSON with no markdown formatting.
 
         const focusAreas = responseData.focusAreas;
 
-        // Convert to domain objects
-        const result = focusAreas.map((area) => {
-            // Create priorityLevel from 1-3 based on high/medium/low
-            const priorityLevel = area.priorityLevel === 'high' ? 1 :
-                area.priorityLevel === 'medium' ? 2 : 3;
-
-            // Create domain model instance
-            return new this.FocusArea({
+        // Use the factory to create domain objects following the Factory Pattern
+        // instead of directly instantiating FocusArea entities with "new FocusArea()"
+        try {
+            this.logger.debug('Creating focus area entities using factory', {
                 userId,
-                name: area.name,
-                description: area.description || '',
-                priority: priorityLevel,
-                metadata: {
-                    responseId: response.responseId,
-                    rationale: area.rationale,
-                    improvementStrategies: area.improvementStrategies || [],
-                    recommendedChallengeTypes: area.recommendedChallengeTypes || []
-                }
+                focusAreaCount: focusAreas.length
             });
-        });
+            
+            const result = this.focusAreaFactory.createCollectionFromAIGeneration(
+                userId,
+                focusAreas,
+                response.responseId
+            );
 
-        this.logger.info('Successfully generated personalized focus areas', {
-            count: result.length,
-            userId
-        });
+            this.logger.info('Successfully generated personalized focus areas', {
+                count: result.length,
+                userId
+            });
 
-        return result;
+            return result;
+        } catch (error) {
+            this.logger.error('Failed to create focus area entities from AI response', {
+                userId,
+                error: error.message,
+                responseData: JSON.stringify(responseData).substring(0, 200) + '...'
+            });
+            throw new FocusAreaGenerationError(`Failed to process generated focus areas: ${error.message}`, {
+                cause: error
+            });
+        }
     }
 }
 

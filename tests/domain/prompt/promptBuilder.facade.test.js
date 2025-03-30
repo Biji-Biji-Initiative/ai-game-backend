@@ -1,8 +1,9 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
-import testSetup from "./setup.js";
+import testSetup from "../../test-helpers/setup.js";
 import { createTestUser, createTestChallenge } from "../../helpers/testFactory.js";
-import promptBuilder from "../../../src/core/prompt/promptBuilder.js";
-import { PROMPT_TYPES } from "../../../src/core/prompt/promptTypes.js";
+import promptBuilder from '../../../src/core/prompt/promptBuilder.js';
+import { PROMPT_TYPES } from '../../../src/core/prompt/promptTypes.js';
 describe('Prompt Builder Domain', function () {
     beforeEach(function () {
         // Set up test environment

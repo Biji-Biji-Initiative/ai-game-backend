@@ -7,7 +7,19 @@
  * of user progression through the platform.
  * This coordinator follows DDD principles by coordinating across multiple domains.
  */
-import BaseCoordinator from "@/application/BaseCoordinator.js";
+import BaseCoordinator from './BaseCoordinator.js';
+import { 
+  UserJourneyError, 
+  UserJourneyNotFoundError, 
+  UserJourneyValidationError,
+  UserJourneyProcessingError
+} from '../core/userJourney/errors/userJourneyErrors.js';
+import {
+  Email,
+  ChallengeId,
+  createEmail,
+  createChallengeId
+} from '../core/common/valueObjects/index.js';
 
 /**
  * Class representing the User Journey Coordinator
@@ -61,30 +73,43 @@ class UserJourneyCoordinator extends BaseCoordinator {
 
   /**
    * Record a user interaction event
-   * @param {String} userEmail - User's email identifier
+   * @param {Email} emailVO - User's email as a Value Object
    * @param {String} eventType - Type of event (e.g., 'challenge_started', 'challenge_completed')
    * @param {Object} eventData - Additional data about the event
-   * @param {String} challengeId - Optional associated challenge ID
+   * @param {ChallengeId|null} challengeIdVO - Optional associated challenge ID as a Value Object
    * @returns {Promise<Object>} The recorded event
+   * @throws {UserJourneyValidationError} If required parameters are missing or invalid
+   * @throws {UserJourneyNotFoundError} If the user is not found
+   * @throws {UserJourneyProcessingError} If an error occurs during event recording
+   * @throws {UserJourneyError} If any other journey-related error occurs
    */
-  recordUserEvent(userEmail, eventType, eventData = {}, challengeId = null) {
+  recordUserEvent(emailVO, eventType, eventData = {}, challengeIdVO = null) {
     return this.executeOperation(async () => {
-      if (!userEmail || !eventType) {
-        throw new Error('Missing required parameters');
+      // Validate Value Objects
+      if (!(emailVO instanceof Email)) {
+        throw new UserJourneyValidationError('Valid Email Value Object is required');
+      }
+      
+      if (!eventType) {
+        throw new UserJourneyValidationError('Event type is required');
+      }
+      
+      if (challengeIdVO !== null && !(challengeIdVO instanceof ChallengeId)) {
+        throw new UserJourneyValidationError('Challenge ID must be a valid ChallengeId Value Object');
       }
       
       // Record event using the domain service
       const recordedEvent = await this.userJourneyService.recordEvent(
-        userEmail, 
+        emailVO.value, 
         eventType, 
         eventData, 
-        challengeId
+        challengeIdVO ? challengeIdVO.value : null
       );
       
       // Get user profile using userService
-      const user = await this.userService.getUserByEmail(userEmail);
+      const user = await this.userService.getUserByEmail(emailVO);
       if (!user) {
-        this.logger.warn(`User not found for event recording: ${userEmail}`);
+        this.logger.warn(`User not found for event recording: ${emailVO.value}`);
         return recordedEvent;
       }
       
@@ -98,30 +123,57 @@ class UserJourneyCoordinator extends BaseCoordinator {
       };
       
       // Get recent events to calculate metrics through the service
-      const recentEvents = await this.userJourneyService.getUserEvents(userEmail, 100);
+      const recentEvents = await this.userJourneyService.getUserEvents(emailVO.value, 100);
       
       // Update user's phase, session data, and engagement level based on events
-      await this.updateUserJourneyMetrics(userEmail, journeyMeta, recentEvents);
+      await this.updateUserJourneyMetrics(emailVO, journeyMeta, recentEvents);
       
       return recordedEvent;
-    }, 'recordUserEvent', { userEmail, eventType, hasEventData: !!Object.keys(eventData).length, challengeId });
+    }, 'recordUserEvent', { 
+      userEmail: emailVO.value, 
+      eventType, 
+      hasEventData: !!Object.keys(eventData).length, 
+      challengeId: challengeIdVO?.value 
+    }, UserJourneyError);
   }
 
   /**
    * Update user journey metrics and save to database
-   * @param {String} userEmail - User's email
+   * @param {Email} emailVO - User's email as a Value Object
    * @param {Object} journeyMeta - Current journey metadata
    * @param {Array} recentEvents - Recent user events
    * @returns {Promise<Object>} Updated user
+   * @throws {UserJourneyValidationError} If required parameters are missing or invalid
+   * @throws {UserJourneyNotFoundError} If the user is not found
+   * @throws {UserJourneyProcessingError} If an error occurs during metrics calculation
+   * @throws {UserJourneyError} If any other journey-related error occurs
    */
-  updateUserJourneyMetrics(userEmail, journeyMeta, recentEvents) {
+  updateUserJourneyMetrics(emailVO, journeyMeta, recentEvents) {
     return this.executeOperation(async () => {
+      // Validate Value Objects
+      if (!(emailVO instanceof Email)) {
+        throw new UserJourneyValidationError('Valid Email Value Object is required');
+      }
+      
+      if (!journeyMeta || typeof journeyMeta !== 'object') {
+        journeyMeta = {
+          lastActivity: null,
+          engagementLevel: 'new',
+          sessionCount: 0,
+          currentSessionStarted: null,
+          currentPhase: 'onboarding'
+        };
+      }
+
       // Get completed challenges count using challengeService
-      const challengeHistory = await this.challengeService.getUserChallengeHistory(userEmail);
+      const challengeHistory = await this.challengeService.getUserChallengeHistory(emailVO.value);
       const completedChallenges = challengeHistory.filter(c => c.status === 'completed').length;
       
       // Get user data using userService
-      const user = await this.userService.getUserByEmail(userEmail);
+      const user = await this.userService.getUserByEmail(emailVO);
+      if (!user) {
+        throw new UserJourneyNotFoundError(`User not found: ${emailVO.value}`);
+      }
       
       // Use domain service to determine user phase
       journeyMeta.currentPhase = this.userJourneyService.determineUserPhase(user, completedChallenges);
@@ -133,25 +185,38 @@ class UserJourneyCoordinator extends BaseCoordinator {
       journeyMeta.engagementLevel = this.userJourneyService.calculateEngagementLevel(journeyMeta, recentEvents);
       
       // Save updated journey metadata using userService
-      return await this.userService.updateUser(userEmail, { journeyMeta });
-    }, 'updateUserJourneyMetrics', { userEmail, journeyPhase: journeyMeta?.currentPhase, eventsCount: recentEvents?.length });
+      return await this.userService.updateUser(emailVO, { journeyMeta });
+    }, 'updateUserJourneyMetrics', { 
+      userEmail: emailVO.value, 
+      journeyPhase: journeyMeta?.currentPhase, 
+      eventsCount: recentEvents?.length 
+    }, UserJourneyError);
   }
 
   /**
    * Get user journey insights
-   * @param {String} userEmail - User's email
+   * @param {Email} emailVO - User's email as a Value Object
    * @returns {Promise<Object>} Journey insights and recommendations
+   * @throws {UserJourneyValidationError} If input parameters are invalid or missing
+   * @throws {UserJourneyNotFoundError} If the user is not found
+   * @throws {UserJourneyProcessingError} If an error occurs during insights generation
+   * @throws {UserJourneyError} If any other journey-related error occurs
    */
-  getUserJourneyInsights(userEmail) {
+  getUserJourneyInsights(emailVO) {
     return this.executeOperation(async () => {
+      // Validate Value Objects
+      if (!(emailVO instanceof Email)) {
+        throw new UserJourneyValidationError('Valid Email Value Object is required');
+      }
+      
       // Get user data using userService
-      const user = await this.userService.getUserByEmail(userEmail);
+      const user = await this.userService.getUserByEmail(emailVO);
       if (!user) {
-        throw new Error(`User not found: ${userEmail}`);
+        throw new UserJourneyNotFoundError(`User not found: ${emailVO.value}`);
       }
       
       // Get user journey events through the service
-      const events = await this.userJourneyService.getUserEvents(userEmail, 100);
+      const events = await this.userJourneyService.getUserEvents(emailVO.value, 100);
       
       // Get journey metadata or use defaults if not available
       const journeyMeta = user.journeyMeta || {
@@ -176,28 +241,34 @@ class UserJourneyCoordinator extends BaseCoordinator {
         recommendations,
         eventsCount: events.length
       };
-    }, 'getUserJourneyInsights', { userEmail }, (error) => {
-      // Custom error handler for this operation only
-      this.logger.error('Error generating user journey insights', { error: error.message });
-      
-      return {
-        phase: 'unknown',
-        insights: ['Unable to generate journey insights'],
-        recommendations: ['Try a new challenge to continue your journey']
-      };
-    });
+    }, 'getUserJourneyInsights', { userEmail: emailVO.value }, UserJourneyError);
   }
 
   /**
    * Get user activity summary
-   * @param {String} userEmail - User's email
+   * @param {Email} emailVO - User's email as a Value Object
    * @returns {Promise<Object>} Activity summary
+   * @throws {UserJourneyValidationError} If required parameters are missing or invalid
+   * @throws {UserJourneyNotFoundError} If the user is not found
+   * @throws {UserJourneyProcessingError} If an error occurs during metrics calculation
+   * @throws {UserJourneyError} If any other journey-related error occurs
    */
-  getUserActivitySummary(userEmail) {
+  getUserActivitySummary(emailVO) {
     return this.executeOperation(async () => {
+      // Validate Value Objects
+      if (!(emailVO instanceof Email)) {
+        throw new UserJourneyValidationError('Valid Email Value Object is required');
+      }
+      
+      // Check if user exists
+      const userExists = await this.userService.userExists(emailVO);
+      if (!userExists) {
+        throw new UserJourneyNotFoundError(`User not found: ${emailVO.value}`);
+      }
+      
       // Get event data through the service
-      const eventCounts = await this.userJourneyService.getUserEventCountsByType(userEmail);
-      const challengeEvents = await this.userJourneyService.getUserEventsByType(userEmail, 'challenge_completed');
+      const eventCounts = await this.userJourneyService.getUserEventCountsByType(emailVO.value);
+      const challengeEvents = await this.userJourneyService.getUserEventsByType(emailVO.value, 'challenge_completed');
       
       // Use domain service to calculate activity metrics
       const activityMetrics = this.userJourneyService.calculateActivityMetrics(challengeEvents);
@@ -207,7 +278,7 @@ class UserJourneyCoordinator extends BaseCoordinator {
         eventCounts,
         ...activityMetrics
       };
-    }, 'getUserActivitySummary', { userEmail });
+    }, 'getUserActivitySummary', { userEmail: emailVO.value }, UserJourneyError);
   }
 }
 

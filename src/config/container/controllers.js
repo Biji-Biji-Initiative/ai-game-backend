@@ -21,9 +21,11 @@ import HealthCheckController from "../../core/infra/health/HealthCheckController
  * They delegate business logic to services and coordinators.
  *
  * All controllers are registered as singletons because:
- * 1. They are stateless - they don't maintain request-specific data
- * 2. They are lightweight - they only delegate to services/coordinators
- * 3. They improve performance - no need to instantiate for each request
+ * 1. They are stateless - they don't maintain request-specific data between calls
+ * 2. They are thread-safe - they don't have mutable instance variables
+ * 3. They are lightweight - they only delegate to services/coordinators
+ * 4. They improve performance - no need to instantiate for each request
+ * 5. They have no security implications - they don't store user-specific state
  */
 /**
  * Register controller components in the container

@@ -4,6 +4,8 @@
  *
  * Handles HTTP requests for system health checks
  */
+import { withControllerErrorHandling } from "../../infra/errors/errorStandardization.js";
+
 /**
  * Health Check Controller Class
  */
@@ -21,9 +23,18 @@ class HealthCheckController {
         }
         this.healthCheckService = healthCheckService;
         this.logger = logger;
-        // Bind methods to preserve 'this' context
-        this.checkHealth = this.checkHealth.bind(this);
+        
+        // Apply standardized error handling
+        this.checkHealth = withControllerErrorHandling(
+            this.checkHealth.bind(this),
+            {
+                methodName: 'checkHealth',
+                domainName: 'health',
+                logger: this.logger
+            }
+        );
     }
+    
     /**
      * Handle a health check request
      * @param {Object} req - Express request object
@@ -32,25 +43,17 @@ class HealthCheckController {
      * @returns {Promise<void>}
      */
     async checkHealth(req, res, _next) {
-        try {
-            this.logger.debug('Health check endpoint called');
-            // Get health report from service
-            const healthReport = await this.healthCheckService.checkHealth();
-            // Determine HTTP status code
-            const httpStatus = this.healthCheckService.getHttpStatus(healthReport);
-            // Send response
-            res.status(httpStatus).json(healthReport);
-        }
-        catch (error) {
-            this.logger.error('Error in health check endpoint', { error: error.message });
-            // Return a fallback error response
-            res.status(500).json({
-                status: 'error',
-                message: 'Failed to perform health check',
-                error: error.message,
-                timestamp: new Date().toISOString()
-            });
-        }
+        this.logger.debug('Health check endpoint called');
+        
+        // Get health report from service
+        const healthReport = await this.healthCheckService.checkHealth();
+        
+        // Determine HTTP status code
+        const httpStatus = this.healthCheckService.getHttpStatus(healthReport);
+        
+        // Send response
+        res.status(httpStatus).json(healthReport);
     }
 }
+
 export default HealthCheckController;

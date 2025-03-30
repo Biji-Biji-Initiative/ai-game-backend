@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
 import difficultySchema from "../../../../src/core/adaptive/schemas/DifficultySchema.js";
 import recommendationSchema from "../../../../src/core/adaptive/schemas/RecommendationSchema.js";
@@ -78,7 +79,7 @@ describe('Adaptive Domain Schemas', () => {
         it('should validate a valid recommendation', () => {
             const validRecommendation = {
                 id: '123e4567-e89b-12d3-a456-426614174000',
-                userId: 'user123',
+                userId: '123e4567-e89b-12d3-a456-426614174001',
                 createdAt: new Date().toISOString(),
                 recommendedFocusAreas: ['critical-thinking', 'problem-solving'],
                 recommendedChallengeTypes: ['analysis', 'creative'],
@@ -95,11 +96,11 @@ describe('Adaptive Domain Schemas', () => {
         });
         it('should apply default values', () => {
             const minimalRecommendation = {
-                userId: 'user123'
+                userId: '123e4567-e89b-12d3-a456-426614174001'
             };
             const result = RecommendationSchema.safeParse(minimalRecommendation);
             expect(result.success).to.be.true;
-            expect(result.data.userId).to.equal('user123');
+            expect(result.data.userId).to.equal('123e4567-e89b-12d3-a456-426614174001');
             expect(result.data.recommendedFocusAreas).to.be.an('array').that.is.empty;
             expect(result.data.recommendedChallengeTypes).to.be.an('array').that.is.empty;
             expect(result.data.suggestedLearningResources).to.be.an('array').that.is.empty;
@@ -123,7 +124,7 @@ describe('Adaptive Domain Schemas', () => {
         it('should validate a database format recommendation', () => {
             const validDbRecommendation = {
                 id: '123e4567-e89b-12d3-a456-426614174000',
-                user_id: 'user123',
+                user_id: '123e4567-e89b-12d3-a456-426614174001',
                 created_at: new Date().toISOString(),
                 recommended_focus_areas: ['critical-thinking', 'problem-solving'],
                 recommended_challenge_types: ['analysis', 'creative'],

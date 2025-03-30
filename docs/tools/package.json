@@ -1,0 +1,16 @@
+{
+  "name": "documentation-tools",
+  "version": "1.0.0",
+  "description": "Tools for verifying and managing AI Gaming Backend documentation",
+  "private": true,
+  "scripts": {
+    "check-links": "node link-checker.js ../",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+} 

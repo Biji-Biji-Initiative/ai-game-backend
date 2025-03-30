@@ -1,7 +1,8 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
 import sinon from "sinon";
-import TraitsAnalysisService from "../../../src/core/personality/services/TraitsAnalysisService.js";
-import { NoPersonalityDataError } from "../../../src/core/personality/errors/PersonalityErrors.js";
+import TraitsAnalysisService from '../../../src/core/personality/services/TraitsAnalysisService.js';
+import { NoPersonalityDataError } from '../../../src/core/personality/errors/PersonalityErrors.js';
 describe('Traits Analysis Service', () => {
     let traitsAnalysisService;
     let personalityRepositoryMock;

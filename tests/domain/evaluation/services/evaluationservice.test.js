@@ -1,9 +1,10 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
 import sinon from "sinon";
 import EvaluationService from "../../../../src/core/evaluation/services/EvaluationService.js";
 describe('evaluation EvaluationService', () => {
     // Set longer timeout for API calls
-    this.timeout(30000);
+    jest.setTimeout(30000);
     // Define mocks for all dependencies
     let dependencies;
     let evaluationservice;

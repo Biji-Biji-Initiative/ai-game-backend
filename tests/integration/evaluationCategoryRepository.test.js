@@ -1,6 +1,7 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
 import sinon from "sinon";
-import evaluationCategoryRepository from "@/repositories/evaluationCategoryRepository";
+import evaluationCategoryRepository from '../../src/repositories/evaluationCategoryRepository.js';
 /**
  * Integration Tests for Evaluation Category Repository
  *
@@ -58,7 +59,7 @@ describe('Evaluation Category Repository', () => {
                     }
                 }
                 else {
-                    fail('Unexpected mapping format');
+                    expect.expect.fail('Unexpected mapping format');
                 }
             }
         }

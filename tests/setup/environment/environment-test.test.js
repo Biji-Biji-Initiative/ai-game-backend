@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
 import testEnv from "../loadEnv.js";
 import { skipIfMissingEnv } from "../helpers/testHelpers.js";

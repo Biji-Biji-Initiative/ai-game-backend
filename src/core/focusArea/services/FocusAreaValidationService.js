@@ -6,15 +6,17 @@ import { FocusArea } from "../../common/valueObjects/index.js";
 class FocusAreaValidationService {
     /**
      * Create a new FocusAreaValidationService
-     * @param {Object} focusAreaConfigRepository - Repository for focus area configuration
-     * @param {Object} logger - Logger instance
+     * @param {Object} options - Service dependencies using object destructuring
+     * @param {Object} options.focusAreaConfigRepository - Repository for focus area configuration data
+     * @param {Object} options.logger - Logger instance for service-specific logging
+     * @param {number} [options.cacheTTL=300000] - Optional cache time-to-live in milliseconds (defaults to 5 minutes)
      */
-    constructor(focusAreaConfigRepository, logger) {
+    constructor({ focusAreaConfigRepository, logger, cacheTTL } = {}) {
         this.repository = focusAreaConfigRepository;
         this.logger = logger;
         this.cachedFocusAreas = null;
         this.lastCacheTime = null;
-        this.cacheTTL = 5 * 60 * 1000; // 5 minutes cache
+        this.cacheTTL = cacheTTL || 5 * 60 * 1000; // 5 minutes cache
     }
     /**
      * Validate if a focus area exists in the system

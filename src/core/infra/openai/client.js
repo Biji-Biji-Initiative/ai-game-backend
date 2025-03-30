@@ -5,6 +5,7 @@ import errors from "../../infra/openai/errors.js";
 import { formatForResponsesApi } from "../../infra/openai/messageFormatter.js";
 import { createStreamController } from "../../infra/openai/streamProcessor.js";
 import { OpenAI } from "openai";
+import { wrapClientWithCircuitBreaker } from "../../infra/openai/circuitBreaker.js";
 'use strict';
 /**
  * OpenAI API Client
@@ -14,6 +15,19 @@ import { OpenAI } from "openai";
  */
 const { apiLogger } = domainLogger;
 const { OpenAIRequestError, OpenAIResponseError, OpenAIResponseHandlingError, createOpenAIError } = errors;
+
+// Default circuit breaker options
+const DEFAULT_CIRCUIT_BREAKER_OPTIONS = {
+    // The number of failures before opening the circuit
+    failureThreshold: 50,
+    // The percentage of failures that will open the circuit (0-100)
+    failurePercentage: 50,
+    // The time in milliseconds to wait before trying to close the circuit again
+    resetTimeout: 30000, // 30 seconds
+    // The time in milliseconds after which a request will timeout
+    timeout: 10000 // 10 seconds
+};
+
 /**
  * Class for making requests to the OpenAI API
  */
@@ -74,6 +88,24 @@ class OpenAIClient {
             if (!this.sdk.responses || typeof this.sdk.responses.create !== 'function') {
                 this.logger.warn('OpenAI SDK does not have responses.create method. Ensure you are using a recent SDK version (v4+)');
             }
+            
+            // Apply circuit breaker to the SDK instance
+            const circuitBreakerOptions = {
+                ...DEFAULT_CIRCUIT_BREAKER_OPTIONS,
+                ...this.config?.circuitBreaker
+            };
+            
+            this.logger.info('Applying circuit breaker to OpenAI SDK', {
+                failureThreshold: circuitBreakerOptions.failureThreshold,
+                resetTimeoutMs: circuitBreakerOptions.resetTimeout
+            });
+            
+            // Wrap the responses API with the circuit breaker
+            this.sdk.responses = wrapClientWithCircuitBreaker(
+                this.sdk.responses, 
+                circuitBreakerOptions,
+                this.logger.child('circuit-breaker')
+            );
         }
         catch (error) {
             this.logger.warn('OpenAI SDK not available, using fetch API instead', {
@@ -326,7 +358,17 @@ class OpenAIClient {
         this.logger.error('Error processing OpenAI request', {
             error: error.message,
             stack: error.stack,
+            isCircuitBreakerError: error.isCircuitBreakerError || false
         });
+        
+        // Special handling for circuit breaker errors
+        if (error.isCircuitBreakerError) {
+            throw new OpenAIRequestError(
+                'OpenAI API is currently unavailable (circuit breaker open)',
+                { code: 'circuit_open', cause: error }
+            );
+        }
+        
         // If it's already an OpenAI error, just rethrow it
         if (error instanceof OpenAIRequestError || error instanceof OpenAIResponseHandlingError) {
             throw error;
@@ -901,46 +943,62 @@ class OpenAIClient {
     }
     /**
      * Check the health of the OpenAI API connection
-     * @returns {Promise<Object>} Health check result
+     * Tests basic connectivity to the API
+     * 
+     * @returns {Promise<Object>} Object with status and details
      */
     async checkHealth() {
         try {
-            // Start timing
-            const startTime = Date.now();
-            // Don't make actual API calls if in mock mode
             if (this.useMock) {
                 return {
                     status: 'mock',
-                    message: 'OpenAI API client is in mock mode',
-                    responseTime: 0
+                    details: 'Using mock responses (API key not provided)',
+                    circuitBreaker: {
+                        status: 'not_applicable'
+                    }
                 };
             }
-            // Create a minimal message to test the API
-            const testMessage = {
-                input: 'Hello'
-            };
-            // Use minimal configuration for the test
-            const options = {
-                temperature: 0.0,
-                maxTokens: 5,
-                model: this.config?.defaults?.model || 'gpt-3.5-turbo'
-            };
-            // Attempt a simple API call
-            await this.sendMessage(testMessage, options);
-            // Calculate response time
-            const responseTime = Date.now() - startTime;
+
+            // Get circuit breaker stats if available
+            let circuitBreakerStatus = 'not_available';
+            let circuitBreakerDetails = {};
+            
+            if (this.sdk?.responses?.create?.circuit) {
+                const circuit = this.sdk.responses.create.circuit;
+                circuitBreakerStatus = circuit.status;
+                circuitBreakerDetails = {
+                    state: circuit.status,
+                    failures: circuit.stats.failures,
+                    successes: circuit.stats.successes,
+                    total: circuit.stats.total,
+                    percentageFailures: circuit.stats.total > 0 
+                        ? (circuit.stats.failures / circuit.stats.total) * 100 
+                        : 0
+                };
+            }
+
+            // Try a simple API call to test connectivity
+            // Use the models.list endpoint as it's lightweight and doesn't cost tokens
+            const testResp = await this.sdk.models.list();
+            
             return {
                 status: 'healthy',
-                message: 'OpenAI API connection is healthy',
-                responseTime: responseTime
+                details: {
+                    modelsAvailable: testResp.data.length
+                },
+                circuitBreaker: {
+                    status: circuitBreakerStatus,
+                    ...circuitBreakerDetails
+                }
             };
-        }
-        catch (error) {
-            this.logger.error('OpenAI API health check failed', { error: error.message });
+        } catch (error) {
             return {
-                status: 'error',
-                message: `Failed to connect to OpenAI API: ${error.message}`,
-                error: error.message
+                status: 'unhealthy',
+                error: error.message,
+                code: error.code || 'unknown_error',
+                circuitBreaker: {
+                    status: error.isCircuitBreakerError ? 'open' : 'unknown'
+                }
             };
         }
     }

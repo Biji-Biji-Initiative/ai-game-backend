@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
 import sinon from "sinon";
 import { EvaluationRepository } from "../../../../src/core/evaluation/repositories/evaluationRepository.js";
@@ -12,7 +13,7 @@ describe('Evaluation Repository with Zod Validation', () => {
     let loggerMock;
     let eventBusMock;
 
-    before(() => {
+    beforeAll(() => {
         // Create a sandbox for stubs
         sandbox = sinon.createSandbox();
     });

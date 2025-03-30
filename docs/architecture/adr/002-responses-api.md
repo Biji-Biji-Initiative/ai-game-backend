@@ -69,6 +69,6 @@ We have decided to migrate all OpenAI API interactions from the Chat Completions
 6. Phase out old API calls after successful migration
 
 ## References
-- [OpenAI Responses API Documentation](https://platform.openai.com/docs/api-reference/responses)
+- OpenAI API Documentation (refer to the official OpenAI platform documentation)
 - Internal design documents on AI integration
 - Migration proof-of-concept results 

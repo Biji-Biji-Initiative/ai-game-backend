@@ -1,5 +1,6 @@
 import AppError from "../../infra/errors/AppError.js";
-import { StandardErrorCodes } from "../../infra/errors/ErrorHandler.js";
+import { DomainErrorCodes } from "../../infra/errors/DomainErrorCodes.js";
+const UserErrorCodes = DomainErrorCodes.User
 'use strict';
 /**
  * Base class for Evaluation domain errors
@@ -31,7 +32,7 @@ class EvaluationNotFoundError extends EvaluationError {
     constructor(identifier = '') {
         const message = identifier ? `Evaluation not found: ${identifier}` : 'Evaluation not found';
         super(message, 404, {
-            errorCode: StandardErrorCodes.NOT_FOUND,
+            errorCode: DomainErrorCodes.NOT_FOUND,
             metadata: { identifier }
         });
         this.name = 'EvaluationNotFoundError';
@@ -49,7 +50,7 @@ class EvaluationValidationError extends EvaluationError {
      */
     constructor(message = 'Invalid evaluation data', validationErrors = null) {
         super(message, 400, {
-            errorCode: StandardErrorCodes.VALIDATION_ERROR,
+            errorCode: DomainErrorCodes.VALIDATION_ERROR,
             metadata: { validationErrors }
         });
         this.name = 'EvaluationValidationError';
@@ -68,7 +69,7 @@ class EvaluationProcessingError extends EvaluationError {
     constructor(message = 'Failed to process evaluation', options = {}) {
         super(message, 500, {
             ...options,
-            errorCode: StandardErrorCodes.DOMAIN_ERROR
+            errorCode: DomainErrorCodes.DOMAIN_ERROR
         });
         this.name = 'EvaluationProcessingError';
     }
@@ -86,7 +87,7 @@ class EvaluationRepositoryError extends EvaluationError {
     constructor(message = 'Failed to perform evaluation repository operation', options = {}) {
         super(message, 500, {
             ...options,
-            errorCode: StandardErrorCodes.DATABASE_ERROR
+            errorCode: DomainErrorCodes.DATABASE_ERROR
         });
         this.name = 'EvaluationRepositoryError';
     }

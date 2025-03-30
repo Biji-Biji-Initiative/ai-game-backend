@@ -1,0 +1,1475 @@
+{
+  "totalFiles": 152,
+  "emptyOrInvalidTests": [
+    "tests/api/personality/personality-api.test.js",
+    "tests/api/personality/personality-controller.test.js",
+    "tests/api/user/user-api.test.js",
+    "tests/api/user/user-controller.test.js",
+    "tests/domain/challenge/challenge-evaluation-flow.test.js",
+    "tests/domain/challenge/challenge-evaluation.workflow.test.js",
+    "tests/domain/challenge/challenge-focus-area.workflow.test.js",
+    "tests/domain/challenge/challenge-generation.integration.test.js",
+    "tests/domain/challenge/challenge.ai.generator.test.js",
+    "tests/domain/challenge/challenge.collaborators.test.js",
+    "tests/domain/challenge/challenge.generation.service.test.js",
+    "tests/domain/challenge/challenge.model.test.js",
+    "tests/domain/challenge/evaluation-flow.test.js",
+    "tests/domain/challenge/evaluation-service.workflow.test.js",
+    "tests/domain/challenge/evaluation.generator.service.test.js",
+    "tests/domain/challenge/evaluation.service.test.js",
+    "tests/domain/challenge/focus-area-flow.test.js",
+    "tests/domain/challenge/focus-area.service.test.js",
+    "tests/domain/challenge/integration_cross-domain-workflow.test.js",
+    "tests/domain/challenge/openai-supabase-flow.test.js",
+    "tests/domain/challenge/openai-supabase.workflow.test.js",
+    "tests/domain/challenge/prompt-flow.test.js",
+    "tests/domain/challenge/prompt-generation.workflow.test.js",
+    "tests/domain/challenge/prompt-template.generator.test.js",
+    "tests/domain/challenge/user.lifecycle.test.js",
+    "tests/domain/evaluation/evaluation-flow.test.js",
+    "tests/domain/evaluation/evaluation.generator.service.test.js",
+    "tests/domain/evaluation/evaluation.service.test.js",
+    "tests/domain/evaluation/openai-responses.workflow.test.js",
+    "tests/domain/focusArea/focus-area.service.test.js",
+    "tests/domain/focusArea/user-flow.test.js",
+    "tests/domain/personality/personality.service.test.js",
+    "tests/domain/prompt/prompt-builder.facade.test.js",
+    "tests/domain/prompt/prompt-schemas.validation.test.js",
+    "tests/domain/prompt/services/prompt-template.generator.test.js",
+    "tests/domain/shared/domain-events.test.js",
+    "tests/domain/user/personality.service.test.js",
+    "tests/domain/user/user-storage.workflow.test.js",
+    "tests/domain/user/user.lifecycle.test.js",
+    "tests/domain/userJourney/schemas/user-journey-schemas.test.js",
+    "tests/e2e/challenge/challenge-cycle.e2e.test.js",
+    "tests/e2e/challenge/challenge-evaluation.e2e.test.js",
+    "tests/e2e/challenge/challenge-generation.e2e.test.js",
+    "tests/e2e/challenge/evaluation.e2e.test.js",
+    "tests/e2e/challenge/focus-area.e2e.test.js",
+    "tests/e2e/challenge/prompt-template.e2e.test.js",
+    "tests/e2e/focusArea/user-management.e2e.test.js",
+    "tests/e2e/focusArea/user-personality.e2e.test.js",
+    "tests/e2e/user/auth.e2e.test.js",
+    "tests/e2e/user/personality.e2e.test.js",
+    "tests/e2e/user/user-lifecycle.e2e.test.js",
+    "tests/external/openai/challenge/challenge-legacy.test.js",
+    "tests/external/openai/challenge/challenge.model.test.js",
+    "tests/external/openai/challenge-generation.direct.test.js",
+    "tests/external/openai/challenge.external.test.js",
+    "tests/external/openai/evaluation.external.test.js",
+    "tests/external/openai/focus-area.external.test.js",
+    "tests/external/openai/openai-client.test.js",
+    "tests/external/openai/prompt-template.external.test.js",
+    "tests/external/openai/responses-api/challengeGeneration.responses-api.test.js",
+    "tests/external/openai/responses-api/sample-responses-api.test.js",
+    "tests/external/openai/sample-openai-test.test.js",
+    "tests/external/supabase/focusArea/user-api.test.js",
+    "tests/external/supabase/focusArea/user-controller.test.js",
+    "tests/external/supabase/supabase-client.test.js",
+    "tests/external/supabase/user/personality-api.test.js",
+    "tests/external/supabase/user/personality-controller.test.js",
+    "tests/integration/challenge/challenge-evaluation-flow.test.js",
+    "tests/integration/challenge/challenge-generation.integration.test.js",
+    "tests/integration/challenge/challenge.external.test.js",
+    "tests/integration/challenge/challengeGeneration.responses-api.test.js",
+    "tests/integration/challenge/domain-events.test.js",
+    "tests/integration/challenge/evaluation-flow.test.js",
+    "tests/integration/challenge/evaluation.responses-api.test.js",
+    "tests/integration/challenge/focus-area-generation.integration.test.js",
+    "tests/integration/challenge/focusAreaGeneration.responses-api.test.js",
+    "tests/integration/challenge/integration_focus-area-generation.test.js",
+    "tests/integration/challenge/prompt-schemas.validation.test.js",
+    "tests/integration/challenge/prompt-template.external.test.js",
+    "tests/integration/challenge-evaluation.workflow.test.js",
+    "tests/integration/challenge-focus-area.workflow.test.js",
+    "tests/integration/challenge-progress.workflow.test.js",
+    "tests/integration/coordinator-error-handling.test.js",
+    "tests/integration/focusArea/challengeGeneration.responses-api.test.js",
+    "tests/integration/focusArea/evaluation.responses-api.test.js",
+    "tests/integration/focusArea/focus-area-flow.test.js",
+    "tests/integration/focusArea/focus-area-generation.direct.test.js",
+    "tests/integration/focusArea/focus-area-generation.integration.test.js",
+    "tests/integration/focusArea/focusAreaGeneration.responses-api.test.js",
+    "tests/integration/focusArea/user-personality-interaction.test.js",
+    "tests/integration/openai-supabase-flow.test.js",
+    "tests/integration/openai-supabase.workflow.test.js",
+    "tests/integration/prompt-flow.test.js",
+    "tests/integration/prompt-generation.workflow.test.js",
+    "tests/integration/responses-api/evaluation-service.workflow.test.js",
+    "tests/integration/responses-api/focusArea.responses-api.test.js",
+    "tests/integration/responses-api/openai-responses.workflow.test.js",
+    "tests/integration/user-flow.test.js",
+    "tests/integration/user-storage.workflow.test.js",
+    "tests/setup/environment/environment-test.test.js",
+    "tests/shared/common/domain-events.test.js",
+    "tests/unit/challenge/prompt-builder.facade.test.js",
+    "tests/unit/personality/personality-data-loader.test.js"
+  ],
+  "lowValueTests": [],
+  "duplicateTestCases": {
+    "a885fe5aa880fed6a9ae9f656d82992b": [
+      {
+        "file": "tests/api/personality/personality-insights.test.js",
+        "testName": "should return insights for a user"
+      },
+      {
+        "file": "tests/domain/user/personality-insights.test.js",
+        "testName": "should return insights for a user"
+      }
+    ],
+    "9d8ac4e01777ec62bab426b45c72c794": [
+      {
+        "file": "tests/api/personality/personality-insights.test.js",
+        "testName": "should handle errors when generating insights"
+      },
+      {
+        "file": "tests/domain/user/personality-insights.test.js",
+        "testName": "should handle errors when generating insights"
+      }
+    ],
+    "77ad75b63b63b2e1cc58da92e7f529c9": [
+      {
+        "file": "tests/api/personality/personality-insights.test.js",
+        "testName": "should return a profile with query parameter filtering"
+      },
+      {
+        "file": "tests/domain/user/personality-insights.test.js",
+        "testName": "should return a profile with query parameter filtering"
+      }
+    ],
+    "f602cca0888a8b486a29e68586a62cb2": [
+      {
+        "file": "tests/api/personality/personality-insights.test.js",
+        "testName": "should handle missing profiles"
+      },
+      {
+        "file": "tests/domain/user/personality-insights.test.js",
+        "testName": "should handle missing profiles"
+      }
+    ],
+    "bfb4184827f213c90f6e020fdc1cc537": [
+      {
+        "file": "tests/api/personality/personality-insights.test.js",
+        "testName": "should update personality traits"
+      },
+      {
+        "file": "tests/domain/user/personality-insights.test.js",
+        "testName": "should update personality traits"
+      }
+    ],
+    "57eac01f6ba0b00dbc74419b5e314fc3": [
+      {
+        "file": "tests/domain/challenge/challenge-repository.test.js",
+        "testName": "should use validated options for pagination and sorting"
+      },
+      {
+        "file": "tests/domain/challenge/repositories/challenge-repository.test.js",
+        "testName": "should use validated options for pagination and sorting"
+      }
+    ],
+    "020b31ce9f46f9d30a2dd32d4b15676b": [
+      {
+        "file": "tests/domain/challenge/evaluation-repository.test.js",
+        "testName": "should successfully create a valid evaluation"
+      },
+      {
+        "file": "tests/domain/evaluation/repositories/evaluation-repository.test.js",
+        "testName": "should successfully create a valid evaluation"
+      }
+    ],
+    "9c2c0db9fee9b47d9b7f2909d090b945": [
+      {
+        "file": "tests/domain/challenge/evaluation-repository.test.js",
+        "testName": "should successfully update with valid data"
+      },
+      {
+        "file": "tests/domain/evaluation/repositories/evaluation-repository.test.js",
+        "testName": "should successfully update with valid data"
+      }
+    ],
+    "7e05e5d60306e73e025e35dc762c1be3": [
+      {
+        "file": "tests/domain/challenge/traits-analysis.service.test.js",
+        "testName": "should return dominant traits above threshold"
+      },
+      {
+        "file": "tests/domain/personality/traits-analysis.service.test.js",
+        "testName": "should return dominant traits above threshold"
+      },
+      {
+        "file": "tests/domain/user/traits-analysis-service.test.js",
+        "testName": "should return dominant traits above threshold"
+      }
+    ],
+    "7fd9179edebd9d5482ceb79c7d7ccc06": [
+      {
+        "file": "tests/domain/challenge/traits-analysis.service.test.js",
+        "testName": "should return empty array when no traits are above threshold"
+      },
+      {
+        "file": "tests/domain/personality/traits-analysis.service.test.js",
+        "testName": "should return empty array when no traits are above threshold"
+      },
+      {
+        "file": "tests/domain/user/traits-analysis-service.test.js",
+        "testName": "should return empty array when no traits are above threshold"
+      }
+    ],
+    "ac47d9f50e28397ae321cdbe83334bc2": [
+      {
+        "file": "tests/domain/challenge/traits-analysis.service.test.js",
+        "testName": "should return empty array when traits object is empty"
+      },
+      {
+        "file": "tests/domain/personality/traits-analysis.service.test.js",
+        "testName": "should return empty array when traits object is empty"
+      },
+      {
+        "file": "tests/domain/user/traits-analysis-service.test.js",
+        "testName": "should return empty array when traits object is empty"
+      }
+    ],
+    "a5ae443407bc3a14f3c3b9a72d9fa654": [
+      {
+        "file": "tests/domain/challenge/traits-analysis.service.test.js",
+        "testName": "should categorize traits into appropriate clusters"
+      },
+      {
+        "file": "tests/domain/personality/traits-analysis.service.test.js",
+        "testName": "should categorize traits into appropriate clusters"
+      },
+      {
+        "file": "tests/domain/user/traits-analysis-service.test.js",
+        "testName": "should categorize traits into appropriate clusters"
+      }
+    ],
+    "cab6fb275f545d5897bc6af94bc4e3d9": [
+      {
+        "file": "tests/domain/challenge/traits-analysis.service.test.js",
+        "testName": "should return empty object when no dominant traits provided"
+      },
+      {
+        "file": "tests/domain/personality/traits-analysis.service.test.js",
+        "testName": "should return empty object when no dominant traits provided"
+      },
+      {
+        "file": "tests/domain/user/traits-analysis-service.test.js",
+        "testName": "should return empty object when no dominant traits provided"
+      }
+    ],
+    "aa9ad757ec1845ed2e75821b49d62063": [
+      {
+        "file": "tests/domain/challenge/traits-analysis.service.test.js",
+        "testName": "should correctly analyze AI attitudes and create a profile"
+      },
+      {
+        "file": "tests/domain/personality/traits-analysis.service.test.js",
+        "testName": "should correctly analyze AI attitudes and create a profile"
+      }
+    ],
+    "12354d78f7657a67da1ccbd69e361061": [
+      {
+        "file": "tests/domain/challenge/traits-analysis.service.test.js",
+        "testName": "should return a neutral default when no attitudes provided"
+      },
+      {
+        "file": "tests/domain/personality/traits-analysis.service.test.js",
+        "testName": "should return a neutral default when no attitudes provided"
+      },
+      {
+        "file": "tests/domain/user/traits-analysis-service.test.js",
+        "testName": "should return a neutral default when no attitudes provided"
+      }
+    ],
+    "a27da09a2e31a5ab26bd01e690e98dfa": [
+      {
+        "file": "tests/domain/challenge/traits-analysis.service.test.js",
+        "testName": "should enrich an existing profile with derived insights"
+      },
+      {
+        "file": "tests/domain/personality/traits-analysis.service.test.js",
+        "testName": "should enrich an existing profile with derived insights"
+      },
+      {
+        "file": "tests/domain/user/traits-analysis-service.test.js",
+        "testName": "should enrich an existing profile with derived insights"
+      }
+    ],
+    "6683a028330abdc6798657b43d3311aa": [
+      {
+        "file": "tests/domain/challenge/traits-analysis.service.test.js",
+        "testName": "should return a default profile structure when no profile exists"
+      },
+      {
+        "file": "tests/domain/personality/traits-analysis.service.test.js",
+        "testName": "should return a default profile structure when no profile exists"
+      },
+      {
+        "file": "tests/domain/user/traits-analysis-service.test.js",
+        "testName": "should return a default profile structure when no profile exists"
+      }
+    ],
+    "6942c7cd80559a78f18e58e2da54cfc6": [
+      {
+        "file": "tests/domain/challenge/traits-analysis.service.test.js",
+        "testName": "should correctly calculate trait compatibility score"
+      },
+      {
+        "file": "tests/domain/personality/traits-analysis.service.test.js",
+        "testName": "should correctly calculate trait compatibility score"
+      },
+      {
+        "file": "tests/domain/user/traits-analysis-service.test.js",
+        "testName": "should correctly calculate trait compatibility score"
+      }
+    ],
+    "76871e7ca82981c421d569ab49eba50b": [
+      {
+        "file": "tests/domain/challenge/traits-analysis.service.test.js",
+        "testName": "should return neutral score when traits or challenge traits are empty"
+      },
+      {
+        "file": "tests/domain/personality/traits-analysis.service.test.js",
+        "testName": "should return neutral score when traits or challenge traits are empty"
+      },
+      {
+        "file": "tests/domain/user/traits-analysis-service.test.js",
+        "testName": "should return neutral score when traits or challenge traits are empty"
+      }
+    ],
+    "f68e7301640385c15f19f5a042753c25": [
+      {
+        "file": "tests/domain/evaluation/evaluation-category.repository.test.js",
+        "testName": "mapFocusAreasToCategories throws error for empty input"
+      },
+      {
+        "file": "tests/integration/focusArea/evaluation-category.repository.test.js",
+        "testName": "mapFocusAreasToCategories throws error for empty input"
+      }
+    ],
+    "bc6037ee08afcd40577ebc2551d2d7ff": [
+      {
+        "file": "tests/domain/evaluation/evaluation.model.test.js",
+        "testName": "setRelevantCategories method updates categories properly"
+      },
+      {
+        "file": "tests/domain/evaluation/evaluation.model.test.js",
+        "testName": "calculateMetrics generates appropriate metrics"
+      },
+      {
+        "file": "tests/integration/challenge/evaluation-legacy.test.js",
+        "testName": "calculateMetrics generates appropriate metrics"
+      },
+      {
+        "file": "tests/integration/challenge/evaluation.model.test.js",
+        "testName": "calculateMetrics generates appropriate metrics"
+      }
+    ],
+    "feaa6534115d8e4698ea476e75f13e2a": [
+      {
+        "file": "tests/domain/focusArea/focus-area-service-system-messages.test.js",
+        "testName": "uses dynamic system message from prompt builder"
+      },
+      {
+        "file": "tests/domain/focusArea/services/focus-area-service-system-messages.test.js",
+        "testName": "uses dynamic system message from prompt builder"
+      }
+    ],
+    "6f47d27cc731c82f1dbcb3af88b429bd": [
+      {
+        "file": "tests/domain/focusArea/focus-area-service-system-messages.test.js",
+        "testName": "handles different user skill levels with appropriate system messages"
+      },
+      {
+        "file": "tests/domain/focusArea/services/focus-area-service-system-messages.test.js",
+        "testName": "handles different user skill levels with appropriate system messages"
+      }
+    ],
+    "add59c899bcbd9ceeb0ea4dd15a49886": [
+      {
+        "file": "tests/domain/focusArea/user.controller.test.js",
+        "testName": "should return current user when found"
+      },
+      {
+        "file": "tests/unit/user/user.controller.test.js",
+        "testName": "should return current user when found"
+      }
+    ],
+    "6aed3985428ca4b2d7000a74bdee8c42": [
+      {
+        "file": "tests/domain/focusArea/user.controller.test.js",
+        "testName": "should call next with error when user not found"
+      },
+      {
+        "file": "tests/unit/user/user.controller.test.js",
+        "testName": "should call next with error when user not found"
+      }
+    ],
+    "6459d3b6d4e31ccdc494e02b581db1d9": [
+      {
+        "file": "tests/domain/focusArea/user.controller.test.js",
+        "testName": "should update and return user"
+      },
+      {
+        "file": "tests/unit/user/user.controller.test.js",
+        "testName": "should update and return user"
+      }
+    ],
+    "ce4dc9d1431849b22a5c7f402524880d": [
+      {
+        "file": "tests/domain/focusArea/user.controller.test.js",
+        "testName": "should remove sensitive fields from update data"
+      },
+      {
+        "file": "tests/unit/user/user.controller.test.js",
+        "testName": "should remove sensitive fields from update data"
+      }
+    ],
+    "6fb3244cf5d3ddca80d0cfd9bda0c513": [
+      {
+        "file": "tests/domain/focusArea/user.controller.test.js",
+        "testName": "should set focus area and return updated user"
+      },
+      {
+        "file": "tests/unit/user/user.controller.test.js",
+        "testName": "should set focus area and return updated user"
+      }
+    ],
+    "f37b9e990c636c30b71cd96b6c66f482": [
+      {
+        "file": "tests/domain/focusArea/user.controller.test.js",
+        "testName": "should throw error when focus area is not provided"
+      },
+      {
+        "file": "tests/unit/user/user.controller.test.js",
+        "testName": "should throw error when focus area is not provided"
+      }
+    ],
+    "4ae2063f8c8baf3c19c165cd86afb125": [
+      {
+        "file": "tests/domain/focusArea/user.controller.test.js",
+        "testName": "should return list of users"
+      },
+      {
+        "file": "tests/unit/user/user.controller.test.js",
+        "testName": "should return list of users"
+      }
+    ],
+    "20ab666301246e8064ba22d7c2bbba8c": [
+      {
+        "file": "tests/domain/prompt/builders/evaluation.builder.test.js",
+        "testName": "EvaluationPromptBuilder produces prompt with valid Responses API instructions"
+      },
+      {
+        "file": "tests/integration/challenge/evaluation-prompt.test.js",
+        "testName": "EvaluationPromptBuilder produces prompt with valid Responses API instructions"
+      },
+      {
+        "file": "tests/integration/challenge/evaluation.builder.test.js",
+        "testName": "EvaluationPromptBuilder produces prompt with valid Responses API instructions"
+      },
+      {
+        "file": "tests/integration/evaluation-prompt.test.js",
+        "testName": "EvaluationPromptBuilder produces prompt with valid Responses API instructions"
+      }
+    ],
+    "c53d902154affd08c7a05d065835dc5e": [
+      {
+        "file": "tests/domain/prompt/builders/evaluation.builder.test.js",
+        "testName": "Evaluation response can be parsed into the Evaluation model"
+      },
+      {
+        "file": "tests/integration/challenge/evaluation.builder.test.js",
+        "testName": "Evaluation response can be parsed into the Evaluation model"
+      }
+    ],
+    "ff8d4fb0f8db635928b96765c8b32d1a": [
+      {
+        "file": "tests/domain/prompt/builders/evaluation.builder.test.js",
+        "testName": "EvaluationPromptBuilder provides fallbacks for repository failures"
+      },
+      {
+        "file": "tests/integration/challenge/evaluation.builder.test.js",
+        "testName": "EvaluationPromptBuilder provides fallbacks for repository failures"
+      }
+    ],
+    "6166f2fa812287a15b5393be14fbb495": [
+      {
+        "file": "tests/domain/user/personality-user-integration.test.js",
+        "testName": "should synchronize user preferences based on AI attitudes"
+      },
+      {
+        "file": "tests/integration/personality-user-integration.test.js",
+        "testName": "should synchronize user preferences based on AI attitudes"
+      }
+    ],
+    "0fa773ccaf598f8f701bf234b3dd481f": [
+      {
+        "file": "tests/domain/user/personality-user-integration.test.js",
+        "testName": "should handle missing user gracefully"
+      },
+      {
+        "file": "tests/integration/personality-user-integration.test.js",
+        "testName": "should handle missing user gracefully"
+      }
+    ],
+    "96f051283d1d2e92068f2e64d36d1e7e": [
+      {
+        "file": "tests/domain/user/personality-user-integration.test.js",
+        "testName": "should map AI attitudes to appropriate preferences"
+      },
+      {
+        "file": "tests/integration/personality-user-integration.test.js",
+        "testName": "should map AI attitudes to appropriate preferences"
+      }
+    ],
+    "2a917a90d662cab10f340b8d6e50bd81": [
+      {
+        "file": "tests/domain/user/personality-user-integration.test.js",
+        "testName": "should update user preferences when personality profile event is triggered"
+      },
+      {
+        "file": "tests/integration/personality-user-integration.test.js",
+        "testName": "should update user preferences when personality profile event is triggered"
+      }
+    ],
+    "bf015fe0dfffc6d0cf9418a4a02314cb": [
+      {
+        "file": "tests/infrastructure/services/mock-insight-generator.test.js",
+        "testName": "should generate mock insights for a personality profile"
+      },
+      {
+        "file": "tests/unit/infra/mock-insight-generator.adapter.test.js",
+        "testName": "should generate mock insights for a personality profile"
+      }
+    ],
+    "e94c1cc4bec20667bf6200c6ab09f92e": [
+      {
+        "file": "tests/infrastructure/services/mock-insight-generator.test.js",
+        "testName": "should use default values for traits not in the profile"
+      },
+      {
+        "file": "tests/unit/infra/mock-insight-generator.adapter.test.js",
+        "testName": "should use default values for traits not in the profile"
+      }
+    ],
+    "96652fd4a4132b2ea55486f2ccc77f01": [
+      {
+        "file": "tests/infrastructure/services/mock-insight-generator.test.js",
+        "testName": "should always return the same structure regardless of profile input"
+      },
+      {
+        "file": "tests/unit/infra/mock-insight-generator.adapter.test.js",
+        "testName": "should always return the same structure regardless of profile input"
+      }
+    ],
+    "9fc1bff7da8dca0b91f14e965f3831d5": [
+      {
+        "file": "tests/integration/challenge/evaluation-legacy.test.js",
+        "testName": "Evaluation model constructor creates valid instance"
+      },
+      {
+        "file": "tests/integration/challenge/evaluation-legacy.test.js",
+        "testName": "addCategoryScore updates metrics correctly"
+      },
+      {
+        "file": "tests/integration/challenge/evaluation.model.test.js",
+        "testName": "Evaluation model constructor creates valid instance"
+      },
+      {
+        "file": "tests/integration/challenge/evaluation.model.test.js",
+        "testName": "addCategoryScore updates metrics correctly"
+      }
+    ],
+    "8e9c1e404122f3ffd9c944031a652185": [
+      {
+        "file": "tests/integration/challenge/evaluation-legacy.test.js",
+        "testName": "mapFocusAreasToCategories correctly maps focus areas"
+      },
+      {
+        "file": "tests/integration/challenge/evaluation.model.test.js",
+        "testName": "mapFocusAreasToCategories correctly maps focus areas"
+      }
+    ],
+    "0842a574f5f3e244ad120e6149a3e57f": [
+      {
+        "file": "tests/integration/challenge/evaluation-legacy.test.js",
+        "testName": "getPersonalizedFeedback returns tailored feedback"
+      },
+      {
+        "file": "tests/integration/challenge/evaluation.model.test.js",
+        "testName": "getPersonalizedFeedback returns tailored feedback"
+      }
+    ],
+    "d030df93a17a70743090cdf5de58ffd1": [
+      {
+        "file": "tests/integration/challenge/evaluation-prompt.test.js",
+        "testName": "Evaluation response can be parsed into the Evaluation model"
+      },
+      {
+        "file": "tests/integration/evaluation-prompt.test.js",
+        "testName": "Evaluation response can be parsed into the Evaluation model"
+      }
+    ],
+    "25a13bf93ad1d66894b62d323ea57340": [
+      {
+        "file": "tests/unit/challenge/services/challenge-evaluation-service.test.js",
+        "testName": "should use the AIStateManager to get the last response ID"
+      },
+      {
+        "file": "tests/unit/challenge/services/challenge-evaluation-service.test.js",
+        "testName": "should use the prompt builder to create an evaluation prompt"
+      },
+      {
+        "file": "tests/unit/challenge/services/challenge-evaluation-service.test.js",
+        "testName": "should use the AIClient to send the prompt and get a response"
+      },
+      {
+        "file": "tests/unit/challenge/services/challenge-evaluation-service.test.js",
+        "testName": "should update the last response ID after evaluation"
+      }
+    ],
+    "f20b5aa0ac65fa11d9f42e5465ad7a3f": [
+      {
+        "file": "tests/unit/challenge/services/challenge-evaluation-service.test.js",
+        "testName": "should use the AIStateManager to create a conversation state for streaming"
+      },
+      {
+        "file": "tests/unit/challenge/services/challenge-evaluation-service.test.js",
+        "testName": "should use the AIClient to stream the evaluation"
+      }
+    ],
+    "7331ca89472d5fdd5f74fd90beb396f4": [
+      {
+        "file": "tests/unit/challenge/services/challenge-generation-service.test.js",
+        "testName": "should use the AIStateManager to create a conversation state"
+      },
+      {
+        "file": "tests/unit/challenge/services/challenge-generation-service.test.js",
+        "testName": "should use the AIStateManager to get the last response ID"
+      },
+      {
+        "file": "tests/unit/challenge/services/challenge-generation-service.test.js",
+        "testName": "should use the prompt builder to create a challenge prompt"
+      },
+      {
+        "file": "tests/unit/challenge/services/challenge-generation-service.test.js",
+        "testName": "should use the AIClient to send the prompt and get a response"
+      },
+      {
+        "file": "tests/unit/challenge/services/challenge-generation-service.test.js",
+        "testName": "should update the last response ID after generation"
+      }
+    ]
+  },
+  "filesByDomain": {
+    "unknown": [
+      "tests/api/personality/personality-api.test.js",
+      "tests/api/personality/personality-controller.test.js",
+      "tests/api/personality/personality-insights.test.js",
+      "tests/api/user/user-api.test.js",
+      "tests/api/user/user-controller.test.js",
+      "tests/infrastructure/services/mock-insight-generator.test.js",
+      "tests/infrastructure/services/open-aiinsight-generator.test.js",
+      "tests/setup/environment/environment-test.test.js",
+      "tests/shared/common/domain-events.test.js",
+      "tests/unit/ai/adapters/open-aiclient-adapter.test.js",
+      "tests/unit/ai/adapters/open-aistate-manager-adapter.test.js",
+      "tests/unit/ai/ports/aistate-manager.test.js",
+      "tests/unit/challenge/prompt-builder.facade.test.js",
+      "tests/unit/challenge/services/challenge-evaluation-service.test.js",
+      "tests/unit/challenge/services/challenge-generation-service.test.js",
+      "tests/unit/config/config.test.js",
+      "tests/unit/infra/mock-insight-generator.adapter.test.js",
+      "tests/unit/infra/openai/circuit-breaker.test.js",
+      "tests/unit/personality/personality-data-loader.test.js",
+      "tests/unit/personality/personality.controller.test.js",
+      "tests/unit/user/user.controller.test.js"
+    ],
+    "adaptive": [
+      "tests/domain/adaptive/schemas/adaptive-schemas.test.js"
+    ],
+    "challenge": [
+      "tests/domain/challenge/challenge-evaluation-flow.test.js",
+      "tests/domain/challenge/challenge-evaluation.workflow.test.js",
+      "tests/domain/challenge/challenge-focus-area.workflow.test.js",
+      "tests/domain/challenge/challenge-generation.integration.test.js",
+      "tests/domain/challenge/challenge-repository.test.js",
+      "tests/domain/challenge/challenge.ai.generator.test.js",
+      "tests/domain/challenge/challenge.collaborators.test.js",
+      "tests/domain/challenge/challenge.generation.service.test.js",
+      "tests/domain/challenge/challenge.model.test.js",
+      "tests/domain/challenge/evaluation-flow.test.js",
+      "tests/domain/challenge/evaluation-repository.test.js",
+      "tests/domain/challenge/evaluation-service.workflow.test.js",
+      "tests/domain/challenge/evaluation.generator.service.test.js",
+      "tests/domain/challenge/evaluation.service.test.js",
+      "tests/domain/challenge/focus-area-flow.test.js",
+      "tests/domain/challenge/focus-area.service.test.js",
+      "tests/domain/challenge/integration_cross-domain-workflow.test.js",
+      "tests/domain/challenge/openai-supabase-flow.test.js",
+      "tests/domain/challenge/openai-supabase.workflow.test.js",
+      "tests/domain/challenge/prompt-flow.test.js",
+      "tests/domain/challenge/prompt-generation.workflow.test.js",
+      "tests/domain/challenge/prompt-template.generator.test.js",
+      "tests/domain/challenge/repositories/challenge-repository.test.js",
+      "tests/domain/challenge/traits-analysis.service.test.js",
+      "tests/domain/challenge/user.lifecycle.test.js",
+      "tests/e2e/challenge/challenge-cycle.e2e.test.js",
+      "tests/e2e/challenge/challenge-evaluation.e2e.test.js",
+      "tests/e2e/challenge/challenge-generation.e2e.test.js",
+      "tests/e2e/challenge/evaluation.e2e.test.js",
+      "tests/e2e/challenge/focus-area.e2e.test.js",
+      "tests/e2e/challenge/prompt-template.e2e.test.js",
+      "tests/integration/challenge/challenge-evaluation-flow.test.js",
+      "tests/integration/challenge/challenge-generation.integration.test.js",
+      "tests/integration/challenge/challenge.external.test.js",
+      "tests/integration/challenge/challengeGeneration.responses-api.test.js",
+      "tests/integration/challenge/domain-events.test.js",
+      "tests/integration/challenge/evaluation-flow.test.js",
+      "tests/integration/challenge/evaluation-legacy.test.js",
+      "tests/integration/challenge/evaluation-prompt.test.js",
+      "tests/integration/challenge/evaluation-service-system-messages.test.js",
+      "tests/integration/challenge/evaluation.builder.test.js",
+      "tests/integration/challenge/evaluation.model.test.js",
+      "tests/integration/challenge/evaluation.responses-api.test.js",
+      "tests/integration/challenge/focus-area-generation.integration.test.js",
+      "tests/integration/challenge/focusAreaGeneration.responses-api.test.js",
+      "tests/integration/challenge/integration_focus-area-generation.test.js",
+      "tests/integration/challenge/prompt-schemas.validation.test.js",
+      "tests/integration/challenge/prompt-template.external.test.js"
+    ],
+    "evaluation": [
+      "tests/domain/evaluation/evaluation-category.repository.test.js",
+      "tests/domain/evaluation/evaluation-flow.test.js",
+      "tests/domain/evaluation/evaluation.generator.service.test.js",
+      "tests/domain/evaluation/evaluation.model.test.js",
+      "tests/domain/evaluation/evaluation.service.test.js",
+      "tests/domain/evaluation/evaluationservice.test.js",
+      "tests/domain/evaluation/openai-responses.workflow.test.js",
+      "tests/domain/evaluation/repositories/evaluation-repository.test.js",
+      "tests/domain/evaluation/services/evaluation-service-system-messages.test.js",
+      "tests/domain/evaluation/services/evaluationservice.test.js",
+      "tests/domain/evaluation/services/service-dynamic-system-messages.test.js"
+    ],
+    "focusArea": [
+      "tests/domain/focusArea/focus-area-service-system-messages.test.js",
+      "tests/domain/focusArea/focus-area.service.test.js",
+      "tests/domain/focusArea/services/focus-area-service-system-messages.test.js",
+      "tests/domain/focusArea/user-flow.test.js",
+      "tests/domain/focusArea/user.controller.test.js",
+      "tests/e2e/focusArea/user-management.e2e.test.js",
+      "tests/e2e/focusArea/user-personality.e2e.test.js",
+      "tests/integration/focusArea/challengeGeneration.responses-api.test.js",
+      "tests/integration/focusArea/evaluation-category-repository.test.js",
+      "tests/integration/focusArea/evaluation-category.repository.test.js",
+      "tests/integration/focusArea/evaluation.responses-api.test.js",
+      "tests/integration/focusArea/focus-area-flow.test.js",
+      "tests/integration/focusArea/focus-area-generation.direct.test.js",
+      "tests/integration/focusArea/focus-area-generation.integration.test.js",
+      "tests/integration/focusArea/focusAreaGeneration.responses-api.test.js",
+      "tests/integration/focusArea/user-personality-interaction.test.js"
+    ],
+    "personality": [
+      "tests/domain/personality/personality.service.test.js",
+      "tests/domain/personality/traits-analysis.service.test.js"
+    ],
+    "prompt": [
+      "tests/domain/prompt/builders/evaluation.builder.test.js",
+      "tests/domain/prompt/builders/system-message.test.js",
+      "tests/domain/prompt/prompt-builder.facade.test.js",
+      "tests/domain/prompt/prompt-schemas.validation.test.js",
+      "tests/domain/prompt/services/prompt-template.generator.test.js"
+    ],
+    "shared": [
+      "tests/domain/shared/domain-events.test.js"
+    ],
+    "user": [
+      "tests/domain/user/personality-insights.test.js",
+      "tests/domain/user/personality-user-integration.test.js",
+      "tests/domain/user/personality.service.test.js",
+      "tests/domain/user/services/user-service.test.js",
+      "tests/domain/user/traits-analysis-service.test.js",
+      "tests/domain/user/user-storage.workflow.test.js",
+      "tests/domain/user/user.lifecycle.test.js",
+      "tests/e2e/user/auth.e2e.test.js",
+      "tests/e2e/user/personality.e2e.test.js",
+      "tests/e2e/user/user-lifecycle.e2e.test.js"
+    ],
+    "userJourney": [
+      "tests/domain/userJourney/schemas/user-journey-schemas.test.js"
+    ],
+    "openai": [
+      "tests/external/openai/challenge/challenge-legacy.test.js",
+      "tests/external/openai/challenge/challenge.model.test.js",
+      "tests/external/openai/challenge-generation.direct.test.js",
+      "tests/external/openai/challenge.external.test.js",
+      "tests/external/openai/evaluation.external.test.js",
+      "tests/external/openai/focus-area.external.test.js",
+      "tests/external/openai/openai-client.test.js",
+      "tests/external/openai/prompt-template.external.test.js",
+      "tests/external/openai/responses-api/challengeGeneration.responses-api.test.js",
+      "tests/external/openai/responses-api/sample-responses-api.test.js",
+      "tests/external/openai/sample-openai-test.test.js"
+    ],
+    "supabase": [
+      "tests/external/supabase/focusArea/user-api.test.js",
+      "tests/external/supabase/focusArea/user-controller.test.js",
+      "tests/external/supabase/supabase-client.test.js",
+      "tests/external/supabase/user/personality-api.test.js",
+      "tests/external/supabase/user/personality-controller.test.js"
+    ],
+    "api-e2e.test.js": [
+      "tests/integration/api-e2e.test.js"
+    ],
+    "application": [
+      "tests/integration/application/challenge-coordinator.test.js",
+      "tests/integration/application/personality-coordinator.test.js"
+    ],
+    "challenge-evaluation.workflow.test.js": [
+      "tests/integration/challenge-evaluation.workflow.test.js"
+    ],
+    "challenge-focus-area.workflow.test.js": [
+      "tests/integration/challenge-focus-area.workflow.test.js"
+    ],
+    "challenge-progress.workflow.test.js": [
+      "tests/integration/challenge-progress.workflow.test.js"
+    ],
+    "container.test.js": [
+      "tests/integration/container.test.js"
+    ],
+    "coordinator-error-handling.test.js": [
+      "tests/integration/coordinator-error-handling.test.js"
+    ],
+    "evaluation-prompt.test.js": [
+      "tests/integration/evaluation-prompt.test.js"
+    ],
+    "openai-supabase-flow.test.js": [
+      "tests/integration/openai-supabase-flow.test.js"
+    ],
+    "openai-supabase.workflow.test.js": [
+      "tests/integration/openai-supabase.workflow.test.js"
+    ],
+    "personality-user-integration.test.js": [
+      "tests/integration/personality-user-integration.test.js"
+    ],
+    "prompt-flow.test.js": [
+      "tests/integration/prompt-flow.test.js"
+    ],
+    "prompt-generation.workflow.test.js": [
+      "tests/integration/prompt-generation.workflow.test.js"
+    ],
+    "responses-api": [
+      "tests/integration/responses-api/evaluation-service.workflow.test.js",
+      "tests/integration/responses-api/focusArea.responses-api.test.js",
+      "tests/integration/responses-api/openai-responses.workflow.test.js"
+    ],
+    "routes.test.js": [
+      "tests/integration/routes.test.js"
+    ],
+    "user-flow.test.js": [
+      "tests/integration/user-flow.test.js"
+    ],
+    "user-storage.workflow.test.js": [
+      "tests/integration/user-storage.workflow.test.js"
+    ]
+  },
+  "filesByType": {
+    "unknown": [
+      "tests/api/personality/personality-api.test.js",
+      "tests/api/personality/personality-controller.test.js",
+      "tests/api/personality/personality-insights.test.js",
+      "tests/api/user/user-api.test.js",
+      "tests/api/user/user-controller.test.js",
+      "tests/infrastructure/services/mock-insight-generator.test.js",
+      "tests/infrastructure/services/open-aiinsight-generator.test.js",
+      "tests/setup/environment/environment-test.test.js",
+      "tests/shared/common/domain-events.test.js"
+    ],
+    "domain": [
+      "tests/domain/adaptive/schemas/adaptive-schemas.test.js",
+      "tests/domain/challenge/challenge-evaluation-flow.test.js",
+      "tests/domain/challenge/challenge-evaluation.workflow.test.js",
+      "tests/domain/challenge/challenge-focus-area.workflow.test.js",
+      "tests/domain/challenge/challenge-generation.integration.test.js",
+      "tests/domain/challenge/challenge-repository.test.js",
+      "tests/domain/challenge/challenge.ai.generator.test.js",
+      "tests/domain/challenge/challenge.collaborators.test.js",
+      "tests/domain/challenge/challenge.generation.service.test.js",
+      "tests/domain/challenge/challenge.model.test.js",
+      "tests/domain/challenge/evaluation-flow.test.js",
+      "tests/domain/challenge/evaluation-repository.test.js",
+      "tests/domain/challenge/evaluation-service.workflow.test.js",
+      "tests/domain/challenge/evaluation.generator.service.test.js",
+      "tests/domain/challenge/evaluation.service.test.js",
+      "tests/domain/challenge/focus-area-flow.test.js",
+      "tests/domain/challenge/focus-area.service.test.js",
+      "tests/domain/challenge/integration_cross-domain-workflow.test.js",
+      "tests/domain/challenge/openai-supabase-flow.test.js",
+      "tests/domain/challenge/openai-supabase.workflow.test.js",
+      "tests/domain/challenge/prompt-flow.test.js",
+      "tests/domain/challenge/prompt-generation.workflow.test.js",
+      "tests/domain/challenge/prompt-template.generator.test.js",
+      "tests/domain/challenge/repositories/challenge-repository.test.js",
+      "tests/domain/challenge/traits-analysis.service.test.js",
+      "tests/domain/challenge/user.lifecycle.test.js",
+      "tests/domain/evaluation/evaluation-category.repository.test.js",
+      "tests/domain/evaluation/evaluation-flow.test.js",
+      "tests/domain/evaluation/evaluation.generator.service.test.js",
+      "tests/domain/evaluation/evaluation.model.test.js",
+      "tests/domain/evaluation/evaluation.service.test.js",
+      "tests/domain/evaluation/evaluationservice.test.js",
+      "tests/domain/evaluation/openai-responses.workflow.test.js",
+      "tests/domain/evaluation/repositories/evaluation-repository.test.js",
+      "tests/domain/evaluation/services/evaluation-service-system-messages.test.js",
+      "tests/domain/evaluation/services/evaluationservice.test.js",
+      "tests/domain/evaluation/services/service-dynamic-system-messages.test.js",
+      "tests/domain/focusArea/focus-area-service-system-messages.test.js",
+      "tests/domain/focusArea/focus-area.service.test.js",
+      "tests/domain/focusArea/services/focus-area-service-system-messages.test.js",
+      "tests/domain/focusArea/user-flow.test.js",
+      "tests/domain/focusArea/user.controller.test.js",
+      "tests/domain/personality/personality.service.test.js",
+      "tests/domain/personality/traits-analysis.service.test.js",
+      "tests/domain/prompt/builders/evaluation.builder.test.js",
+      "tests/domain/prompt/builders/system-message.test.js",
+      "tests/domain/prompt/prompt-builder.facade.test.js",
+      "tests/domain/prompt/prompt-schemas.validation.test.js",
+      "tests/domain/prompt/services/prompt-template.generator.test.js",
+      "tests/domain/shared/domain-events.test.js",
+      "tests/domain/user/personality-insights.test.js",
+      "tests/domain/user/personality-user-integration.test.js",
+      "tests/domain/user/personality.service.test.js",
+      "tests/domain/user/services/user-service.test.js",
+      "tests/domain/user/traits-analysis-service.test.js",
+      "tests/domain/user/user-storage.workflow.test.js",
+      "tests/domain/user/user.lifecycle.test.js",
+      "tests/domain/userJourney/schemas/user-journey-schemas.test.js"
+    ],
+    "e2e": [
+      "tests/e2e/challenge/challenge-cycle.e2e.test.js",
+      "tests/e2e/challenge/challenge-evaluation.e2e.test.js",
+      "tests/e2e/challenge/challenge-generation.e2e.test.js",
+      "tests/e2e/challenge/evaluation.e2e.test.js",
+      "tests/e2e/challenge/focus-area.e2e.test.js",
+      "tests/e2e/challenge/prompt-template.e2e.test.js",
+      "tests/e2e/focusArea/user-management.e2e.test.js",
+      "tests/e2e/focusArea/user-personality.e2e.test.js",
+      "tests/e2e/user/auth.e2e.test.js",
+      "tests/e2e/user/personality.e2e.test.js",
+      "tests/e2e/user/user-lifecycle.e2e.test.js"
+    ],
+    "external": [
+      "tests/external/openai/challenge/challenge-legacy.test.js",
+      "tests/external/openai/challenge/challenge.model.test.js",
+      "tests/external/openai/challenge-generation.direct.test.js",
+      "tests/external/openai/challenge.external.test.js",
+      "tests/external/openai/evaluation.external.test.js",
+      "tests/external/openai/focus-area.external.test.js",
+      "tests/external/openai/openai-client.test.js",
+      "tests/external/openai/prompt-template.external.test.js",
+      "tests/external/openai/responses-api/challengeGeneration.responses-api.test.js",
+      "tests/external/openai/responses-api/sample-responses-api.test.js",
+      "tests/external/openai/sample-openai-test.test.js",
+      "tests/external/supabase/focusArea/user-api.test.js",
+      "tests/external/supabase/focusArea/user-controller.test.js",
+      "tests/external/supabase/supabase-client.test.js",
+      "tests/external/supabase/user/personality-api.test.js",
+      "tests/external/supabase/user/personality-controller.test.js"
+    ],
+    "integration": [
+      "tests/integration/api-e2e.test.js",
+      "tests/integration/application/challenge-coordinator.test.js",
+      "tests/integration/application/personality-coordinator.test.js",
+      "tests/integration/challenge/challenge-evaluation-flow.test.js",
+      "tests/integration/challenge/challenge-generation.integration.test.js",
+      "tests/integration/challenge/challenge.external.test.js",
+      "tests/integration/challenge/challengeGeneration.responses-api.test.js",
+      "tests/integration/challenge/domain-events.test.js",
+      "tests/integration/challenge/evaluation-flow.test.js",
+      "tests/integration/challenge/evaluation-legacy.test.js",
+      "tests/integration/challenge/evaluation-prompt.test.js",
+      "tests/integration/challenge/evaluation-service-system-messages.test.js",
+      "tests/integration/challenge/evaluation.builder.test.js",
+      "tests/integration/challenge/evaluation.model.test.js",
+      "tests/integration/challenge/evaluation.responses-api.test.js",
+      "tests/integration/challenge/focus-area-generation.integration.test.js",
+      "tests/integration/challenge/focusAreaGeneration.responses-api.test.js",
+      "tests/integration/challenge/integration_focus-area-generation.test.js",
+      "tests/integration/challenge/prompt-schemas.validation.test.js",
+      "tests/integration/challenge/prompt-template.external.test.js",
+      "tests/integration/challenge-evaluation.workflow.test.js",
+      "tests/integration/challenge-focus-area.workflow.test.js",
+      "tests/integration/challenge-progress.workflow.test.js",
+      "tests/integration/container.test.js",
+      "tests/integration/coordinator-error-handling.test.js",
+      "tests/integration/evaluation-prompt.test.js",
+      "tests/integration/focusArea/challengeGeneration.responses-api.test.js",
+      "tests/integration/focusArea/evaluation-category-repository.test.js",
+      "tests/integration/focusArea/evaluation-category.repository.test.js",
+      "tests/integration/focusArea/evaluation.responses-api.test.js",
+      "tests/integration/focusArea/focus-area-flow.test.js",
+      "tests/integration/focusArea/focus-area-generation.direct.test.js",
+      "tests/integration/focusArea/focus-area-generation.integration.test.js",
+      "tests/integration/focusArea/focusAreaGeneration.responses-api.test.js",
+      "tests/integration/focusArea/user-personality-interaction.test.js",
+      "tests/integration/openai-supabase-flow.test.js",
+      "tests/integration/openai-supabase.workflow.test.js",
+      "tests/integration/personality-user-integration.test.js",
+      "tests/integration/prompt-flow.test.js",
+      "tests/integration/prompt-generation.workflow.test.js",
+      "tests/integration/responses-api/evaluation-service.workflow.test.js",
+      "tests/integration/responses-api/focusArea.responses-api.test.js",
+      "tests/integration/responses-api/openai-responses.workflow.test.js",
+      "tests/integration/routes.test.js",
+      "tests/integration/user-flow.test.js",
+      "tests/integration/user-storage.workflow.test.js"
+    ],
+    "unit": [
+      "tests/unit/ai/adapters/open-aiclient-adapter.test.js",
+      "tests/unit/ai/adapters/open-aistate-manager-adapter.test.js",
+      "tests/unit/ai/ports/aistate-manager.test.js",
+      "tests/unit/challenge/prompt-builder.facade.test.js",
+      "tests/unit/challenge/services/challenge-evaluation-service.test.js",
+      "tests/unit/challenge/services/challenge-generation-service.test.js",
+      "tests/unit/config/config.test.js",
+      "tests/unit/infra/mock-insight-generator.adapter.test.js",
+      "tests/unit/infra/openai/circuit-breaker.test.js",
+      "tests/unit/personality/personality-data-loader.test.js",
+      "tests/unit/personality/personality.controller.test.js",
+      "tests/unit/user/user.controller.test.js"
+    ]
+  },
+  "consolidationCandidates": {
+    "challenge:Integration: Challenge-Evaluation Cross-Domain Flow": [
+      "tests/domain/challenge/challenge-evaluation-flow.test.js",
+      "tests/integration/challenge/challenge-evaluation-flow.test.js"
+    ],
+    "challenge:Challenge Generation Integration": [
+      "tests/domain/challenge/challenge-generation.integration.test.js",
+      "tests/integration/challenge/challenge-generation.integration.test.js"
+    ],
+    "challenge:save() with validation": [
+      "tests/domain/challenge/challenge-repository.test.js",
+      "tests/domain/challenge/repositories/challenge-repository.test.js"
+    ],
+    "challenge:Integration: Evaluation Flow": [
+      "tests/domain/challenge/evaluation-flow.test.js",
+      "tests/integration/challenge/evaluation-flow.test.js"
+    ],
+    "evaluation:evaluation EvaluationService": [
+      "tests/domain/evaluation/evaluationservice.test.js",
+      "tests/domain/evaluation/services/evaluationservice.test.js"
+    ],
+    "focusArea:FocusAreaGenerationService System Message Integration": [
+      "tests/domain/focusArea/focus-area-service-system-messages.test.js",
+      "tests/domain/focusArea/services/focus-area-service-system-messages.test.js"
+    ],
+    "unknown:Mock Insight Generator": [
+      "tests/infrastructure/services/mock-insight-generator.test.js",
+      "tests/unit/infra/mock-insight-generator.adapter.test.js"
+    ],
+    "challenge:Evaluation Model Integration": [
+      "tests/integration/challenge/evaluation-legacy.test.js",
+      "tests/integration/challenge/evaluation.model.test.js"
+    ],
+    "challenge:Evaluation Prompt with Responses API Integration": [
+      "tests/integration/challenge/evaluation-prompt.test.js",
+      "tests/integration/challenge/evaluation.builder.test.js"
+    ],
+    "focusArea:Evaluation Category Repository": [
+      "tests/integration/focusArea/evaluation-category-repository.test.js",
+      "tests/integration/focusArea/evaluation-category.repository.test.js"
+    ]
+  },
+  "testCounts": {
+    "tests/api/personality/personality-api.test.js": 0,
+    "tests/api/personality/personality-controller.test.js": 0,
+    "tests/api/personality/personality-insights.test.js": 5,
+    "tests/api/user/user-api.test.js": 0,
+    "tests/api/user/user-controller.test.js": 0,
+    "tests/domain/adaptive/schemas/adaptive-schemas.test.js": 11,
+    "tests/domain/challenge/challenge-evaluation-flow.test.js": 0,
+    "tests/domain/challenge/challenge-evaluation.workflow.test.js": 0,
+    "tests/domain/challenge/challenge-focus-area.workflow.test.js": 0,
+    "tests/domain/challenge/challenge-generation.integration.test.js": 0,
+    "tests/domain/challenge/challenge-repository.test.js": 7,
+    "tests/domain/challenge/challenge.ai.generator.test.js": 0,
+    "tests/domain/challenge/challenge.collaborators.test.js": 0,
+    "tests/domain/challenge/challenge.generation.service.test.js": 0,
+    "tests/domain/challenge/challenge.model.test.js": 0,
+    "tests/domain/challenge/evaluation-flow.test.js": 0,
+    "tests/domain/challenge/evaluation-repository.test.js": 7,
+    "tests/domain/challenge/evaluation-service.workflow.test.js": 0,
+    "tests/domain/challenge/evaluation.generator.service.test.js": 0,
+    "tests/domain/challenge/evaluation.service.test.js": 0,
+    "tests/domain/challenge/focus-area-flow.test.js": 0,
+    "tests/domain/challenge/focus-area.service.test.js": 0,
+    "tests/domain/challenge/integration_cross-domain-workflow.test.js": 0,
+    "tests/domain/challenge/openai-supabase-flow.test.js": 0,
+    "tests/domain/challenge/openai-supabase.workflow.test.js": 0,
+    "tests/domain/challenge/prompt-flow.test.js": 0,
+    "tests/domain/challenge/prompt-generation.workflow.test.js": 0,
+    "tests/domain/challenge/prompt-template.generator.test.js": 0,
+    "tests/domain/challenge/repositories/challenge-repository.test.js": 7,
+    "tests/domain/challenge/traits-analysis.service.test.js": 11,
+    "tests/domain/challenge/user.lifecycle.test.js": 0,
+    "tests/domain/evaluation/evaluation-category.repository.test.js": 7,
+    "tests/domain/evaluation/evaluation-flow.test.js": 0,
+    "tests/domain/evaluation/evaluation.generator.service.test.js": 0,
+    "tests/domain/evaluation/evaluation.model.test.js": 6,
+    "tests/domain/evaluation/evaluation.service.test.js": 0,
+    "tests/domain/evaluation/evaluationservice.test.js": 5,
+    "tests/domain/evaluation/openai-responses.workflow.test.js": 0,
+    "tests/domain/evaluation/repositories/evaluation-repository.test.js": 7,
+    "tests/domain/evaluation/services/evaluation-service-system-messages.test.js": 3,
+    "tests/domain/evaluation/services/evaluationservice.test.js": 3,
+    "tests/domain/evaluation/services/service-dynamic-system-messages.test.js": 5,
+    "tests/domain/focusArea/focus-area-service-system-messages.test.js": 2,
+    "tests/domain/focusArea/focus-area.service.test.js": 0,
+    "tests/domain/focusArea/services/focus-area-service-system-messages.test.js": 2,
+    "tests/domain/focusArea/user-flow.test.js": 0,
+    "tests/domain/focusArea/user.controller.test.js": 7,
+    "tests/domain/personality/personality.service.test.js": 0,
+    "tests/domain/personality/traits-analysis.service.test.js": 11,
+    "tests/domain/prompt/builders/evaluation.builder.test.js": 3,
+    "tests/domain/prompt/builders/system-message.test.js": 8,
+    "tests/domain/prompt/prompt-builder.facade.test.js": 0,
+    "tests/domain/prompt/prompt-schemas.validation.test.js": 0,
+    "tests/domain/prompt/services/prompt-template.generator.test.js": 0,
+    "tests/domain/shared/domain-events.test.js": 0,
+    "tests/domain/user/personality-insights.test.js": 5,
+    "tests/domain/user/personality-user-integration.test.js": 4,
+    "tests/domain/user/personality.service.test.js": 0,
+    "tests/domain/user/services/user-service.test.js": 15,
+    "tests/domain/user/traits-analysis-service.test.js": 11,
+    "tests/domain/user/user-storage.workflow.test.js": 0,
+    "tests/domain/user/user.lifecycle.test.js": 0,
+    "tests/domain/userJourney/schemas/user-journey-schemas.test.js": 0,
+    "tests/e2e/challenge/challenge-cycle.e2e.test.js": 0,
+    "tests/e2e/challenge/challenge-evaluation.e2e.test.js": 0,
+    "tests/e2e/challenge/challenge-generation.e2e.test.js": 0,
+    "tests/e2e/challenge/evaluation.e2e.test.js": 0,
+    "tests/e2e/challenge/focus-area.e2e.test.js": 0,
+    "tests/e2e/challenge/prompt-template.e2e.test.js": 0,
+    "tests/e2e/focusArea/user-management.e2e.test.js": 0,
+    "tests/e2e/focusArea/user-personality.e2e.test.js": 0,
+    "tests/e2e/user/auth.e2e.test.js": 0,
+    "tests/e2e/user/personality.e2e.test.js": 0,
+    "tests/e2e/user/user-lifecycle.e2e.test.js": 0,
+    "tests/external/openai/challenge/challenge-legacy.test.js": 0,
+    "tests/external/openai/challenge/challenge.model.test.js": 0,
+    "tests/external/openai/challenge-generation.direct.test.js": 0,
+    "tests/external/openai/challenge.external.test.js": 0,
+    "tests/external/openai/evaluation.external.test.js": 0,
+    "tests/external/openai/focus-area.external.test.js": 0,
+    "tests/external/openai/openai-client.test.js": 0,
+    "tests/external/openai/prompt-template.external.test.js": 0,
+    "tests/external/openai/responses-api/challengeGeneration.responses-api.test.js": 0,
+    "tests/external/openai/responses-api/sample-responses-api.test.js": 0,
+    "tests/external/openai/sample-openai-test.test.js": 0,
+    "tests/external/supabase/focusArea/user-api.test.js": 0,
+    "tests/external/supabase/focusArea/user-controller.test.js": 0,
+    "tests/external/supabase/supabase-client.test.js": 0,
+    "tests/external/supabase/user/personality-api.test.js": 0,
+    "tests/external/supabase/user/personality-controller.test.js": 0,
+    "tests/infrastructure/services/mock-insight-generator.test.js": 3,
+    "tests/infrastructure/services/open-aiinsight-generator.test.js": 4,
+    "tests/integration/api-e2e.test.js": 7,
+    "tests/integration/application/challenge-coordinator.test.js": 10,
+    "tests/integration/application/personality-coordinator.test.js": 7,
+    "tests/integration/challenge/challenge-evaluation-flow.test.js": 0,
+    "tests/integration/challenge/challenge-generation.integration.test.js": 0,
+    "tests/integration/challenge/challenge.external.test.js": 0,
+    "tests/integration/challenge/challengeGeneration.responses-api.test.js": 0,
+    "tests/integration/challenge/domain-events.test.js": 0,
+    "tests/integration/challenge/evaluation-flow.test.js": 0,
+    "tests/integration/challenge/evaluation-legacy.test.js": 5,
+    "tests/integration/challenge/evaluation-prompt.test.js": 2,
+    "tests/integration/challenge/evaluation-service-system-messages.test.js": 3,
+    "tests/integration/challenge/evaluation.builder.test.js": 3,
+    "tests/integration/challenge/evaluation.model.test.js": 5,
+    "tests/integration/challenge/evaluation.responses-api.test.js": 0,
+    "tests/integration/challenge/focus-area-generation.integration.test.js": 0,
+    "tests/integration/challenge/focusAreaGeneration.responses-api.test.js": 0,
+    "tests/integration/challenge/integration_focus-area-generation.test.js": 0,
+    "tests/integration/challenge/prompt-schemas.validation.test.js": 0,
+    "tests/integration/challenge/prompt-template.external.test.js": 0,
+    "tests/integration/challenge-evaluation.workflow.test.js": 0,
+    "tests/integration/challenge-focus-area.workflow.test.js": 0,
+    "tests/integration/challenge-progress.workflow.test.js": 0,
+    "tests/integration/container.test.js": 2,
+    "tests/integration/coordinator-error-handling.test.js": 0,
+    "tests/integration/evaluation-prompt.test.js": 2,
+    "tests/integration/focusArea/challengeGeneration.responses-api.test.js": 0,
+    "tests/integration/focusArea/evaluation-category-repository.test.js": 7,
+    "tests/integration/focusArea/evaluation-category.repository.test.js": 7,
+    "tests/integration/focusArea/evaluation.responses-api.test.js": 0,
+    "tests/integration/focusArea/focus-area-flow.test.js": 0,
+    "tests/integration/focusArea/focus-area-generation.direct.test.js": 0,
+    "tests/integration/focusArea/focus-area-generation.integration.test.js": 0,
+    "tests/integration/focusArea/focusAreaGeneration.responses-api.test.js": 0,
+    "tests/integration/focusArea/user-personality-interaction.test.js": 0,
+    "tests/integration/openai-supabase-flow.test.js": 0,
+    "tests/integration/openai-supabase.workflow.test.js": 0,
+    "tests/integration/personality-user-integration.test.js": 4,
+    "tests/integration/prompt-flow.test.js": 0,
+    "tests/integration/prompt-generation.workflow.test.js": 0,
+    "tests/integration/responses-api/evaluation-service.workflow.test.js": 0,
+    "tests/integration/responses-api/focusArea.responses-api.test.js": 0,
+    "tests/integration/responses-api/openai-responses.workflow.test.js": 0,
+    "tests/integration/routes.test.js": 5,
+    "tests/integration/user-flow.test.js": 0,
+    "tests/integration/user-storage.workflow.test.js": 0,
+    "tests/setup/environment/environment-test.test.js": 0,
+    "tests/shared/common/domain-events.test.js": 0,
+    "tests/unit/ai/adapters/open-aiclient-adapter.test.js": 8,
+    "tests/unit/ai/adapters/open-aistate-manager-adapter.test.js": 10,
+    "tests/unit/ai/ports/aistate-manager.test.js": 6,
+    "tests/unit/challenge/prompt-builder.facade.test.js": 0,
+    "tests/unit/challenge/services/challenge-evaluation-service.test.js": 19,
+    "tests/unit/challenge/services/challenge-generation-service.test.js": 12,
+    "tests/unit/config/config.test.js": 6,
+    "tests/unit/infra/mock-insight-generator.adapter.test.js": 3,
+    "tests/unit/infra/openai/circuit-breaker.test.js": 6,
+    "tests/unit/personality/personality-data-loader.test.js": 0,
+    "tests/unit/personality/personality.controller.test.js": 9,
+    "tests/unit/user/user.controller.test.js": 7
+  },
+  "consolidationStrategy": {
+    "unknown": {
+      "unknown-unknown-personality": {
+        "targetFile": "tests/api/personality/personality-api.test.js",
+        "filesToMerge": [
+          "tests/api/personality/personality-controller.test.js",
+          "tests/api/personality/personality-insights.test.js"
+        ],
+        "totalFiles": 3
+      },
+      "unknown-unknown-user": {
+        "targetFile": "tests/api/user/user-api.test.js",
+        "filesToMerge": [
+          "tests/api/user/user-controller.test.js"
+        ],
+        "totalFiles": 2
+      },
+      "unknown-unit-open": {
+        "targetFile": "tests/unit/ai/adapters/open-aiclient-adapter.test.js",
+        "filesToMerge": [
+          "tests/unit/ai/adapters/open-aistate-manager-adapter.test.js"
+        ],
+        "totalFiles": 2
+      },
+      "unknown-unit-challenge": {
+        "targetFile": "tests/unit/challenge/services/challenge-evaluation-service.test.js",
+        "filesToMerge": [
+          "tests/unit/challenge/services/challenge-generation-service.test.js"
+        ],
+        "totalFiles": 2
+      }
+    },
+    "adaptive": {},
+    "challenge": {
+      "challenge-domain-challenge": {
+        "targetFile": "tests/domain/challenge/challenge-evaluation-flow.test.js",
+        "filesToMerge": [
+          "tests/domain/challenge/challenge-evaluation.workflow.test.js",
+          "tests/domain/challenge/challenge-focus-area.workflow.test.js",
+          "tests/domain/challenge/challenge-generation.integration.test.js",
+          "tests/domain/challenge/challenge-repository.test.js",
+          "tests/domain/challenge/repositories/challenge-repository.test.js"
+        ],
+        "totalFiles": 6
+      },
+      "challenge-domain-evaluation": {
+        "targetFile": "tests/domain/challenge/evaluation-flow.test.js",
+        "filesToMerge": [
+          "tests/domain/challenge/evaluation-repository.test.js",
+          "tests/domain/challenge/evaluation-service.workflow.test.js"
+        ],
+        "totalFiles": 3
+      },
+      "challenge-domain-focus": {
+        "targetFile": "tests/domain/challenge/focus-area-flow.test.js",
+        "filesToMerge": [
+          "tests/domain/challenge/focus-area.service.test.js"
+        ],
+        "totalFiles": 2
+      },
+      "challenge-domain-openai": {
+        "targetFile": "tests/domain/challenge/openai-supabase-flow.test.js",
+        "filesToMerge": [
+          "tests/domain/challenge/openai-supabase.workflow.test.js"
+        ],
+        "totalFiles": 2
+      },
+      "challenge-domain-prompt": {
+        "targetFile": "tests/domain/challenge/prompt-flow.test.js",
+        "filesToMerge": [
+          "tests/domain/challenge/prompt-generation.workflow.test.js",
+          "tests/domain/challenge/prompt-template.generator.test.js"
+        ],
+        "totalFiles": 3
+      },
+      "challenge-e2e-challenge": {
+        "targetFile": "tests/e2e/challenge/challenge-cycle.e2e.test.js",
+        "filesToMerge": [
+          "tests/e2e/challenge/challenge-evaluation.e2e.test.js",
+          "tests/e2e/challenge/challenge-generation.e2e.test.js"
+        ],
+        "totalFiles": 3
+      },
+      "challenge-integration-challenge": {
+        "targetFile": "tests/integration/challenge/challenge-evaluation-flow.test.js",
+        "filesToMerge": [
+          "tests/integration/challenge/challenge-generation.integration.test.js"
+        ],
+        "totalFiles": 2
+      },
+      "challenge-integration-evaluation": {
+        "targetFile": "tests/integration/challenge/evaluation-flow.test.js",
+        "filesToMerge": [
+          "tests/integration/challenge/evaluation-legacy.test.js",
+          "tests/integration/challenge/evaluation-prompt.test.js",
+          "tests/integration/challenge/evaluation-service-system-messages.test.js"
+        ],
+        "totalFiles": 4
+      },
+      "challenge-integration-prompt": {
+        "targetFile": "tests/integration/challenge/prompt-schemas.validation.test.js",
+        "filesToMerge": [
+          "tests/integration/challenge/prompt-template.external.test.js"
+        ],
+        "totalFiles": 2
+      }
+    },
+    "evaluation": {
+      "evaluation-domain-evaluation": {
+        "targetFile": "tests/domain/evaluation/evaluation-category.repository.test.js",
+        "filesToMerge": [
+          "tests/domain/evaluation/evaluation-flow.test.js",
+          "tests/domain/evaluation/repositories/evaluation-repository.test.js",
+          "tests/domain/evaluation/services/evaluation-service-system-messages.test.js"
+        ],
+        "totalFiles": 4
+      },
+      "evaluation-domain-evaluationservice": {
+        "targetFile": "tests/domain/evaluation/evaluationservice.test.js",
+        "filesToMerge": [
+          "tests/domain/evaluation/services/evaluationservice.test.js"
+        ],
+        "totalFiles": 2
+      }
+    },
+    "focusArea": {
+      "focusArea-domain-focus": {
+        "targetFile": "tests/domain/focusArea/focus-area-service-system-messages.test.js",
+        "filesToMerge": [
+          "tests/domain/focusArea/focus-area.service.test.js",
+          "tests/domain/focusArea/services/focus-area-service-system-messages.test.js"
+        ],
+        "totalFiles": 3
+      },
+      "focusArea-e2e-user": {
+        "targetFile": "tests/e2e/focusArea/user-management.e2e.test.js",
+        "filesToMerge": [
+          "tests/e2e/focusArea/user-personality.e2e.test.js"
+        ],
+        "totalFiles": 2
+      },
+      "focusArea-integration-evaluation": {
+        "targetFile": "tests/integration/focusArea/evaluation-category-repository.test.js",
+        "filesToMerge": [
+          "tests/integration/focusArea/evaluation-category.repository.test.js"
+        ],
+        "totalFiles": 2
+      },
+      "focusArea-integration-focus": {
+        "targetFile": "tests/integration/focusArea/focus-area-flow.test.js",
+        "filesToMerge": [
+          "tests/integration/focusArea/focus-area-generation.direct.test.js",
+          "tests/integration/focusArea/focus-area-generation.integration.test.js"
+        ],
+        "totalFiles": 3
+      }
+    },
+    "personality": {},
+    "prompt": {
+      "prompt-domain-prompt": {
+        "targetFile": "tests/domain/prompt/prompt-builder.facade.test.js",
+        "filesToMerge": [
+          "tests/domain/prompt/prompt-schemas.validation.test.js",
+          "tests/domain/prompt/services/prompt-template.generator.test.js"
+        ],
+        "totalFiles": 3
+      }
+    },
+    "shared": {},
+    "user": {
+      "user-domain-personality": {
+        "targetFile": "tests/domain/user/personality-insights.test.js",
+        "filesToMerge": [
+          "tests/domain/user/personality-user-integration.test.js"
+        ],
+        "totalFiles": 2
+      },
+      "user-domain-user": {
+        "targetFile": "tests/domain/user/services/user-service.test.js",
+        "filesToMerge": [
+          "tests/domain/user/user-storage.workflow.test.js"
+        ],
+        "totalFiles": 2
+      }
+    },
+    "userJourney": {},
+    "openai": {
+      "openai-external-challenge": {
+        "targetFile": "tests/external/openai/challenge/challenge-legacy.test.js",
+        "filesToMerge": [
+          "tests/external/openai/challenge-generation.direct.test.js"
+        ],
+        "totalFiles": 2
+      },
+      "openai-external-sample": {
+        "targetFile": "tests/external/openai/responses-api/sample-responses-api.test.js",
+        "filesToMerge": [
+          "tests/external/openai/sample-openai-test.test.js"
+        ],
+        "totalFiles": 2
+      }
+    },
+    "supabase": {
+      "supabase-external-user": {
+        "targetFile": "tests/external/supabase/focusArea/user-api.test.js",
+        "filesToMerge": [
+          "tests/external/supabase/focusArea/user-controller.test.js"
+        ],
+        "totalFiles": 2
+      },
+      "supabase-external-personality": {
+        "targetFile": "tests/external/supabase/user/personality-api.test.js",
+        "filesToMerge": [
+          "tests/external/supabase/user/personality-controller.test.js"
+        ],
+        "totalFiles": 2
+      }
+    },
+    "api-e2e.test.js": {},
+    "application": {},
+    "challenge-evaluation.workflow.test.js": {},
+    "challenge-focus-area.workflow.test.js": {},
+    "challenge-progress.workflow.test.js": {},
+    "container.test.js": {},
+    "coordinator-error-handling.test.js": {},
+    "evaluation-prompt.test.js": {},
+    "openai-supabase-flow.test.js": {},
+    "openai-supabase.workflow.test.js": {},
+    "personality-user-integration.test.js": {},
+    "prompt-flow.test.js": {},
+    "prompt-generation.workflow.test.js": {},
+    "responses-api": {},
+    "routes.test.js": {},
+    "user-flow.test.js": {},
+    "user-storage.workflow.test.js": {}
+  }
+}

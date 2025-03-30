@@ -1,6 +1,7 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
-import openai from "@/infra/openai";
-import types from "@/infra/openai/types";
+import openai from '../../../../src/infra/openai.js';
+import types from '../../../../src/infra/openai/types.js';
 import testEnv from "../../../loadEnv.js";
 import { skipIfMissingEnv } from "../../../helpers/testHelpers.js";
 const { OpenAIClient } = openai;
@@ -9,7 +10,7 @@ const { MessageRole } = types;
 const TEST_TIMEOUT = 60000;
 describe('Challenge Generation Direct OpenAI Test', function () {
     // Set longer timeout for API calls
-    this.timeout(30000);
+    jest.setTimeout(30000);
     before(function () {
         skipIfMissingEnv(this, 'openai');
     });

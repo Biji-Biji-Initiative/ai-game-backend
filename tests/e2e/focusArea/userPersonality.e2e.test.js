@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 /**
  * User-Personality Domain Integration E2E Tests
  * 
@@ -15,19 +16,19 @@
 import axios from "axios";
 import { expect } from "chai";
 import { setupTestUser, cleanupTestUser, getAuthToken } from "../../helpers/apiTestHelper.js";
-import { UserDTO, UserDTOMapper } from "../../../src/core/user/dtos/index.js";
-import { PersonalityDTO, PersonalityDTOMapper } from "../../../src/core/personality/dtos/index.js";
-import { createUserId, UserId } from "../../../src/core/common/valueObjects/index.js";
-import UserDTOMapper from "../../../src/application/user/mappers/UserDTOMapper.js";
-import UserProfileDTOMapper from "../../../src/application/user/mappers/UserProfileDTOMapper.js";
-import FocusAreaDTOMapper from "../../../src/application/focusArea/mappers/FocusAreaDTOMapper.js";
+import { UserDTO, UserDTOMapper } from '../../../src/core/user/dtos/index.js';
+import { PersonalityDTO, PersonalityDTOMapper } from '../../../src/core/personality/dtos/index.js';
+import { createUserId, UserId } from '../../../src/core/common/valueObjects/index.js';
+import UserDTOMapper from '../../../src/application/user/mappers/UserDTOMapper.js';
+import UserProfileDTOMapper from '../../../src/application/user/mappers/UserProfileDTOMapper.js';
+import FocusAreaDTOMapper from '../../../src/application/focusArea/mappers/FocusAreaDTOMapper.js';
 
 // Base URL for API requests
 const API_URL = process.env.API_URL || 'http://localhost:3000/api';
 
 describe('User-Personality Domain Integration (Real)', function () {
     // Increase timeout for real API calls
-    this.timeout(15000);
+    jest.setTimeout(15000);
     
     let testUser;
     let authToken;

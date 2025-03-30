@@ -6,12 +6,12 @@
  */
 // Imports using ES modules
 import User from "../../user/models/User.js";
+import UserFactory from "../../user/models/UserFactory.js";
 import UserRepository from "../../user/repositories/UserRepository.js";
-import { EventTypes, eventBus } from "../../common/events/domainEvents.js";
-import { v4 as uuidv4 } from 'uuid';
-import { userLogger } from "../../infra/logging/domainLogger.js";
 import { UserNotFoundError, UserValidationError, UserError } from "../../user/errors/UserErrors.js";
 import { withServiceErrorHandling, createErrorMapper } from "../../infra/errors/errorStandardization.js";
+import { v4 as uuidv4 } from 'uuid';
+import { userLogger } from "../../infra/logging/domainLogger.js";
 // Import value objects
 import { Email, UserId, createEmail, createUserId } from "../../common/valueObjects/index.js";
 // Only keep the cache TTL that is used
@@ -23,6 +23,12 @@ const userServiceErrorMapper = createErrorMapper({
     'EntityNotFoundError': UserNotFoundError,
     'ValidationError': UserValidationError
 }, UserError);
+
+// Define event types that can be moved to a separate file later if needed
+const USER_EVENT_TYPES = {
+    USER_CREATED: 'user.created'
+};
+
 /**
  * @class UserService
  * @description Service for user operations with standardized caching and error handling
@@ -33,16 +39,16 @@ export default class UserService {
      * @param {Object} dependencies - Service dependencies
      * @param {UserRepository} dependencies.userRepository - User repository instance
      * @param {Object} dependencies.logger - Logger instance
-     * @param {Object} dependencies.eventBus - Event bus instance
+     * @param {Object} dependencies.iEventBus - Event bus interface instance
      * @param {CacheService} dependencies.cacheService - Cache service for optimizing data access
      * @throws {Error} If cacheService is not provided
      */
     constructor(dependencies = {}) {
-        const { userRepository, logger, eventBus, cacheService } = dependencies;
+        const { userRepository, logger, iEventBus, cacheService } = dependencies;
         
         this.userRepository = userRepository || new UserRepository();
         this.logger = logger || userLogger.child('service');
-        this.eventBus = eventBus || null;
+        this.iEventBus = iEventBus;
         
         // Handle missing cache service with a fallback implementation
         if (!cacheService) {
@@ -97,6 +103,12 @@ export default class UserService {
             logger: this.logger,
             errorMapper: userServiceErrorMapper
         });
+        this.updateUserAIPreferences = withServiceErrorHandling(this.updateUserAIPreferences.bind(this), {
+            methodName: 'updateUserAIPreferences',
+            domainName: 'user',
+            logger: this.logger,
+            errorMapper: userServiceErrorMapper
+        });
         // Apply to other methods as needed...
     }
     /**
@@ -105,45 +117,43 @@ export default class UserService {
      * @returns {Promise<User>} Created user
      */
     async createUser(userData) {
-        // Convert email to value object if not already
-        if (userData.email && !(userData.email instanceof Email)) {
-            const emailVO = createEmail(userData.email);
-            if (!emailVO) {
-                throw new UserValidationError(`Invalid email format: ${userData.email}`);
+        try {
+            // Create user object using the factory instead of direct instantiation
+            const user = UserFactory.createUser(userData);
+            
+            // Check if user with same email already exists
+            const existingUser = await this.getUserByEmail(user.email);
+            if (existingUser) {
+                throw new UserValidationError(`User with email ${user.email} already exists`);
             }
-            userData.email = emailVO.value;
+            
+            // Save user to database
+            const savedUser = await this.userRepository.save(user);
+            
+            // Publish user created event
+            if (this.iEventBus) {
+                await this.iEventBus.publish(USER_EVENT_TYPES.USER_CREATED, {
+                    userId: savedUser.id,
+                    email: savedUser.email
+                });
+            }
+            
+            // Cache the new user
+            await this.cache.set(`user:id:${savedUser.id}`, savedUser, USER_CACHE_TTL);
+            await this.cache.set(`user:email:${savedUser.email}`, savedUser, USER_CACHE_TTL);
+            
+            // Invalidate user lists
+            await this.invalidateUserListCaches();
+            
+            return savedUser;
+        } catch (error) {
+            // Rethrow UserValidationError directly
+            if (error instanceof UserValidationError) {
+                throw error;
+            }
+            // Otherwise wrap in UserError
+            throw new UserError(`Failed to create user: ${error.message}`, { cause: error });
         }
-        // Create user object with provided data
-        const user = new User({
-            ...userData,
-            id: userData.id || uuidv4(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            lastActive: new Date().toISOString()
-        });
-        // Validate user data
-        const validation = user.validate();
-        if (!validation.isValid) {
-            throw new UserValidationError(`Invalid user data: ${validation.errors.join(', ')}`);
-        }
-        // Check if user with same email already exists
-        const existingUser = await this.getUserByEmail(user.email);
-        if (existingUser) {
-            throw new UserValidationError(`User with email ${user.email} already exists`);
-        }
-        // Save user to database
-        const savedUser = await this.userRepository.save(user);
-        // Publish user created event
-        await eventBus.publishEvent(EventTypes.USER_CREATED, {
-            userId: savedUser.id,
-            email: savedUser.email
-        });
-        // Cache the new user
-        await this.cache.set(`user:id:${savedUser.id}`, savedUser, USER_CACHE_TTL);
-        await this.cache.set(`user:email:${savedUser.email}`, savedUser, USER_CACHE_TTL);
-        // Invalidate user lists
-        await this.invalidateUserListCaches();
-        return savedUser;
     }
     /**
      * Get a user by ID
@@ -254,8 +264,10 @@ export default class UserService {
         if (!user) {
             throw new UserNotFoundError(`User with ID ${userIdVO.value} not found`);
         }
-        // Update last active timestamp
-        user.lastActive = new Date().toISOString();
+        
+        // Use the domain entity method instead of direct property assignment
+        user.updateActivity();
+        
         // Save to repository
         await this.userRepository.save(user);
         // Update cache
@@ -293,5 +305,38 @@ export default class UserService {
      */
     findByEmail(email) {
         return this.getUserByEmail(email);
+    }
+    /**
+     * Update only the AI preferences of a user without affecting other preferences
+     * @param {string|UserId} id - User ID or UserId value object
+     * @param {Object} aiPreferences - AI preferences to update
+     * @returns {Promise<User>} Updated user
+     */
+    async updateUserAIPreferences(id, aiPreferences) {
+        // Convert to value object if needed
+        const userIdVO = id instanceof UserId ? id : createUserId(id);
+        if (!userIdVO) {
+            throw new UserValidationError(`Invalid user ID: ${id}`);
+        }
+        
+        // Get existing user directly from repository to ensure fresh data
+        const user = await this.userRepository.findById(userIdVO.value, true);
+        if (!user) {
+            throw new UserNotFoundError(`User with ID ${userIdVO.value} not found`);
+        }
+        
+        // Update only the AI preferences using the domain model method
+        user.updateAIPreferences(aiPreferences);
+        
+        // Save updated user
+        const updatedUser = await this.userRepository.save(user);
+        
+        // Update cache with fresh data
+        await this.cache.set(`user:id:${updatedUser.id}`, updatedUser, USER_CACHE_TTL);
+        if (updatedUser.email) {
+            await this.cache.set(`user:email:${updatedUser.email}`, updatedUser, USER_CACHE_TTL);
+        }
+        
+        return updatedUser;
     }
 }

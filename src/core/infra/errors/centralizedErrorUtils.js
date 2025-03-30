@@ -12,7 +12,6 @@ import {
   withServiceErrorHandling, 
   withControllerErrorHandling,
   handleServiceError,
-  StandardErrorCodes,
   applyRepositoryErrorHandling,
   applyServiceErrorHandling,
   applyControllerErrorHandling
@@ -25,7 +24,6 @@ export {
   withServiceErrorHandling,
   withControllerErrorHandling,
   handleServiceError,
-  StandardErrorCodes,
   applyRepositoryErrorHandling,
   applyServiceErrorHandling,
   applyControllerErrorHandling
@@ -38,7 +36,6 @@ export default {
   withServiceErrorHandling,
   withControllerErrorHandling,
   handleServiceError,
-  StandardErrorCodes,
   applyRepositoryErrorHandling,
   applyServiceErrorHandling,
   applyControllerErrorHandling

@@ -1,12 +1,13 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
 import sinon from "sinon";
 import { v4 as uuidv4 } from "uuid";
 import UserService from "../../../../src/core/user/services/UserService.js";
 import User from "../../../../src/core/user/models/User.js";
-import InMemoryUserRepository from "@/test/repositories/InMemoryUserRepository";
+import InMemoryUserRepository from '../../../../src/test/repositories/InMemoryUserRepository.js';
 import domainEvents from "../../../../src/core/common/events/domainEvents.js";
 import { createUserId, UserId } from "../../../../src/core/common/valueObjects/index.js";
-import UserId from "../../../src/core/common/valueObjects/UserId.js";
+import UserId from '../../../../src/core/common/valueObjects/UserId.js';
 const { EventTypes } = domainEvents;
 // Create a proper mock for the event bus
 const eventBusMock = {

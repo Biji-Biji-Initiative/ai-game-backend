@@ -1,9 +1,10 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
 import { v4 as uuidv4 } from "uuid";
 import User from "../../../../src/core/user/models/User.js";
 import domainEvents from "../../../../src/core/common/events/domainEvents.js";
 import { createUserId, UserId } from "../../../../src/core/common/valueObjects/index.js";
-import UserId from "../../../src/core/common/valueObjects/UserId.js";
+import UserId from '../../../../src/core/common/valueObjects/UserId.js';
 const { EventTypes, eventBus } = domainEvents;
 
 // Helper for creating UserId value objects
@@ -14,7 +15,7 @@ describe('User Domain Model', () => {
     let testUserId;
     let publishedEvents = [];
     // Set up event capture for testing domain events
-    before(() => {
+    beforeAll(() => {
         // Mock the eventBus.publishEvent method to capture events
         const originalPublishEvent = eventBus.publishEvent;
         eventBus.publishEvent = (eventType, payload) => {
@@ -23,7 +24,7 @@ describe('User Domain Model', () => {
         };
     });
     // Reset event capture after tests
-    after(() => {
+    afterAll(() => {
         // Restore original eventBus functionality if needed
         // eventBus.publishEvent = originalPublishEvent;
     });

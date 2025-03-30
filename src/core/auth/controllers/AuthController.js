@@ -19,10 +19,19 @@ const authControllerErrorMappings = [
 class AuthController {
     /**
      * Create a new AuthController
-     * @param {Object} dependencies - Injected dependencies
-     * @param {Object} dependencies.userRepository - Repository for user operations
-     * @param {Object} dependencies.supabase - Supabase client
-     * @param {Object} dependencies.logger - Logger instance
+     * @param {Object} options - Injected dependencies using object destructuring pattern
+     * @param {Object} options.userRepository - Repository for user data operations
+     * @param {Object} options.supabase - Supabase client for authentication
+     * @param {Object} options.logger - Logger instance for controller-specific logging
+     * 
+     * The controller requires:
+     * - userRepository: For accessing and manipulating user data in the database
+     * - supabase: For handling authentication via Supabase's auth services
+     * - logger: For domain-specific logging
+     * 
+     * Each of these dependencies is critical for the controller to function correctly.
+     * 
+     * @throws {Error} If userRepository or supabase client are missing
      */
     /**
      * Method constructor
@@ -78,6 +87,15 @@ class AuthController {
             this.refreshToken.bind(this), 
             {
                 methodName: 'refreshToken',
+                domainName: 'auth',
+                logger: this.logger,
+                errorMappings: authControllerErrorMappings
+            }
+        );
+        this.getStatus = withControllerErrorHandling(
+            this.getStatus.bind(this), 
+            {
+                methodName: 'getStatus',
                 domainName: 'auth',
                 logger: this.logger,
                 errorMappings: authControllerErrorMappings
@@ -363,6 +381,21 @@ class AuthController {
             data: {
                 accessToken: data.session.access_token
             }
+        });
+    }
+    
+    /**
+     * Get the status of the auth service
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     * @param {Function} next - Express next function
+     */
+    async getStatus(req, res, next) {
+        this.logger.debug('Auth status check');
+        return res.status(200).json({
+            status: 'success',
+            message: 'Auth service is running',
+            authenticated: false
         });
     }
 }

@@ -1,190 +1,210 @@
 # API Authentication
 
-This document explains how to authenticate with the AI Fight Club API.
+This document explains how to authenticate with the AI Gaming Backend API.
 
 ## Overview
 
-The AI Fight Club API uses [Supabase](https://supabase.io/) for authentication. All API requests must include a valid JSON Web Token (JWT) issued by Supabase.
+The API uses [Supabase](https://supabase.io/) for authentication. All authenticated API requests must include a valid JSON Web Token (JWT) issued by Supabase.
 
-## Authentication Flow
+## Authentication Endpoints
 
-The authentication flow involves these steps:
+The API provides the following authentication endpoints:
 
-1. Register or sign in through Supabase Auth
-2. Obtain a JWT token
-3. Include the token in API requests
-4. Handle token expiration and refresh
+### Signup
 
-## Registration and Sign In
+Register a new user account.
 
-### Email/Password Authentication
-
-```javascript
-// Sign up with email and password
-const { user, error } = await supabase.auth.signUp({
-  email: 'user@example.com',
-  password: 'secure-password'
-});
-
-// Sign in with email and password
-const { user, error } = await supabase.auth.signInWithPassword({
-  email: 'user@example.com',
-  password: 'secure-password'
-});
+```
+POST /api/auth/signup
 ```
 
-### OAuth Providers
-
-```javascript
-// Sign in with Google
-const { user, error } = await supabase.auth.signInWithOAuth({
-  provider: 'google'
-});
-
-// Other supported providers: github, apple, twitter, discord
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "password": "secure-password",
+  "fullName": "John Doe"
+}
 ```
 
-## Obtaining a JWT Token
-
-When a user signs in successfully, Supabase Auth provides a JWT token:
-
-```javascript
-const { user, session, error } = await supabase.auth.signInWithPassword({
-  email: 'user@example.com',
-  password: 'secure-password'
-});
-
-// The JWT token is available in the session
-const token = session.access_token;
-```
-
-## Using the JWT Token
-
-Include the JWT token in the `Authorization` header of all API requests:
-
-```javascript
-// Making an authenticated request
-const response = await fetch('https://api.aifightclub.com/api/v1/users/me', {
-  method: 'GET',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "user": {
+      "id": "user-123",
+      "email": "user@example.com",
+      "fullName": "John Doe",
+      "roles": ["user"],
+      "emailVerified": false
+    },
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "message": "Confirmation email sent, please verify your email"
   }
-});
+}
 ```
 
-### Using the AI Fight Club SDK
+### Login
 
-If you're using the AI Fight Club SDK, you can set the token once:
+Authenticate with email and password.
 
-```javascript
-import { AIFightClubClient } from '@aifightclub/sdk';
-
-// Initialize client with token
-const client = new AIFightClubClient({
-  apiKey: token
-});
-
-// Now all API calls will include the token
-const userProfile = await client.users.getProfile();
+```
+POST /api/auth/login
 ```
 
-## Token Lifecycle Management
-
-### Token Expiration
-
-Supabase JWT tokens expire after 60 minutes by default. Your application should handle token expiration gracefully.
-
-### Token Refresh
-
-Refresh the JWT token before it expires:
-
-```javascript
-// Refresh the session to get a new token
-const { data, error } = await supabase.auth.refreshSession();
-const newToken = data.session.access_token;
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "password": "secure-password"
+}
 ```
 
-### Auto-Refresh with the SDK
-
-The AI Fight Club SDK handles token refreshing automatically:
-
-```javascript
-import { AIFightClubClient } from '@aifightclub/sdk';
-
-// Enable auto-refresh
-const client = new AIFightClubClient({
-  apiKey: initialToken,
-  autoRefresh: true,
-  refreshCallback: async () => {
-    const { data } = await supabase.auth.refreshSession();
-    return data.session.access_token;
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "user": {
+      "id": "user-123",
+      "email": "user@example.com",
+      "fullName": "John Doe",
+      "roles": ["user"],
+      "profileComplete": true
+    },
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
   }
-});
+}
 ```
-
-## User Information
-
-Once authenticated, you can retrieve the current user's information:
-
-```javascript
-// Get the current user
-const { data: { user } } = await supabase.auth.getUser();
-
-// User object contains:
-// - id: The user's UUID
-// - email: The user's email address
-// - user_metadata: Custom user metadata
-```
-
-## Security Considerations
-
-### Token Storage
-
-Store tokens securely:
-
-- In browser environments, use `localStorage` or preferably `sessionStorage`
-- For mobile apps, use secure storage options like Keychain (iOS) or KeyStore (Android)
-- Never store tokens in plain JavaScript variables for long periods
-
-### HTTPS
-
-Always use HTTPS for all API requests to ensure tokens are transmitted securely.
 
 ### Logout
 
-To properly log out a user, call the sign out method:
+End the current user session.
 
-```javascript
-await supabase.auth.signOut();
+```
+POST /api/auth/logout
 ```
 
-This invalidates the user's session and tokens.
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Logged out successfully"
+}
+```
 
-## Troubleshooting
+### Password Reset Request
 
-### Invalid Token
+Request a password reset email.
 
-If you receive a `401 Unauthorized` response with an "Invalid token" message:
+```
+POST /api/auth/reset-password
+```
 
-1. Check that the token is correctly formatted in the Authorization header
-2. Verify that the token hasn't expired
-3. Ensure the token was issued by the correct Supabase project
+**Request Body:**
+```json
+{
+  "email": "user@example.com"
+}
+```
 
-### Missing Token
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Password reset email sent"
+}
+```
 
-If you receive a `401 Unauthorized` response with a "Missing authentication" message:
+### Token Refresh
 
-1. Verify that the Authorization header is included in the request
-2. Check that the header format is `Bearer <token>`
+Refresh an expired access token using the refresh token.
 
-### Insufficient Permissions
+```
+POST /api/auth/refresh
+```
 
-If you receive a `403 Forbidden` response:
+The refresh token is stored in an HTTP-only cookie, so no request body is needed.
 
-1. The token is valid, but the user doesn't have permission for the requested resource
-2. Check the user's role and permissions
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
+}
+```
 
-## API Reference
+## Using Authentication Tokens
+
+### Token Format
+
+The API uses JWT tokens for authentication. When a user logs in, the server responds with an access token and sets a refresh token in an HTTP-only cookie.
+
+### Making Authenticated Requests
+
+Include the access token in the `Authorization` header of your requests:
+
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+Example using fetch:
+
+```javascript
+const response = await fetch('https://api.example.com/api/users/me', {
+  method: 'GET',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${accessToken}`
+  }
+});
+```
+
+### Token Expiration
+
+Access tokens expire after a period (typically 1 hour). When an access token expires, you need to use the refresh token to get a new access token.
+
+The refresh token is automatically sent in the cookie with your request to the refresh endpoint.
+
+## Error Handling
+
+### Common Authentication Errors
+
+| Status Code | Error Message | Description |
+|-------------|---------------|-------------|
+| 400 | "Email and password are required" | Login or signup attempt without credentials |
+| 400 | "User with this email already exists" | Signup attempt with existing email |
+| 401 | "Invalid login credentials" | Incorrect email or password |
+| 401 | "Refresh token not found" | Missing refresh token cookie |
+| 401 | "Invalid or expired refresh token" | The refresh token is invalid or expired |
+
+### Example Error Response
+
+```json
+{
+  "status": "error",
+  "message": "Invalid login credentials"
+}
+```
+
+## Security Best Practices
+
+1. **Always use HTTPS** to ensure tokens are transmitted securely
+2. **Store access tokens securely** in memory or secure storage
+3. **Do not store access tokens** in local storage or as a long-lived variable
+4. **Implement proper token refreshing** to maintain session validity
+5. **Handle token expiration gracefully** in your client applications
+
+## Implementation Notes
+
+This API uses Supabase auth for authentication and maintains its own user database for additional user data. The authentication flow includes:
+
+1. Authentication via Supabase
+2. User data management in the application database
+3. JWT tokens for API access
+4. Refresh token rotation for security
 
 For more details on Supabase authentication, refer to the [Supabase Auth documentation](https://supabase.com/docs/guides/auth). 

@@ -1,5 +1,6 @@
 import AppError from "../../infra/errors/AppError.js";
-import { StandardErrorCodes } from "../../infra/errors/ErrorHandler.js";
+import { DomainErrorCodes } from "../../infra/errors/DomainErrorCodes.js";
+const UserErrorCodes = DomainErrorCodes.User
 'use strict';
 /**
  * Base class for all infrastructure errors
@@ -13,7 +14,7 @@ class InfrastructureError extends AppError {
     constructor(message, options = {}) {
         super(message, 500, {
             ...options,
-            errorCode: options.errorCode || StandardErrorCodes.INFRASTRUCTURE_ERROR,
+            errorCode: options.errorCode || DomainErrorCodes.INFRASTRUCTURE_ERROR,
         });
         this.name = 'InfrastructureError';
     }

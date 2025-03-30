@@ -1,4 +1,5 @@
 import AIClient from "../../ai/ports/AIClient.js";
+import { createMonitoredOpenAIClient } from "../../infra/monitoring/openaiMonitor.js";
 'use strict';
 /**
  * Implementation of AIClient using OpenAI's client
@@ -16,7 +17,9 @@ class OpenAIClientAdapter extends AIClient {
         if (!openAIClient) {
             throw new Error('OpenAI client is required for OpenAIClientAdapter');
         }
-        this.openAIClient = openAIClient;
+        
+        // Create a monitored version of the OpenAI client
+        this.openAIClient = createMonitoredOpenAIClient(openAIClient);
         this.logger = logger;
     }
     /**
@@ -45,6 +48,14 @@ class OpenAIClientAdapter extends AIClient {
             hasOptions: !!options
         });
         await this.openAIClient.streamMessage(messages, options);
+    }
+    
+    /**
+     * Check the health of the OpenAI client
+     * @returns {Promise<Object>} Health status object
+     */
+    async checkHealth() {
+        return this.openAIClient.checkHealth();
     }
 }
 export default OpenAIClientAdapter;

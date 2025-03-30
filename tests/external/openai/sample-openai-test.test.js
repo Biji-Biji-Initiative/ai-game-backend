@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
 import testEnv from "../../loadEnv.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
@@ -18,7 +19,7 @@ describe('OpenAI API', function () {
     });
     
     // Set longer timeout for API calls
-    this.timeout(30000);
+    jest.setTimeout(30000);
     
     it('should be able to connect to OpenAI API', async function () {
         // Skip if API key not available

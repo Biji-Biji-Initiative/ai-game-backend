@@ -1,21 +1,22 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 import * as apiTestHelper from "../../helpers/apiTestHelper.js";
-import { PersonalityDTO, PersonalityDTOMapper } from "../../../src/core/personality/dtos/index.js";
-import { UserDTO } from "../../../src/core/user/dtos/index.js";
-import { createUserId, UserId } from "../../../src/core/common/valueObjects/index.js";
-import UserDTOMapper from "../../../src/application/user/mappers/UserDTOMapper.js";
-import UserProfileDTOMapper from "../../../src/application/user/mappers/UserProfileDTOMapper.js";
-import PersonalityDTOMapper from "../../../src/application/personality/mappers/PersonalityDTOMapper.js";
-import PersonalityProfileDTOMapper from "../../../src/application/personality/mappers/PersonalityProfileDTOMapper.js";
+import { PersonalityDTO, PersonalityDTOMapper } from '../../../src/core/personality/dtos/index.js';
+import { UserDTO } from '../../../src/core/user/dtos/index.js';
+import { createUserId, UserId } from '../../../src/core/common/valueObjects/index.js';
+import UserDTOMapper from '../../../src/application/user/mappers/UserDTOMapper.js';
+import UserProfileDTOMapper from '../../../src/application/user/mappers/UserProfileDTOMapper.js';
+import PersonalityDTOMapper from '../../../src/application/personality/mappers/PersonalityDTOMapper.js';
+import PersonalityProfileDTOMapper from '../../../src/application/personality/mappers/PersonalityProfileDTOMapper.js';
 
 // Base URL for API requests
 const API_URL = process.env.API_URL || 'http://localhost:3000/api';
 
 describe('Personality API Endpoints (Real)', function () {
     // Increase timeout for real API calls
-    this.timeout(10000);
+    jest.setTimeout(10000);
     
     let testUser;
     let authToken;
@@ -236,7 +237,7 @@ describe('Personality API Endpoints (Real)', function () {
     describe('Cross-Domain Interaction', function () {
         it('should update AI attitudes and verify user preferences updated in the UserDTO', async function () {
             // Increase timeout for this test
-            this.timeout(30000);
+            jest.setTimeout(30000);
 
             // 1. Update AI attitudes using proper DTO format
             const attitudesData = {

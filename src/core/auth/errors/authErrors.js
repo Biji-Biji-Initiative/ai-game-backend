@@ -1,5 +1,6 @@
 import AppError from "../../infra/errors/AppError.js";
-import { StandardErrorCodes } from "../../infra/errors/ErrorHandler.js";
+import { DomainErrorCodes } from "../../infra/errors/DomainErrorCodes.js";
+const UserErrorCodes = DomainErrorCodes.User
 'use strict';
 /**
  * Base class for Auth domain errors
@@ -31,7 +32,7 @@ class AuthNotFoundError extends AuthError {
     constructor(identifier = '') {
         const message = identifier ? `Auth entity not found: ${identifier}` : 'Auth entity not found';
         super(message, 404, {
-            errorCode: StandardErrorCodes.NOT_FOUND,
+            errorCode: DomainErrorCodes.NOT_FOUND,
             metadata: { identifier }
         });
         this.name = 'AuthNotFoundError';
@@ -49,7 +50,7 @@ class AuthValidationError extends AuthError {
      */
     constructor(message = 'Invalid auth data', validationErrors = null) {
         super(message, 400, {
-            errorCode: StandardErrorCodes.VALIDATION_ERROR,
+            errorCode: DomainErrorCodes.VALIDATION_ERROR,
             metadata: { validationErrors }
         });
         this.name = 'AuthValidationError';
@@ -68,7 +69,7 @@ class AuthProcessingError extends AuthError {
     constructor(message = 'Failed to process auth', options = {}) {
         super(message, 500, {
             ...options,
-            errorCode: StandardErrorCodes.DOMAIN_ERROR
+            errorCode: DomainErrorCodes.DOMAIN_ERROR
         });
         this.name = 'AuthProcessingError';
     }
@@ -88,7 +89,7 @@ class AuthRepositoryError extends AuthError {
     constructor(message = 'Failed to perform auth repository operation', options = {}) {
         super(message, 500, {
             ...options,
-            errorCode: StandardErrorCodes.DATABASE_ERROR,
+            errorCode: DomainErrorCodes.DATABASE_ERROR,
             cause: options.cause,
             metadata: options.metadata
         });

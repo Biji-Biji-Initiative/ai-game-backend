@@ -320,13 +320,7 @@ function createAuthRoutes({ authController, validation }) {
   router.post('/resetPassword', authController.resetPassword.bind(authController));
 
   // Get auth status - this is used by the verification script
-  router.get('/status', (req, res) => {
-    res.status(200).json({
-      status: 'success',
-      message: 'Auth service is running',
-      authenticated: false
-    });
-  });
+  router.get('/status', authController.getStatus.bind(authController));
 
   return router;
 }

@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
 import fs from "fs";
 import path from "path";
@@ -6,10 +7,10 @@ import crypto from "crypto";
 import testEnv from "../loadEnv.js";
 import { skipIfMissingEnv } from "../helpers/testHelpers.js";
 import { config } from "dotenv";
-import User from "../../../src/core/user/models/User.js";
-import UserRepository from "../../../src/core/user/repositories/UserRepository.js";
-import UserService from "../../../src/core/user/services/UserService.js";
-import { createClient } from "@supabase/supabase-js";
+import User from '../../src/core/user/models/User.js';
+import UserRepository from '../../src/core/user/repositories/UserRepository.js';
+import UserService from '../../src/core/user/services/UserService.js';
+import { createClient } from "@supabase/supabase-js.js";
 ({ config }.config());
 // Generate a unique test ID for this run
 const TEST_ID = `test_${Date.now()}`;
@@ -34,13 +35,13 @@ function logTestAction(action, data) {
     console.log(`[${timestamp}] ${action}: `, data);
 }
 describe('Integration: User Flow', function () {
-    before(function () {
+    beforeAll(function () {
         skipIfMissingEnv(this, 'supabase');
     });
     // Set longer timeout for API calls
-    this.timeout(30000);
+    jest.setTimeout(30000);
     // Skip if API keys not available
-    before(function () {
+    beforeAll(function () {
         if (!testEnv.getTestConfig().supabase.url || (!testEnv.getTestConfig().supabase.key && !process.env.SUPABASE_ANON_KEY)) {
             console.warn('SUPABASE credentials not found, skipping integration tests');
             this.skip();

@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 /**
  * E2E Tests for User Authentication Lifecycle
  *
@@ -21,7 +22,7 @@ const API_URL = process.env.API_URL || 'http://localhost:3000/api/v1';
 
 describe('Authentication Lifecycle E2E Tests', function() {
   // Increase timeout for real API calls
-  this.timeout(15000);
+  jest.setTimeout(15000);
   
   // Variables to store test data
   let testUser;

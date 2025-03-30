@@ -46,7 +46,7 @@ function registerServiceComponents(container) {
         return new UserService({
             userRepository: c.get('userRepository'),
             logger: c.get('logger'),
-            eventBus: c.get('eventBus'),
+            iEventBus: c.get('iEventBus'),
             cacheService: c.get('cacheService')
         });
     }, false // Transient: user-specific operations should be isolated
@@ -66,7 +66,7 @@ function registerServiceComponents(container) {
         return new ProgressService({
             progressRepository: c.get('progressRepository'),
             logger: c.get('logger'),
-            eventBus: c.get('eventBus'),
+            iEventBus: c.get('iEventBus'),
         });
     }, false // Transient: handles user-specific progress data
     );
@@ -74,7 +74,7 @@ function registerServiceComponents(container) {
         return new AdaptiveService({
             adaptiveRepository: c.get('adaptiveRepository'),
             logger: c.get('logger'),
-            eventBus: c.get('eventBus'),
+            iEventBus: c.get('iEventBus'),
         });
     }, false // Transient: handles user-specific adaptive difficulty
     );
@@ -82,8 +82,7 @@ function registerServiceComponents(container) {
     container.register('focusAreaService', c => {
         return new FocusAreaService({
             focusAreaRepository: c.get('focusAreaRepository'),
-            eventBus: c.get('eventBus'),
-            eventTypes: c.get('eventTypes'),
+            iEventBus: c.get('iEventBus'),
             logger: c.get('logger')
         });
     }, false // Transient: handles user-specific focus areas
@@ -98,18 +97,24 @@ function registerServiceComponents(container) {
     
     // Register focusAreaValidationService
     container.register('focusAreaValidationService', c => {
-        return new FocusAreaValidationService(
-            c.get('focusAreaConfigRepository'), 
-            c.get('focusAreaLogger')
-        );
+        return new FocusAreaValidationService({
+            focusAreaConfigRepository: c.get('focusAreaConfigRepository'), 
+            logger: c.get('focusAreaLogger')
+        });
     }, true); // Singleton: validation rules don't change frequently
     
     // Application service for focus area generation
     container.register('focusAreaGenerationService', c => {
+        // Import MessageRole directly from types.js instead of using the container
+        // This improves maintainability and reduces unnecessary dependencies
+        const { MessageRole } = require('../../core/infra/openai/types.js');
+        
         return new FocusAreaGenerationService({
             openAIClient: c.get('aiClient'),
-            MessageRole: c.get('messageRole'),
+            // Using directly imported MessageRole instead of container.get
+            MessageRole,
             openAIStateManager: c.get('aiStateManager'),
+            focusAreaFactory: c.get('focusAreaFactory'),
             logger: c.get('focusAreaLogger')
         });
     }, false // Transient: generates user-specific focus areas
@@ -146,7 +151,7 @@ function registerServiceComponents(container) {
             evaluationCategoryRepository: c.get('evaluationCategoryRepository'),
             aiClient: c.get('aiClient'),
             aiStateManager: c.get('aiStateManager'),
-            eventBus: c.get('eventBus'),
+            iEventBus: c.get('iEventBus'),
             logger: c.get('evaluationLogger'),
         });
     }, false // Transient: handles user-specific evaluation operations

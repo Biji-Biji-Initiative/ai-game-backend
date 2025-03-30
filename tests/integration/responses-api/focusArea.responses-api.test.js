@@ -1,8 +1,9 @@
+import { jest } from '@jest/globals';
 import { config } from "dotenv";
-import openai from "../../../src/infra/openai.js";
-import config from "../../../src/infra/openai/config.js";
-import FocusAreaGenerationService from "../../../src/core/focusArea/services/focusAreaGenerationService.js";
-import promptBuilder from "../../../src/core/prompt/promptBuilder.js";
+import openai from '../../../src/infra/openai.js';
+import config from '../../../src/infra/openai/config.js';
+import FocusAreaGenerationService from '../../../src/core/focusArea/services/focusAreaGenerationService.js';
+import promptBuilder from '../../../src/core/prompt/promptBuilder.js';
 import { expect } from "chai";
 /**
  * Focus Area Generation - Responses API Integration Test
@@ -26,9 +27,9 @@ const FocusArea = class FocusArea {
 };
 describe('Focus Area Generation with Responses API', function () {
     // Set long timeout for API calls
-    this.timeout(30000);
+    jest.setTimeout(30000);
     // Skip if OPENAI_API_KEY isn't set
-    before(function () {
+    beforeAll(function () {
         if (!process.env.OPENAI_API_KEY) {
             console.warn('OPENAI_API_KEY not found, skipping Responses API tests');
             this.skip();

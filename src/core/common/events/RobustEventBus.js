@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events';
 import { logger } from "../../infra/logging/logger.js";
+import IEventBus from './IEventBus.js';
 
 /**
  * RobustEventBus
@@ -15,8 +16,10 @@ import { logger } from "../../infra/logging/logger.js";
  * 
  * This class uses Node's built-in EventEmitter as a foundation but extends
  * it with domain-specific functionality and error handling.
+ * 
+ * Implements the IEventBus interface for compatibility with the rest of the system.
  */
-class RobustEventBus {
+class RobustEventBus extends IEventBus {
   /**
    * Create a new RobustEventBus
    * @param {Object} options - Configuration options
@@ -27,6 +30,7 @@ class RobustEventBus {
    * @param {number} options.historyLimit - Maximum number of events to keep in history
    */
   constructor(options = {}) {
+    super();
     this.logger = options.logger || logger.child({
       component: 'event-bus'
     });
@@ -301,6 +305,30 @@ class RobustEventBus {
       processingTimes: {}
     };
     this.logger.debug('Event bus history and metrics reset');
+  }
+
+  /**
+   * Register an event handler (implements IEventBus interface)
+   * @param {string} eventType - The type of event to register for
+   * @param {Function} handler - The event handler function
+   * @returns {Function} A function to unregister this handler
+   */
+  register(eventType, handler) {
+    this.on(eventType, handler);
+    
+    // Return an unregister function
+    return () => this.off(eventType, handler);
+  }
+  
+  /**
+   * Unregister an event handler (implements IEventBus interface)
+   * @param {string} eventType - The type of event to unregister for
+   * @param {Function} handler - The specific handler to unregister
+   * @returns {boolean} True if successfully unregistered
+   */
+  unregister(eventType, handler) {
+    this.off(eventType, handler);
+    return true;
   }
 }
 

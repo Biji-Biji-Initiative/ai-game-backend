@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 /**
  * User Management E2E Tests
  * 
@@ -18,12 +19,12 @@ import crypto from "crypto";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 import { config } from "dotenv";
 import * as apiTestHelper from "../../helpers/apiTestHelper.js";
-import { UserDTO, UserDTOMapper } from "../../../src/core/user/dtos/index.js";
-import { PersonalityDTO, PersonalityDTOMapper } from "../../../src/core/personality/dtos/index.js";
-import { createUserId, UserId } from "../../../src/core/common/valueObjects/index.js";
-import UserDTOMapper from "../../../src/application/user/mappers/UserDTOMapper.js";
-import UserProfileDTOMapper from "../../../src/application/user/mappers/UserProfileDTOMapper.js";
-import FocusAreaDTOMapper from "../../../src/application/focusArea/mappers/FocusAreaDTOMapper.js";
+import { UserDTO, UserDTOMapper } from '../../../src/core/user/dtos/index.js';
+import { PersonalityDTO, PersonalityDTOMapper } from '../../../src/core/personality/dtos/index.js';
+import { createUserId, UserId } from '../../../src/core/common/valueObjects/index.js';
+import UserDTOMapper from '../../../src/application/user/mappers/UserDTOMapper.js';
+import UserProfileDTOMapper from '../../../src/application/user/mappers/UserProfileDTOMapper.js';
+import FocusAreaDTOMapper from '../../../src/application/focusArea/mappers/FocusAreaDTOMapper.js';
 
 ({ config }.config());
 
@@ -38,7 +39,7 @@ const TEST_ID = `test_${Date.now()}`;
 
 describe('E2E: User Management API', function () {
     // Set longer timeout for API calls
-    this.timeout(30000);
+    jest.setTimeout(30000);
     
     before(function () {
         skipIfMissingEnv(this, 'supabase');

@@ -13,6 +13,62 @@ import { logger } from "./core/infra/logging/logger.js";
 import { initializeSupabase } from "./core/infra/db/databaseConnection.js";
 import config from "./config/config.js";
 
+// Import health check scheduler
+import healthCheckScheduler from './core/infra/monitoring/healthCheckScheduler.js';
+import { monitorOpenAIHealth } from './core/infra/monitoring/openaiMonitor.js';
+import { sentryConfig } from './config/monitoring.js';
+
+/**
+ * Register service health checks
+ * @param {Object} container - Dependency injection container
+ */
+function registerHealthChecks(container) {
+  try {
+    // Register OpenAI health check
+    const openAIClient = container.get('openAIClient');
+    if (openAIClient) {
+      healthCheckScheduler.registerHealthCheck(
+        'openai',
+        async () => monitorOpenAIHealth(openAIClient),
+        { category: 'external-api', isCritical: true }
+      );
+    }
+    
+    // Register database health check
+    const dbService = container.get('databaseService');
+    if (dbService && typeof dbService.checkHealth === 'function') {
+      healthCheckScheduler.registerHealthCheck(
+        'database',
+        async () => dbService.checkHealth(),
+        { category: 'database', isCritical: true }
+      );
+    }
+    
+    // Register Redis health check if available
+    try {
+      const cacheService = container.get('cacheService');
+      if (cacheService && typeof cacheService.checkHealth === 'function') {
+        healthCheckScheduler.registerHealthCheck(
+          'cache',
+          async () => cacheService.checkHealth(),
+          { category: 'cache', isCritical: false }
+        );
+      }
+    } catch (error) {
+      logger.debug('Redis cache service not available for health checks');
+    }
+    
+    // Start health checks with configuration from monitoring config
+    healthCheckScheduler.startHealthChecks(sentryConfig.healthChecks);
+    logger.info('Health checks registered and started');
+  } catch (error) {
+    logger.error('Failed to register health checks', {
+      error: error.message,
+      stack: error.stack
+    });
+  }
+}
+
 /**
  * Start the server on the specified port
  * @param {number} port - The port to start the server on
@@ -29,6 +85,15 @@ export async function startServer(port) {
     
     // Create HTTP server
     const server = createServer(app);
+    
+    // Register health checks
+    import('./config/container.js').then(({ container }) => {
+      registerHealthChecks(container);
+    }).catch(error => {
+      logger.error('Failed to load container for health checks', {
+        error: error.message
+      });
+    });
     
     // Start listening on the port
     server.listen(PORT, () => {

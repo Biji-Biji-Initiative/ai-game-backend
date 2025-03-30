@@ -210,7 +210,7 @@ class ChallengeRepository extends BaseRepository {
      * Only used for read operations and does not modify data across aggregate boundaries.
      * Justified for user dashboards and challenge history views where user context is required.
      * 
-     * @param {string|UserId} userIdOrIdVO - User ID or UserId value object
+     * @param {string|UserId} userIdOrVO - User ID or UserId value object
      * @param {Object} options - Query options
      * @param {number} options.limit - Maximum number of results
      * @param {number} options.offset - Offset for pagination
@@ -220,9 +220,9 @@ class ChallengeRepository extends BaseRepository {
      * @returns {Promise<Array<Challenge>>} Array of challenges
      * @throws {ChallengeRepositoryError} If database operation fails
      */
-    async findByUserId(userIdOrIdVO, options = {}) {
+    async findByUserId(userIdOrVO, options = {}) {
         // Handle value object if provided
-        const userId = userIdOrIdVO instanceof UserId ? userIdOrIdVO.value : userIdOrIdVO;
+        const userId = userIdOrVO instanceof UserId ? userIdOrVO.value : userIdOrVO;
         
         this._validateRequiredParams({ userId }, ['userId']);
         const { limit = 10, offset = 0, status, sortBy = 'createdAt', sortDir = 'desc' } = options;
@@ -261,13 +261,13 @@ class ChallengeRepository extends BaseRepository {
      * Only used for read operations and provides a simplified interface for the common case
      * of retrieving recent challenges for a user.
      * 
-     * @param {string|UserId} userIdOrIdVO - User ID or UserId value object
+     * @param {string|UserId} userIdOrVO - User ID or UserId value object
      * @param {number} limit - Maximum number of results to return
      * @returns {Promise<Array<Challenge>>} Array of challenges
      * @throws {ChallengeRepositoryError} If database operation fails
      */
-    async findRecentByUserId(userIdOrIdVO, limit = 5) {
-        return this.findByUserId(userIdOrIdVO, { 
+    async findRecentByUserId(userIdOrVO, limit = 5) {
+        return this.findByUserId(userIdOrVO, { 
             limit, 
             sortBy: 'createdAt', 
             sortDir: 'desc' 
@@ -669,11 +669,15 @@ class ChallengeRepository extends BaseRepository {
      * This is a reasonable query for domain organization as focus areas are
      * a core classification property for challenges.
      * 
-     * @param {string|FocusArea} focusAreaId - Focus area ID
+     * @param {string|FocusArea} focusAreaIdOrVO - Focus area ID or FocusArea value object
      * @param {Object} options - Query options
      * @returns {Promise<Array<Challenge>>} Array of challenges
      */
-    findByFocusAreaId(focusAreaId, options = {}) {
+    findByFocusAreaId(focusAreaIdOrVO, options = {}) {
+        // Handle value object if provided
+        const focusAreaId = focusAreaIdOrVO instanceof FocusArea ? 
+            focusAreaIdOrVO.value : focusAreaIdOrVO;
+        
         return this.search({ focusArea: focusAreaId }, options);
     }
     /**

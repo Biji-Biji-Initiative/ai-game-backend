@@ -181,8 +181,13 @@ function createInMemoryPersonalityRepository() {
     const repo = new InMemoryRepository();
     // Add personality-specific query methods
     repo.findByUserId = async (userId) => {
+        const userIdValue = userId && typeof userId.value === 'string' ? userId.value : userId;
         const personalities = Array.from(repo.items.values());
-        const personality = personalities.find(p => p.userId === userId);
+        const personality = personalities.find(p => {
+            // Handle both primitive userId and UserId value object
+            const profileUserId = p.userId && typeof p.userId.value === 'string' ? p.userId.value : p.userId;
+            return profileUserId === userIdValue;
+        });
         return personality ? JSON.parse(JSON.stringify(personality)) : null;
     };
     repo.findByTraitCategory = async (category) => {

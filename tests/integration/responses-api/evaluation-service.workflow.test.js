@@ -1,15 +1,16 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
 import sinon from "sinon";
 import { v4 as uuidv4 } from "uuid";
 import testEnv from "../../loadEnv.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
-import EvaluationService from "../../../src/core/evaluation/services/evaluationService.js";
+import EvaluationService from '../../../src/core/evaluation/services/evaluationService.js';
 describe('Integration: Evaluation Service with Responses API', function () {
-    before(function () {
+    beforeAll(function () {
         skipIfMissingEnv(this, 'openai');
     });
     // Set longer timeout for API tests
-    this.timeout(10000);
+    jest.setTimeout(10000);
     let sandbox;
     let evaluationService;
     let openAIClient;
@@ -29,7 +30,7 @@ describe('Integration: Evaluation Service with Responses API', function () {
         sandbox = sinon.createSandbox();
         // Set up in-memory repositories
         evaluationRepository = {
-            save: sandbox.stub().callsFake(eval => Promise.resolve({ ...eval, id: eval.id || uuidv4() })),
+            save: sandbox.stub().callsFake(evaluation => Promise.resolve({ ...eval, id: eval.id || uuidv4() })),
             findById: sandbox.stub(),
             findByChallengeId: sandbox.stub().resolves([]),
             findByUserId: sandbox.stub().resolves([]),

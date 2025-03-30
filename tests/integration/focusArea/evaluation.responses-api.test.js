@@ -1,6 +1,7 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
-import openai from "@/infra/openai";
-import types from "@/infra/openai/types";
+import openai from '../../../src/infra/openai.js';
+import types from '../../../src/infra/openai/types.js';
 import testEnv from "../../loadEnv.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 const { OpenAIClient } = openai;
@@ -66,15 +67,15 @@ Evaluate this response based on the rubric criteria and provide detailed feedbac
 const TEST_TIMEOUT = 30000;
 describe('Evaluation Service Responses API Integration', function () {
     // Set longer timeout for API calls
-    this.timeout(30000);
-    before(function () {
+    jest.setTimeout(30000);
+    beforeAll(function () {
         skipIfMissingEnv(this, 'openai');
     });
     // Configure longer timeout for API calls
     this.timeout(TEST_TIMEOUT);
     let evaluationService;
     let openAIClient;
-    before(function () {
+    beforeAll(function () {
         // Skip tests if OpenAI API key is not available
         if (!testEnv.getTestConfig().openai.apiKey) {
             console.warn('OPENAI_API_KEY not found, skipping Responses API tests');

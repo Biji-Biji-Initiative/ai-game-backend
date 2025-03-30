@@ -24,7 +24,6 @@ function registerCoordinatorComponents(container) {
     container.register('personalityCoordinator', c => {
         return new PersonalityCoordinator({
             userService: c.get('userService'),
-            personalityService: c.get('personalityService'),
             personalityDataLoader: c.get('personalityDataLoader'),
             logger: c.get('personalityLogger')
         });
@@ -109,6 +108,7 @@ function registerCoordinatorComponents(container) {
         return new ApplicationEventHandlers({
             personalityCoordinator: c.get('personalityCoordinator'),
             logger: c.get('logger').child('eventHandlers'),
+            iEventBus: c.get('iEventBus')
         });
     }, true // Singleton: subscribes to events system-wide, should be initialized once
     );

@@ -1,8 +1,9 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
-import { FocusAreaGenerationService } from "../../../src/../../../src/core/focusArea/services/focusAreaGenerationService.js";
+import { FocusAreaGenerationService } from '../../../../../../src/core/focusArea/services/focusAreaGenerationService.js';
 import sinon from "sinon";
 
-import FocusAreaId from "../../../src/core/common/valueObjects/FocusAreaId.js";
+import FocusAreaId from '../../../../src/core/common/valueObjects/FocusAreaId.js';
 
 /**
  * Focus Area Generation Service System Message Tests
@@ -30,7 +31,7 @@ const createFocusAreaId = (id) => new FocusAreaId(id);
 
 describe('FocusAreaGenerationService System Message Integration', () => {
     // Set longer timeout for API calls
-    this.timeout(30000);
+    jest.setTimeout(30000);
     let focusAreaGenerationService;
     let mockOpenAIClient;
     beforeEach(() => {

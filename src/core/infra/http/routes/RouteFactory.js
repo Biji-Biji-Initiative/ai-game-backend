@@ -3,6 +3,7 @@ import PersonalityController from "../../../personality/controllers/PersonalityC
 import personalityApiSchemas from "../../../personality/schemas/personalityApiSchemas.js";
 import { authenticateUser } from "../../../infra/http/middleware/auth.js";
 import { validateBody } from "../../../infra/http/middleware/validation.js";
+import { registerRouteValidation } from "../../../infra/http/middleware/validateApiRoutes.js";
 import AdaptiveController from "../../../adaptive/controllers/AdaptiveController.js";
 import AuthController from "../../../auth/controllers/AuthController.js";
 import ProgressController from "../../../progress/controllers/ProgressController.js";
@@ -47,6 +48,40 @@ class RouteFactory {
      */
     constructor(container) {
         this.container = container;
+        this.logger = container.get('logger');
+        
+        // Keep track of registered validation schemas
+        this.validationSchemas = {};
+    }
+    
+    /**
+     * Register validation schema for a route
+     * 
+     * @param {string} routePath - The route path (e.g., '/users/:id')
+     * @param {string} method - The HTTP method (GET, POST, PUT, DELETE)
+     * @param {Object} schemas - Validation schemas for request parts
+     * @param {Object} [options] - Validation options
+     */
+    registerValidation(routePath, method, schemas, options = {}) {
+        if (!schemas || Object.keys(schemas).length === 0) {
+            return;
+        }
+        
+        try {
+            // Register with the global validation middleware
+            registerRouteValidation(routePath, method, schemas, options);
+            
+            // Store for tracking
+            const key = `${method.toUpperCase()}:${routePath}`;
+            this.validationSchemas[key] = { schemas, options };
+            
+            this.logger.debug(`Registered validation for ${method.toUpperCase()} ${routePath}`);
+        } catch (error) {
+            this.logger.error(`Failed to register validation for ${method.toUpperCase()} ${routePath}`, {
+                error: error.message,
+                schemas: Object.keys(schemas)
+            });
+        }
     }
     /**
      * Mount all API routes
@@ -56,40 +91,84 @@ class RouteFactory {
     async mountAll(app, apiPrefix = '/api/v1') {
         console.log(`Setting up routes in ${process.env.NODE_ENV || 'development'} mode`);
         
-        try {
-            // Potentially async routes
-            const userRoutes = await this.createUserRoutes();
-            const authRoutes = await this.createAuthRoutes();
-            
-            // Standard routes
-            app.use(`${apiPrefix}/users`, userRoutes);
-            app.use(`${apiPrefix}/auth`, authRoutes);
-            app.use(`${apiPrefix}/personality`, this.createPersonalityRoutes());
-            app.use(`${apiPrefix}/progress`, this.createProgressRoutes());
-            app.use(`${apiPrefix}/challenges`, this.createChallengeRoutes());
-            app.use(`${apiPrefix}/evaluations`, this.createEvaluationRoutes());
-            // Re-enable adaptive routes
-            app.use(`${apiPrefix}/adaptive`, this.createAdaptiveRoutes());
-            // Re-enable user-journey routes now that we've added proper error handling
-            app.use(`${apiPrefix}/user-journey`, this.createUserJourneyRoutes());
-            // Re-enable focus-areas routes now that required services are registered
-            app.use(`${apiPrefix}/focus-areas`, this.createFocusAreaRoutes());
-            
-            // Health check routes (mounted at API prefix without additional path segment)
-            app.use(`${apiPrefix}/health`, this.createHealthRoutes());
-            
-            console.log(`All routes successfully mounted at ${apiPrefix}`);
-        } catch (error) {
-            console.error('Error mounting routes:', error);
-            
-            // Setup a fallback route that reports the error
-            app.use(`${apiPrefix}`, (req, res) => {
-                res.status(500).json({
-                    error: 'Failed to initialize API routes',
-                    message: error.message
+        // Define route configurations with their creation methods and paths
+        const routeConfigs = [
+            { path: `${apiPrefix}/users`, createMethod: 'createUserRoutes', critical: true },
+            { path: `${apiPrefix}/auth`, createMethod: 'createAuthRoutes', critical: true },
+            { path: `${apiPrefix}/personality`, createMethod: 'createPersonalityRoutes', critical: false },
+            { path: `${apiPrefix}/progress`, createMethod: 'createProgressRoutes', critical: false },
+            { path: `${apiPrefix}/challenges`, createMethod: 'createChallengeRoutes', critical: true },
+            { path: `${apiPrefix}/evaluations`, createMethod: 'createEvaluationRoutes', critical: false },
+            { path: `${apiPrefix}/adaptive`, createMethod: 'createAdaptiveRoutes', critical: false },
+            { path: `${apiPrefix}/user-journey`, createMethod: 'createUserJourneyRoutes', critical: false },
+            { path: `${apiPrefix}/focus-areas`, createMethod: 'createFocusAreaRoutes', critical: false },
+            { path: `${apiPrefix}/health`, createMethod: 'createHealthRoutes', critical: true }
+        ];
+        
+        // Count of successfully mounted routes
+        let successCount = 0;
+        let criticalFailures = 0;
+        
+        // Mount routes with fault isolation
+        for (const routeConfig of routeConfigs) {
+            try {
+                // Get the creation method
+                const createMethod = this[routeConfig.createMethod];
+                
+                // Validate the creation method exists
+                if (typeof createMethod !== 'function') {
+                    throw new Error(`Route creation method '${routeConfig.createMethod}' is not defined`);
+                }
+                
+                // Create and mount the route
+                const router = await createMethod.call(this);
+                app.use(routeConfig.path, router);
+                
+                this.logger.info(`Mounted route: ${routeConfig.path}`);
+                successCount++;
+            } catch (error) {
+                // Log the error
+                this.logger.error(`Failed to mount route: ${routeConfig.path}`, { 
+                    error: error.message, 
+                    stack: error.stack,
+                    critical: routeConfig.critical 
                 });
-            });
+                
+                // If it's a critical route, increment failure counter
+                if (routeConfig.critical) {
+                    criticalFailures++;
+                }
+                
+                // Create a fallback route handler that returns a 503 Service Unavailable
+                app.use(routeConfig.path, (req, res) => {
+                    const isDev = process.env.NODE_ENV !== 'production';
+                    const statusCode = 503;
+                    const response = {
+                        error: 'Service Unavailable',
+                        message: 'This API endpoint is currently unavailable',
+                        details: isDev ? error.message : undefined
+                    };
+                    
+                    res.status(statusCode).json(response);
+                });
+            }
         }
+        
+        // Log overall mount status
+        if (successCount === routeConfigs.length) {
+            this.logger.info(`All routes successfully mounted at ${apiPrefix}`);
+        } else {
+            this.logger.warn(`Mounted ${successCount}/${routeConfigs.length} routes, ${routeConfigs.length - successCount} failed`);
+            
+            // If any critical routes failed, log a more severe warning
+            if (criticalFailures > 0) {
+                this.logger.error(`${criticalFailures} critical route(s) failed to mount. Application may not function correctly.`);
+            }
+        }
+        
+        // After mounting routes, log validation coverage
+        const schemaCount = Object.keys(this.validationSchemas).length;
+        this.logger.info(`Registered validation schemas for ${schemaCount} routes`);
     }
     /**
      * Create personality routes
@@ -97,125 +176,55 @@ class RouteFactory {
      */
     createPersonalityRoutes() {
         const router = express.Router();
-        // Create controller instance with dependencies
-        const personalityController = new PersonalityController({
-            personalityService: this.container.get('personalityService'),
-            logger: this.container.get('logger'),
-        });
-        /**
-         * @swagger
-         * /personality/profile:
-         *   get:
-         *     summary: Get personality profile
-         *     description: Retrieves the current user's personality profile and insights
-         *     tags: [Personality]
-         *     security:
-         *       - bearerAuth: []
-         *     responses:
-         *       200:
-         *         description: Personality profile retrieved successfully
-         *         content:
-         *           application/json:
-         *             schema:
-         *               type: object
-         *               properties:
-         *                 success:
-         *                   type: boolean
-         *                   example: true
-         *                 data:
-         *                   type: object
-         *                   properties:
-         *                     traits:
-         *                       type: array
-         *                       items:
-         *                         type: object
-         *                     insights:
-         *                       type: object
-         *                     lastUpdated:
-         *                       type: string
-         *                       format: date-time
-         *       401:
-         *         description: Not authenticated
-         *       404:
-         *         description: Profile not found
-         */
-        router.get('/profile', authenticateUser, personalityController.getPersonalityProfile.bind(personalityController));
-        /**
-         * @swagger
-         * /personality/recommendations:
-         *   get:
-         *     summary: Get personality-based recommendations
-         *     description: Retrieves recommendations based on the user's personality profile
-         *     tags: [Personality]
-         *     security:
-         *       - bearerAuth: []
-         *     responses:
-         *       200:
-         *         description: Recommendations retrieved successfully
-         *         content:
-         *           application/json:
-         *             schema:
-         *               type: object
-         *               properties:
-         *                 success:
-         *                   type: boolean
-         *                   example: true
-         *                 data:
-         *                   type: array
-         *                   items:
-         *                     type: object
-         *                     properties:
-         *                       type:
-         *                         type: string
-         *                       content:
-         *                         type: string
-         *                       relevance:
-         *                         type: number
-         *       401:
-         *         description: Not authenticated
-         *       404:
-         *         description: Profile not found
-         */
-        router.get('/recommendations', authenticateUser, personalityController.getPersonalityProfile.bind(personalityController));
-        /**
-         * @swagger
-         * /personality/assessment/submit:
-         *   post:
-         *     summary: Submit personality assessment
-         *     description: Submits answers to a personality assessment to update the user's profile
-         *     tags: [Personality]
-         *     security:
-         *       - bearerAuth: []
-         *     requestBody:
-         *       required: true
-         *       content:
-         *         application/json:
-         *           schema:
-         *             type: object
-         *             required:
-         *               - answers
-         *             properties:
-         *               answers:
-         *                 type: array
-         *                 items:
-         *                   type: object
-         *                   required:
-         *                     - questionId
-         *                     - answer
-         *                   properties:
-         *                     questionId:
-         *                       type: string
-         *                     answer:
-         *                       type: string
-         *     responses:
-         *       200:
-         *         description: Assessment submitted successfully
-         *       400:
-         *         description: Invalid input data
-         *       401:
-         *         description: Not authenticated
-         */
-        router.post('/assessment/submit', authenticateUser, validateBody(personalityApiSchemas.submitAssessmentSchema), personalityController.submitAssessment.bind(personalityController));
+        try {
+            // Create controller instance with dependencies
+            const personalityController = new PersonalityController({
+                personalityService: this.container.get('personalityService'),
+                logger: this.logger,
+            });
+            
+            // Define routes with validated method bindings
+            router.get(
+                '/profile', 
+                authenticateUser, 
+                this._validateControllerMethod(
+                    personalityController, 
+                    'getPersonalityProfile', 
+                    'PersonalityController', 
+                    '/personality/profile'
+                )
+            );
+            
+            router.get(
+                '/recommendations', 
+                authenticateUser, 
+                this._validateControllerMethod(
+                    personalityController, 
+                    'getPersonalityRecommendations', 
+                    'PersonalityController', 
+                    '/personality/recommendations'
+                )
+            );
+            
+            router.post(
+                '/assessment/submit', 
+                authenticateUser, 
+                validateBody(personalityApiSchemas.submitAssessmentSchema),
+                this._validateControllerMethod(
+                    personalityController, 
+                    'submitPersonalityAssessment', 
+                    'PersonalityController', 
+                    '/personality/assessment/submit'
+                )
+            );
+        } catch (error) {
+            this.logger.error('Error creating personality routes', { error: error.message, stack: error.stack });
+            // Return router with fallback handlers for all expected routes
+            router.get('/profile', this._createFallbackHandler(503, 'Personality profile service unavailable'));
+            router.get('/recommendations', this._createFallbackHandler(503, 'Personality recommendations service unavailable'));
+            router.post('/assessment/submit', this._createFallbackHandler(503, 'Personality assessment service unavailable'));
+        }
+        
         return router;
     }
     /**
@@ -228,7 +237,7 @@ class RouteFactory {
         try {
             // Create controller instance with dependencies
             const adaptiveController = new AdaptiveController({
-                logger: this.container.get('logger'),
+                logger: this.logger,
                 adaptiveService: this.container.get('adaptiveService'),
             });
             
@@ -357,7 +366,7 @@ class RouteFactory {
                             signUp: () => ({ data: { user: { id: 'mock-id' }, session: { access_token: 'mock-token', refresh_token: 'mock-refresh' } } })
                         }
                     },
-                    logger: this.container.get('logger') || console
+                    logger: this.logger || console
                 });
                 
                 console.log('Created fallback auth controller for development');
@@ -528,7 +537,7 @@ class RouteFactory {
         const router = express.Router();
         // Create controller instance with dependencies
         const evaluationController = new EvaluationController({
-            logger: this.container.get('logger'),
+            logger: this.logger,
             evaluationService: this.container.get('evaluationService'),
             openAIStateManager: this.container.get('openAIStateManager'),
             challengeRepository: this.container.get('challengeRepository'),
@@ -748,11 +757,37 @@ class RouteFactory {
             // Import dynamically for better error handling
             return import('./userRoutes.js').then(module => {
                 const createUserRoutes = module.default;
-                const authMiddleware = import('../middleware/auth.js');
-                const validationMiddleware = import('../middleware/validation.js');
                 
-                return Promise.all([authMiddleware, validationMiddleware]).then(([auth, validation]) => {
+                return Promise.all([
+                    import('../middleware/auth.js'),
+                    import('../middleware/validation.js'),
+                    import('../../../user/schemas/userApiSchemas.js')
+                ]).then(([auth, validation, schemas]) => {
                     console.log('Creating real user routes');
+                    
+                    // Register validation schemas for user routes
+                    const basePath = '/users';
+                    
+                    // User update validation
+                    this.registerValidation(
+                        `${basePath}/me`, 
+                        'PUT',
+                        { body: schemas.default.updateUserSchema }
+                    );
+                    
+                    // Focus area update validation
+                    this.registerValidation(
+                        `${basePath}/me/focus-area`, 
+                        'PUT',
+                        { body: schemas.default.updateFocusAreaSchema }
+                    );
+                    
+                    // User ID parameter validation
+                    this.registerValidation(
+                        `${basePath}/:id`, 
+                        'GET',
+                        { params: schemas.default.userIdSchema }
+                    );
                     
                     // Create the router with resolved dependencies
                     return createUserRoutes({
@@ -1289,6 +1324,50 @@ class RouteFactory {
      */
     createHealthRoutes() {
         return createHealthRoutes(this.container);
+    }
+    /**
+     * Validates that a controller method exists and is a function before binding
+     * @param {Object} controller - Controller instance
+     * @param {string} methodName - Name of the method to check
+     * @param {string} controllerName - Name of the controller (for logging)
+     * @param {string} routePath - Path of the route (for logging)
+     * @returns {Function} - Validated method bound to controller or fallback
+     * @private
+     */
+    _validateControllerMethod(controller, methodName, controllerName, routePath) {
+        // Check if controller is defined
+        if (!controller) {
+            this.logger.error(`Controller ${controllerName} is undefined for route ${routePath}`);
+            return this._createFallbackHandler(501, `Controller unavailable: ${controllerName}`);
+        }
+        
+        // Check if method exists on controller
+        if (typeof controller[methodName] !== 'function') {
+            this.logger.error(`Method ${methodName} not found on controller ${controllerName} for route ${routePath}`);
+            return this._createFallbackHandler(501, `Method unavailable: ${methodName}`);
+        }
+        
+        // Return the method bound to its controller
+        return controller[methodName].bind(controller);
+    }
+    
+    /**
+     * Creates a fallback handler for routes with missing controllers or methods
+     * @param {number} statusCode - HTTP status code to return
+     * @param {string} message - Error message to include
+     * @returns {Function} - Express route handler
+     * @private
+     */
+    _createFallbackHandler(statusCode, message) {
+        return (req, res) => {
+            const isDev = process.env.NODE_ENV !== 'production';
+            const response = {
+                error: 'Not Implemented',
+                message: isDev ? message : 'This endpoint is not implemented',
+            };
+            
+            res.status(statusCode).json(response);
+        };
     }
 }
 export default RouteFactory;

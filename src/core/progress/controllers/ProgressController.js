@@ -1,6 +1,14 @@
 import { withControllerErrorHandling } from "../../infra/errors/errorStandardization.js";
 import { ProgressError, ProgressNotFoundError, ProgressValidationError, ProgressProcessingError } from "../../progress/errors/progressErrors.js";
 import { ProgressDTOMapper } from "../../progress/dtos/ProgressDTO.js";
+import { 
+    UserId, 
+    ChallengeId, 
+    FocusArea, 
+    createUserId, 
+    createChallengeId, 
+    createFocusArea
+} from "../../common/valueObjects/index.js";
 'use strict';
 // Error mappings for controllers
 const progressControllerErrorMappings = [
@@ -131,10 +139,19 @@ class ProgressController {
         if (!req.user || !req.user.id) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
-        // Get overall progress
-        const progress = await this.progressService.calculateOverallProgress(req.user.id);
+        
+        // Create UserId Value Object from primitive
+        const userIdVO = createUserId(req.user.id);
+        if (!userIdVO) {
+            throw new ProgressValidationError(`Invalid user ID format: ${req.user.id}`);
+        }
+        
+        // Get overall progress using Value Object
+        const progress = await this.progressService.calculateOverallProgress(userIdVO);
+        
         // Convert to DTO
         const progressSummaryDto = ProgressDTOMapper.toSummaryDTO(progress);
+        
         // Return progress data
         return res.status(200).json({
             status: 'success',
@@ -151,9 +168,16 @@ class ProgressController {
         if (!req.user || !req.user.id) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
-        // Convert request to domain parameters
-        const params = ProgressDTOMapper.fromRequest(req.body);
+        
+        // Create UserId Value Object from primitive
+        const userIdVO = createUserId(req.user.id);
+        if (!userIdVO) {
+            throw new ProgressValidationError(`Invalid user ID format: ${req.user.id}`);
+        }
+        
+        // Extract data from request
         const { challengeId, challengeScore: score, completionTime, evaluationData } = req.body;
+        
         // Basic validation
         if (!challengeId) {
             return res.status(400).json({
@@ -161,6 +185,13 @@ class ProgressController {
                 message: 'Challenge ID is required'
             });
         }
+        
+        // Create ChallengeId Value Object from primitive
+        const challengeIdVO = createChallengeId(challengeId);
+        if (!challengeIdVO) {
+            throw new ProgressValidationError(`Invalid challenge ID format: ${challengeId}`);
+        }
+        
         if (isNaN(score) || score < 0 || score > 100) {
             return res.status(400).json({
                 status: 'error',
@@ -173,16 +204,19 @@ class ProgressController {
                 message: 'Completion time must be a positive number'
             });
         }
-        // Record challenge completion
+        
+        // Record challenge completion using Value Objects
         const progress = await this.progressService.recordChallengeCompletion(
-            req.user.id, 
-            params.challengeId, 
-            params.challengeScore, 
+            userIdVO, 
+            challengeIdVO, 
+            score, 
             completionTime, 
             evaluationData || {}
         );
+        
         // Convert to DTO
         const progressDto = ProgressDTOMapper.toDTO(progress);
+        
         // Return updated progress
         return res.status(200).json({
             status: 'success',
@@ -205,6 +239,13 @@ class ProgressController {
         if (!req.user || !req.user.id) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
+        
+        // Create UserId Value Object from primitive
+        const userIdVO = createUserId(req.user.id);
+        if (!userIdVO) {
+            throw new ProgressValidationError(`Invalid user ID format: ${req.user.id}`);
+        }
+        
         const { challengeId } = req.params;
         if (!challengeId) {
             return res.status(400).json({
@@ -212,16 +253,25 @@ class ProgressController {
                 message: 'Challenge ID is required'
             });
         }
-        // Get progress for this challenge
-        const progress = await this.progressService.getProgressForChallenge(req.user.id, challengeId);
+        
+        // Create ChallengeId Value Object from primitive
+        const challengeIdVO = createChallengeId(challengeId);
+        if (!challengeIdVO) {
+            throw new ProgressValidationError(`Invalid challenge ID format: ${challengeId}`);
+        }
+        
+        // Get progress for this challenge using Value Objects
+        const progress = await this.progressService.getProgressForChallenge(userIdVO, challengeIdVO);
         if (!progress) {
             return res.status(404).json({
                 status: 'error',
                 message: 'No progress found for this challenge'
             });
         }
+        
         // Convert to DTO
         const progressDto = ProgressDTOMapper.toDTO(progress);
+        
         // Return progress data
         return res.status(200).json({
             status: 'success',
@@ -246,6 +296,13 @@ class ProgressController {
         if (!req.user || !req.user.id) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
+        
+        // Create UserId Value Object from primitive
+        const userIdVO = createUserId(req.user.id);
+        if (!userIdVO) {
+            throw new ProgressValidationError(`Invalid user ID format: ${req.user.id}`);
+        }
+        
         const { skillLevels } = req.body;
         if (!skillLevels || typeof skillLevels !== 'object') {
             return res.status(400).json({
@@ -253,10 +310,13 @@ class ProgressController {
                 message: 'Skill levels are required and must be an object'
             });
         }
-        // Update skill levels
-        const progress = await this.progressService.updateSkillLevels(req.user.id, skillLevels);
+        
+        // Update skill levels using Value Object
+        const progress = await this.progressService.updateSkillLevels(userIdVO, skillLevels);
+        
         // Convert to DTO
         const progressDto = ProgressDTOMapper.toDTO(progress);
+        
         // Return updated skill levels
         return res.status(200).json({
             status: 'success',
@@ -276,18 +336,34 @@ class ProgressController {
         if (!req.user || !req.user.id) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
+        
+        // Create UserId Value Object from primitive
+        const userIdVO = createUserId(req.user.id);
+        if (!userIdVO) {
+            throw new ProgressValidationError(`Invalid user ID format: ${req.user.id}`);
+        }
+        
         // Convert request to domain parameters
-        const params = ProgressDTOMapper.fromRequest(req.body);
-        if (!params.focusArea) {
+        const { focusArea } = req.body;
+        if (!focusArea) {
             return res.status(400).json({
                 status: 'error',
                 message: 'Focus area is required'
             });
         }
-        // Set focus area
-        const progress = await this.progressService.setFocusArea(req.user.id, params.focusArea);
+        
+        // Create FocusArea Value Object from primitive
+        const focusAreaVO = createFocusArea(focusArea);
+        if (!focusAreaVO) {
+            throw new ProgressValidationError(`Invalid focus area format: ${focusArea}`);
+        }
+        
+        // Set focus area using Value Objects
+        const progress = await this.progressService.setFocusArea(userIdVO, focusAreaVO);
+        
         // Convert to DTO
         const progressDto = ProgressDTOMapper.toDTO(progress);
+        
         // Return updated progress
         return res.status(200).json({
             status: 'success',
@@ -307,10 +383,19 @@ class ProgressController {
         if (!req.user || !req.user.id) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
-        // Get all progress records
-        const progressRecords = await this.progressService.getAllProgressForUser(req.user.id);
+        
+        // Create UserId Value Object from primitive
+        const userIdVO = createUserId(req.user.id);
+        if (!userIdVO) {
+            throw new ProgressValidationError(`Invalid user ID format: ${req.user.id}`);
+        }
+        
+        // Get all progress records using Value Object
+        const progressRecords = await this.progressService.getAllProgressForUser(userIdVO);
+        
         // Convert to DTOs
         const progressDtos = ProgressDTOMapper.toDTOCollection(progressRecords);
+        
         // Return progress data
         return res.status(200).json({
             status: 'success',
@@ -365,8 +450,14 @@ class ProgressController {
                 return res.status(401).json({ error: 'Unauthorized' });
             }
             
-            // Get user progress to extract skill information
-            const progress = await this.progressService.calculateOverallProgress(req.user.id);
+            // Create UserId Value Object from primitive
+            const userIdVO = createUserId(req.user.id);
+            if (!userIdVO) {
+                throw new ProgressValidationError(`Invalid user ID format: ${req.user.id}`);
+            }
+            
+            // Get user progress to extract skill information using Value Object
+            const progress = await this.progressService.calculateOverallProgress(userIdVO);
             
             // Extract skill levels and format response
             return res.status(200).json({
@@ -406,9 +497,15 @@ class ProgressController {
                 return res.status(401).json({ error: 'Unauthorized' });
             }
             
-            // Get all progress records to calculate statistics
-            const progressRecords = await this.progressService.getAllProgressForUser(req.user.id);
-            const overallProgress = await this.progressService.calculateOverallProgress(req.user.id);
+            // Create UserId Value Object from primitive
+            const userIdVO = createUserId(req.user.id);
+            if (!userIdVO) {
+                throw new ProgressValidationError(`Invalid user ID format: ${req.user.id}`);
+            }
+            
+            // Get all progress records to calculate statistics using Value Object
+            const progressRecords = await this.progressService.getAllProgressForUser(userIdVO);
+            const overallProgress = await this.progressService.calculateOverallProgress(userIdVO);
             
             // Calculate statistics
             const completedChallenges = progressRecords.length;

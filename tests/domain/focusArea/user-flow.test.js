@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
 import fs from "fs";
 import path from "path";
@@ -6,9 +7,9 @@ import crypto from "crypto";
 import testEnv from "../../loadEnv.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 import { config } from "dotenv";
-import User from "../../../src/core/user/models/User.js";
-import UserRepository from "../../../src/core/user/repositories/UserRepository.js";
-import UserService from "../../../src/core/user/services/UserService.js";
+import User from '../../../src/core/user/models/User.js';
+import UserRepository from '../../../src/core/user/repositories/UserRepository.js';
+import UserService from '../../../src/core/user/services/UserService.js';
 import { createClient } from "@supabase/supabase-js";
 ({ config }.config());
 // Generate a unique test ID for this run
@@ -38,7 +39,7 @@ describe('Integration: User Flow', function () {
         skipIfMissingEnv(this, 'supabase');
     });
     // Set longer timeout for API calls
-    this.timeout(30000);
+    jest.setTimeout(30000);
     // Skip if API keys not available
     before(function () {
         if (!testEnv.getTestConfig().supabase.url || (!testEnv.getTestConfig().supabase.key && !process.env.SUPABASE_ANON_KEY)) {
@@ -64,7 +65,7 @@ describe('Integration: User Flow', function () {
                 console.warn('Could not import exact modules, creating test versions');
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { FocusAreaError, FocusAreaNotFoundError, FocusAreaValidationError, FocusAreaGenerationError, FocusAreaPersistenceError, FocusAreaAccessDeniedError } from "../../../src/core/focusArea/errors/focusAreaErrors.js";
+import { FocusAreaError, FocusAreaNotFoundError, FocusAreaValidationError, FocusAreaGenerationError, FocusAreaPersistenceError, FocusAreaAccessDeniedError } from '../../../src/core/focusArea/errors/focusAreaErrors.js';
 
 // ESM equivalent of __dirname and __filename
 const __filename = fileURLToPath(import.meta.url);

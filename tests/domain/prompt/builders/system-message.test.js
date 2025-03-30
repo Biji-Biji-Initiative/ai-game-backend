@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
 import sinon from "sinon";
 import EvaluationPromptBuilder from "../../../../src/core/prompt/builders/EvaluationPromptBuilder.js";

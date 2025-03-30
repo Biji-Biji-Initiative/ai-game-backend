@@ -1,12 +1,16 @@
 import BaseCoordinator from "@/application/BaseCoordinator.js";
-import appError from "../../core/infra/errors/AppError.js";
 import { 
-    Email, ChallengeId, FocusArea,
-    createEmail, createChallengeId, createFocusArea,
+    ProgressError, 
+    ProgressNotFoundError, 
+    ProgressValidationError, 
+    ProgressProcessingError 
+} from "../../core/progress/errors/progressErrors.js";
+import { 
+    Email, ChallengeId, FocusArea, UserId,
+    createEmail, createChallengeId, createFocusArea, createUserId,
     ensureVO
 } from "../../core/common/valueObjects/index.js";
 'use strict';
-const { AppError } = appError;
 /**
  * ProgressCoordinator class
  *
@@ -59,7 +63,10 @@ class ProgressCoordinator extends BaseCoordinator {
      * @param {Array<string>} [evaluation.strengths=[]] - Identified strengths in the user's performance.
      * @param {Array<string>} [evaluation.areasForImprovement=[]] - Areas where the user could improve.
      * @returns {Promise<Object>} Updated progress data including new metrics and insights.
-     * @throws {AppError} If user not found (404) or progress update fails (500).
+     * @throws {ProgressValidationError} If input parameters are invalid or malformed
+     * @throws {ProgressNotFoundError} If user not found
+     * @throws {ProgressProcessingError} If progress update fails
+     * @throws {ProgressError} For other progress-related errors
      */
     updateProgressAfterChallenge(userEmail, focusArea, challengeId, evaluation) {
         return this.executeOperation(async () => {
@@ -69,22 +76,23 @@ class ProgressCoordinator extends BaseCoordinator {
             const challengeIdVO = ensureVO(challengeId, ChallengeId, createChallengeId);
             // Validate value objects
             if (!emailVO) {
-                throw new AppError(`Invalid email format: ${userEmail}`, 400, {
-                    errorCode: 'INVALID_EMAIL',
-                });
+                throw new ProgressValidationError(`Invalid email format: ${userEmail}`);
             }
             if (!challengeIdVO) {
-                throw new AppError(`Invalid challenge ID: ${challengeId}`, 400, {
-                    errorCode: 'INVALID_CHALLENGE_ID',
-                });
+                throw new ProgressValidationError(`Invalid challenge ID: ${challengeId}`);
             }
             // Get the user entity from the user service
             const user = await this.userService.getUserByEmail(emailVO);
             if (!user) {
-                throw new AppError(`User with email ${emailVO.value} not found`, 404, {
-                    errorCode: 'USER_NOT_FOUND',
-                });
+                throw new ProgressNotFoundError(`User with email ${emailVO.value} not found`);
             }
+            
+            // Create UserId value object for the user's ID
+            const userIdVO = createUserId(user.id);
+            if (!userIdVO) {
+                throw new ProgressValidationError(`Invalid user ID format from retrieved user: ${user.id}`);
+            }
+            
             // Normalize evaluation metrics for domain processing
             const metrics = {
                 score: evaluation.score || 0,
@@ -96,11 +104,11 @@ class ProgressCoordinator extends BaseCoordinator {
             // Get the focus area value if available or use the original value
             const focusAreaValue = focusAreaVO ? focusAreaVO.value : focusArea;
             // Update progress using domain service
-            const updatedProgress = await this.progressService.updateProgress(user.id, focusAreaValue, challengeIdVO.value, metrics);
+            const updatedProgress = await this.progressService.updateProgress(userIdVO, focusAreaValue, challengeIdVO, metrics);
             // Publish domain event if event bus is available
             if (this.eventBus && this.EventTypes) {
                 await this.eventBus.publishEvent(this.EventTypes.USER_PROGRESS_UPDATED, {
-                    userId: user.id,
+                    userId: userIdVO.value,
                     userEmail: emailVO.value,
                     focusArea: focusAreaValue,
                     challengeId: challengeIdVO.value,
@@ -113,7 +121,7 @@ class ProgressCoordinator extends BaseCoordinator {
             userEmail: typeof userEmail === 'string' ? userEmail : userEmail?.value,
             focusArea: typeof focusArea === 'string' ? focusArea : focusArea?.value,
             challengeId: typeof challengeId === 'string' ? challengeId : challengeId?.value
-        }, AppError);
+        }, ProgressError);
     }
     /**
      * Get overall progress summary for a user across all focus areas.
@@ -121,7 +129,7 @@ class ProgressCoordinator extends BaseCoordinator {
      * Retrieves and compiles comprehensive progress metrics, providing insights
      * into the user's overall performance, skill development, and challenge completion rates.
      *
-     * @param {string|Email} userEmail - Email address of the user whose progress to retrieve.
+     * @param {string|Email|UserId} userIdentifier - Email address or UserId of the user whose progress to retrieve.
      * @returns {Promise<Object>} Progress summary containing aggregated metrics:
      *   - completedChallenges: Total number of challenges completed
      *   - averageScore: Average score across all challenges
@@ -129,28 +137,50 @@ class ProgressCoordinator extends BaseCoordinator {
      *   - recentActivity: List of recently completed challenges
      *   - strengthAreas: Areas where user has shown consistent strength
      *   - improvementAreas: Areas needing improvement
-     * @throws {AppError} If user not found (404) or progress retrieval fails (500).
+     * @throws {ProgressValidationError} If input parameters are invalid or malformed
+     * @throws {ProgressNotFoundError} If user not found
+     * @throws {ProgressProcessingError} If progress retrieval fails
+     * @throws {ProgressError} For other progress-related errors
      */
-    getProgressSummary(userEmail) {
+    getProgressSummary(userIdentifier) {
         return this.executeOperation(async () => {
-            // Convert email to value object if needed
-            const emailVO = ensureVO(userEmail, Email, createEmail);
-            // Validate value object
-            if (!emailVO) {
-                throw new AppError(`Invalid email format: ${userEmail}`, 400, {
-                    errorCode: 'INVALID_EMAIL',
-                });
+            // Check if userIdentifier is a UserId
+            if (userIdentifier instanceof UserId) {
+                // Already a UserId, use it directly
+                return this.progressService.getProgressSummary(userIdentifier);
             }
-            // Get the user entity from the user service
+            
+            // Try to convert to Email value object if it's not a UserId
+            const emailVO = ensureVO(userIdentifier, Email, createEmail);
+            
+            // Validate value object if attempting Email
+            if (!emailVO) {
+                // Try as direct UserId if not a valid Email
+                const userIdVO = createUserId(userIdentifier);
+                if (userIdVO) {
+                    return this.progressService.getProgressSummary(userIdVO);
+                }
+                throw new ProgressValidationError(`Invalid identifier format: ${userIdentifier}`);
+            }
+            
+            // Get the user entity from the user service using email
             const user = await this.userService.getUserByEmail(emailVO);
             if (!user) {
-                throw new AppError(`User with email ${emailVO.value} not found`, 404, {
-                    errorCode: 'USER_NOT_FOUND',
-                });
+                throw new ProgressNotFoundError(`User with email ${emailVO.value} not found`);
             }
-            // Get progress summary from domain service
-            return this.progressService.getProgressSummary(user.id);
-        }, 'getProgressSummary', { userEmail: typeof userEmail === 'string' ? userEmail : userEmail?.value }, AppError);
+            
+            // Create UserId value object
+            const userIdVO = createUserId(user.id);
+            if (!userIdVO) {
+                throw new ProgressValidationError(`Invalid user ID format from retrieved user: ${user.id}`);
+            }
+            
+            // Get progress summary from domain service using UserId
+            return this.progressService.getProgressSummary(userIdVO);
+        }, 'getProgressSummary', { 
+            userIdentifier: userIdentifier instanceof UserId ? userIdentifier.value : 
+                           (userIdentifier instanceof Email ? userIdentifier.value : userIdentifier) 
+        }, ProgressError);
     }
     /**
      * Get detailed progress for a specific focus area.
@@ -159,7 +189,7 @@ class ProgressCoordinator extends BaseCoordinator {
      * within a particular focus area, including challenge completion history,
      * skill development trajectory, and personalized feedback.
      *
-     * @param {string|Email} userEmail - Email address of the user whose progress to retrieve.
+     * @param {string|Email|UserId} userIdentifier - Email address or UserId of the user whose progress to retrieve.
      * @param {string|FocusArea} focusArea - Focus area code to get detailed progress for.
      * @returns {Promise<Object>} Detailed focus area progress including:
      *   - completedChallenges: List of completed challenges in this focus area
@@ -168,38 +198,58 @@ class ProgressCoordinator extends BaseCoordinator {
      *   - strengths: Specific strengths identified in this focus area
      *   - improvementAreas: Specific improvement areas for this focus area
      *   - recommendations: Recommended next steps based on progress
-     * @throws {AppError} If user not found (404), focus area is invalid, or retrieval fails (500).
+     * @throws {ProgressValidationError} If input parameters are invalid or malformed
+     * @throws {ProgressNotFoundError} If user not found
+     * @throws {ProgressProcessingError} If progress retrieval fails
+     * @throws {ProgressError} For other progress-related errors
      */
-    getFocusAreaProgress(userEmail, focusArea) {
+    getFocusAreaProgress(userIdentifier, focusArea) {
         return this.executeOperation(async () => {
-            // Convert parameters to value objects if needed
-            const emailVO = ensureVO(userEmail, Email, createEmail);
+            // Convert focusArea to value object if needed
             const focusAreaVO = ensureVO(focusArea, FocusArea, createFocusArea);
-            // Validate value objects
-            if (!emailVO) {
-                throw new AppError(`Invalid email format: ${userEmail}`, 400, {
-                    errorCode: 'INVALID_EMAIL',
-                });
-            }
-            // Get the user entity from the user service
-            const user = await this.userService.getUserByEmail(emailVO);
-            if (!user) {
-                throw new AppError(`User with email ${emailVO.value} not found`, 404, {
-                    errorCode: 'USER_NOT_FOUND',
-                });
-            }
+            
             // Validate focus area
             if (!focusAreaVO) {
-                throw new AppError('Invalid focus area format', 400, {
-                    errorCode: 'INVALID_FOCUS_AREA',
-                });
+                throw new ProgressValidationError('Invalid focus area format');
             }
+            
+            let userIdVO;
+            
+            // Check if userIdentifier is already a UserId
+            if (userIdentifier instanceof UserId) {
+                userIdVO = userIdentifier;
+            } else {
+                // Try to convert to Email value object if not a UserId
+                const emailVO = ensureVO(userIdentifier, Email, createEmail);
+                
+                if (emailVO) {
+                    // Get the user entity from the user service using email
+                    const user = await this.userService.getUserByEmail(emailVO);
+                    if (!user) {
+                        throw new ProgressNotFoundError(`User with email ${emailVO.value} not found`);
+                    }
+                    
+                    // Create UserId value object
+                    userIdVO = createUserId(user.id);
+                    if (!userIdVO) {
+                        throw new ProgressValidationError(`Invalid user ID format from retrieved user: ${user.id}`);
+                    }
+                } else {
+                    // Try directly as a userId
+                    userIdVO = createUserId(userIdentifier);
+                    if (!userIdVO) {
+                        throw new ProgressValidationError(`Invalid user identifier: ${userIdentifier}`);
+                    }
+                }
+            }
+            
             // Get detailed progress for focus area from domain service
-            return this.progressService.getFocusAreaProgress(user.id, focusAreaVO.value);
+            return this.progressService.getFocusAreaProgress(userIdVO, focusAreaVO.value);
         }, 'getFocusAreaProgress', {
-            userEmail: typeof userEmail === 'string' ? userEmail : userEmail?.value,
+            userIdentifier: userIdentifier instanceof UserId ? userIdentifier.value : 
+                           (userIdentifier instanceof Email ? userIdentifier.value : userIdentifier),
             focusArea: typeof focusArea === 'string' ? focusArea : focusArea?.value
-        }, AppError);
+        }, ProgressError);
     }
 }
 export default ProgressCoordinator;

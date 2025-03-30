@@ -1,5 +1,6 @@
 import AppError from "../../infra/errors/AppError.js";
-import { StandardErrorCodes } from "../../infra/errors/ErrorHandler.js";
+import { DomainErrorCodes } from "../../infra/errors/DomainErrorCodes.js";
+const PersonalityErrorCodes = DomainErrorCodes.Personality;
 'use strict';
 /**
  * Base class for Personality domain errors
@@ -31,7 +32,7 @@ class PersonalityNotFoundError extends PersonalityError {
     constructor(identifier = '') {
         const message = identifier ? `Personality not found: ${identifier}` : 'Personality not found';
         super(message, 404, {
-            errorCode: StandardErrorCodes.NOT_FOUND,
+            errorCode: PersonalityErrorCodes.NOT_FOUND,
             metadata: { identifier }
         });
         this.name = 'PersonalityNotFoundError';
@@ -49,7 +50,7 @@ class PersonalityValidationError extends PersonalityError {
      */
     constructor(message = 'Invalid personality data', validationErrors = null) {
         super(message, 400, {
-            errorCode: StandardErrorCodes.VALIDATION_ERROR,
+            errorCode: PersonalityErrorCodes.VALIDATION,
             metadata: { validationErrors }
         });
         this.name = 'PersonalityValidationError';
@@ -68,7 +69,7 @@ class PersonalityProcessingError extends PersonalityError {
     constructor(message = 'Failed to process personality', options = {}) {
         super(message, 500, {
             ...options,
-            errorCode: StandardErrorCodes.DOMAIN_ERROR
+            errorCode: PersonalityErrorCodes.PROCESSING
         });
         this.name = 'PersonalityProcessingError';
     }
@@ -86,7 +87,7 @@ class PersonalityRepositoryError extends PersonalityError {
     constructor(message = 'Failed to perform personality repository operation', options = {}) {
         super(message, 500, {
             ...options,
-            errorCode: StandardErrorCodes.DATABASE_ERROR,
+            errorCode: PersonalityErrorCodes.REPOSITORY,
             cause: options.cause
         });
         this.name = 'PersonalityRepositoryError';

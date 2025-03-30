@@ -7,11 +7,13 @@
  */
 // Load domain-specific configurations
 import personalityConfig from "../core/personality/config/personalityConfig.js";
+import { validateConfig } from "./schemas/configSchema.js";
+
 // Main application configuration
 const config = {
     // Server configuration
     server: {
-        port: process.env.NODE_ENV === 'production' ? 9000 : (process.env.PORT || 3000),
+        port: process.env.NODE_ENV === 'production' ? 9000 : (parseInt(process.env.PORT, 10) || 3000),
         environment: process.env.NODE_ENV || 'development',
         baseUrl: process.env.BASE_URL || 'http://localhost:3000',
     },
@@ -66,8 +68,8 @@ const config = {
     },
     // Supabase configuration
     supabase: {
-        url: process.env.SUPABASE_URL,
-        key: process.env.SUPABASE_ANON_KEY,
+        url: process.env.SUPABASE_URL || '',
+        key: process.env.SUPABASE_ANON_KEY || '',
         tables: {
             users: 'users',
             challenges: 'challenges',
@@ -77,7 +79,7 @@ const config = {
     },
     // OpenAI API configuration
     openai: {
-        apiKey: process.env.OPENAI_API_KEY,
+        apiKey: process.env.OPENAI_API_KEY || '',
         defaultModel: process.env.OPENAI_DEFAULT_MODEL || 'gpt-4o',
     },
     // Logging configuration
@@ -91,7 +93,7 @@ const config = {
     },
     // User Journey configuration
     userJourney: {
-        sessionTimeoutMinutes: parseInt(process.env.SESSION_TIMEOUT_MINUTES, 10) || 30,
+        sessionTimeoutMinutes: parseInt(process.env.SESSION_TIMEOUT_MINUTES || '30', 10),
     },
     // Domain references - these allow easy access to domain-specific configuration
     // while keeping the actual definitions in their domain folders
@@ -144,5 +146,23 @@ Object.defineProperties(config, {
         }
     }
 });
+
+// Validate configuration
+try {
+    validateConfig(config);
+    console.log(`Configuration validated successfully for '${config.server.environment}' environment`);
+} catch (error) {
+    // In production, fail fast
+    // In development, log warning but continue
+    if (config.server.environment === 'production') {
+        console.error('FATAL ERROR: Invalid configuration, shutting down');
+        console.error(error.message);
+        process.exit(1);
+    } else {
+        console.warn('WARNING: Configuration validation failed:');
+        console.warn(error.message);
+        console.warn('Continuing with potentially invalid configuration in development mode');
+    }
+}
 
 export default config;

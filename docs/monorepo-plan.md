@@ -76,13 +76,16 @@ ai-fight-club-monorepo/
 │   ├── api/                     # Core API service (pure ESM JavaScript)
 │   │   ├── package.json         # Type: "module"
 │   │   ├── src/
-│   │   │   ├── core/            # DDD core implementation
-│   │   │   │   ├── domain/      # Domain model, entities, value objects
-│   │   │   │   ├── application/ # Application services, use cases
-│   │   │   │   └── services/    # Domain services
-│   │   │   ├── infrastructure/  # External integrations, persistence
-│   │   │   ├── interfaces/      # API controllers, adapters
-│   │   │   └── ...
+│   │   │   ├── domain/          # Domain model, entities, value objects
+│   │   │   │   ├── entities/    # Domain entities 
+│   │   │   │   ├── valueObjects/ # Value objects
+│   │   │   │   ├── services/    # Domain services
+│   │   │   │   └── ports/       # Interfaces for external dependencies
+│   │   │   │       └── repositories/ # Repository interfaces (Ports)
+│   │   │   ├── application/     # Application services, use cases
+│   │   │   ├── infrastructure/  # External integrations, persistence, DI container
+│   │   │   │   └── di/          # Dependency injection setup
+│   │   │   └── interfaces/      # API controllers, adapters
 │   │   ├── tests/
 │   │   │   ├── unit/            # Unit tests
 │   │   │   └── integration/     # Integration tests
@@ -96,6 +99,10 @@ ai-fight-club-monorepo/
 │   │   ├── package.json         # Type: "module"
 │   │   ├── migrations/
 │   │   ├── schema/
+│   │   ├── src/
+│   │   │   ├── repositories/    # Repository implementations (Adapters)
+│   │   │   ├── mappers/         # Data mappers between DB and domain
+│   │   │   └── client/          # Database client configuration
 │   │   └── ...
 │   └── shared/                  # Shared utilities and types (TypeScript)
 │       ├── package.json
@@ -106,19 +113,8 @@ ai-fight-club-monorepo/
 │       │   └── constants/       # Shared constants
 │       └── ...
 ├── tools/                       # Monorepo-level tools 
-│   ├── build/                   # Build scripts and configurations
-│   ├── scripts/                 # Utility scripts for monorepo management
-│   └── testing/                 # Test configuration and helpers
 ├── config/                      # Shared configurations
-│   ├── eslint/                  # ESLint configurations
-│   ├── jest/                    # Jest configurations
-│   ├── typescript/              # TypeScript configurations
-│   └── ...
 └── docs/                        # Project documentation
-    ├── architecture/            # Architecture documentation
-    ├── development/             # Development guides
-    ├── api/                     # API documentation
-    └── ...
 ```
 
 ### Package Boundaries and Responsibilities
@@ -130,15 +126,19 @@ ai-fight-club-monorepo/
   - Domain model, entities, aggregates, value objects
   - Application services and use cases
   - Domain services and business logic
-- Infrastructure implementations (repositories, external services)
+  - Repository interfaces (Ports) - following Dependency Inversion Principle
+- Infrastructure implementations (external services, DI container)
 - Authentication and authorization middleware
 
 #### `@ai-fight-club/database`
 - Supabase client configuration and initialization (ESM JavaScript)
 - Database schema definitions
 - Migration scripts and versioning
-- Repository implementations for data access
+- Repository implementations (Adapters) that implement interfaces from api package
 - Database utility functions and helpers
+- Data mappers between database records and domain entities
+- Contains ONLY infrastructure code - no domain logic
+- No business rules or domain validation
 
 #### `@ai-fight-club/ui-tester`
 - API testing user interface (TypeScript)
@@ -159,12 +159,89 @@ ai-fight-club-monorepo/
 
 The monorepo structure preserves the DDD architecture within the API package:
 
-1. **Domain Layer**: Contains all domain models, entities, aggregates, value objects, domain events, and domain services
+1. **Domain Layer**: Contains all domain models, entities, aggregates, value objects, domain events, domain services, and repository interfaces (Ports)
 2. **Application Layer**: Contains application services, use cases, commands, and queries
-3. **Infrastructure Layer**: Contains implementations of repositories, external services, and persistence
+3. **Infrastructure Layer**: Contains DI container, external services, and other technical infrastructure
 4. **Interface Layer**: Contains controllers, request/response models, and adapters
 
 Cross-package communication will use DTOs and interfaces defined in the shared package, not actual domain models.
+
+## ESM JavaScript Import Requirements
+
+All JavaScript packages in this monorepo use ESM modules (`"type": "module"`). This requires special attention to imports:
+
+### Required: File Extensions in Imports
+
+```javascript
+// CORRECT - With file extension
+import { User } from './models/User.js';
+import { createLogger } from '../utils/logger.js';
+
+// INCORRECT - Missing file extension
+import { User } from './models/User';
+import { createLogger } from '../utils/logger';
+```
+
+### Internal Package Imports
+
+```javascript
+// Importing from another package
+import { UserDTO } from '@ai-fight-club/shared';
+
+// Importing internal implementation from another package (avoid when possible)
+import { UserRepository } from '@ai-fight-club/api/src/domain/ports/repositories/UserRepository.js';
+```
+
+### Dynamic Imports
+
+```javascript
+// Dynamic imports (useful for CommonJS interoperability)
+const module = await import('some-module');
+const { something } = module.default;
+```
+
+## Dependency Injection Strategy
+
+To properly implement the Dependency Inversion Principle, we will use a simple dependency injection container:
+
+### API Package DI Setup
+
+```javascript
+// packages/api/src/infrastructure/di/container.js
+import { createUserRepository } from '@ai-fight-club/database';
+import { createSupabaseClient } from '@ai-fight-club/database';
+
+export function createContainer() {
+  const supabaseClient = createSupabaseClient();
+  
+  return {
+    // Repositories
+    userRepository: createUserRepository(supabaseClient),
+    
+    // Services
+    // ...
+  };
+}
+```
+
+### Using DI in Application Services
+
+```javascript
+// packages/api/src/application/services/UserService.js
+export class UserService {
+  constructor(userRepository) {
+    this.userRepository = userRepository;
+  }
+  
+  async getUserById(id) {
+    return this.userRepository.findById(id);
+  }
+}
+
+// Usage in API
+import { container } from '../infrastructure/di/container.js';
+const userService = new UserService(container.userRepository);
+```
 
 ## 4. Implementation Steps
 
@@ -575,7 +652,7 @@ The key to preserving DDD architecture in a monorepo is maintaining proper bound
 ### Domain Layer (in API Package)
 
 ```javascript
-// packages/api/src/core/domain/models/User.js
+// packages/api/src/domain/entities/User.js
 export class User {
   constructor(id, email, name) {
     this.id = id;
@@ -593,7 +670,7 @@ export class User {
 ### Value Objects (in API Package)
 
 ```javascript
-// packages/api/src/core/domain/valueObjects/Email.js
+// packages/api/src/domain/valueObjects/Email.js
 export class Email {
   constructor(value) {
     if (!this.isValid(value)) {
@@ -610,6 +687,44 @@ export class Email {
   get value() {
     return this._value;
   }
+}
+```
+
+### Repository Interfaces (in API Package)
+
+```javascript
+// packages/api/src/domain/ports/repositories/UserRepository.js
+export class UserRepository {
+  /**
+   * @param {string} id 
+   * @returns {Promise<User>}
+   */
+  findById(id) { throw new Error('Method not implemented') }
+  
+  // Other methods...
+}
+```
+
+### Repository Implementations (in Database Package)
+
+```javascript
+// packages/database/src/repositories/userRepository.js
+import { UserRepository } from '@ai-fight-club/api/src/domain/ports/repositories/UserRepository.js';
+
+export function createUserRepository(supabaseClient) {
+  return {
+    async findById(id) {
+      const { data, error } = await supabaseClient
+        .from('users')
+        .select('*')
+        .eq('id', id)
+        .single();
+        
+      if (error) throw error;
+      return mapToUserDomain(data); // Convert DB record to domain entity
+    },
+    // Other methods...
+  };
 }
 ```
 

@@ -1,4 +1,5 @@
 import { logger } from "../core/infra/logging/logger.js";
+import AppError from "../core/infra/errors/AppError.js";
 'use strict';
 /**
  * BaseCoordinator class
@@ -21,22 +22,14 @@ class BaseCoordinator {
         this.logger = customLogger || logger.child({ coordinator: name });
     }
     /**
-     * Validates required dependencies for the coordinator
+     * Validate that required dependencies are injected
      *
-     * Ensures that all required dependencies are provided to the coordinator.
-     * This method should be called in the constructor of all derived coordinators
-     * to fail fast if any required dependencies are missing.
-     *
-     * @param {Object} dependencies - Dependencies object containing services, repositories, and other required components.
-     * @param {Array<string>} requiredDependencies - List of dependency keys that must be present.
-     * @throws {Error} If dependencies object is null/undefined or if any required dependency is missing.
+     * @param {Array<string>} dependencies - Names of dependencies that should be present on this instance.
+     * @throws {Error} When a required dependency is missing.
      */
-    validateDependencies(dependencies = {}, requiredDependencies = []) {
-        if (!dependencies) {
-            throw new Error(`Dependencies are required for ${this.coordinatorName}`);
-        }
-        for (const dependency of requiredDependencies) {
-            if (!dependencies[dependency]) {
+    validateDependencies(dependencies) {
+        for (const dependency of dependencies) {
+            if (!this[dependency]) {
                 throw new Error(`${dependency} is required for ${this.coordinatorName}`);
             }
         }
@@ -55,12 +48,12 @@ class BaseCoordinator {
      * @param {Function} operation - Async function to execute containing domain service calls.
      * @param {string} operationName - Name of the operation for logging and error reporting.
      * @param {Object} [context={}] - Additional contextual data for logging and error reporting.
-     * @param {ErrorConstructor} [ErrorClass=Error] - Custom error class to wrap thrown errors with.
+     * @param {ErrorConstructor} [ErrorClass=AppError] - Custom error class to wrap thrown errors with.
      * @returns {Promise<*>} The result of the operation if successful.
      * @throws {Error|ErrorClass} The original error if it's already of the specified ErrorClass type,
      *                           or a new error of ErrorClass type wrapping the original error.
      */
-    async executeOperation(operation, operationName, context = {}, ErrorClass = Error) {
+    async executeOperation(operation, operationName, context = {}, ErrorClass = AppError) {
         try {
             this.logger.debug(`Starting operation: ${operationName}`, context);
             const result = await operation();
@@ -75,17 +68,36 @@ class BaseCoordinator {
                 stack: error.stack,
                 statusCode: error.statusCode || 500
             });
+            
             // Avoid nested wrapping of errors if already of desired type
             if (error instanceof ErrorClass) {
                 throw error;
             }
+            
+            // Preserve original error properties
+            const statusCode = error.statusCode || 500;
+            const errorCode = error.errorCode || `${this.coordinatorName.toUpperCase()}_${operationName.toUpperCase()}_ERROR`;
+            
             // Create a new error of the specified type, preserving original error as cause
-            throw new ErrorClass(`Failed in ${operationName}: ${error.message}`, error.statusCode || 500, {
-                cause: error,
-                coordinator: this.coordinatorName,
-                operation: operationName,
-                ...context
-            });
+            // Using the expanded constructor that AppError supports
+            throw new ErrorClass(
+                `Failed in ${operationName}: ${error.message}`, 
+                statusCode,
+                {
+                    cause: error,  // Explicitly set original error as cause
+                    metadata: {
+                        coordinator: this.coordinatorName,
+                        operation: operationName,
+                        originalError: {
+                            name: error.name,
+                            message: error.message,
+                            stack: error.stack
+                        },
+                        ...context
+                    },
+                    errorCode: errorCode
+                }
+            );
         }
     }
     /**

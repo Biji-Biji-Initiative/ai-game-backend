@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import * as axios from "axios";
 import { expect } from "chai";
 import apiTestHelper from "../../helpers/apiTestHelper.js";
@@ -6,7 +7,7 @@ const { setupTestUser, cleanupTestUser, getAuthToken } = apiTestHelper;
 const API_URL = process.env.API_URL || 'http://localhost:3000/api';
 describe('User API Endpoints', function () {
     // Increase timeout for real API calls
-    this.timeout(10000);
+    jest.setTimeout(10000);
     let testUser;
     let authToken;
     before(async function () {

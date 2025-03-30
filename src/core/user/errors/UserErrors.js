@@ -5,7 +5,9 @@
  * following Domain-Driven Design principles.
  */
 import AppError from "../../infra/errors/AppError.js";
-import { StandardErrorCodes } from "../../infra/errors/ErrorHandler.js";
+import { DomainErrorCodes } from "../../infra/errors/DomainErrorCodes.js";
+const UserErrorCodes = DomainErrorCodes.User;
+
 /**
  * Base class for User domain errors
  */
@@ -36,7 +38,7 @@ export class UserNotFoundError extends UserError {
     constructor(identifier = '') {
         const message = identifier ? `User not found: ${identifier}` : 'User not found';
         super(message, 404, {
-            errorCode: StandardErrorCodes.NOT_FOUND,
+            errorCode: UserErrorCodes.NOT_FOUND,
             metadata: { identifier }
         });
         this.name = 'UserNotFoundError';
@@ -55,7 +57,7 @@ export class UserUpdateError extends UserError {
     constructor(message = 'Failed to update user', options = {}) {
         super(message, 500, {
             ...options,
-            errorCode: StandardErrorCodes.DOMAIN_ERROR
+            errorCode: UserErrorCodes.UPDATE_FAILED
         });
         this.name = 'UserUpdateError';
     }
@@ -72,7 +74,7 @@ export class UserValidationError extends UserError {
      */
     constructor(message = 'Invalid user data', validationErrors = null) {
         super(message, 400, {
-            errorCode: StandardErrorCodes.VALIDATION_ERROR,
+            errorCode: UserErrorCodes.VALIDATION,
             metadata: { validationErrors }
         });
         this.name = 'UserValidationError';
@@ -91,7 +93,7 @@ export class UserInvalidStateError extends UserError {
      */
     constructor(message = 'User is in an invalid state for this operation', currentState = null, requiredState = null) {
         super(message, 400, {
-            errorCode: StandardErrorCodes.INVALID_STATE_TRANSITION,
+            errorCode: UserErrorCodes.INVALID_STATE,
             metadata: { currentState, requiredState }
         });
         this.name = 'UserInvalidStateError';
@@ -108,7 +110,7 @@ export class UserAuthenticationError extends UserError {
      */
     constructor(message = 'Authentication failed') {
         super(message, 401, {
-            errorCode: StandardErrorCodes.UNAUTHORIZED
+            errorCode: UserErrorCodes.AUTH_FAILED
         });
         this.name = 'UserAuthenticationError';
     }
@@ -125,7 +127,7 @@ export class UserAuthorizationError extends UserError {
      */
     constructor(message = 'Not authorized', requiredPermission = null) {
         super(message, 403, {
-            errorCode: StandardErrorCodes.FORBIDDEN,
+            errorCode: UserErrorCodes.ACCESS_DENIED,
             metadata: { requiredPermission }
         });
         this.name = 'UserAuthorizationError';

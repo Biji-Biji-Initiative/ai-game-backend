@@ -1,8 +1,16 @@
+import { jest } from '@jest/globals';
+/**
+ * User Controller Tests
+ */
 import { expect } from "chai";
 import sinon from "sinon";
-import UserController from "../../../src/core/user/controllers/UserController.js";
-import userErrors from "../../../src/core/user/errors/UserErrors.js";
+import UserController from '../../../src/core/user/controllers/UserController.js';
+import userErrors from '../../../src/core/user/errors/UserErrors.js';
+import { DomainErrorCodes } from '../../../src/core/infra/errors/DomainErrorCodes.js';
+
 const { UserNotFoundError, FocusAreaError } = userErrors;
+const UserErrorCodes = DomainErrorCodes.User;
+
 describe('User Controller', () => {
     let userController;
     let userRepositoryMock;
@@ -11,6 +19,7 @@ describe('User Controller', () => {
     let reqMock;
     let resMock;
     let nextMock;
+    
     beforeEach(() => {
         // Create mock repository and dependencies
         userRepositoryMock = {
@@ -45,10 +54,12 @@ describe('User Controller', () => {
         userController.userRepository = userRepositoryMock;
         userController.focusAreaCoordinator = focusAreaCoordinatorMock;
     });
+    
     afterEach(() => {
         // Clean up all stubs
         sinon.restore();
     });
+    
     describe('getCurrentUser', () => {
         it('should return current user when found', async () => {
             // Arrange
@@ -67,6 +78,7 @@ describe('User Controller', () => {
             expect(resMock.success.firstCall.args[0]).to.deep.equal({ user: mockUser });
             expect(nextMock.called).to.be.false;
         });
+        
         it('should call next with error when user not found', async () => {
             // Arrange
             userRepositoryMock.findByEmail.resolves(null);
@@ -79,6 +91,7 @@ describe('User Controller', () => {
             expect(nextMock.firstCall.args[0]).to.be.instanceOf(UserNotFoundError);
         });
     });
+    
     describe('updateCurrentUser', () => {
         it('should update and return user', async () => {
             // Arrange
@@ -99,6 +112,7 @@ describe('User Controller', () => {
             expect(resMock.success.firstCall.args[0]).to.deep.equal({ user: mockUpdatedUser });
             expect(nextMock.called).to.be.false;
         });
+        
         it('should remove sensitive fields from update data', async () => {
             // Arrange
             const updateData = {
@@ -121,6 +135,7 @@ describe('User Controller', () => {
             expect(userRepositoryMock.update.calledWith('test@example.com', expectedUpdateData)).to.be.true;
         });
     });
+    
     describe('setFocusArea', () => {
         it('should set focus area and return updated user', async () => {
             // Arrange
@@ -145,6 +160,7 @@ describe('User Controller', () => {
             expect(resMock.success.calledOnce).to.be.true;
             expect(resMock.success.firstCall.args[0]).to.deep.equal({ user: mockUpdatedUser });
         });
+        
         it('should throw error when focus area is not provided', async () => {
             // Arrange
             reqMock.body = {};
@@ -157,6 +173,7 @@ describe('User Controller', () => {
             expect(focusAreaCoordinatorMock.setUserFocusArea.called).to.be.false;
         });
     });
+    
     describe('listUsers', () => {
         it('should return list of users', async () => {
             // Arrange

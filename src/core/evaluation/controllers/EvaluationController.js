@@ -529,42 +529,36 @@ class EvaluationController {
         // Stream the evaluation
         let _fullText = '';
         let completed = false;
-        try {
-            await this.evaluationService.streamEvaluation(challenge, params.response, {
-                onChunk: chunk => {
-                    _fullText += chunk;
-                    res.write(`data: ${JSON.stringify({ type: 'chunk', content: chunk })}\n\n`);
-                },
-                onComplete: async (text) => {
-                    completed = true;
-                    // Process the evaluation
-                    const evaluation = await this.evaluationService.processStreamedEvaluation(userId, params.challengeId, text, threadId);
-                    // Convert to DTO (for consistency)
-                    const evaluationDto = EvaluationDTOMapper.toDTO(evaluation);
-                    // Send the completed message with evaluation ID
-                    res.write(`data: ${JSON.stringify({
-                        type: 'complete',
-                        evaluationId: evaluationDto.id,
-                        score: evaluationDto.score,
-                        scorePercentage: evaluationDto.scorePercentage,
-                        hasFeedback: evaluationDto.hasFeedback
-                    })}\n\n`);
-                    res.end();
-                },
-                onError: error => {
-                    if (!completed) {
-                        res.write(`data: ${JSON.stringify({ type: 'error', message: error.message })}\n\n`);
-                        res.end();
-                    }
-                }
-            }, { threadId });
-        }
-        catch (error) {
-            if (!completed) {
-                res.write(`data: ${JSON.stringify({ type: 'error', message: error.message })}\n\n`);
+        
+        // Remove try/catch since withControllerErrorHandling already handles errors
+        await this.evaluationService.streamEvaluation(challenge, params.response, {
+            onChunk: chunk => {
+                _fullText += chunk;
+                res.write(`data: ${JSON.stringify({ type: 'chunk', content: chunk })}\n\n`);
+            },
+            onComplete: async (text) => {
+                completed = true;
+                // Process the evaluation
+                const evaluation = await this.evaluationService.processStreamedEvaluation(userId, params.challengeId, text, threadId);
+                // Convert to DTO (for consistency)
+                const evaluationDto = EvaluationDTOMapper.toDTO(evaluation);
+                // Send the completed message with evaluation ID
+                res.write(`data: ${JSON.stringify({
+                    type: 'complete',
+                    evaluationId: evaluationDto.id,
+                    score: evaluationDto.score,
+                    scorePercentage: evaluationDto.scorePercentage,
+                    hasFeedback: evaluationDto.hasFeedback
+                })}\n\n`);
                 res.end();
+            },
+            onError: error => {
+                if (!completed) {
+                    res.write(`data: ${JSON.stringify({ type: 'error', message: error.message })}\n\n`);
+                    res.end();
+                }
             }
-        }
+        }, { threadId });
     }
 }
 export default EvaluationController;

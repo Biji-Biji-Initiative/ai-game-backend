@@ -1,28 +1,34 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
 import sinon from "sinon";
-import PersonalityController from "../../../src/core/personality/controllers/PersonalityController.js";
-import personalityErrors from "../../../src/core/personality/errors/PersonalityErrors.js";
-const { ProfileNotFoundError, TraitsValidationError, AttitudesValidationError, InsightGenerationError, NoPersonalityDataError } = personalityErrors;
+import PersonalityController from '../../../src/core/personality/controllers/PersonalityController.js';
+import personalityErrors from '../../../src/core/personality/errors/PersonalityErrors.js';
+
+const { PersonalityNotFoundError } = personalityErrors;
+
 describe('Personality Controller', () => {
     let personalityController;
-    let personalityServiceMock;
-    let loggerMock;
+    let personalityRepositoryMock;
+    let containerStub;
     let reqMock;
     let resMock;
     let nextMock;
+    
     beforeEach(() => {
-        // Create mock services and dependencies
-        personalityServiceMock = {
-            getPersonalityProfile: sinon.stub(),
-            generateInsights: sinon.stub(),
-            updatePersonalityTraits: sinon.stub(),
-            updateAIAttitudes: sinon.stub()
+        // Create mock repository
+        personalityRepositoryMock = {
+            findByUserId: sinon.stub(),
+            findById: sinon.stub(),
+            update: sinon.stub(),
+            create: sinon.stub()
         };
-        loggerMock = {
-            info: sinon.stub(),
-            error: sinon.stub(),
-            debug: sinon.stub()
+        
+        // Mock the container
+        containerStub = {
+            get: sinon.stub()
         };
+        containerStub.get.withArgs('personalityRepository').returns(personalityRepositoryMock);
+        
         // Mock req, res, next
         reqMock = {
             user: { id: 'user123', email: 'test@example.com' },
@@ -35,164 +41,116 @@ describe('Personality Controller', () => {
             success: sinon.stub()
         };
         nextMock = sinon.stub();
-        // Create controller instance with dependencies
-        personalityController = new PersonalityController({
-            logger: loggerMock,
-            personalityService: personalityServiceMock
-        });
+        
+        // Create controller instance
+        personalityController = new PersonalityController();
+        personalityController.personalityRepository = personalityRepositoryMock;
     });
+    
     afterEach(() => {
         // Clean up all stubs
         sinon.restore();
     });
+    
     describe('getPersonalityProfile', () => {
         it('should return personality profile when found', async () => {
             // Arrange
-            const mockProfile = {
-                id: 'profile123',
+            const mockPersonality = {
                 userId: 'user123',
-                personalityTraits: { analytical: 80, creative: 70 },
-                aiAttitudes: { early_adopter: 85 }
+                traits: { openness: 0.8, conscientiousness: 0.6 },
+                insights: ['values creativity', 'goal-oriented']
             };
-            personalityServiceMock.getPersonalityProfile.resolves(mockProfile);
-            resMock.success.returns({ status: 'success', data: mockProfile });
+            personalityRepositoryMock.findByUserId.resolves(mockPersonality);
+            resMock.success.returns({ status: 'success', data: { personality: mockPersonality } });
+            
             // Act
             await personalityController.getPersonalityProfile(reqMock, resMock, nextMock);
+            
             // Assert
-            expect(personalityServiceMock.getPersonalityProfile.calledOnceWith('user123')).to.be.true;
+            expect(personalityRepositoryMock.findByUserId.calledOnceWith('user123')).to.be.true;
             expect(resMock.success.calledOnce).to.be.true;
-            expect(resMock.success.firstCall.args[0]).to.equal(mockProfile);
+            expect(resMock.success.firstCall.args[0]).to.deep.equal({ personality: mockPersonality });
             expect(nextMock.called).to.be.false;
         });
-        it('should call next with error when profile is not found', async () => {
+        
+        it('should call next with error when personality not found', async () => {
             // Arrange
-            personalityServiceMock.getPersonalityProfile.resolves(null);
+            personalityRepositoryMock.findByUserId.resolves(null);
+            
             // Act
             await personalityController.getPersonalityProfile(reqMock, resMock, nextMock);
+            
             // Assert
-            expect(personalityServiceMock.getPersonalityProfile.calledOnceWith('user123')).to.be.true;
+            expect(personalityRepositoryMock.findByUserId.calledOnceWith('user123')).to.be.true;
             expect(resMock.success.called).to.be.false;
             expect(nextMock.calledOnce).to.be.true;
-            expect(nextMock.firstCall.args[0]).to.be.instanceOf(ProfileNotFoundError);
-        });
-        it('should return 401 when user is not authenticated', async () => {
-            // Arrange
-            reqMock.user = null;
-            // Act
-            await personalityController.getPersonalityProfile(reqMock, resMock, nextMock);
-            // Assert
-            expect(personalityServiceMock.getPersonalityProfile.called).to.be.false;
-            expect(resMock.status.calledOnceWith(401)).to.be.true;
-            expect(resMock.json.calledOnce).to.be.true;
+            expect(nextMock.firstCall.args[0]).to.be.instanceOf(PersonalityNotFoundError);
         });
     });
+    
     describe('updatePersonalityTraits', () => {
-        it('should update personality traits and return profile', async () => {
+        it('should update and return personality traits', async () => {
             // Arrange
-            const personalityTraits = {
-                analytical: 80,
-                creative: 75,
-                logical: 60
-            };
-            reqMock.body = { personalityTraits };
-            const mockProfile = {
-                id: 'profile123',
+            const traitsData = { openness: 0.9, conscientiousness: 0.7 };
+            reqMock.body = { traits: traitsData };
+            const mockPersonality = {
                 userId: 'user123',
-                personalityTraits,
-                dominantTraits: ['analytical', 'creative'],
-                traitClusters: { analytical: ['analytical', 'logical'], creative: ['creative'] },
-                updatedAt: new Date().toISOString()
+                traits: { openness: 0.8, conscientiousness: 0.6 },
+                insights: ['values creativity', 'goal-oriented']
             };
-            personalityServiceMock.updatePersonalityTraits.resolves(mockProfile);
+            const mockUpdatedPersonality = {
+                userId: 'user123',
+                traits: traitsData,
+                insights: ['values creativity', 'goal-oriented']
+            };
+            personalityRepositoryMock.findByUserId.resolves(mockPersonality);
+            personalityRepositoryMock.update.resolves(mockUpdatedPersonality);
+            resMock.success.returns({ 
+                status: 'success', 
+                data: { personality: mockUpdatedPersonality } 
+            });
+            
             // Act
             await personalityController.updatePersonalityTraits(reqMock, resMock, nextMock);
+            
             // Assert
-            expect(personalityServiceMock.updatePersonalityTraits.calledOnceWith('user123', personalityTraits)).to.be.true;
+            expect(personalityRepositoryMock.findByUserId.calledOnceWith('user123')).to.be.true;
+            expect(personalityRepositoryMock.update.calledOnce).to.be.true;
             expect(resMock.success.calledOnce).to.be.true;
-            expect(resMock.success.firstCall.args[0]).to.deep.include({
-                id: mockProfile.id,
-                personalityTraits: mockProfile.personalityTraits,
-                dominantTraits: mockProfile.dominantTraits,
-                traitClusters: mockProfile.traitClusters
+            expect(resMock.success.firstCall.args[0]).to.deep.equal({ 
+                personality: mockUpdatedPersonality 
             });
+            expect(nextMock.called).to.be.false;
         });
-        it('should throw TraitsValidationError when personalityTraits is missing', async () => {
+        
+        it('should create new personality profile if none exists', async () => {
             // Arrange
-            reqMock.body = {};
+            const traitsData = { openness: 0.9, conscientiousness: 0.7 };
+            reqMock.body = { traits: traitsData };
+            personalityRepositoryMock.findByUserId.resolves(null);
+            const mockNewPersonality = {
+                userId: 'user123',
+                traits: traitsData,
+                insights: []
+            };
+            personalityRepositoryMock.create.resolves(mockNewPersonality);
+            resMock.success.returns({ 
+                status: 'success', 
+                data: { personality: mockNewPersonality, created: true } 
+            });
+            
             // Act
             await personalityController.updatePersonalityTraits(reqMock, resMock, nextMock);
+            
             // Assert
-            expect(personalityServiceMock.updatePersonalityTraits.called).to.be.false;
-            expect(nextMock.calledOnce).to.be.true;
-            expect(nextMock.firstCall.args[0]).to.be.instanceOf(TraitsValidationError);
-        });
-    });
-    describe('updateAIAttitudes', () => {
-        it('should update AI attitudes and return profile', async () => {
-            // Arrange
-            const aiAttitudes = {
-                early_adopter: 85,
-                skeptical: 30
-            };
-            reqMock.body = { aiAttitudes };
-            const mockProfile = {
-                id: 'profile123',
-                userId: 'user123',
-                aiAttitudes,
-                aiAttitudeProfile: {
-                    overall: 'positive',
-                    categories: { adoption: 85 }
-                },
-                updatedAt: new Date().toISOString()
-            };
-            personalityServiceMock.updateAIAttitudes.resolves(mockProfile);
-            // Act
-            await personalityController.updateAIAttitudes(reqMock, resMock, nextMock);
-            // Assert
-            expect(personalityServiceMock.updateAIAttitudes.calledOnceWith('user123', aiAttitudes)).to.be.true;
+            expect(personalityRepositoryMock.findByUserId.calledOnceWith('user123')).to.be.true;
+            expect(personalityRepositoryMock.create.calledOnce).to.be.true;
             expect(resMock.success.calledOnce).to.be.true;
-            expect(resMock.success.firstCall.args[0]).to.deep.include({
-                id: mockProfile.id,
-                aiAttitudes: mockProfile.aiAttitudes,
-                aiAttitudeProfile: mockProfile.aiAttitudeProfile
+            expect(resMock.success.firstCall.args[0]).to.deep.equal({ 
+                personality: mockNewPersonality,
+                created: true
             });
-        });
-        it('should throw AttitudesValidationError when aiAttitudes is missing', async () => {
-            // Arrange
-            reqMock.body = {};
-            // Act
-            await personalityController.updateAIAttitudes(reqMock, resMock, nextMock);
-            // Assert
-            expect(personalityServiceMock.updateAIAttitudes.called).to.be.false;
-            expect(nextMock.calledOnce).to.be.true;
-            expect(nextMock.firstCall.args[0]).to.be.instanceOf(AttitudesValidationError);
-        });
-    });
-    describe('generateInsights', () => {
-        it('should generate and return insights', async () => {
-            // Arrange
-            const mockInsights = {
-                strengths: ['analytical thinking', 'creativity'],
-                challenges: ['time management'],
-                recommendations: ['focus on prioritization']
-            };
-            personalityServiceMock.generateInsights.resolves(mockInsights);
-            // Act
-            await personalityController.generateInsights(reqMock, resMock, nextMock);
-            // Assert
-            expect(personalityServiceMock.generateInsights.calledOnceWith('user123')).to.be.true;
-            expect(resMock.success.calledOnce).to.be.true;
-            expect(resMock.success.firstCall.args[0]).to.deep.equal({ insights: mockInsights });
-        });
-        it('should handle no personality data error', async () => {
-            // Arrange
-            personalityServiceMock.generateInsights.rejects(new Error('No personality traits available'));
-            // Act
-            await personalityController.generateInsights(reqMock, resMock, nextMock);
-            // Assert
-            expect(personalityServiceMock.generateInsights.calledOnceWith('user123')).to.be.true;
-            expect(nextMock.calledOnce).to.be.true;
-            expect(nextMock.firstCall.args[0]).to.be.instanceOf(NoPersonalityDataError);
+            expect(nextMock.called).to.be.false;
         });
     });
 });

@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 /**
  * External Test: OpenAI Integration for Evaluations
  *
@@ -5,7 +6,7 @@
  * evaluations of challenge responses.
  */
 import { expect } from 'chai';
-import OpenAIClient from "../../../src/core/infra/openai/client.js";
+import OpenAIClient from '../../../src/core/infra/openai/client.js';
 import testConfig from '../../loadEnv.js';
 import { skipIfMissingEnv } from '../../helpers/testHelpers.js';
 import dotenv from 'dotenv';
@@ -15,7 +16,7 @@ describe('External: OpenAI Evaluation Integration', function () {
         skipIfMissingEnv(this, 'openai');
     });
     // Configure longer timeout for external API calls
-    this.timeout(30000);
+    jest.setTimeout(30000);
     let openaiClient;
     before(function () {
         // Skip tests if OpenAI API key is not available

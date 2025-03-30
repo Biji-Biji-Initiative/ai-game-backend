@@ -1,11 +1,12 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
 import sinon from "sinon";
 import { v4 as uuidv4 } from "uuid";
 import testSetup from "../setup.js";
-import { FocusAreaError, FocusAreaNotFoundError, FocusAreaValidationError, FocusAreaGenerationError, FocusAreaPersistenceError, FocusAreaAccessDeniedError } from "../../../src/core/focusArea/errors/focusAreaErrors.js";
+import { FocusAreaError, FocusAreaNotFoundError, FocusAreaValidationError, FocusAreaGenerationError, FocusAreaPersistenceError, FocusAreaAccessDeniedError } from '../../../src/core/focusArea/errors/focusAreaErrors.js';
 describe('FocusArea Service Domain Tests', function () {
     // Set longer timeout for API calls
-    this.timeout(30000);
+    jest.setTimeout(30000);
     let sandbox;
     let focusAreaRepository;
     let openAIMock;
@@ -198,7 +199,7 @@ describe('FocusArea Service Domain Tests', function () {
                 // If we get here, the test failed
                 expect.fail('Expected an error to be thrown');
             }
-            catch (FocusAreaError) {
+            catch (error) {
                 expect(error.message).to.include('Failed to recommend focus area');
                 expect(error.message).to.include('OpenAI API error');
             }

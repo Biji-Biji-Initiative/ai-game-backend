@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
 import testEnv from "../../loadEnv.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
@@ -7,7 +8,7 @@ import { createClient } from "@supabase/supabase-js";
 
 describe('Supabase Client', function () {
     // Set longer timeout for API calls
-    this.timeout(30000);
+    jest.setTimeout(30000);
     
     before(function () {
         skipIfMissingEnv(this, 'supabase');

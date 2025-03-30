@@ -1,9 +1,10 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
 import { v4 as uuidv4 } from "uuid";
 import testEnv from "../../loadEnv.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 import { config } from "dotenv";
-import openai from "@/infra/openai";
+import openai from '../../../src/infra/openai.js';
 ({ config }.config());
 describe('External: Challenge OpenAI Integration', function () {
     before(function () {
@@ -17,7 +18,7 @@ describe('External: Challenge OpenAI Integration', function () {
         }
     });
     // Set longer timeout for API calls
-    this.timeout(30000);
+    jest.setTimeout(30000);
     let openaiClient;
     beforeEach(function () {
         // Create OpenAI client

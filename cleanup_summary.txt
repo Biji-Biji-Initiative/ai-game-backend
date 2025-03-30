@@ -1,0 +1,4 @@
+Test file count before cleanup:
+      47
+Test file count after cleanup:
+      46

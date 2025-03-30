@@ -6,6 +6,7 @@ import { personalityLogger } from "../../infra/logging/domainLogger.js";
 import { applyRepositoryErrorHandling, applyServiceErrorHandling, applyControllerErrorHandling, createErrorMapper } from "../../infra/errors/centralizedErrorUtils.js";
 import { PersonalityError, PersonalityNotFoundError, PersonalityValidationError, PersonalityProcessingError } from "../../personality/errors/PersonalityErrors.js";
 import { NoPersonalityDataError } from "../../personality/errors/PersonalityErrors.js";
+import { UserId, createUserId } from "../../common/valueObjects/index.js";
 'use strict';
 const {
   EventTypes,
@@ -36,21 +37,34 @@ class PersonalityService {
   }
   /**
    * Get or create a personality profile for a user
-   * @param {string} userId - User ID
+   * @param {string|UserId} userId - User ID or UserId value object
    * @returns {Promise<Personality>} Personality profile
+   * @throws {PersonalityValidationError} If userId is invalid
+   * @throws {PersonalityProcessingError} If an error occurs during retrieval
    */
   async getProfile(userId) {
     try {
-      // Validate required parameters
-      if (!userId) {
-        throw new PersonalityValidationError('User ID is required');
+      // Validate and extract userId value
+      let userIdValue;
+      
+      if (userId instanceof UserId) {
+        userIdValue = userId.value;
+      } else if (typeof userId === 'string') {
+        const userIdVO = createUserId(userId);
+        if (!userIdVO) {
+          throw new PersonalityValidationError('Invalid User ID format');
+        }
+        userIdValue = userIdVO.value;
+      } else {
+        throw new PersonalityValidationError('User ID is required and must be either a string or UserId value object');
       }
-      let profile = await this.personalityRepository.findByUserId(userId);
+      
+      let profile = await this.personalityRepository.findByUserId(userIdValue);
       // If profile doesn't exist, create a new one
       if (!profile) {
         // Create a default empty profile
         const newProfile = new Personality({
-          userId,
+          userId: userIdValue,
           traits: {},
           preferences: {},
           attitudes: {},
@@ -69,21 +83,30 @@ class PersonalityService {
   }
   /**
    * Get personality profile with computed insights
-   * @param {string} userId - User ID
+   * @param {string|UserId} userId - User ID or UserId value object
    * @returns {Promise<Object>} Personality profile with computed insights
+   * @throws {PersonalityValidationError} If userId is invalid
    */
   async getEnrichedProfile(userId) {
-    return this.traitsAnalysisService.getEnrichedProfile(userId);
+    // Extract userId value if it's a value object
+    const userIdValue = userId instanceof UserId ? userId.value : userId;
+    return this.traitsAnalysisService.getEnrichedProfile(userIdValue);
   }
   /**
    * Generate insights based on a user's personality traits and AI attitudes
-   * @param {string} userId - User ID
+   * @param {string|UserId} userId - User ID or UserId value object
    * @returns {Promise<Object>} Generated insights
+   * @throws {PersonalityValidationError} If userId is invalid
+   * @throws {NoPersonalityDataError} If no personality data is available for analysis
+   * @throws {PersonalityProcessingError} If an error occurs during insight generation
    */
   async generateInsights(userId) {
     try {
+      // Extract userId value if it's a value object
+      const userIdValue = userId instanceof UserId ? userId.value : userId;
+      
       // Get personality profile
-      const profile = await this.getProfile(userId);
+      const profile = await this.getProfile(userIdValue);
       // Check if there are personality traits to analyze
       if (Object.keys(profile.personalityTraits).length === 0) {
         throw new NoPersonalityDataError('No personality traits available for analysis');
@@ -111,7 +134,7 @@ class PersonalityService {
     } catch (error) {
       this.logger.error('Error generating insights', {
         error: error.message,
-        userId
+        userId: userId instanceof UserId ? userId.value : userId
       });
       throw error;
     }
@@ -145,14 +168,19 @@ class PersonalityService {
   }
   /**
    * Update personality traits for a user
-   * @param {string} userId - User ID
+   * @param {string|UserId} userId - User ID or UserId value object
    * @param {Object} traits - Personality traits to update
    * @returns {Promise<Personality>} Updated personality profile
+   * @throws {PersonalityValidationError} If userId is invalid
+   * @throws {PersonalityProcessingError} If an error occurs during update
    */
   async updatePersonalityTraits(userId, traits) {
     try {
+      // Extract userId value if it's a value object
+      const userIdValue = userId instanceof UserId ? userId.value : userId;
+      
       // Get personality profile
-      const profile = await this.getProfile(userId);
+      const profile = await this.getProfile(userIdValue);
       // Update traits
       profile.updateTraits(traits);
       // Process personality data
@@ -173,21 +201,26 @@ class PersonalityService {
     } catch (error) {
       this.logger.error('Error updating personality traits', {
         error: error.message,
-        userId
+        userId: userId instanceof UserId ? userId.value : userId
       });
       throw error;
     }
   }
   /**
    * Update AI attitudes for a user
-   * @param {string} userId - User ID
+   * @param {string|UserId} userId - User ID or UserId value object
    * @param {Object} attitudes - AI attitudes to update
    * @returns {Promise<Personality>} Updated personality profile
+   * @throws {PersonalityValidationError} If userId is invalid
+   * @throws {PersonalityProcessingError} If an error occurs during update
    */
   async updateAIAttitudes(userId, attitudes) {
     try {
+      // Extract userId value if it's a value object
+      const userIdValue = userId instanceof UserId ? userId.value : userId;
+      
       // Get personality profile
-      const profile = await this.getProfile(userId);
+      const profile = await this.getProfile(userIdValue);
       // Update attitudes
       profile.updateAttitudes(attitudes);
       // Process AI attitude data
@@ -206,22 +239,28 @@ class PersonalityService {
     } catch (error) {
       this.logger.error('Error updating AI attitudes', {
         error: error.message,
-        userId
+        userId: userId instanceof UserId ? userId.value : userId
       });
       throw error;
     }
   }
   /**
    * Get personality profile for a user
-   * @param {string} userId - User ID
+   * @param {string|UserId} userId - User ID or UserId value object
    * @param {Object} queryParams - Query parameters for filtering data
    * @returns {Promise<Object>} Personality profile
+   * @throws {PersonalityValidationError} If userId is invalid
+   * @throws {NoPersonalityDataError} If no personality profile is found
+   * @throws {PersonalityProcessingError} If an error occurs during retrieval
    */
   async getPersonalityProfile(userId, queryParams = {}) {
     try {
-      const profile = await this.personalityRepository.findByUserId(userId);
+      // Extract userId value if it's a value object
+      const userIdValue = userId instanceof UserId ? userId.value : userId;
+      
+      const profile = await this.personalityRepository.findByUserId(userIdValue);
       if (!profile) {
-        throw new NoPersonalityDataError(`No personality profile found for user: ${userId}`);
+        throw new NoPersonalityDataError(`No personality profile found for user: ${userIdValue}`);
       }
       // Apply query param filters
       const result = {};
@@ -245,43 +284,53 @@ class PersonalityService {
     } catch (error) {
       this.logger.error('Error getting personality profile', {
         error: error.message,
-        userId
+        userId: userId instanceof UserId ? userId.value : userId
       });
       throw error;
     }
   }
   /**
    * Delete a personality profile
-   * @param {string} userId - User ID
+   * @param {string|UserId} userId - User ID or UserId value object
    * @returns {Promise<boolean>} True if successful
+   * @throws {PersonalityValidationError} If userId is invalid
+   * @throws {PersonalityProcessingError} If an error occurs during deletion
    */
   async deletePersonalityProfile(userId) {
     try {
-      const deleted = await this.personalityRepository.deleteByUserId(userId);
+      // Extract userId value if it's a value object
+      const userIdValue = userId instanceof UserId ? userId.value : userId;
+      
+      const deleted = await this.personalityRepository.deleteByUserId(userIdValue);
       if (deleted) {
         await eventBus.publishEvent(EventTypes.PERSONALITY_PROFILE_DELETED, {
-          userId
+          userId: userIdValue
         });
       }
       return deleted;
     } catch (error) {
       this.logger.error('Error deleting personality profile', {
         error: error.message,
-        userId
+        userId: userId instanceof UserId ? userId.value : userId
       });
       throw error;
     }
   }
   /**
    * Calculate compatibility between user personality and challenge traits
-   * @param {string} userId - User ID to check compatibility for
+   * @param {string|UserId} userId - User ID or UserId value object to check compatibility for
    * @param {Object} challengeTraits - Challenge traits to compare against
    * @returns {Promise<Object>} Compatibility scores and analysis
+   * @throws {PersonalityValidationError} If userId is invalid
+   * @throws {PersonalityProcessingError} If an error occurs during compatibility calculation
    */
   async calculateChallengeCompatibility(userId, challengeTraits) {
     try {
+      // Extract userId value if it's a value object
+      const userIdValue = userId instanceof UserId ? userId.value : userId;
+      
       // Get the user's personality profile
-      const profile = await this.getProfile(userId);
+      const profile = await this.getProfile(userIdValue);
       // Extract traits to compare
       const userTraits = profile.personalityTraits;
       // Calculate compatibility scores
@@ -289,7 +338,7 @@ class PersonalityService {
       // Create recommendations based on compatibility
       const recommendations = this.traitsAnalysisService.generateRecommendations(compatibilityScores, userTraits, challengeTraits);
       return {
-        userId,
+        userId: userIdValue,
         overallScore: compatibilityScores.overall,
         traitScores: compatibilityScores.traits,
         recommendations
@@ -297,7 +346,7 @@ class PersonalityService {
     } catch (error) {
       this.logger.error('Error calculating challenge compatibility', {
         error: error.message,
-        userId
+        userId: userId instanceof UserId ? userId.value : userId
       });
       throw error;
     }

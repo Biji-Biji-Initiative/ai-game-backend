@@ -313,6 +313,53 @@ class Challenge {
         };
     }
     /**
+     * Get the challenge type name in a consistent format
+     * @returns {string} The challenge type name
+     */
+    getTypeName() {
+        // First check if typeMetadata has a name (most specific)
+        if (this.typeMetadata && this.typeMetadata.name) {
+            return this.typeMetadata.name;
+        }
+        
+        // Next check for challengeTypeCode (used in some contexts)
+        if (this.challengeTypeCode) {
+            return this.challengeTypeCode;
+        }
+        
+        // Finally use the challengeType itself
+        if (this.challengeType) {
+            return this.challengeType;
+        }
+        
+        // Default fallback
+        return 'Unknown';
+    }
+    
+    /**
+     * Get the format type name in a consistent format
+     * @returns {string} The format type name
+     */
+    getFormatName() {
+        // First check if formatMetadata has a name (most specific)
+        if (this.formatMetadata && this.formatMetadata.name) {
+            return this.formatMetadata.name;
+        }
+        
+        // Next check for formatTypeCode (used in some contexts)
+        if (this.formatTypeCode) {
+            return this.formatTypeCode;
+        }
+        
+        // Finally use the formatType itself
+        if (this.formatType) {
+            return this.formatType;
+        }
+        
+        // Default fallback
+        return 'Unknown';
+    }
+    /**
      * Update challenge with new data
      * @param {Object} updateData - Data to update
      * @returns {Challenge} Updated challenge instance
@@ -354,6 +401,85 @@ class Challenge {
         }
         
         return true;
+    }
+    /**
+     * Add responses to existing responses
+     * @param {Array|Object} newResponses - Response(s) to add 
+     * @returns {Challenge} This challenge instance for method chaining
+     */
+    addResponses(newResponses) {
+        if (!Array.isArray(newResponses)) {
+            newResponses = [newResponses];
+        }
+        
+        if (!this.responses) {
+            this.responses = [];
+        }
+        
+        this.responses = [...this.responses, ...newResponses];
+        this.updatedAt = new Date();
+        
+        // Add domain event for responses added
+        this.addDomainEvent('CHALLENGE_RESPONSES_ADDED', {
+            challengeId: this.id,
+            responseCount: newResponses.length,
+            totalResponses: this.responses.length
+        });
+        
+        return this;
+    }
+    /**
+     * Update the challenge score
+     * @param {number} newScore - New score for the challenge
+     * @returns {Challenge} This challenge instance for method chaining
+     * @throws {ChallengeValidationError} If score is invalid
+     */
+    updateScore(newScore) {
+        if (typeof newScore !== 'number' || newScore < 0 || newScore > 100) {
+            throw new ChallengeValidationError('Score must be a number between 0 and 100');
+        }
+        
+        const previousScore = this.score;
+        this.score = newScore;
+        this.updatedAt = new Date();
+        
+        // Add domain event for score update
+        this.addDomainEvent('CHALLENGE_SCORE_UPDATED', {
+            challengeId: this.id,
+            previousScore,
+            newScore
+        });
+        
+        return this;
+    }
+    /**
+     * Determine if the challenge is in progress
+     * @returns {boolean} True if challenge is in progress
+     */
+    isInProgress() {
+        return this.status === 'pending' || this.status === 'submitted';
+    }
+    /**
+     * Calculate time spent on challenge
+     * @returns {number|null} Time in seconds or null if not available
+     */
+    getTimeSpent() {
+        if (!this.evaluation || !this.evaluation.completionTime) {
+            return null;
+        }
+        return this.evaluation.completionTime;
+    }
+    /**
+     * Get performance level based on score
+     * @returns {string} Performance level (excellent, good, average, poor)
+     */
+    getPerformanceLevel() {
+        const score = this.getScore();
+        
+        if (score >= 90) return 'excellent';
+        if (score >= 70) return 'good';
+        if (score >= 50) return 'average';
+        return 'poor';
     }
 }
 export default Challenge;

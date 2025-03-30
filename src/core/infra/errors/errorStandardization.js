@@ -6,7 +6,8 @@
  */
 import { logger } from "../../infra/logging/logger.js";
 import AppError from "../../infra/errors/AppError.js";
-import { StandardErrorCodes } from "../../infra/errors/ErrorHandler.js";
+import { DomainErrorCodes } from "../../infra/errors/DomainErrorCodes.js";
+const UserErrorCodes = DomainErrorCodes.User
 'use strict';
 /**
  * Creates an error mapper function that maps generic errors to domain-specific ones
@@ -351,6 +352,6 @@ function applyControllerErrorHandling(instance, methodName, domainNameOrOptions,
     });
   }
 }
-export { createErrorMapper, createErrorCollector, withRepositoryErrorHandling, withServiceErrorHandling, withControllerErrorHandling, handleServiceError, StandardErrorCodes,
+export { createErrorMapper, createErrorCollector, withRepositoryErrorHandling, withServiceErrorHandling, withControllerErrorHandling, handleServiceError, 
 // Add new exports for the domain-specific helper functions
 applyRepositoryErrorHandling, applyServiceErrorHandling, applyControllerErrorHandling };

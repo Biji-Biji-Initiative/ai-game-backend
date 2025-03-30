@@ -1,0 +1,29 @@
+{
+  "testEnvironment": "node",
+  "transform": {
+    "^.+\\.[t|j]sx?$": "babel-jest"
+  },
+  "testRegex": "tests/unit/.*\\.test\\.js$",
+  "testPathIgnorePatterns": [
+    "/node_modules/",
+    "/archive/"
+  ],
+  "moduleFileExtensions": [
+    "js"
+  ],
+  "moduleNameMapper": {
+    "^@/(.*)$": "<rootDir>/src/$1"
+  },
+  "transformIgnorePatterns": [
+    "node_modules/(?!(chai)/)"
+  ],
+  "collectCoverageFrom": [
+    "src/**/*.js"
+  ],
+  "coveragePathIgnorePatterns": [
+    "/node_modules/"
+  ],
+  "verbose": true,
+  "extensionsToTreatAsEsm": [".js"],
+  "testTimeout": 30000
+} 

@@ -9,7 +9,7 @@
 'use strict';
 
 import { createErrorMapper, withServiceErrorHandling } from "../../core/infra/errors/errorStandardization.js";
-import { ChallengeError } from "../../core/challenge/errors/ChallengeErrors.js";
+import { ChallengeError, ChallengeValidationError, ChallengeProcessingError } from "../../core/challenge/errors/ChallengeErrors.js";
 import promptBuilder from "../../core/prompt/promptBuilder.js";
 import { PROMPT_TYPES } from "../../core/prompt/promptTypes.js";
 import messageFormatter from "../../core/infra/openai/messageFormatter.js";
@@ -79,16 +79,22 @@ class ChallengeEvaluationService {
    */
   async evaluateResponses(challenge, responses, options = {}) {
     if (!challenge) {
-      throw new Error('Challenge is required for evaluation');
+      throw new ChallengeValidationError('Challenge is required for evaluation', {
+        errorCode: 'MISSING_CHALLENGE'
+      });
     }
     
     if (!Array.isArray(responses) || responses.length === 0) {
-      throw new Error('Responses are required for evaluation');
+      throw new ChallengeValidationError('Responses are required for evaluation', {
+        errorCode: 'MISSING_RESPONSES'
+      });
     }
     
     const threadId = options.threadId || options.stateId;
     if (!threadId) {
-      throw new Error('Thread ID or State ID is required for evaluation');
+      throw new ChallengeValidationError('Thread ID or State ID is required for evaluation', {
+        errorCode: 'MISSING_THREAD_ID'
+      });
     }
     
     // Get or create a conversation state for this evaluation using aiStateManager
@@ -114,13 +120,13 @@ class ChallengeEvaluationService {
     });
     
     // Get challenge type name for more accurate evaluation
-    const challengeTypeName = challenge.getChallengeTypeName ? 
-      challenge.getChallengeTypeName() : 
+    const challengeTypeName = challenge.getTypeName ? 
+      challenge.getTypeName() : 
       (challenge.typeMetadata?.name || challenge.challengeTypeCode || challenge.challengeType || 'Unknown');
     
     // Get format type name for more accurate evaluation
-    const formatTypeName = challenge.getFormatTypeName ? 
-      challenge.getFormatTypeName() : 
+    const formatTypeName = challenge.getFormatName ? 
+      challenge.getFormatName() : 
       (challenge.formatMetadata?.name || challenge.formatTypeCode || challenge.formatType || 'Unknown');
     
     // Add type information to prompt options
@@ -211,20 +217,28 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`
    */
   async streamEvaluation(challenge, responses, callbacks, options = {}) {
     if (!challenge) {
-      throw new Error('Challenge is required for evaluation');
+      throw new ChallengeValidationError('Challenge is required for evaluation', {
+        errorCode: 'MISSING_CHALLENGE'
+      });
     }
     
     if (!Array.isArray(responses) || responses.length === 0) {
-      throw new Error('Responses are required for evaluation');
+      throw new ChallengeValidationError('Responses are required for evaluation', {
+        errorCode: 'MISSING_RESPONSES'
+      });
     }
     
     if (!callbacks || typeof callbacks.onChunk !== 'function') {
-      throw new Error('onChunk callback is required for streaming evaluations');
+      throw new ChallengeValidationError('onChunk callback is required for streaming evaluations', {
+        errorCode: 'MISSING_CALLBACK'
+      });
     }
     
     const threadId = options.threadId || options.stateId;
     if (!threadId) {
-      throw new Error('Thread ID or State ID is required for evaluation');
+      throw new ChallengeValidationError('Thread ID or State ID is required for evaluation', {
+        errorCode: 'MISSING_THREAD_ID'
+      });
     }
     
     // Get or create a conversation state for this evaluation using aiStateManager
@@ -244,13 +258,13 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`
     });
     
     // Get challenge type name for more accurate evaluation
-    const challengeTypeName = challenge.getChallengeTypeName ? 
-      challenge.getChallengeTypeName() : 
+    const challengeTypeName = challenge.getTypeName ? 
+      challenge.getTypeName() : 
       (challenge.typeMetadata?.name || challenge.challengeTypeCode || challenge.challengeType || 'Unknown');
     
     // Get format type name for more accurate evaluation
-    const formatTypeName = challenge.getFormatTypeName ? 
-      challenge.getFormatTypeName() : 
+    const formatTypeName = challenge.getFormatName ? 
+      challenge.getFormatName() : 
       (challenge.formatMetadata?.name || challenge.formatTypeCode || challenge.formatType || 'Unknown');
     
     // Add type information to prompt options

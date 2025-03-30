@@ -35,11 +35,12 @@ const CACHE_TTL = {
 class FocusAreaConfigRepository {
     /**
      * Create a new FocusAreaConfigRepository
-     * @param {Object} supabase - Supabase client instance for database operations
-     * @param {Object} logger - Logger instance for recording repository operations
-     * @param {Object} cache - Optional cache instance for caching repository results
+     * @param {Object} options - Repository dependencies using object destructuring
+     * @param {Object} options.supabase - Supabase client instance for database operations
+     * @param {Object} options.logger - Logger instance for recording repository operations
+     * @param {Object} [options.cache] - Optional cache instance for caching repository results
      */
-    constructor(supabase, logger, cache) {
+    constructor({ supabase, logger, cache } = {}) {
         this.supabase = supabase || supabaseClient;
         this.tableName = 'challenge_focus_areas';
         this.logger = logger || challengeLogger.child({ component: 'repository:focusAreaConfig' });

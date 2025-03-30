@@ -1,4 +1,3 @@
-import domainEvents from "../core/common/events/domainEvents.js";
 'use strict';
 /**
  * Application Event Handlers
@@ -6,7 +5,9 @@ import domainEvents from "../core/common/events/domainEvents.js";
  * This module sets up domain event handlers at the application level.
  * It connects events from one domain to services in other domains.
  */
-const { EventTypes } = domainEvents;
+
+import { PersonalityEventPayloads } from "../core/common/events/EventPayloads.js";
+
 /**
  * Class representing Application Event Handlers
  */
@@ -16,14 +17,16 @@ class ApplicationEventHandlers {
      * @param {Object} dependencies - Injected dependencies
      * @param {Object} dependencies.personalityCoordinator - Personality coordinator service
      * @param {Object} dependencies.logger - Logger instance
+     * @param {Object} dependencies.iEventBus - Event bus interface implementation
      */
     /**
      * Method constructor
      */
-    constructor({ personalityCoordinator, logger }) {
+    constructor({ personalityCoordinator, logger, iEventBus }) {
         this.personalityCoordinator = personalityCoordinator;
         this.logger = logger;
-        this.eventBus = domainEvents; // Use the domainEvents object directly
+        this.eventBus = iEventBus; // Use the injected event bus interface
+        this.eventTypes = iEventBus.getEventTypes(); // Get event types from the interface
     }
     /**
      * Register event handlers for cross-domain communication
@@ -34,25 +37,29 @@ class ApplicationEventHandlers {
     registerEventHandlers() {
         this.logger.info('Registering application event handlers');
         // Handle personality profile updated events
-        this.eventBus.register(EventTypes.PERSONALITY_PROFILE_UPDATED, async (event) => {
+        this.eventBus.register(this.eventTypes.PERSONALITY_PROFILE_UPDATED, async (event) => {
             try {
-                // Only handle attitude updates for cross-domain integration
-                if (!event.payload ||
-                    event.payload.updateType !== 'attitudes' ||
-                    !event.payload.aiAttitudes) {
+                // Validate the event payload using the defined structure
+                if (!PersonalityEventPayloads.validateProfileUpdatedPayload(event.payload, 'attitudes')) {
+                    this.logger.warn('Invalid personality profile update payload', {
+                        eventType: event.type,
+                        payload: event.payload
+                    });
                     return;
                 }
+                
+                const { userId, aiAttitudes } = event.payload;
+                
                 this.logger.debug('Handling personality profile update', {
-                    userId: event.payload.userId,
+                    userId,
                     updateType: event.payload.updateType,
                 });
+                
                 // Synchronize user preferences based on AI attitudes
-                await this.personalityCoordinator.synchronizeUserPreferences(
-                    event.payload.userId, 
-                    event.payload.aiAttitudes
-                );
+                await this.personalityCoordinator.synchronizeUserPreferences(userId, aiAttitudes);
+                
                 this.logger.info('Successfully processed personality profile update', {
-                    userId: event.payload.userId,
+                    userId,
                     updateType: event.payload.updateType,
                 });
             }

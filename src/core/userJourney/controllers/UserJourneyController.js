@@ -3,6 +3,7 @@ import { UserJourneyError, UserJourneyNotFoundError, UserJourneyValidationError,
 import { UserJourneyDTOMapper } from "../../userJourney/dtos/UserJourneyDTO.js";
 import AppError from "../../infra/errors/AppError.js";
 import { withControllerErrorHandling } from "../../infra/errors/errorStandardization.js";
+import { Email, ChallengeId, createEmail, createChallengeId } from "../../common/valueObjects/index.js";
 'use strict';
 /**
  * User Journey Controller
@@ -91,26 +92,47 @@ class UserJourneyController {
   async trackEvent(req, res) {
     // Convert request to domain parameters
     const params = UserJourneyDTOMapper.fromRequest(req.body);
+    
     if (!params.userEmail) {
       throw new AppError('User email is required', 400);
     }
+    
     if (!params.eventType) {
       throw new AppError('Event type is required', 400);
     }
+    
+    // Create Value Objects from primitives
+    const emailVO = createEmail(params.userEmail);
+    if (!emailVO) {
+      throw new AppError('Invalid email format', 400);
+    }
+    
+    // Create challengeId Value Object if provided
+    let challengeIdVO = null;
+    if (params.challengeId) {
+      challengeIdVO = createChallengeId(params.challengeId);
+      if (!challengeIdVO) {
+        throw new AppError('Invalid challenge ID format', 400);
+      }
+    }
+    
     // Check if user exists
     const user = await this.userRepository.findByEmail(params.userEmail);
     if (!user) {
       throw new AppError('User not found', 404);
     }
-    // Record the event
+    
+    // Record the event with Value Objects
     const event = await this.userJourneyCoordinator.recordUserEvent(
-      params.userEmail, 
+      emailVO,
       params.eventType, 
       params.eventData || {}, 
-      params.challengeId
+      challengeIdVO
     );
+    
     // Convert to DTO
     const eventDto = UserJourneyDTOMapper.toDTO(event);
+    
     return res.status(201).json({
       status: 'success',
       data: {
@@ -164,24 +186,31 @@ class UserJourneyController {
    * @param {Response} res - Express response object
    */
   async getUserActivitySummary(req, res) {
-    const {
-      email
-    } = req.params;
-    const {
-      timeframe
-    } = req.query;
+    const { email } = req.params;
+    const { timeframe } = req.query;
+    
     if (!email) {
       throw new AppError('User email is required', 400);
     }
+    
+    // Create Email Value Object
+    const emailVO = createEmail(email);
+    if (!emailVO) {
+      throw new AppError('Invalid email format', 400);
+    }
+    
     // Check if user exists
     const user = await this.userRepository.findByEmail(email);
     if (!user) {
       throw new AppError('User not found', 404);
     }
-    // Get activity summary
-    const summary = await this.userJourneyCoordinator.getUserActivitySummary(email, timeframe || 'week');
+    
+    // Get activity summary using Value Object
+    const summary = await this.userJourneyCoordinator.getUserActivitySummary(emailVO, timeframe || 'week');
+    
     // Convert to DTO
     const summaryDto = UserJourneyDTOMapper.toSummaryDTO(summary);
+    
     return res.status(200).json({
       status: 'success',
       data: {
@@ -195,21 +224,30 @@ class UserJourneyController {
    * @param {Response} res - Express response object
    */
   async getUserEngagementMetrics(req, res) {
-    const {
-      email
-    } = req.params;
+    const { email } = req.params;
+    
     if (!email) {
       throw new AppError('User email is required', 400);
     }
+    
+    // Create Email Value Object
+    const emailVO = createEmail(email);
+    if (!emailVO) {
+      throw new AppError('Invalid email format', 400);
+    }
+    
     // Check if user exists
     const user = await this.userRepository.findByEmail(email);
     if (!user) {
       throw new AppError('User not found', 404);
     }
-    // Get engagement metrics
-    const metrics = await this.userJourneyCoordinator.getUserEngagementMetrics(email);
+    
+    // Get engagement metrics using Value Object
+    const metrics = await this.userJourneyCoordinator.getUserEngagementMetrics(emailVO);
+    
     // Convert to summary DTO
     const metricsDto = UserJourneyDTOMapper.toSummaryDTO(metrics);
+    
     return res.status(200).json({
       status: 'success',
       data: {

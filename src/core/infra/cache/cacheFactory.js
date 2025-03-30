@@ -1,8 +1,17 @@
-import CacheService from "../../infra/cache/CacheService.js";
-import RedisCacheProvider from "../../infra/cache/RedisCacheProvider.js";
-import MemoryCacheProvider from "../../infra/cache/MemoryCacheProvider.js";
-import { CacheInvalidationManager } from "../../infra/cache/CacheInvalidationManager.js";
-import { logger } from "../../infra/logging/logger.js";
+/**
+ * Cache Factory
+ *
+ * Factory for creating cache service instances with appropriate providers.
+ * Selects the right cache provider based on environment configuration.
+ *
+ * @module cacheFactory
+ */
+
+import CacheService from "./CacheService.js";
+import RedisCacheProvider from "./RedisCacheProvider.js";
+import MemoryCacheProvider from "./MemoryCacheProvider.js";
+import { CacheInvalidationManager } from "./CacheInvalidationManager.js";
+import { logger } from "../logging/logger.js";
 import config from "../../../config/config.js";
 'use strict';
 /**
@@ -104,10 +113,14 @@ function getCacheInvalidationManager() {
   }
   return cacheInvalidationManagerInstance;
 }
-export { createCacheService };
-export { createCacheInvalidationManager };
-export { getCacheService };
-export { getCacheInvalidationManager };
+// Export named functions for ESM
+export {
+  createCacheService,
+  createCacheInvalidationManager,
+  getCacheService,
+  getCacheInvalidationManager,
+};
+// Export default for backward compatibility
 export default {
   createCacheService,
   createCacheInvalidationManager,

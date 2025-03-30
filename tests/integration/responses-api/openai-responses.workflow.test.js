@@ -1,16 +1,17 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
 import sinon from "sinon";
 import { v4 as uuidv4 } from "uuid";
 import testEnv from "../../loadEnv.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 import testSetup from "../../helpers/testSetup.js";
-import { container } from "../../../src/config/container.js";
+import { container } from '../../../src/config/container.js';
 describe('Integration: OpenAI Responses API Workflow', function () {
-    before(function () {
+    beforeAll(function () {
         skipIfMissingEnv(this, 'openai');
     });
     // Set longer timeout for API tests
-    this.timeout(10000);
+    jest.setTimeout(10000);
     let sandbox;
     let openAIClient;
     let conversationStateRepository;

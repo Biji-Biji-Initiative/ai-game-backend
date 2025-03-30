@@ -1,14 +1,15 @@
+import { jest } from '@jest/globals';
 import { expect } from "chai";
 import sinon from "sinon";
 import { v4 as uuidv4 } from "uuid";
 import { createInMemoryPersonalityRepository, createInMemoryUserRepository } from "../../helpers/inMemory/index.js";
-import { createUserId, UserId } from "../../../src/core/common/valueObjects/index.js";
+import { createUserId, UserId } from '../../../src/core/common/valueObjects/index.js';
 // Import the service (assuming module path, adjust if needed)
-// import PersonalityService from "../../../src/core/personality/services/PersonalityService.js";
-// import Personality from "../../../src/core/personality/models/Personality.js";
+// import PersonalityService from '../../../src/core/personality/services/PersonalityService.js';
+// import Personality from '../../../src/core/personality/models/Personality.js';
 describe('Personality Service Domain Tests', function () {
     // Set longer timeout for API calls
-    this.timeout(30000);
+    jest.setTimeout(30000);
     let sandbox;
     let personalityRepository;
     let userRepository;
@@ -58,7 +59,7 @@ describe('Personality Service Domain Tests', function () {
                 if (!profile) {
                     profile = {
                         id: uuidv4(),
-                        userId: userIdVO.value, // Store the primitive value
+                        userId: userIdVO ? userIdVO.value : userId, // Handle null userIdVO
                         personalityTraits: {},
                         aiAttitudes: {},
                         createdAt: new Date(),
