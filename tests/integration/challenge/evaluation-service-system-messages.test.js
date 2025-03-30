@@ -1,10 +1,10 @@
 import { expect } from "chai";
 import sinon from "sinon";
-import mockSupabaseClient from "../../../helpers/mockSupabaseClient";
+import mockSupabaseClient from "../../../helpers/mockSupabaseClient.js";
 
 // Import the actual service classes
-import EvaluationService from "../../../../src/core/evaluation/services/evaluationService.js";
-import ChallengeEvaluationService from "../../../../src/core/challenge/services/challengeEvaluationService.js";
+import EvaluationService from "../../../src/core/evaluation/services/evaluationService.js";
+import ChallengeEvaluationService from "../../../src/core/challenge/services/challengeEvaluationService.js";
 
 /**
  * Evaluation Service System Message Tests

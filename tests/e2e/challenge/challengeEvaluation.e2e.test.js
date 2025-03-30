@@ -21,6 +21,8 @@ import * as apiTestHelper from "../../helpers/apiTestHelper.js";
 import { ChallengeDTO, ChallengeDTOMapper } from "../../../src/core/challenge/dtos/index.js";
 import { EvaluationDTO, EvaluationDTOMapper } from "../../../src/core/evaluation/dtos/index.js";
 import { createUserId, createChallengeId, createEvaluationId, UserId, ChallengeId, EvaluationId } from "../../../src/core/common/valueObjects/index.js";
+import ChallengeDTOMapper from "../../../src/application/challenge/mappers/ChallengeDTOMapper.js";
+import ChallengeResponseDTOMapper from "../../../src/application/challenge/mappers/ChallengeResponseDTOMapper.js";
 // Timeout for API requests
 const API_TIMEOUT = 40000;
 // Base URL for API requests

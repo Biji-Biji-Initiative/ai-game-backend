@@ -1,7 +1,7 @@
 'use strict';
 
-import FocusArea from "../models/FocusArea.js";
-import { FocusAreaNotFoundError, FocusAreaPersistenceError, FocusAreaValidationError, FocusAreaError } from "../errors/focusAreaErrors.js";
+import FocusArea from "../../focusArea/models/FocusArea.js";
+import { FocusAreaNotFoundError, FocusAreaPersistenceError, FocusAreaValidationError, FocusAreaError } from "../../focusArea/errors/focusAreaErrors.js";
 import domainEvents from "../../common/events/domainEvents.js";
 import { supabaseClient } from "../../infra/db/supabaseClient.js";
 import { BaseRepository, EntityNotFoundError, ValidationError, DatabaseError } from "../../infra/repositories/BaseRepository.js";

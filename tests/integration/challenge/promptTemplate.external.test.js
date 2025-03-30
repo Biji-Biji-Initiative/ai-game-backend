@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import testEnv from "../../loadEnv.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 import { config } from "dotenv";
-import openai from "../../../src/infra/openai";
+import openai from "@/infra/openai";
 ({ config }.config());
 describe('External: Prompt Template OpenAI Integration', function () {
     before(function () {

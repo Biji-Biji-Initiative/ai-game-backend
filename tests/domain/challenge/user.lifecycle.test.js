@@ -6,8 +6,9 @@ let User;
 try {
     User = require('../../../src/core/user/models/User');
 }
-catch (error) {
+catch (UserError) {
     console.warn('Could not import User model, creating test version');
+import { UserError, UserNotFoundError, UserUpdateError, UserValidationError, UserInvalidStateError, UserAuthenticationError, UserAuthorizationError } from "../../../src/core/user/errors/UserErrors.js";
     User = class User {
         /**
          *
@@ -63,7 +64,7 @@ describe('Domain: User Lifecycle', function () {
             update: sandbox.stub().callsFake(async (id, updates) => {
                 const user = mockUserRepository.users.get(id);
                 if (!user) {
-                    throw new Error(`User with ID ${id} not found`);
+                    throw new UserNotFoundError(`User with ID ${id} not found`);
                 }
                 // Create updated user with merged properties
                 const updatedUser = new User({
@@ -103,7 +104,7 @@ describe('Domain: User Lifecycle', function () {
                 // Check if user with email already exists
                 const existingUser = await mockUserRepository.findByEmail(userData.email);
                 if (existingUser) {
-                    throw new Error(`User with email ${userData.email} already exists`);
+                    throw new UserError(`User with email ${userData.email} already exists`);
                 }
                 return mockUserRepository.create(userData);
             },
@@ -119,7 +120,7 @@ describe('Domain: User Lifecycle', function () {
             getUserById: async (id) => {
                 const user = await mockUserRepository.findById(id);
                 if (!user) {
-                    throw new Error(`User with ID ${id} not found`);
+                    throw new UserNotFoundError(`User with ID ${id} not found`);
                 }
                 return user;
             },
@@ -255,7 +256,7 @@ describe('Domain: User Lifecycle', function () {
             await userService.createUser(userData);
             expect.fail('Should have thrown an error');
         }
-        catch (error) {
+        catch (UserError) {
             expect(error.message).to.include('already exists');
         }
     });
@@ -267,7 +268,7 @@ describe('Domain: User Lifecycle', function () {
             await userService.getUserById(nonExistentId);
             expect.fail('Should have thrown an error');
         }
-        catch (error) {
+        catch (UserError) {
             expect(error.message).to.include('not found');
         }
     });

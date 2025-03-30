@@ -1,11 +1,11 @@
 import { expect } from "chai";
 import sinon from "sinon";
-import Challenge from "../../../src/core/challenge/models/Challenge";
-import FocusArea from "../../../src/core/focusArea/models/FocusArea";
-import challengeRepository from "../../../src/core/challenge/repositories/challengeRepository";
-import focusAreaRepository from "../../../src/core/focusArea/repositories/focusAreaRepository";
-import domainEvents from "../../../src/core/common/events/domainEvents";
-import testSetup from "../setup";
+import Challenge from "../../../src/core/challenge/models/Challenge.js";
+import FocusArea from "../../../src/core/focusArea/models/FocusArea.js";
+import challengeRepository from "../../../src/core/challenge/repositories/challengeRepository.js";
+import focusAreaRepository from "../../../src/core/focusArea/repositories/focusAreaRepository.js";
+import domainEvents from "../../../src/core/common/events/domainEvents.js";
+import testSetup from "../setup.js";
 // Mock service implementations
 /**
  *

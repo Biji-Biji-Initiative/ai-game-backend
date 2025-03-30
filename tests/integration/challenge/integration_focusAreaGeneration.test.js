@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import testHelper from "../testHelper";
+import testHelper from "../testHelper.js";
 import promptBuilder from "../../../src/core/prompt/promptBuilder.js";
 import focusAreaGenerationService from "../../../src/core/focusArea/services/focusAreaGenerationService.js";
 import FocusArea from "../../../src/core/focusArea/models/FocusArea.js";

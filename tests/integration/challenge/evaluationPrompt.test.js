@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import sinon from "sinon";
 import EvaluationPromptBuilder from "../../../src/core/prompt/builders/EvaluationPromptBuilder.js";
-import supabaseClient from "../../../src/utils/db/supabaseClient";
+import supabaseClient from "@/utils/db/supabaseClient";
 import * as axios from "axios";
 const { supabase } = supabaseClient;
 const mockAxios = sinon.spy(axios, 'post');

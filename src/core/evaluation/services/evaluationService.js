@@ -1,9 +1,9 @@
 import { v4 as uuidv4 } from "uuid";
 import promptBuilder from "../../prompt/promptBuilder.js";
 import { PROMPT_TYPES } from "../../prompt/promptTypes.js";
-import Evaluation from "../models/Evaluation.js";
+import Evaluation from "../../evaluation/models/Evaluation.js";
 import messageFormatter from "../../infra/openai/messageFormatter.js";
-import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationProcessingError } from "../errors/EvaluationErrors.js";
+import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationProcessingError } from "../../evaluation/errors/EvaluationErrors.js";
 import { createErrorMapper, withServiceErrorHandling } from "../../infra/errors/errorStandardization.js";
 'use strict';
 const { formatForResponsesApi } = messageFormatter;

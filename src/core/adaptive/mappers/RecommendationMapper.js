@@ -1,4 +1,4 @@
-import Recommendation from "../models/Recommendation.js";
+import Recommendation from "../../adaptive/models/Recommendation.js";
 'use strict';
 /**
  * RecommendationMapper class

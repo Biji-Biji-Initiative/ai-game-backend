@@ -1,7 +1,10 @@
 import { expect } from "chai";
+import { FocusAreaGenerationService } from "../../../src/../../../src/core/focusArea/services/focusAreaGenerationService.js";
 import sinon from "sinon";
-import proxyquire from "proxyquire";
-const proxyquireNoCallThru = proxyquire.noCallThru()();
+
+import { FocusAreaError, FocusAreaNotFoundError, FocusAreaValidationError, FocusAreaGenerationError, FocusAreaPersistenceError, FocusAreaAccessDeniedError } from "../../../src/core/focusArea/errors/focusAreaErrors.js";
+import FocusAreaId from "../../../src/core/common/valueObjects/FocusAreaId.js";
+
 /**
  * Focus Area Generation Service System Message Tests
  *
@@ -19,9 +22,13 @@ const mockPromptBuilder = {
     })
 };
 // Use proxyquire to load the service with mocked dependencies
-const FocusAreaGenerationService = proxyquire('../../../../src/core/focusArea/services/focusAreaGenerationService', {
-    '../../../../src/core/prompt/promptBuilder': mockPromptBuilder
-});
+const focusAreaGenerationService = new FocusAreaGenerationService({
+      promptBuilder: mockPromptBuilder
+    });
+
+// Helper for creating FocusAreaId value objects
+const createFocusAreaId = (id) => new FocusAreaId(id);
+
 describe('FocusAreaGenerationService System Message Integration', () => {
     // Set longer timeout for API calls
     this.timeout(30000);

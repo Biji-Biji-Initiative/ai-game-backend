@@ -1,8 +1,8 @@
-import User from "../models/User.js";
-import UserMapper from "../mappers/UserMapper.js";
+import User from "../../user/models/User.js";
+import UserMapper from "../../user/mappers/UserMapper.js";
 import { supabaseClient } from "../../infra/db/supabaseClient.js";
-import { userDatabaseSchema } from "../schemas/userSchema.js";
-import { UserNotFoundError, UserValidationError, UserError } from "../errors/UserErrors.js";
+import { userDatabaseSchema } from "../../user/schemas/userSchema.js";
+import { UserNotFoundError, UserValidationError, UserError } from "../../user/errors/UserErrors.js";
 import domainEvents from "../../common/events/domainEvents.js";
 import { BaseRepository, EntityNotFoundError, ValidationError, DatabaseError } from "../../infra/repositories/BaseRepository.js";
 import { withRepositoryErrorHandling, createErrorMapper, createErrorCollector } from "../../infra/errors/errorStandardization.js";

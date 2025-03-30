@@ -17,7 +17,7 @@ import { fileURLToPath } from 'url';
 import SwaggerParser from '@apidevtools/swagger-parser';
 import chalk from 'chalk';
 import swaggerJsDoc from 'swagger-jsdoc';
-import getSwaggerOptions from '../config/swagger.js';
+import getSwaggerOptions from "../config/swagger.js";
 
 // Set up directories
 const __filename = fileURLToPath(import.meta.url);

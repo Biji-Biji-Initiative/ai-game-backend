@@ -1,6 +1,6 @@
 import express from 'express';
-import EvaluationController from '../../../evaluation/controllers/EvaluationController.js';
-import { authenticateUser } from '../middleware/auth.js';
+import EvaluationController from "../../../evaluation/controllers/EvaluationController.js";
+import { authenticateUser } from "../../../infra/http/middleware/auth.js";
 'use strict';
 
 /**

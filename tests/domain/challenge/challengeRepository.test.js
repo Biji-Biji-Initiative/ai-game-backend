@@ -3,6 +3,7 @@ import challengeRepository from "../../../src/core/challenge/repositories/Challe
 import Challenge from "../../../src/core/challenge/models/Challenge.js";
 import { createUserId, createChallengeId, UserId, ChallengeId } from "../../../src/core/common/valueObjects/index.js";
 import { v4 as uuidv4 } from "uuid";
+import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError, ChallengeRepositoryError, ChallengeGenerationError } from "../../../src/core/challenge/errors/ChallengeErrors.js";
 
 // Isolated test suite for unit testing the Challenge Repository with Zod validation
 describe.only('Challenge Repository with Zod Validation', () => {
@@ -70,7 +71,7 @@ describe.only('Challenge Repository with Zod Validation', () => {
                 // If we get here, the test should fail
                 expect.fail('Should have thrown a validation error');
             }
-            catch (error) {
+            catch (ChallengeError) {
                 expect(error.message).to.include('Challenge validation failed');
             }
         });
@@ -153,7 +154,7 @@ describe.only('Challenge Repository with Zod Validation', () => {
             try {
                 await challengeRepository.findByCriteria(invalidCriteria);
             }
-            catch (error) {
+            catch (ChallengeError) {
                 // Just verify we got an error
                 expect(error).to.exist;
                 expect(error).to.be.an.instanceOf(Error);
@@ -209,7 +210,7 @@ describe.only('Challenge Repository with Zod Validation', () => {
                 });
                 expect.fail('Should have thrown a validation error');
             }
-            catch (error) {
+            catch (ChallengeError) {
                 expect(error.message).to.include('Challenge update validation failed');
             }
         });

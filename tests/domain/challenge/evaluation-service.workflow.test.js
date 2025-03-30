@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import testEnv from "../../loadEnv.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 import EvaluationService from "../../../src/core/evaluation/services/evaluationService.js";
+import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError, ChallengeRepositoryError, ChallengeGenerationError } from "../../../src/core/challenge/errors/ChallengeErrors.js";
 describe('Integration: Evaluation Service with Responses API', function () {
     before(function () {
         skipIfMissingEnv(this, 'openai');
@@ -265,7 +266,7 @@ describe('Integration: Evaluation Service with Responses API', function () {
                 // Should not reach here
                 expect.fail('Expected an error but none was thrown');
             }
-            catch (error) {
+            catch (ChallengeError) {
                 // Verify error handling
                 expect(error).to.exist;
                 expect(error.message).to.include('API rate limit exceeded');

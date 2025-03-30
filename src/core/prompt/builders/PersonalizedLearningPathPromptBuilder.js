@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { logger } from "../../infra/logging/logger.js";
-import apiStandards from "../common/apiStandards.js";
+import apiStandards from "../../prompt/common/apiStandards.js";
 import messageFormatter from "../../infra/openai/messageFormatter.js";
 'use strict';
 const {

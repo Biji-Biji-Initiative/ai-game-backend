@@ -1,10 +1,10 @@
-import Recommendation from "../models/Recommendation.js";
-import recommendationMapper from "../mappers/RecommendationMapper.js";
+import Recommendation from "../../adaptive/models/Recommendation.js";
+import recommendationMapper from "../../adaptive/mappers/RecommendationMapper.js";
 import { supabaseClient } from "../../infra/db/supabaseClient.js";
 import { v4 as uuidv4 } from "uuid";
-import { RecommendationDatabaseSchema } from "../schemas/RecommendationSchema.js";
+import { RecommendationDatabaseSchema } from "../../adaptive/schemas/RecommendationSchema.js";
 import { BaseRepository, ValidationError, DatabaseError } from "../../infra/repositories/BaseRepository.js";
-import { AdaptiveNotFoundError, AdaptiveValidationError, AdaptiveRepositoryError } from "../errors/adaptiveErrors.js";
+import { AdaptiveNotFoundError, AdaptiveValidationError, AdaptiveRepositoryError } from "../../adaptive/errors/adaptiveErrors.js";
 import { withRepositoryErrorHandling, createErrorMapper, createErrorCollector } from "../../infra/errors/errorStandardization.js";
 import domainEvents from "../../common/events/domainEvents.js";
 'use strict';

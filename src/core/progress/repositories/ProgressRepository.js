@@ -1,11 +1,11 @@
-import Progress from "../models/Progress.js";
+import Progress from "../../progress/models/Progress.js";
 import { supabaseClient } from "../../infra/db/supabaseClient.js";
 import { v4 as uuidv4 } from "uuid";
 import domainEvents from "../../common/events/domainEvents.js";
 import { BaseRepository } from "../../infra/repositories/BaseRepository.js";
-import { ProgressError, ProgressNotFoundError, ProgressValidationError, ProgressProcessingError } from "../errors/progressErrors.js";
+import { ProgressError, ProgressNotFoundError, ProgressValidationError, ProgressProcessingError } from "../../progress/errors/progressErrors.js";
 import { createErrorMapper, withRepositoryErrorHandling } from "../../infra/errors/errorStandardization.js";
-import progressMapper from "../mappers/ProgressMapper.js";
+import progressMapper from "../../progress/mappers/ProgressMapper.js";
 'use strict';
 const { eventBus } = domainEvents;
 const { EntityNotFoundError, ValidationError, DatabaseError, } = BaseRepository;

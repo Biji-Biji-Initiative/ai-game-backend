@@ -1,4 +1,4 @@
-import { LEVEL_THRESHOLDS, ADJUSTMENT, TRAIT_MODIFIERS, TIME_ALLOCATION, VALID_LEVELS } from "../config/difficultyConfig.js";
+import { LEVEL_THRESHOLDS, ADJUSTMENT, TRAIT_MODIFIERS, TIME_ALLOCATION, VALID_LEVELS } from "../../adaptive/config/difficultyConfig.js";
 'use strict';
 /**
  *

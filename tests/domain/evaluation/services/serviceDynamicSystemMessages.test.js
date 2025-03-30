@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import sinon from "sinon";
-import dynamicPromptService from "../../../src/core/evaluation/services/dynamicPromptService";
-import evaluationCategoryRepository from "../../../src/core/evaluation/repositories/evaluationCategoryRepository";
+import dynamicPromptService from "../../../../src/core/evaluation/services/dynamicPromptService.js";
+import evaluationCategoryRepository from "../../../../src/core/evaluation/repositories/evaluationCategoryRepository.js";
 const { generateDynamicPrompt } = dynamicPromptService;
 describe('Dynamic Prompt Service', () => {
     let sandbox;

@@ -1,6 +1,6 @@
 import express from 'express';
-import ChallengeController from '../../../challenge/controllers/ChallengeController.js';
-import { authenticateUser } from '../middleware/auth.js';
+import ChallengeController from "../../../challenge/controllers/ChallengeController.js";
+import { authenticateUser } from "../../../infra/http/middleware/auth.js";
 'use strict';
 
 /**

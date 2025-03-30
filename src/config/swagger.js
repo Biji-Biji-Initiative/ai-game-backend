@@ -1,6 +1,6 @@
 import path from "path";
 import { fileURLToPath } from 'url';
-import config from './config.js';
+import config from ".//config.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -9,6 +9,7 @@ const __dirname = path.dirname(__filename);
 
 /**
  * Swagger configuration for API documentation
+ * This is the single source of truth for the OpenAPI specification
  */
 const swaggerDefinition = {
     openapi: '3.0.0',
@@ -44,6 +45,7 @@ const swaggerDefinition = {
         }
     ],
     // Add a minimal paths object to satisfy OpenAPI spec requirements
+    // The rest of the paths will be populated by swagger-jsdoc from JSDoc annotations
     paths: {
         '/health': {
             get: {
@@ -77,14 +79,6 @@ const swaggerDefinition = {
                                         mode: {
                                             type: 'string',
                                             example: config.server.environment
-                                        }
-                                    }
-                                },
-                                examples: {
-                                    success: {
-                                        value: {
-                                            status: "ok",
-                                            mode: config.server.environment
                                         }
                                     }
                                 }

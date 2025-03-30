@@ -5,6 +5,7 @@ import Challenge from "../../../src/core/challenge/models/Challenge.js";
 import { createUserId, createChallengeId, UserId, ChallengeId } from "../../../src/core/common/valueObjects/index.js";
 import domainEvents from "../../../src/core/common/events/domainEvents.js";
 import testSetup from "../setup.js";
+import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError, ChallengeRepositoryError, ChallengeGenerationError } from "../../../src/core/challenge/errors/ChallengeErrors.js";
 
 describe('Challenge Domain Integration', function () {
     let challengeRepository;
@@ -40,7 +41,7 @@ describe('Challenge Domain Integration', function () {
             },
             update: async function (id, updates) {
                 const challenge = await this.findById(id);
-                if (!challenge) throw new Error('Challenge not found');
+                if (!challenge) throw new ChallengeNotFoundError(`Challenge not found`);
                 const updatedChallenge = { ...challenge, ...updates };
                 this.challenges.set(id instanceof ChallengeId ? id.value : id, updatedChallenge);
                 return updatedChallenge;
@@ -48,7 +49,7 @@ describe('Challenge Domain Integration', function () {
         };
 
         // Mock domain events
-        sinon.stub(domainEvents, 'publish').resolves();
+        mockDomainEvents.publish = sinon.stub().resolves();;
     });
 
     afterEach(function () {

@@ -20,6 +20,9 @@ import * as apiTestHelper from "../../helpers/apiTestHelper.js";
 import { FocusAreaDTO, FocusAreaDTOMapper } from "../../../src/core/focusArea/dtos/index.js";
 import { ChallengeDTO, ChallengeDTOMapper } from "../../../src/core/challenge/dtos/index.js";
 import { createUserId, createFocusAreaId, createChallengeId, UserId, FocusAreaId, ChallengeId } from "../../../src/core/common/valueObjects/index.js";
+import ChallengeDTOMapper from "../../../src/application/challenge/mappers/ChallengeDTOMapper.js";
+import ChallengeResponseDTOMapper from "../../../src/application/challenge/mappers/ChallengeResponseDTOMapper.js";
+import FocusAreaDTOMapper from "../../../src/application/focusArea/mappers/FocusAreaDTOMapper.js";
 
 // Timeout for API requests
 const API_TIMEOUT = 30000;

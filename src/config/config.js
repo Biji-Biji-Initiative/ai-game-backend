@@ -6,7 +6,7 @@
  * configuration. This separates infrastructure concerns from domain knowledge.
  */
 // Load domain-specific configurations
-import personalityConfig from '../core/personality/config/personalityConfig.js';
+import personalityConfig from "../core/personality/config/personalityConfig.js";
 // Main application configuration
 const config = {
     // Server configuration
@@ -33,6 +33,36 @@ const config = {
         exposedHeaders: ['X-Request-Id', 'X-Response-Time'],
         credentials: true,
         maxAge: 86400 // 24 hours
+    },
+    // Rate limiting configuration
+    rateLimit: {
+        // Enable/disable rate limiting globally
+        enabled: process.env.RATE_LIMIT_ENABLED !== 'false',
+        // Global rate limit settings (all routes)
+        global: {
+            windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 minutes
+            max: parseInt(process.env.RATE_LIMIT_MAX || '100', 10), // 100 requests per 15 minutes
+            standardHeaders: true, // Include X-RateLimit-* headers
+            legacyHeaders: false, // Disable the X-RateLimit-* headers
+            message: 'Too many requests from this IP, please try again later',
+            skip: process.env.NODE_ENV === 'development' && process.env.SKIP_RATE_LIMIT === 'true'
+        },
+        // Rate limit for auth routes (login, signup)
+        auth: {
+            windowMs: parseInt(process.env.AUTH_RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 minutes
+            max: parseInt(process.env.AUTH_RATE_LIMIT_MAX || '10', 10), // 10 requests per 15 minutes
+            standardHeaders: true,
+            legacyHeaders: false,
+            message: 'Too many authentication attempts, please try again later'
+        },
+        // Rate limit for sensitive operations
+        sensitive: {
+            windowMs: parseInt(process.env.SENSITIVE_RATE_LIMIT_WINDOW_MS || '3600000', 10), // 1 hour
+            max: parseInt(process.env.SENSITIVE_RATE_LIMIT_MAX || '5', 10), // 5 requests per hour
+            standardHeaders: true,
+            legacyHeaders: false,
+            message: 'Too many sensitive operations, please try again later'
+        }
     },
     // Supabase configuration
     supabase: {

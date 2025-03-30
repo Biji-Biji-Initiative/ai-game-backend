@@ -16,7 +16,7 @@ import {
   applyRepositoryErrorHandling,
   applyServiceErrorHandling,
   applyControllerErrorHandling
-} from './errorStandardization.js';
+} from "../../infra/errors/errorStandardization.js";
 
 export {
   createErrorMapper,

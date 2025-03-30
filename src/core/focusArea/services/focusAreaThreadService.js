@@ -1,5 +1,5 @@
 import { focusAreaLogger } from "../../infra/logging/domainLogger.js";
-import { FocusAreaError } from "../errors/focusAreaErrors.js";
+import { FocusAreaError } from "../../focusArea/errors/focusAreaErrors.js";
 import { withServiceErrorHandling, createErrorMapper } from "../../infra/errors/errorStandardization.js";
 'use strict';
 // Create an error mapper for the focus area thread service

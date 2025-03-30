@@ -24,6 +24,9 @@ import { ChallengeDTO, ChallengeDTOMapper } from "../../../src/core/challenge/dt
 import { EvaluationDTO, EvaluationDTOMapper } from "../../../src/core/evaluation/dtos/index.js";
 import { CategoryDTO } from "../../../src/core/evaluation/dtos/index.js";
 import { createUserId, createChallengeId, createEvaluationId, UserId, ChallengeId, EvaluationId } from "../../../src/core/common/valueObjects/index.js";
+import ChallengeDTOMapper from "../../../src/application/challenge/mappers/ChallengeDTOMapper.js";
+import ChallengeResponseDTOMapper from "../../../src/application/challenge/mappers/ChallengeResponseDTOMapper.js";
+import EvaluationDTOMapper from "../../../src/application/evaluation/mappers/EvaluationDTOMapper.js";
 
 ({ config }.config());
 

@@ -1,6 +1,6 @@
-import { StreamEventType } from "./types.js";
-import { OpenAIResponseHandlingError } from "./errors.js";
-import { apiLogger } from "../logging/domainLogger.js";
+import { StreamEventType } from "../../infra/openai/types.js";
+import { OpenAIResponseHandlingError } from "../../infra/openai/errors.js";
+import { apiLogger } from "../../infra/logging/domainLogger.js";
 'use strict';
 /**
  * Creates a new StreamProcessor for handling Responses API streaming events

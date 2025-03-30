@@ -19,6 +19,8 @@ import { config } from "dotenv";
 import * as apiTestHelper from "../../helpers/apiTestHelper.js";
 import { ChallengeDTO, ChallengeDTOMapper } from "../../../src/core/challenge/dtos/index.js";
 import { createUserId, createChallengeId, UserId, ChallengeId } from "../../../src/core/common/valueObjects/index.js";
+import ChallengeDTOMapper from "../../../src/application/challenge/mappers/ChallengeDTOMapper.js";
+import ChallengeResponseDTOMapper from "../../../src/application/challenge/mappers/ChallengeResponseDTOMapper.js";
 
 ({ config }.config());
 

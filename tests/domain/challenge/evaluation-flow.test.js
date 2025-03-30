@@ -6,7 +6,7 @@ import crypto from "crypto";
 import testEnv from "../../loadEnv.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 import { config } from "dotenv";
-import openai from "../../../src/infra/openai";
+import openai from "@/infra/openai";
 import { createClient } from "@supabase/supabase-js";
 import { createUserId, createChallengeId, createEvaluationId, UserId, ChallengeId, EvaluationId } from "../../../src/core/common/valueObjects/index.js";
 import { EvaluationDTO, EvaluationDTOMapper } from "../../../src/core/evaluation/dtos/index.js";
@@ -68,9 +68,18 @@ describe('Integration: Evaluation Flow', function () {
                     supabaseClient: !!supabaseClient
                 });
             }
-            catch (error) {
+            catch (ChallengeError) {
                 // If we can't load the exact modules, create minimal versions for testing
                 console.warn('Could not import exact modules, creating test versions');
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError, ChallengeRepositoryError, ChallengeGenerationError } from "../../../src/core/challenge/errors/ChallengeErrors.js";
+
+// ESM equivalent of __dirname and __filename
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+
                 logTestAction('ImportError', { message: error.message });
                 // Create OpenAI client
                 const { OpenAIClient } = openai;
@@ -151,7 +160,7 @@ describe('Integration: Evaluation Flow', function () {
                                     details: error.details,
                                     fullError: JSON.stringify(error)
                                 });
-                                throw new Error('Failed to save evaluation: ' + (error.message || 'Unknown error'));
+                                throw new ChallengeRepositoryError(`Failed to save evaluation: ' + (error.message || 'Unknown error`));
                             }
                             // Log successful save
                             logTestAction('SaveSuccess', { data });
@@ -168,7 +177,7 @@ describe('Integration: Evaluation Flow', function () {
                                 categoryScores: data[0].category_scores
                             }) : evaluation;
                         }
-                        catch (e) {
+                        catch (ChallengeError) {
                             logTestAction('RepositorySaveError', {
                                 error: e.message || 'Unknown repository error',
                                 stack: e.stack,
@@ -205,7 +214,7 @@ describe('Integration: Evaluation Flow', function () {
                                 categoryScores: data.category_scores
                             });
                         }
-                        catch (e) {
+                        catch (ChallengeError) {
                             logTestAction('RepositoryFindError', { error: e.message, stack: e.stack });
                             throw e;
                         }
@@ -343,7 +352,7 @@ describe('Integration: Evaluation Flow', function () {
                     : 'Partial success: OpenAI working, Supabase failed'
             });
         }
-        catch (error) {
+        catch (ChallengeError) {
             logTestAction('TestError', {
                 message: error.message,
                 stack: error.stack
@@ -492,7 +501,7 @@ async function generateEvaluation(openaiClient, supabaseClient) {
             }
         };
     }
-    catch (error) {
+    catch (ChallengeError) {
         console.error('Error generating evaluation:', error);
         throw error;
     }

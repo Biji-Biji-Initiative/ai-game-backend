@@ -1,5 +1,5 @@
 import { createErrorMapper, withServiceErrorHandling } from "../../infra/errors/errorStandardization.js";
-import challengeErrors from "../errors/ChallengeErrors.js";
+import challengeErrors from "../../challenge/errors/ChallengeErrors.js";
 import { challengeLogger } from "../../infra/logging/domainLogger.js";
 'use strict';
 const {

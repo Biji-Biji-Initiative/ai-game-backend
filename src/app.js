@@ -6,12 +6,10 @@ import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import swaggerUi from 'swagger-ui-express';
-import swaggerJsDoc from 'swagger-jsdoc';
-import swaggerOptions from './config/swagger.js';
+import { initializeSwagger } from "./config/swaggerSetup.js";
 
 // Import container for dependency injection
-import { container } from './config/container.js';
+import { container } from "./config/container.js";
 const config = container.get('config');
 
 // Log application startup information
@@ -23,25 +21,26 @@ console.log('Environment:', {
 });
 
 // Get dependencies from container
-import { logger } from './core/infra/logging/logger.js';
+import { logger } from "./core/infra/logging/logger.js";
 import {
   requestLogger,
   errorLogger,
   correlationIdMiddleware,
-} from './core/infra/logging/logger.js';
+} from "./core/infra/logging/logger.js";
 // eslint-disable-next-line import/no-unresolved
-import { errorHandler, notFoundHandler } from './core/infra/errors/ErrorHandler.js';
-import { responseFormatterMiddleware } from './core/infra/http/responseFormatter.js';
-import RouteFactory from './core/infra/http/routes/RouteFactory.js';
+import { errorHandler, notFoundHandler } from "./core/infra/errors/ErrorHandler.js";
+import { responseFormatterMiddleware } from "./core/infra/http/responseFormatter.js";
+import RouteFactory from "./core/infra/http/routes/RouteFactory.js";
+import { applyRateLimiting } from "./core/infra/http/middleware/rateLimit.js";
 
 // Import domain events system - now used directly in event handling registration
-import { registerEventHandlers } from './application/EventHandlers.js';
+import { registerEventHandlers } from "@/application/EventHandlers.js";
 
 // Register application event handlers (moved from inline to a separate file)
 registerEventHandlers(container);
 
 // Register domain event handlers (moved to a separate file)
-import { registerAllDomainEventHandlers } from './core/infra/events/eventSetup.js';
+import { registerAllDomainEventHandlers } from "./core/infra/events/eventSetup.js";
 
 // Get __dirname equivalent in ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -50,40 +49,37 @@ const __dirname = path.dirname(__filename);
 // Create Express application
 const app = express();
 
-// Basic middleware
-app.use(cors({
-  origin: config.isProduction 
-    ? (origin, callback) => {
-        // In production, allow only whitelisted origins
-        if (!origin || (Array.isArray(config.cors.allowedOrigins) && config.cors.allowedOrigins.includes(origin))) {
-          callback(null, true);
-        } else {
-          callback(new Error('Not allowed by CORS'));
+// Create reusable CORS options function to avoid duplication
+const getCorsOptions = () => {
+  const corsOptions = {
+    origin: config.isProduction 
+      ? (origin, callback) => {
+          // In production, allow only whitelisted origins
+          if (!origin || (Array.isArray(config.cors.allowedOrigins) && config.cors.allowedOrigins.includes(origin))) {
+            callback(null, true);
+          } else {
+            callback(new Error('Not allowed by CORS'));
+          }
         }
-      }
-    : config.cors.allowedOrigins, // In development, use the value from config (defaults to '*')
-  methods: config.cors.methods,
-  allowedHeaders: config.cors.allowedHeaders,
-  exposedHeaders: config.cors.exposedHeaders,
-  credentials: config.cors.credentials,
-  maxAge: config.cors.maxAge
-}));
+      : config.cors.allowedOrigins, // In development, use the value from config (defaults to '*')
+    methods: config.cors.methods,
+    allowedHeaders: config.cors.allowedHeaders,
+    exposedHeaders: config.cors.exposedHeaders,
+    credentials: config.cors.credentials,
+    maxAge: config.cors.maxAge
+  };
+  
+  return corsOptions;
+};
+
+// Basic middleware
+app.use(cors(getCorsOptions()));
 
 // Handle OPTIONS requests for CORS preflight
-app.options('*', cors(config.isProduction 
-  ? {
-      origin: (origin, callback) => {
-        if (!origin || (Array.isArray(config.cors.allowedOrigins) && config.cors.allowedOrigins.includes(origin))) {
-          callback(null, true);
-        } else {
-          callback(new Error('Not allowed by CORS'));
-        }
-      }
-    }
-  : {
-      origin: config.cors.allowedOrigins
-    }
-));
+app.options('*', cors(getCorsOptions()));
+
+// Apply API rate limiting based on configuration
+applyRateLimiting(app);
 
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
@@ -101,223 +97,25 @@ app.use(correlationIdMiddleware);
 // Request logging
 app.use(requestLogger);
 
-// Initialize Swagger
-function initializeSwagger() {
-  // For development mode, use a simple static Swagger UI without depending on JSDoc
-  if (config.isDevelopment) {
-    // Create a minimal OpenAPI document
-    const openApiDocument = {
-      openapi: '3.0.0',
-      info: {
-        title: 'AI Fight Club API',
-        version: '1.0.0',
-        description: 'API Documentation (Development Mode)',
-      },
-      servers: [
-        {
-          url: config.api.prefix,
-          description: 'Current server (relative path)',
-        },
-        {
-          url: config.fullApiUrl,
-          description: 'Complete API URL',
-        }
-      ],
-      paths: {
-        '/health': {
-          get: {
-            summary: 'Health check endpoint',
-            description: 'Returns the health status of the API',
-            tags: ['System'],
-            parameters: [
-              {
-                name: 'format',
-                in: 'query',
-                description: 'Response format (json or text)',
-                schema: {
-                  type: 'string',
-                  enum: ['json', 'text'],
-                  default: 'json'
-                }
-              }
-            ],
-            responses: {
-              '200': {
-                description: 'API is healthy',
-                content: {
-                  'application/json': {
-                    schema: {
-                      type: 'object',
-                      properties: {
-                        status: {
-                          type: 'string',
-                          example: 'ok'
-                        },
-                        mode: {
-                          type: 'string',
-                          example: config.server.environment
-                        }
-                      }
-                    },
-                    examples: {
-                      success: {
-                        value: {
-                          status: "ok",
-                          mode: config.server.environment
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        '/users': {
-          get: {
-            summary: 'Get all users',
-            description: 'Retrieves a list of all users',
-            tags: ['Users'],
-            responses: {
-              '200': {
-                description: 'A list of users',
-                content: {
-                  'application/json': {
-                    schema: {
-                      type: 'object',
-                      properties: {
-                        success: {
-                          type: 'boolean',
-                          example: true
-                        },
-                        data: {
-                          type: 'array',
-                          items: {
-                            type: 'object',
-                            properties: {
-                              id: { type: 'string', format: 'uuid' },
-                              email: { type: 'string', format: 'email' },
-                              name: { type: 'string' }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        '/challenges': {
-          get: {
-            summary: 'Get all challenges',
-            description: 'Retrieves a list of all challenges',
-            tags: ['Challenges'],
-            responses: {
-              '200': {
-                description: 'A list of challenges',
-                content: {
-                  'application/json': {
-                    schema: {
-                      type: 'object',
-                      properties: {
-                        success: {
-                          type: 'boolean',
-                          example: true
-                        },
-                        data: {
-                          type: 'array',
-                          items: {
-                            type: 'object',
-                            properties: {
-                              id: { type: 'string', format: 'uuid' },
-                              title: { type: 'string' },
-                              description: { type: 'string' },
-                              difficulty: { type: 'string' }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    };
-    
-    // Set up the Swagger UI with static definition
-    app.use(
-      config.api.docsPath,
-      swaggerUi.serve,
-      swaggerUi.setup(openApiDocument, {
-        explorer: true,
-        customCss: `
-          .swagger-ui .topbar { display: none }
-          .swagger-ui .info { margin: 30px 0 }
-          .swagger-ui .scheme-container { margin: 30px 0 }
-          .swagger-ui .opblock-tag { font-size: 18px; margin: 10px 0 }
-          .swagger-ui .opblock { margin: 10px 0 }
-          .swagger-ui table tbody tr td { padding: 10px 0 }
-        `,
-        customSiteTitle: 'AI Fight Club API Documentation',
-        swaggerOptions: {
-          docExpansion: 'list',
-          filter: true,
-          displayRequestDuration: true,
-          persistAuthorization: true,
-          tryItOutEnabled: true
-        }
-      })
-    );
-    logger.info(`API documentation available at ${config.fullDocsUrl} (Development Mode)`);
-  } else {
-    // In non-development mode, use the full Swagger JSDoc implementation
-    const swaggerDocs = swaggerJsDoc(swaggerOptions());
-    app.use(
-      config.api.docsPath,
-      swaggerUi.serve,
-      swaggerUi.setup(swaggerDocs, {
-        explorer: true,
-        customCss: `.swagger-ui .topbar { display: none }`,
-        customSiteTitle: 'AI Fight Club API Documentation',
-        swaggerOptions: {
-          persistAuthorization: true,
-          tryItOutEnabled: true
-        }
-      })
-    );
-    logger.info(`API documentation available at ${config.fullDocsUrl}`);
-  }
-}
+// Initialize Swagger UI
+initializeSwagger(app, logger);
 
-try {
-  initializeSwagger();
-} catch (error) {
-  logger.error(`Failed to initialize Swagger UI: ${error.message}`, { 
-    error: error.message,
-    stack: error.stack 
-  });
-  
-  // Create a minimal error route instead of complex HTML
-  app.use(config.api.docsPath, (req, res) => {
-    res.status(500).json({
-      error: 'API Documentation Unavailable',
-      message: 'Swagger UI failed to initialize. Please check server logs.'
-    });
-  });
-}
-
-// Serve the API Tester UI static files
+// Ensure the API Tester UI static files
 const testerUiPath = path.join(__dirname, '../api-tester-ui');
 app.use(config.api.testerPath, express.static(testerUiPath));
 logger.info(`API Tester UI available at ${config.api.testerPath}`);
 
+// Add a direct auth status endpoint early in the middleware stack to ensure it's always available
+app.get(`${config.api.prefix}/auth/status`, (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'Auth service is running',
+    authenticated: false
+  });
+});
+
 // Add API Tester specific endpoints for enhanced debugging
-import createApiTesterRoutes from './core/infra/http/routes/apiTesterRoutes.js';
+import createApiTesterRoutes from "./core/infra/http/routes/apiTesterRoutes.js";
 
 // Add middleware to make container available on request objects for API tester
 app.use((req, res, next) => {

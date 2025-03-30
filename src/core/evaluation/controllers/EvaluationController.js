@@ -1,5 +1,5 @@
-import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationProcessingError } from "../errors/EvaluationErrors.js";
-import { EvaluationDTOMapper } from "../dtos/EvaluationDTO.js";
+import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationProcessingError } from "../../evaluation/errors/EvaluationErrors.js";
+import { EvaluationDTOMapper } from "../../evaluation/dtos/EvaluationDTO.js";
 import { withControllerErrorHandling } from "../../infra/errors/errorStandardization.js";
 'use strict';
 // Error mappings for controllers

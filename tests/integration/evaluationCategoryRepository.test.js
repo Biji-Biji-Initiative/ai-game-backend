@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import sinon from "sinon";
-import evaluationCategoryRepository from "../../../src/repositories/evaluationCategoryRepository";
+import evaluationCategoryRepository from "@/repositories/evaluationCategoryRepository";
 /**
  * Integration Tests for Evaluation Category Repository
  *

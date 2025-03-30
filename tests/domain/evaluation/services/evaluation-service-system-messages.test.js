@@ -1,8 +1,10 @@
 import { expect } from "chai";
+import { challengeEvaluationService } from "../../../src/../../../src/core/challenge/services/challengeEvaluationService.js";
+import { evaluationService } from "../../../src/../../../src/core/evaluation/services/evaluationService.js";
 import sinon from "sinon";
-import proxyquire from "proxyquire";
+
 import { createSupabaseProxyStub } from "../../../helpers/mockSupabaseClient.js";
-const proxyquireNoCallThru = proxyquire.noCallThru();
+
 /**
  * Evaluation Service System Message Tests
  *
@@ -99,18 +101,18 @@ const MockEvaluation = function (data) {
     return { ...data, id: 'mock-evaluation-id' };
 };
 // Use proxyquire to load services with mocked dependencies
-const evaluationService = proxyquire('../../../../src/core/evaluation/services/evaluationService', {
-    '../../../../src/config/container': containerStub,
-    '../../../../src/core/infra/api/responsesApiClient': mockResponsesApiClient,
-    '../../../../src/core/infra/db/supabaseClient': createSupabaseProxyStub(),
-    '../../../../src/core/evaluation/models/Evaluation': MockEvaluation,
-    '../../../../src/core/prompt/promptBuilder': mockPromptBuilder
-});
-const challengeEvaluationService = proxyquire('../../../../src/core/challenge/services/challengeEvaluationService', {
-    '../../../../src/config/container': containerStub,
-    '../../../../src/core/infra/db/supabaseClient': createSupabaseProxyStub(),
-    '../../../../src/core/prompt/promptBuilder': mockPromptBuilder
-});
+const evaluationService = new evaluationService({
+      container: containerStub,
+      responsesApiClient: mockResponsesApiClient,
+      supabaseClient: createSupabaseProxyStub,
+      Evaluation: MockEvaluation,
+      promptBuilder: mockPromptBuilder
+    });
+const challengeEvaluationService = new challengeEvaluationService({
+      container: containerStub,
+      supabaseClient: createSupabaseProxyStub,
+      promptBuilder: mockPromptBuilder
+    });
 const { evaluateResponse } = evaluationService;
 const { evaluateResponses } = challengeEvaluationService;
 describe('Services System Message Integration', () => {

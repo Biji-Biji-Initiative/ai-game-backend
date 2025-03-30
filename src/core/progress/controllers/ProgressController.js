@@ -1,6 +1,6 @@
 import { withControllerErrorHandling } from "../../infra/errors/errorStandardization.js";
-import { ProgressError, ProgressNotFoundError, ProgressValidationError, ProgressProcessingError } from "../errors/progressErrors.js";
-import { ProgressDTOMapper } from "../dtos/ProgressDTO.js";
+import { ProgressError, ProgressNotFoundError, ProgressValidationError, ProgressProcessingError } from "../../progress/errors/progressErrors.js";
+import { ProgressDTOMapper } from "../../progress/dtos/ProgressDTO.js";
 'use strict';
 // Error mappings for controllers
 const progressControllerErrorMappings = [

@@ -6,6 +6,7 @@ import challengeRepository from "../../../src/core/challenge/repositories/challe
 import focusAreaRepository from "../../../src/core/focusArea/repositories/focusAreaRepository.js";
 import domainEvents from "../../../src/core/common/events/domainEvents.js";
 import testSetup from "../setup.js";
+import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError, ChallengeRepositoryError, ChallengeGenerationError } from "../../../src/core/challenge/errors/ChallengeErrors.js";
 // Mock service implementations
 /**
  *
@@ -24,7 +25,7 @@ class ChallengeService {
         // Get the challenge
         const challenge = await this.challengeRepository.findById(challengeId);
         if (!challenge) {
-            throw new Error(`Challenge not found with ID: ${challengeId}`);
+            throw new ChallengeNotFoundError(`Challenge not found with ID: ${challengeId}`);
         }
         // Update challenge state
         challenge.complete(score);

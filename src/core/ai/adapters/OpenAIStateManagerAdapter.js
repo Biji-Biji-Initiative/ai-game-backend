@@ -1,4 +1,4 @@
-import AIStateManager from "../ports/AIStateManager.js";
+import AIStateManager from "../../ai/ports/AIStateManager.js";
 'use strict';
 /**
  * Implementation of AIStateManager using OpenAI's state manager

@@ -1,4 +1,12 @@
-import BaseCoordinator from "./BaseCoordinator.js";
+import BaseCoordinator from "@/application/BaseCoordinator.js";
+import { 
+    TECH_THRESHOLDS, 
+    ATTITUDE_THRESHOLD, 
+    DEFAULT_ATTITUDE_VALUE,
+    DETAIL_LEVEL,
+    COMMUNICATION_STYLE,
+    RESPONSE_FORMAT
+} from "../core/personality/config/attitudeMappingConfig.js";
 'use strict';
 /**
  * Class representing Personality Coordinator
@@ -96,33 +104,43 @@ class PersonalityCoordinator extends BaseCoordinator {
      */
     _mapAttitudesToPreferences(aiAttitudes) {
         // Set detail level based on tech_savvy and early_adopter scores
-        const techSum = (aiAttitudes.tech_savvy || 50) + (aiAttitudes.early_adopter || 50);
-        let detailLevel = 'detailed';
-        if (techSum > 150) {
-            detailLevel = 'comprehensive';
+        const techSum = (aiAttitudes.tech_savvy || DEFAULT_ATTITUDE_VALUE) + 
+                        (aiAttitudes.early_adopter || DEFAULT_ATTITUDE_VALUE);
+        
+        let detailLevel = DETAIL_LEVEL.DETAILED;
+        if (techSum > TECH_THRESHOLDS.HIGH) {
+            detailLevel = DETAIL_LEVEL.COMPREHENSIVE;
         }
-        else if (techSum < 100) {
-            detailLevel = 'basic';
+        else if (techSum < TECH_THRESHOLDS.LOW) {
+            detailLevel = DETAIL_LEVEL.BASIC;
         }
+        
         // Set communication style based on attitudes
-        let communicationStyle = 'casual';
-        if (aiAttitudes.security_conscious && aiAttitudes.security_conscious > 70) {
-            communicationStyle = 'formal';
+        let communicationStyle = COMMUNICATION_STYLE.CASUAL;
+        if (aiAttitudes.security_conscious && 
+            aiAttitudes.security_conscious > ATTITUDE_THRESHOLD.SIGNIFICANT) {
+            communicationStyle = COMMUNICATION_STYLE.FORMAL;
         }
-        else if (aiAttitudes.experimental && aiAttitudes.experimental > 70) {
-            communicationStyle = 'casual';
+        else if (aiAttitudes.experimental && 
+                aiAttitudes.experimental > ATTITUDE_THRESHOLD.SIGNIFICANT) {
+            communicationStyle = COMMUNICATION_STYLE.CASUAL;
         }
-        else if (aiAttitudes.ethical_concern && aiAttitudes.ethical_concern > 70) {
-            communicationStyle = 'technical';
+        else if (aiAttitudes.ethical_concern && 
+                aiAttitudes.ethical_concern > ATTITUDE_THRESHOLD.SIGNIFICANT) {
+            communicationStyle = COMMUNICATION_STYLE.TECHNICAL;
         }
+        
         // Set response format preferences
-        let responseFormat = 'mixed';
-        if (aiAttitudes.skeptical && aiAttitudes.skeptical > 70) {
-            responseFormat = 'structured';
+        let responseFormat = RESPONSE_FORMAT.MIXED;
+        if (aiAttitudes.skeptical && 
+            aiAttitudes.skeptical > ATTITUDE_THRESHOLD.SIGNIFICANT) {
+            responseFormat = RESPONSE_FORMAT.STRUCTURED;
         }
-        else if (aiAttitudes.early_adopter && aiAttitudes.early_adopter > 70) {
-            responseFormat = 'conversational';
+        else if (aiAttitudes.early_adopter && 
+                aiAttitudes.early_adopter > ATTITUDE_THRESHOLD.SIGNIFICANT) {
+            responseFormat = RESPONSE_FORMAT.CONVERSATIONAL;
         }
+        
         return {
             detailLevel,
             communicationStyle,

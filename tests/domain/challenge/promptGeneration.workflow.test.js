@@ -4,8 +4,9 @@ import testEnv from "../../loadEnv.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 import { config } from "dotenv";
 import * as apiTestHelper from "../../helpers/apiTestHelper.js";
-import openai from "../../../src/infra/openai";
+import openai from "@/infra/openai";
 import { createClient } from "@supabase/supabase-js";
+import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError, ChallengeRepositoryError, ChallengeGenerationError } from "../../../src/core/challenge/errors/ChallengeErrors.js";
 ({ config }.config());
 // Test variables
 const TEST_ID = `test_${Date.now()}`;
@@ -82,7 +83,7 @@ describe('Integration: Prompt Generation Workflow', function () {
                     }
                     return data && data.length > 0 ? data[0] : prompt;
                 }
-                catch (e) {
+                catch (ChallengeError) {
                     console.error('Repository save error:', e.message);
                     throw e;
                 }
@@ -109,7 +110,7 @@ describe('Integration: Prompt Generation Workflow', function () {
                         is_active: data.is_active
                     });
                 }
-                catch (e) {
+                catch (ChallengeError) {
                     console.error('Repository find error:', e.message);
                     throw e;
                 }
@@ -125,7 +126,7 @@ describe('Integration: Prompt Generation Workflow', function () {
                     }
                     return true;
                 }
-                catch (e) {
+                catch (ChallengeError) {
                     console.error('Repository delete error:', e.message);
                     throw e;
                 }

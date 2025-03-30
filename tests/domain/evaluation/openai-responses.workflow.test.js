@@ -5,6 +5,7 @@ import testEnv from "../../loadEnv.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 import testSetup from "../../helpers/testSetup.js";
 import { container } from "../../../src/config/container.js";
+import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationProcessingError, EvaluationRepositoryError } from "../../../src/core/evaluation/errors/evaluationErrors.js";
 describe('Integration: OpenAI Responses API Workflow', function () {
     before(function () {
         skipIfMissingEnv(this, 'openai');
@@ -96,7 +97,7 @@ describe('Integration: OpenAI Responses API Workflow', function () {
                 // Find the state
                 const state = await conversationStateRepository.findById(stateId);
                 if (!state) {
-                    throw new Error(`Conversation state not found: ${stateId}`);
+                    throw new EvaluationNotFoundError(`Conversation state not found: ${stateId}`);
                 }
                 // Update the state
                 state.lastResponseId = responseId;
@@ -112,7 +113,7 @@ describe('Integration: OpenAI Responses API Workflow', function () {
                 // Find the state
                 const state = await conversationStateRepository.findById(stateId);
                 if (!state) {
-                    throw new Error(`Conversation state not found: ${stateId}`);
+                    throw new EvaluationNotFoundError(`Conversation state not found: ${stateId}`);
                 }
                 return state.lastResponseId;
             },

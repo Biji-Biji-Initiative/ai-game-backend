@@ -177,6 +177,24 @@ class OpenAIServiceUnavailableError extends OpenAIRequestError {
     }
 }
 /**
+ * Error thrown when there's an issue with OpenAI state management
+ */
+class OpenAIStateManagementError extends OpenAIError {
+    /**
+     * @param {string} message - Error message
+     * @param {Object} [options] - Error options
+     */
+    /**
+     * Method constructor
+     */
+    constructor(message = 'Error in OpenAI state management', options = {}) {
+        super(message, {
+            ...options,
+            code: 'state_management_error',
+        });
+    }
+}
+/**
  * Creates the appropriate error type based on error code or status
  * @param {string|Object} error - Error object or message from OpenAI API
  * @param {Object} [options] - Additional error options
@@ -235,6 +253,7 @@ export { OpenAIInvalidRequestError };
 export { OpenAIAuthenticationError };
 export { OpenAIPermissionError };
 export { OpenAIServiceUnavailableError };
+export { OpenAIStateManagementError };
 export { createOpenAIError };
 export default {
     OpenAIError,
@@ -246,5 +265,6 @@ export default {
     OpenAIAuthenticationError,
     OpenAIPermissionError,
     OpenAIServiceUnavailableError,
+    OpenAIStateManagementError,
     createOpenAIError
 };

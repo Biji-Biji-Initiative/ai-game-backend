@@ -2,7 +2,7 @@ import { expect } from "chai";
 import sinon from "sinon";
 import { v4 as _uuidv4 } from "uuid";
 import valueObjects from "../../../src/core/common/valueObjects/index.js";
-import PersonalityCoordinator from "../../../src/application/PersonalityCoordinator.js";
+import PersonalityCoordinator from "@/application/PersonalityCoordinator.js";
 import { 
     PersonalityGenerationError, 
     PersonalityNotFoundError 

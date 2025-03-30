@@ -1,9 +1,9 @@
 'use strict';
 
-import personalityErrors, { PersonalityError, PersonalityNotFoundError, PersonalityValidationError, PersonalityProcessingError, ProfileNotFoundError, TraitsValidationError, AttitudesValidationError, InsightGenerationError, NoPersonalityDataError } from "../errors/PersonalityErrors.js";
-import { updatePersonalityTraitsSchema, updateAIAttitudesSchema, profileQuerySchema } from "../schemas/personalityApiSchemas.js";
+import personalityErrors, { PersonalityError, PersonalityNotFoundError, PersonalityValidationError, PersonalityProcessingError, ProfileNotFoundError, TraitsValidationError, AttitudesValidationError, InsightGenerationError, NoPersonalityDataError } from "../../personality/errors/PersonalityErrors.js";
+import { updatePersonalityTraitsSchema, updateAIAttitudesSchema, profileQuerySchema } from "../../personality/schemas/personalityApiSchemas.js";
 import { personalityLogger } from "../../infra/logging/domainLogger.js";
-import { applyRepositoryErrorHandling, applyServiceErrorHandling, withControllerErrorHandling, createErrorMapper } from '../../../core/infra/errors/errorStandardization.js';
+import { applyRepositoryErrorHandling, applyServiceErrorHandling, withControllerErrorHandling, createErrorMapper } from "../../infra/errors/errorStandardization.js";
 // Error mappings for controllers
 const personalityControllerErrorMappings = [{
   errorClass: PersonalityNotFoundError,

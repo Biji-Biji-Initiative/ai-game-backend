@@ -1,7 +1,8 @@
 import { expect } from "chai";
 import sinon from "sinon";
-import TraitsAnalysisService from "../../../core/personality/services/TraitsAnalysisService";
-import personalityErrors from "../../../core/personality/errors/PersonalityErrors";
+import TraitsAnalysisService from "../../../core/personality/services/TraitsAnalysisService.js";
+import personalityErrors from "../../../core/personality/errors/PersonalityErrors.js";
+import { UserError, UserNotFoundError, UserUpdateError, UserValidationError, UserInvalidStateError, UserAuthenticationError, UserAuthorizationError } from "../../../src/core/user/errors/UserErrors.js";
 const { NoPersonalityDataError } = personalityErrors;
 describe('Traits Analysis Service', () => {
     let traitsAnalysisService;

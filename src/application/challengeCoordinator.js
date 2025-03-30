@@ -1,5 +1,5 @@
 import { challengeLogger } from "../core/infra/logging/domainLogger.js";
-import BaseCoordinator from "./BaseCoordinator.js";
+import BaseCoordinator from "@/application/BaseCoordinator.js";
 import Challenge from "../core/challenge/models/Challenge.js";
 import challengeErrors from "../core/challenge/errors/ChallengeErrors.js";
 import { 

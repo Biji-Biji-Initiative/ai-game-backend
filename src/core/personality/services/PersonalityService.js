@@ -1,11 +1,11 @@
-import Personality from "../models/Personality.js";
-import PersonalityRepository from "../repositories/PersonalityRepository.js";
+import Personality from "../../personality/models/Personality.js";
+import PersonalityRepository from "../../personality/repositories/PersonalityRepository.js";
 import domainEvents from "../../common/events/domainEvents.js";
 import { v4 as uuidv4 } from "uuid";
 import { personalityLogger } from "../../infra/logging/domainLogger.js";
 import { applyRepositoryErrorHandling, applyServiceErrorHandling, applyControllerErrorHandling, createErrorMapper } from "../../infra/errors/centralizedErrorUtils.js";
-import { PersonalityError, PersonalityNotFoundError, PersonalityValidationError, PersonalityProcessingError } from "../errors/PersonalityErrors.js";
-import { NoPersonalityDataError } from "../errors/PersonalityErrors.js";
+import { PersonalityError, PersonalityNotFoundError, PersonalityValidationError, PersonalityProcessingError } from "../../personality/errors/PersonalityErrors.js";
+import { NoPersonalityDataError } from "../../personality/errors/PersonalityErrors.js";
 'use strict';
 const {
   EventTypes,

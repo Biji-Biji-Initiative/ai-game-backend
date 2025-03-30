@@ -1,11 +1,12 @@
 import { expect } from "chai";
 import sinon from "sinon";
 import { v4 as uuidv4 } from "uuid";
-import UserService from "../../../src/core/user/services/UserService";
-import User from "../../../src/core/user/models/User";
-import InMemoryUserRepository from "../../../src/test/repositories/InMemoryUserRepository";
-import domainEvents from "../../../src/core/common/events/domainEvents";
-import { createUserId, UserId } from "../../../src/core/common/valueObjects/index.js";
+import UserService from "../../../../src/core/user/services/UserService.js";
+import User from "../../../../src/core/user/models/User.js";
+import InMemoryUserRepository from "@/test/repositories/InMemoryUserRepository";
+import domainEvents from "../../../../src/core/common/events/domainEvents.js";
+import { createUserId, UserId } from "../../../../src/core/common/valueObjects/index.js";
+import UserId from "../../../src/core/common/valueObjects/UserId.js";
 const { EventTypes } = domainEvents;
 // Create a proper mock for the event bus
 const eventBusMock = {
@@ -14,6 +15,10 @@ const eventBusMock = {
 // Mock the eventBus in the User module
 const userModule = User;
 userModule.__eventBus = eventBusMock;
+
+// Helper for creating UserId value objects
+const createUserId = (id) => new UserId(id);
+
 describe('User Service', () => {
     let userService;
     let userRepository;
@@ -25,7 +30,7 @@ describe('User Service', () => {
         // Create the service with the repository
         userService = new UserService(userRepository);
         // Monkey patch the event bus in User.js to use our mock
-        sinon.stub(domainEvents, 'eventBus').get(() => eventBusMock);
+        mockDomainEvents.eventBus = sinon.stub().get(() => eventBusMock);;
     });
     afterEach(() => {
         // Restore all stubs

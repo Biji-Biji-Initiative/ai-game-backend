@@ -3,7 +3,8 @@ import sinon from "sinon";
 import request from "supertest";
 import * as express from "express";
 import * as bodyParser from "body-parser";
-import personalityRoutes from "../../../src/routes/personalityRoutes";
+import personalityRoutes from "@/routes/personalityRoutes";
+import { UserError, UserNotFoundError, UserUpdateError, UserValidationError, UserInvalidStateError, UserAuthenticationError, UserAuthorizationError } from "../../../src/core/user/errors/UserErrors.js";
 // Create a test container with mocked services
 const container = {
     get: sinon.stub()

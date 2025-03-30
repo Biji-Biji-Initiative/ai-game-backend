@@ -8,10 +8,10 @@
  */
 
 import { createServer } from 'http';
-import app from './app.js';
-import { logger } from './core/infra/logging/logger.js';
-import { initializeSupabase } from './core/infra/db/databaseConnection.js';
-import config from './config/config.js';
+import app from "@/app.js";
+import { logger } from "./core/infra/logging/logger.js";
+import { initializeSupabase } from "./core/infra/db/databaseConnection.js";
+import config from "./config/config.js";
 
 /**
  * Start the server on the specified port

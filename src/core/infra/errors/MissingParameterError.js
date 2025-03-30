@@ -1,4 +1,4 @@
-import AppError from "./AppError.js";
+import AppError from "../../infra/errors/AppError.js";
 'use strict';
 /**
  * Missing Parameter Error

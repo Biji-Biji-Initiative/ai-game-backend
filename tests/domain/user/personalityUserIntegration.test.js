@@ -2,12 +2,17 @@
 
 import { expect } from "chai";
 import sinon from "sinon";
-import PersonalityCoordinator from "../../../src/application/PersonalityCoordinator.js";
+import PersonalityCoordinator from "@/application/PersonalityCoordinator.js";
 import User from "../../../src/core/user/models/User.js";
 import domainEvents from "../../../src/core/common/events/domainEvents.js";
-import appLogger from "../../../src/core/infra/logging/appLogger";
-import { registerEventHandlers } from "../../../src/application/EventHandlers.js";
+import appLogger from "../../../src/core/infra/logging/appLogger.js";
+import { registerEventHandlers } from "@/application/EventHandlers.js";
+import { UserError, UserNotFoundError, UserUpdateError, UserValidationError, UserInvalidStateError, UserAuthenticationError, UserAuthorizationError } from "../../../src/core/user/errors/UserErrors.js";
+import UserId from "../../../src/core/common/valueObjects/UserId.js";
 const { EventTypes, eventBus } = domainEvents;
+
+// Helper for creating UserId value objects
+const createUserId = (id) => new UserId(id);
 
 describe('Personality-User Integration', () => {
     let personalityCoordinator;
@@ -23,7 +28,7 @@ describe('Personality-User Integration', () => {
             error: sinon.stub()
         };
         // Stub the appLogger
-        sinon.stub(appLogger, 'child').returns(loggerStub);
+        mockAppLogger.child = sinon.stub().returns(loggerStub);;
         // Create mock user repository
         userRepositoryMock = {
             findById: sinon.stub(),

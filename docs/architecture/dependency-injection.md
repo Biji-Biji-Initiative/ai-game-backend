@@ -10,6 +10,20 @@ Our application uses a container-based dependency injection pattern to manage co
 2. Resolving dependencies between components
 3. Managing component lifecycles (singleton vs. transient)
 
+## New Features and Improvements
+
+Our DIContainer implementation has been enhanced with several new features:
+
+1. **Method Chaining** - All registration methods now return the container instance for easier chaining
+2. **Class Registration** - A new `registerClass()` method enables automatic dependency resolution
+3. **Module Registration** - A new `registerModule()` method allows for cleaner modular registration
+4. **Service Management** - Added `has()` and `remove()` methods for better service management
+5. **Improved Documentation** - Each container service now includes comments explaining singleton decisions
+
+For detailed guidelines on when to use these features and best practices, see:
+- [DI Container Guidelines](./DIContainerGuidelines.md)
+- [DI Container Examples](./DIContainerExamples.md)
+
 ## Container Structure
 
 The DI container is initialized in `src/config/container.js` and configured through several module-specific registration files in `src/config/container/`:
@@ -36,6 +50,15 @@ container.register('personalityCoordinator', c => {
         logger: c.get('personalityLogger')
     });
 }, false); // Transient lifecycle
+```
+
+With method chaining, multiple registrations can be more concise:
+
+```javascript
+container
+  .register('service1', c => new Service1(), true)
+  .register('service2', c => new Service2(), false)
+  .register('service3', c => new Service3(), true);
 ```
 
 ### Component Retrieval
@@ -127,13 +150,15 @@ Components can be registered with different lifecycles:
 container.register('logger', c => new Logger(c.get('config')), true);
 
 // Transient example (new instance per request)
-container.register('userController', c => new UserController({...}), false);
+container.register('userService', c => new UserController({...}), false);
 ```
 
 Choose the appropriate lifecycle based on:
 - Whether the component maintains state
 - Thread safety considerations
 - Performance requirements
+
+For detailed guidelines on when to use singletons vs transient instances, see [DI Container Guidelines](./DIContainerGuidelines.md).
 
 ## Testing with the Container
 
@@ -148,3 +173,20 @@ containerMock.get.withArgs('userService').returns(userServiceMock);
 ```
 
 This allows testing components that depend on the container without creating the entire application context. 
+
+Alternatively, you can create a real container with mock dependencies:
+
+```javascript
+const testContainer = new DIContainer();
+testContainer
+  .registerInstance('logger', mockLogger)
+  .registerInstance('userRepository', mockUserRepository)
+  .register('userService', c => new UserService({
+    logger: c.get('logger'),
+    userRepository: c.get('userRepository')
+  }));
+
+const service = testContainer.get('userService');
+```
+
+For more examples, see [DI Container Examples](./DIContainerExamples.md). 

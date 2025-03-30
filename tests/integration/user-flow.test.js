@@ -6,9 +6,9 @@ import crypto from "crypto";
 import testEnv from "../loadEnv.js";
 import { skipIfMissingEnv } from "../helpers/testHelpers.js";
 import { config } from "dotenv";
-import User from "../../../src/core/user/models/User";
-import UserRepository from "../../../src/core/user/repositories/UserRepository";
-import UserService from "../../../src/core/user/services/UserService";
+import User from "../../../src/core/user/models/User.js";
+import UserRepository from "../../../src/core/user/repositories/UserRepository.js";
+import UserService from "../../../src/core/user/services/UserService.js";
 import { createClient } from "@supabase/supabase-js";
 ({ config }.config());
 // Generate a unique test ID for this run
@@ -62,6 +62,14 @@ describe('Integration: User Flow', function () {
             catch (error) {
                 // If we can't load the exact modules, create minimal versions for testing
                 console.warn('Could not import exact modules, creating test versions');
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// ESM equivalent of __dirname and __filename
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+
                 logTestAction('ImportError', { message: error.message });
                 // Use environment variables to create Supabase client
                 const supabaseUrl = testEnv.getTestConfig().supabase.url;

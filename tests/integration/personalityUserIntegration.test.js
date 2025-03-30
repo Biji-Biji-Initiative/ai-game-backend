@@ -1,11 +1,11 @@
 import { expect } from "chai";
 import sinon from "sinon";
-import PersonalityCoordinator from "../../../src/application/PersonalityCoordinator";
-import UserService from "../../../src/core/user/services/UserService";
-import User from "../../../src/core/user/models/User";
-import domainEvents from "../../../src/core/common/events/domainEvents";
-import appLogger from "../../../src/core/infra/logging/appLogger";
-import eventHandlers from "../../../src/application/EventHandlers";
+import PersonalityCoordinator from "../../../src/application/PersonalityCoordinator.js";
+import UserService from "../../../src/core/user/services/UserService.js";
+import User from "../../../src/core/user/models/User.js";
+import domainEvents from "../../../src/core/common/events/domainEvents.js";
+import appLogger from "../../../src/core/infra/logging/appLogger.js";
+import eventHandlers from "../../../src/application/EventHandlers.js";
 const { EventTypes, eventBus } = domainEvents;
 import { appLogger } from "";
 describe('Personality-User Integration', () => {

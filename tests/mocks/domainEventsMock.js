@@ -8,7 +8,7 @@
 import sinon from 'sinon';
 
 // Import the real EventTypes so our mock has the same structure
-import { EventTypes } from '../../src/core/common/events/domainEvents.js';
+import { EventTypes } from "../../src/core/common/events/domainEvents.js";
 
 // Create an event bus mock that's compatible with the real one
 const eventBus = {

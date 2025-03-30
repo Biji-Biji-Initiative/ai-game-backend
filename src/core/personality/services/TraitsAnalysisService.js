@@ -1,5 +1,5 @@
 import { applyRepositoryErrorHandling, applyServiceErrorHandling, applyControllerErrorHandling, createErrorMapper } from "../../infra/errors/centralizedErrorUtils.js";
-import { PersonalityError, PersonalityNotFoundError, PersonalityValidationError, PersonalityProcessingError } from "../errors/PersonalityErrors.js";
+import { PersonalityError, PersonalityNotFoundError, PersonalityValidationError, PersonalityProcessingError } from "../../personality/errors/PersonalityErrors.js";
 import { personalityLogger } from "../../infra/logging/domainLogger.js";
 'use strict';
 // Create an error mapper for services

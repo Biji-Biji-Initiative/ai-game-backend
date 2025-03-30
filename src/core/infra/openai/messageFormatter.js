@@ -1,4 +1,4 @@
-import { OpenAIRequestError } from "./errors.js";
+import { OpenAIRequestError } from "../../infra/openai/errors.js";
 'use strict';
 /**
  * Formats a prompt and system message into the Responses API format

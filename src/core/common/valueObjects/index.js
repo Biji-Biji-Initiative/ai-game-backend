@@ -1,9 +1,9 @@
-import Email from "./Email.js";
-import UserId from "./UserId.js";
-import ChallengeId from "./ChallengeId.js";
-import DifficultyLevel from "./DifficultyLevel.js";
-import FocusArea from "./FocusArea.js";
-import TraitScore from "./TraitScore.js";
+import Email from "../../common/valueObjects/Email.js";
+import UserId from "../../common/valueObjects/UserId.js";
+import ChallengeId from "../../common/valueObjects/ChallengeId.js";
+import DifficultyLevel from "../../common/valueObjects/DifficultyLevel.js";
+import FocusArea from "../../common/valueObjects/FocusArea.js";
+import TraitScore from "../../common/valueObjects/TraitScore.js";
 'use strict';
 /**
  * Safely create an Email value object
@@ -122,6 +122,19 @@ function createValueObjects(data) {
     }
     return result;
 }
+/**
+ * Ensures a value is converted to a value object if it isn't already
+ * @param {*} value - Value to ensure is a value object
+ * @param {Function} VOClass - Value object class to check against
+ * @param {Function} createFn - Function to create the value object
+ * @returns {*} Value object instance or null if invalid
+ */
+function ensureVO(value, VOClass, createFn) {
+    if (value instanceof VOClass) {
+        return value;
+    }
+    return createFn(value);
+}
 export { Email };
 export { UserId };
 export { ChallengeId };
@@ -135,6 +148,7 @@ export { createFocusArea };
 export { createDifficultyLevel };
 export { createTraitScore };
 export { createValueObjects };
+export { ensureVO };
 export default {
     Email,
     UserId,
@@ -148,5 +162,6 @@ export default {
     createFocusArea,
     createDifficultyLevel,
     createTraitScore,
-    createValueObjects
+    createValueObjects,
+    ensureVO
 };

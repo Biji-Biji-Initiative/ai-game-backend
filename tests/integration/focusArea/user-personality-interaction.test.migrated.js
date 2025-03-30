@@ -1,6 +1,6 @@
 import * as axios from "axios";
 import { expect } from "chai";
-import testHelper from "../testHelper";
+import testHelper from "../testHelper.js";
 const { setupTestUser, cleanupTestUser, getAuthToken } = testHelper;
 // Base URL for API requests
 const API_URL = process.env.API_URL || 'http://localhost:3000/api';

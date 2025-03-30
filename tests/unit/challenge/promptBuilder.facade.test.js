@@ -1,8 +1,8 @@
 import { expect } from "chai";
-import testSetup from "./setup";
+import testSetup from "./setup.js";
 import { createTestUser, createTestChallenge } from "../../helpers/testFactory.js";
-import promptBuilder from "../../src/core/prompt/promptBuilder";
-import promptTypes from "../../src/core/prompt/promptTypes";
+import promptBuilder from "../../../src/core/prompt/promptBuilder.js";
+import promptTypes from "../../../src/core/prompt/promptTypes.js";
 const { PROMPT_TYPES } = promptTypes;
 describe('Prompt Builder Domain', function () {
     beforeEach(function () {

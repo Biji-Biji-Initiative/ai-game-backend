@@ -1,5 +1,5 @@
-import AppError from "./AppError.js";
-import { logger } from "../logging/logger.js";
+import AppError from "../../infra/errors/AppError.js";
+import { logger } from "../../infra/logging/logger.js";
 import config from "../../../config/config.js";
 'use strict';
 

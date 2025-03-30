@@ -1,6 +1,6 @@
-import { logger } from "../logging/logger.js";
-import AppError from "../errors/AppError.js";
-import { withServiceErrorHandling, createErrorMapper } from "../errors/errorStandardization.js";
+import { logger } from "../../infra/logging/logger.js";
+import AppError from "../../infra/errors/AppError.js";
+import { withServiceErrorHandling, createErrorMapper } from "../../infra/errors/errorStandardization.js";
 'use strict';
 
 /**

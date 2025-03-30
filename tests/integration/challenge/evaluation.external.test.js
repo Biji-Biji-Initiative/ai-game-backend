@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import openai from "../../../src/infra/openai";
+import openai from "@/infra/openai";
 import testEnv from "../../loadEnv.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 import { config } from "dotenv";

@@ -1,4 +1,4 @@
-import Challenge from "../models/Challenge.js";
+import Challenge from "../../challenge/models/Challenge.js";
 'use strict';
 /**
  * ChallengeMapper class

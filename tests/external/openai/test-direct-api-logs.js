@@ -3,6 +3,14 @@ import fs from "fs";
 import path from "path";
 import * as axios from "axios";
 import util from "util";
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// ESM equivalent of __dirname and __filename
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+
 /**
  * Direct OpenAI API Raw Request/Response Logging
  * This script uses axios to directly call OpenAI API and log the raw request/response

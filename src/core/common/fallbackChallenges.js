@@ -34,7 +34,8 @@ const FALLBACK_CHALLENGES = [
         difficulty: 'medium',
         content: {
             prompt: 'You have discovered a new AI tool that claims it can write perfect essays on any topic. How would you evaluate this claim? What questions would you ask to test it? What critical thinking strategies would you apply?',
-            context: 'In today', s, world, we, are, bombarded, with: new AI, technologies, that, make, bold, claims, : .Critical, evaluation, of, these, claims, is, an, essential, skill, : ., ',: timeEstimate, 600: ,: 
+            context: 'In today\'s world, we are bombarded with new AI technologies that make bold claims. Critical evaluation of these claims is an essential skill.',
+            timeEstimate: 600
         },
         evaluationCriteria: {
             'depth of analysis': 0.4,

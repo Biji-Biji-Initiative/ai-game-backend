@@ -1,34 +1,39 @@
 import AppError from "../../infra/errors/AppError.js";
+import { StandardErrorCodes } from "../../infra/errors/ErrorHandler.js";
 'use strict';
 /**
  * Base class for Auth domain errors
  */
 class AuthError extends AppError {
     /**
-     *
+     * Create a new AuthError instance
+     * @param {string} message - Error message
+     * @param {number} statusCode - HTTP status code
+     * @param {Object} options - Additional options
      */
-    /**
-     * Method constructor
-     */
-    constructor(message = 'Auth operation failed', statusCode = 400) {
-        super(message, statusCode);
+    constructor(message = 'Auth operation failed', statusCode = 400, options = {}) {
+        super(message, statusCode, {
+            ...options,
+            errorCode: options.errorCode || 'AUTH_ERROR'
+        });
         this.name = 'AuthError';
     }
 }
 /**
  * Auth Not Found Error
- * Thrown when attempting to access a auth that doesn't exist
+ * Thrown when attempting to access an auth entity that doesn't exist
  */
 class AuthNotFoundError extends AuthError {
     /**
-     *
-     */
-    /**
-     * Method constructor
+     * Create a new AuthNotFoundError instance
+     * @param {string} identifier - Auth identifier (ID or other identifying info)
      */
     constructor(identifier = '') {
-        const message = identifier ? `Auth not found: ${identifier}` : 'Auth not found';
-        super(message, 404);
+        const message = identifier ? `Auth entity not found: ${identifier}` : 'Auth entity not found';
+        super(message, 404, {
+            errorCode: StandardErrorCodes.NOT_FOUND,
+            metadata: { identifier }
+        });
         this.name = 'AuthNotFoundError';
     }
 }
@@ -38,13 +43,15 @@ class AuthNotFoundError extends AuthError {
  */
 class AuthValidationError extends AuthError {
     /**
-     *
+     * Create a new AuthValidationError instance
+     * @param {string} message - Error message describing the validation issue
+     * @param {Object} validationErrors - Specific validation errors
      */
-    /**
-     * Method constructor
-     */
-    constructor(message = 'Invalid auth data') {
-        super(message, 400);
+    constructor(message = 'Invalid auth data', validationErrors = null) {
+        super(message, 400, {
+            errorCode: StandardErrorCodes.VALIDATION_ERROR,
+            metadata: { validationErrors }
+        });
         this.name = 'AuthValidationError';
     }
 }
@@ -54,13 +61,15 @@ class AuthValidationError extends AuthError {
  */
 class AuthProcessingError extends AuthError {
     /**
-     *
+     * Create a new AuthProcessingError instance
+     * @param {string} message - Error message describing the processing issue
+     * @param {Object} options - Additional options
      */
-    /**
-     * Method constructor
-     */
-    constructor(message = 'Failed to process auth') {
-        super(message, 500);
+    constructor(message = 'Failed to process auth', options = {}) {
+        super(message, 500, {
+            ...options,
+            errorCode: StandardErrorCodes.DOMAIN_ERROR
+        });
         this.name = 'AuthProcessingError';
     }
 }
@@ -77,17 +86,22 @@ class AuthRepositoryError extends AuthError {
      * @param {Object} [options.metadata] - Additional metadata about the error
      */
     constructor(message = 'Failed to perform auth repository operation', options = {}) {
-        super(message, 500);
+        super(message, 500, {
+            ...options,
+            errorCode: StandardErrorCodes.DATABASE_ERROR,
+            cause: options.cause,
+            metadata: options.metadata
+        });
         this.name = 'AuthRepositoryError';
-        this.cause = options.cause || null;
-        this.metadata = options.metadata || {};
     }
 }
+
 export { AuthError };
 export { AuthNotFoundError };
 export { AuthValidationError };
 export { AuthProcessingError };
 export { AuthRepositoryError };
+
 export default {
     AuthError,
     AuthNotFoundError,

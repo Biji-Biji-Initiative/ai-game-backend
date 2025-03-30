@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import EvaluationService from "../../../src/core/evaluation/services/evaluationService.js";
 import { createUserId, createEvaluationId, UserId, EvaluationId } from "../../../src/core/common/valueObjects/index.js";
 import { EvaluationDTO, EvaluationMapper } from "../../../src/core/evaluation/dtos/index.js";
+import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationProcessingError, EvaluationRepositoryError } from "../../../src/core/evaluation/errors/evaluationErrors.js";
 
 describe('evaluation EvaluationService', () => {
     // Set longer timeout for API calls
@@ -110,7 +111,7 @@ describe('evaluation EvaluationService', () => {
             try {
                 await evaluationService.createEvaluation(invalidDTO);
                 expect.fail('Expected validation error was not thrown');
-            } catch (err) {
+            } catch (EvaluationError) {
                 expect(err.message).to.include('validation failed');
                 expect(dependencies.logger.error.called).to.be.true;
             }

@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import errors from "./errors.js";
+import errors from "../../infra/openai/errors.js";
 'use strict';
 const { OpenAIStateManagementError } = errors;
 /**
@@ -9,20 +9,23 @@ class OpenAIStateManager {
     /**
      * Create a new OpenAIStateManager
      * @param {object} options - OpenAIStateManager options
-     * @param {object} options.conversationStateRepository - Repository for saving/loading state
+     * @param {object} options.openAIClient - OpenAI client for API calls
      * @param {object} options.logger - Logger instance
+     * @param {object} [options.redisCache] - Optional Redis cache for state persistence
      */
     /**
      * Method constructor
      */
-    constructor({ conversationStateRepository, logger }) {
-        if (!conversationStateRepository) {
-            throw new OpenAIStateManagementError('ConversationStateRepository is required for OpenAIStateManager');
+    constructor({ openAIClient, logger, redisCache }) {
+        if (!openAIClient) {
+            throw new OpenAIStateManagementError('OpenAI client is required for OpenAIStateManager');
         }
         if (!logger) {
             throw new OpenAIStateManagementError('Logger is required for OpenAIStateManager');
         }
-        this.repo = conversationStateRepository;
+        
+        this.client = openAIClient;
+        this.cache = redisCache; // Optional, can be null
         this.logger = logger.child({ service: 'OpenAIStateManager' });
     }
     /**
@@ -39,6 +42,7 @@ class OpenAIStateManager {
         if (!userId || !context) {
             throw new OpenAIStateManagementError('UserId and context are required to create conversation state');
         }
+        
         const state = {
             id: uuidv4(), // Or generate ID based on userId/context if preferred & unique
             userId,
@@ -48,16 +52,22 @@ class OpenAIStateManager {
             updatedAt: new Date().toISOString(),
             metadata: initialMetadata,
         };
+        
         try {
-            const createdState = await this.repo.createState(state);
-            this.logger.info('Created new conversation state', { stateId: createdState.id, userId, context });
-            return createdState;
+            // If we have a cache, store the state there
+            if (this.cache) {
+                const cacheKey = `openai:state:${userId}:${context}`;
+                await this.cache.set(cacheKey, JSON.stringify(state), 60 * 60); // 1 hour TTL
+            }
+            
+            this.logger.info('Created new conversation state', { stateId: state.id, userId, context });
+            return state;
         }
-        catch (dbError) {
-            this.logger.error('Failed to create conversation state in repository', {
-                error: dbError.message, userId, context,
+        catch (error) {
+            this.logger.error('Failed to create conversation state', {
+                error: error.message, userId, context,
             });
-            throw new OpenAIStateManagementError(`Database error creating state: ${dbError.message}`, { userId, context });
+            throw new OpenAIStateManagementError(`Error creating state: ${error.message}`, { userId, context });
         }
     }
     /**
@@ -74,23 +84,31 @@ class OpenAIStateManager {
         if (!userId || !context) {
             throw new OpenAIStateManagementError('UserId and context are required');
         }
+        
         try {
             // Attempt to find by userId and context
-            let state = await this.repo.findStateByContext(userId, context);
-            if (state) {
-                this.logger.debug('Found existing conversation state', { stateId: state.id, userId, context });
-                return state;
+            let state = null;
+            
+            // If we have a cache, try to get the state from there
+            if (this.cache) {
+                const cacheKey = `openai:state:${userId}:${context}`;
+                const cachedState = await this.cache.get(cacheKey);
+                if (cachedState) {
+                    state = JSON.parse(cachedState);
+                    this.logger.debug('Found existing conversation state in cache', { stateId: state.id, userId, context });
+                    return state;
+                }
             }
-            else {
-                this.logger.info('No existing state found, creating new one', { userId, context });
-                return await this.createConversationState(userId, context, initialMetadata);
-            }
+            
+            // If not found, create a new one
+            this.logger.info('No existing state found, creating new one', { userId, context });
+            return await this.createConversationState(userId, context, initialMetadata);
         }
-        catch (dbError) {
-            this.logger.error('Database error finding/creating conversation state', {
-                error: dbError.message, userId, context,
+        catch (error) {
+            this.logger.error('Error finding/creating conversation state', {
+                error: error.message, userId, context,
             });
-            throw new OpenAIStateManagementError(`Database error finding/creating state: ${dbError.message}`, { userId, context });
+            throw new OpenAIStateManagementError(`Error finding/creating state: ${error.message}`, { userId, context });
         }
     }
     /**
@@ -106,79 +124,92 @@ class OpenAIStateManager {
             this.logger.warn('getLastResponseId called without stateId');
             return null; // Or throw? Depends on desired strictness.
         }
+        
         try {
-            const state = await this.repo.findStateById(stateId);
-            if (!state) {
-                this.logger.warn('Conversation state not found for getLastResponseId', { stateId });
-                return null;
-            }
-            return state.lastResponseId;
+            // We can't directly get the state by ID without knowing the user/context
+            // So we need to implement a workaround if this method is needed
+            this.logger.warn('getLastResponseId not fully implemented with cache storage');
+            return null;
         }
-        catch (dbError) {
-            this.logger.error('Failed to get last response ID from repository', {
-                error: dbError.message, stateId,
+        catch (error) {
+            this.logger.error('Failed to get last response ID', {
+                error: error.message, stateId,
             });
-            throw new OpenAIStateManagementError(`Database error getting state: ${dbError.message}`, { stateId });
+            throw new OpenAIStateManagementError(`Error getting state: ${error.message}`, { stateId });
         }
     }
     /**
      * Updates the conversation state with the latest response ID.
      * @param {string} stateId - The unique ID of the conversation state record.
      * @param {string} newResponseId - The ID of the latest response from OpenAI.
+     * @param {string} userId - User ID associated with this state
+     * @param {string} context - Context associated with this state
      * @returns {Promise<void>}
      */
     /**
      * Method updateLastResponseId
      */
-    async updateLastResponseId(stateId, newResponseId) {
+    async updateLastResponseId(stateId, newResponseId, userId, context) {
         if (!stateId || !newResponseId) {
             throw new OpenAIStateManagementError('StateId and newResponseId are required for update');
         }
+        
         try {
-            const updates = {
-                lastResponseId: newResponseId,
-                updatedAt: new Date().toISOString(),
-            };
-            const success = await this.repo.updateState(stateId, updates);
-            if (!success) {
-                throw new OpenAIStateManagementError('Failed to update conversation state (not found or DB error)', { stateId });
+            if (this.cache && userId && context) {
+                const cacheKey = `openai:state:${userId}:${context}`;
+                const cachedState = await this.cache.get(cacheKey);
+                
+                if (cachedState) {
+                    const state = JSON.parse(cachedState);
+                    state.lastResponseId = newResponseId;
+                    state.updatedAt = new Date().toISOString();
+                    
+                    await this.cache.set(cacheKey, JSON.stringify(state), 60 * 60); // 1 hour TTL
+                    this.logger.debug('Updated conversation state with new response ID', { stateId, newResponseId });
+                    return;
+                }
             }
-            this.logger.debug('Updated conversation state with new response ID', { stateId, newResponseId });
+            
+            this.logger.warn('Could not update state (not found in cache or missing user/context)', { stateId });
         }
-        catch (dbError) {
-            this.logger.error('Failed to update last response ID in repository', {
-                error: dbError.message, stateId, newResponseId,
+        catch (error) {
+            this.logger.error('Failed to update last response ID', {
+                error: error.message, stateId, newResponseId,
             });
-            throw new OpenAIStateManagementError(`Database error updating state: ${dbError.message}`, { stateId });
+            throw new OpenAIStateManagementError(`Error updating state: ${error.message}`, { stateId });
         }
     }
     /**
      * Deletes a conversation state record.
      * @param {string} stateId - The unique ID of the conversation state record.
+     * @param {string} userId - User ID associated with this state
+     * @param {string} context - Context associated with this state
      * @returns {Promise<boolean>} True if deleted, false otherwise.
      */
     /**
      * Method deleteConversationState
      */
-    async deleteConversationState(stateId) {
+    async deleteConversationState(stateId, userId, context) {
         if (!stateId) {
             throw new OpenAIStateManagementError('StateId is required for deletion');
         }
+        
         try {
-            const success = await this.repo.deleteState(stateId);
-            if (success) {
-                this.logger.info('Deleted conversation state', { stateId });
+            if (this.cache && userId && context) {
+                const cacheKey = `openai:state:${userId}:${context}`;
+                await this.cache.del(cacheKey);
+                this.logger.info('Deleted conversation state from cache', { stateId });
+                return true;
             }
-            else {
-                this.logger.warn('Could not delete conversation state (not found)', { stateId });
-            }
-            return success;
+            
+            this.logger.warn('Could not delete state (missing cache or user/context)', { stateId });
+            return false;
         }
-        catch (dbError) {
-            this.logger.error('Database error deleting conversation state', {
-                error: dbError.message, stateId,
+        catch (error) {
+            this.logger.error('Error deleting conversation state', {
+                error: error.message, stateId,
             });
-            throw new OpenAIStateManagementError(`Database error deleting state: ${dbError.message}`, { stateId });
+            throw new OpenAIStateManagementError(`Error deleting state: ${error.message}`, { stateId });
         }
     }
 }

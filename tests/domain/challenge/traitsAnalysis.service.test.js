@@ -2,6 +2,7 @@ import { expect } from "chai";
 import sinon from "sinon";
 import TraitsAnalysisService from "../../../src/core/personality/services/TraitsAnalysisService.js";
 import { NoPersonalityDataError } from "../../../src/core/personality/errors/PersonalityErrors.js";
+import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError, ChallengeRepositoryError, ChallengeGenerationError } from "../../../src/core/challenge/errors/ChallengeErrors.js";
 describe('Traits Analysis Service', () => {
     let traitsAnalysisService;
     let personalityRepositoryMock;

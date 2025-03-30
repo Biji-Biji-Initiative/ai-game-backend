@@ -1,38 +1,60 @@
 import { expect } from "chai";
 import sinon from "sinon";
-import proxyquire from "proxyquire";
+import EvaluationRepository from "../../../src/core/evaluation/repositories/evaluationRepository.js";
 import Evaluation from "../../../src/core/evaluation/models/Evaluation.js";
-import evaluationSchema from "../../../src/core/evaluation/schemas/EvaluationSchema.js";
-const proxyquireNoCallThru = proxyquire.noCallThru();
-// Mock the supabase client to avoid actual API calls
-const supabaseMock = {
-    from: () => { }
-};
-// Mock the logger to avoid actual logging
-const loggerMock = {
-    info: () => { },
-    error: () => { },
-    debug: () => { }
-};
-// Use proxyquire to inject our mocks
-const EvaluationRepository = proxyquire('../../../../src/core/evaluation/repositories/evaluationRepository', {
-    '../../../lib/supabase': supabaseMock,
-    '../../../core/infra/logging/logger': { logger: loggerMock },
-    '../schemas/EvaluationSchema': evaluationSchema
-});
-// Create an instance of the repository
-const evaluationRepository = new EvaluationRepository();
+import { EvaluationSchema } from "../../../src/core/evaluation/schemas/EvaluationSchema.js";
+import { ChallengeError, ChallengeNotFoundError } from "../../../src/core/challenge/errors/ChallengeErrors.js";
+import ChallengeId from "../../../src/core/common/valueObjects/ChallengeId.js";
+
 // Isolated test suite for unit testing the Evaluation Repository with Zod validation
-describe.only('Evaluation Repository with Zod Validation', () => {
+describe('Evaluation Repository with Zod Validation', () => {
     let sandbox;
+    let evaluationRepository;
+    let supabaseMock;
+    let loggerMock;
+    let eventBusMock;
+
     before(() => {
         // Create a sandbox for stubs
         sandbox = sinon.createSandbox();
     });
+
+    beforeEach(() => {
+        // Mock the supabase client to avoid actual API calls
+        supabaseMock = {
+            from: sandbox.stub().returnsThis()
+        };
+
+        // Mock the logger to avoid actual logging
+        loggerMock = {
+            info: sandbox.stub(),
+            error: sandbox.stub(),
+            debug: sandbox.stub(),
+            child: sandbox.stub().returns({
+                info: sandbox.stub(),
+                error: sandbox.stub(),
+                debug: sandbox.stub()
+            })
+        };
+
+        // Mock event bus
+        eventBusMock = {
+            publishEvent: sandbox.stub().resolves()
+        };
+
+        // Create an instance of the repository with mock dependencies
+        evaluationRepository = new EvaluationRepository({
+            db: supabaseMock,
+            logger: loggerMock,
+            eventBus: eventBusMock
+        });
+    });
+
     afterEach(() => {
         // Restore stubs after each test
         sandbox.restore();
     });
+
     describe('createEvaluation() with validation', () => {
         it('should successfully create a valid evaluation', async () => {
             // Mock Supabase response
@@ -55,7 +77,7 @@ describe.only('Evaluation Repository with Zod Validation', () => {
                     single: sandbox.stub().resolves(mockSupabaseResponse)
                 })
             });
-            sandbox.stub(supabaseMock, 'from').returns({
+            supabaseMock.from.returns({
                 insert: insertStub
             });
             // Mock the static method on Evaluation to avoid UUID dependency
@@ -66,6 +88,7 @@ describe.only('Evaluation Repository with Zod Validation', () => {
                 userId: 'user-123',
                 challengeId: 'challenge-123',
                 score: 85,
+                categoryScores: { logic: 90, creativity: 80 },
                 overallFeedback: 'Great work!'
             }));
             // Valid evaluation data
@@ -85,6 +108,7 @@ describe.only('Evaluation Repository with Zod Validation', () => {
             // Verify Supabase was called
             expect(insertStub.called).to.be.true;
         });
+        
         it('should reject creation with missing required fields', async () => {
             // Invalid evaluation data (missing challengeId)
             const invalidData = {
@@ -101,6 +125,7 @@ describe.only('Evaluation Repository with Zod Validation', () => {
             }
         });
     });
+
     describe('updateEvaluation() with validation', () => {
         it('should successfully update with valid data', async () => {
             // Mock Supabase response
@@ -125,7 +150,7 @@ describe.only('Evaluation Repository with Zod Validation', () => {
                     })
                 })
             });
-            sandbox.stub(supabaseMock, 'from').returns({
+            supabaseMock.from.returns({
                 update: updateStub
             });
             // Mock the Evaluation.fromDatabase method
@@ -134,6 +159,7 @@ describe.only('Evaluation Repository with Zod Validation', () => {
                 userId: 'user-123',
                 challengeId: 'challenge-123',
                 score: 90,
+                categoryScores: { logic: 95, creativity: 85 },
                 overallFeedback: 'Updated feedback'
             }));
             // Valid update data
@@ -147,10 +173,12 @@ describe.only('Evaluation Repository with Zod Validation', () => {
             // Verify result
             expect(result).to.be.an.instanceOf(Evaluation);
             expect(result.score).to.equal(90);
+            expect(result.categoryScores).to.deep.equal({ logic: 95, creativity: 85 });
             expect(result.overallFeedback).to.equal('Updated feedback');
             // Verify Supabase was called
             expect(updateStub.called).to.be.true;
         });
+
         it('should reject updates with invalid data', async () => {
             // Invalid update data (score out of range)
             const invalidData = {
@@ -166,6 +194,7 @@ describe.only('Evaluation Repository with Zod Validation', () => {
             }
         });
     });
+
     describe('getEvaluationsForUser() with validation', () => {
         it('should use validated options', async () => {
             // Mock Supabase response
@@ -175,7 +204,8 @@ describe.only('Evaluation Repository with Zod Validation', () => {
                         id: 'eval-123',
                         user_id: 'user-123',
                         challenge_id: 'challenge-123',
-                        overall_score: 85
+                        overall_score: 85,
+                        category_scores: { logic: 90, creativity: 80 }
                     }
                 ],
                 error: null
@@ -190,7 +220,7 @@ describe.only('Evaluation Repository with Zod Validation', () => {
                     })
                 })
             });
-            sandbox.stub(supabaseMock, 'from').returns({
+            supabaseMock.from.returns({
                 select: selectStub
             });
             // Mock the Evaluation.fromDatabase method
@@ -198,7 +228,8 @@ describe.only('Evaluation Repository with Zod Validation', () => {
                 id: 'eval-123',
                 userId: 'user-123',
                 challengeId: 'challenge-123',
-                score: 85
+                score: 85,
+                categoryScores: { logic: 90, creativity: 80 }
             }));
             // Valid options
             const options = {
@@ -215,6 +246,7 @@ describe.only('Evaluation Repository with Zod Validation', () => {
             // Verify range was called with correct parameters
             expect(rangeStub.called).to.be.true;
         });
+
         it('should reject with invalid options', async () => {
             // Invalid options (negative limit)
             const invalidOptions = {
@@ -230,15 +262,21 @@ describe.only('Evaluation Repository with Zod Validation', () => {
             }
         });
     });
+
     describe('saveEvaluation() with validation', () => {
         beforeEach(() => {
             // Mock getEvaluationById to return null (simulating new evaluation)
             sandbox.stub(evaluationRepository, 'getEvaluationById').resolves(null);
             // Mock createEvaluation to succeed
             sandbox.stub(evaluationRepository, 'createEvaluation').callsFake(data => {
-                return Promise.resolve(new Evaluation(data));
+                return Promise.resolve(new Evaluation({
+                    ...data,
+                    id: 'eval-123',
+                    categoryScores: data.categoryScores || { logic: 90, creativity: 80 }
+                }));
             });
         });
+
         it('should validate before saving', async () => {
             // Create a mock Evaluation that passes isValid() but has invalid data for Zod
             const mockEvaluation = {
@@ -246,14 +284,18 @@ describe.only('Evaluation Repository with Zod Validation', () => {
                 userId: 'user-123',
                 challengeId: 'challenge-123',
                 score: 500, // Invalid score (> 100)
+                categoryScores: { logic: 90, creativity: 80 },
                 isValid: () => true,
                 toObject: () => ({
                     id: 'eval-123',
                     userId: 'user-123',
                     challengeId: 'challenge-123',
-                    score: 500 // Invalid score
+                    score: 500, // Invalid score
+                    categoryScores: { logic: 90, creativity: 80 },
+                    overallFeedback: 'Test evaluation'
                 })
             };
+
             try {
                 await evaluationRepository.saveEvaluation(mockEvaluation);
                 expect.fail('Should have thrown a validation error');

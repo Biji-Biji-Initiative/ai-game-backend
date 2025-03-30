@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import sinon from "sinon";
-import Evaluation from "../../../src/core/evaluation/models/Evaluation";
+import Evaluation from "../../../src/core/evaluation/models/Evaluation.js";
 describe('Evaluation Model Integration', () => {
     it('Evaluation model constructor creates valid instance', () => {
         const evaluation = new Evaluation({

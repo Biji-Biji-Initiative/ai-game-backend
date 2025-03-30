@@ -1,4 +1,4 @@
-import AIClient from "../ports/AIClient.js";
+import AIClient from "../../ai/ports/AIClient.js";
 'use strict';
 /**
  * Implementation of AIClient using OpenAI's client

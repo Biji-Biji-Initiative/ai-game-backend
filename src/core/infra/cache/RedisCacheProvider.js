@@ -1,6 +1,6 @@
 import { createClient } from "redis";
 import { promisify } from "util";
-import { logger } from "../logging/logger.js";
+import { logger } from "../../infra/logging/logger.js";
 'use strict';
 /**
  * Redis Cache Provider class

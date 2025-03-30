@@ -1,7 +1,7 @@
 import { logger } from "../../infra/logging/logger.js";
-import { appendApiStandards, getStructuredOutputInstructions, getResponsesApiInstruction } from "../common/apiStandards.js";
-import { validateFocusAreaPromptParams } from "../schemas/focusAreaSchema.js";
-import { PromptConstructionError } from "../common/errors.js";
+import { appendApiStandards, getStructuredOutputInstructions, getResponsesApiInstruction } from "../../prompt/common/apiStandards.js";
+import { validateFocusAreaPromptParams } from "../../prompt/schemas/focusAreaSchema.js";
+import { PromptConstructionError } from "../../prompt/common/errors.js";
 import messageFormatter from "../../infra/openai/messageFormatter.js";
 'use strict';
 const {

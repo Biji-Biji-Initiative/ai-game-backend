@@ -3,16 +3,16 @@
 /**
  * Challenge Generation Service
  * 
- * Domain service that handles the generation of challenges using AI.
- * Updated to use the AIClient and AIStateManager ports instead of direct
- * OpenAI infrastructure dependencies to follow clean architecture principles.
+ * Application service that handles the generation of challenges using AI.
+ * This service orchestrates between user data, challenge parameters, and AI services.
+ * Uses the AIClient and AIStateManager ports to follow clean architecture principles.
  */
 
-// Update imports to use AI ports instead of concrete implementations
-import promptBuilder from "../../prompt/promptBuilder.js";
-import { formatForResponsesApi } from "../../../core/infra/openai/messageFormatter.js";
-import { ChallengeGenerationError } from "../errors/ChallengeErrors.js";
-import Challenge from "../models/Challenge.js";
+import promptBuilder from "../../core/prompt/promptBuilder.js";
+import { formatForResponsesApi } from "../../core/infra/openai/messageFormatter.js";
+import { ChallengeGenerationError } from "../../core/challenge/errors/ChallengeErrors.js";
+import Challenge from "../../core/challenge/models/Challenge.js";
+import { challengeLogger } from "../../core/infra/logging/domainLogger.js";
 
 /**
  * Service for generating challenges
@@ -40,25 +40,9 @@ class ChallengeGenerationService {
     this.aiClient = aiClient;
     this.aiStateManager = aiStateManager;
     this.openAIConfig = openAIConfig || {};
-    this.logger = logger || console;
+    this.logger = logger || challengeLogger.child({ service: 'ChallengeGenerationService' });
   }
 
-  /**
-   * Log messages with consistent format
-   * @param {string} level - Log level
-   * @param {string} message - Log message
-   * @param {Object} context - Log context
-   * @private
-   */
-  log(level, message, context = {}) {
-    if (this.logger && typeof this.logger[level] === 'function') {
-      this.logger[level](message, { 
-        service: 'ChallengeGenerationService', 
-        ...context 
-      });
-    }
-  }
-  
   /**
    * Generate a personalized challenge for a user
    * @param {Object} user - User data
@@ -78,7 +62,7 @@ class ChallengeGenerationService {
         throw new ChallengeGenerationError('Challenge parameters are required for generation');
       }
       
-      // Get or create conversation state using aiStateManager instead of openAIStateManager
+      // Get or create conversation state using aiStateManager
       const userId = user.id || user.email;
       const conversationState = await this.aiStateManager.findOrCreateConversationState(
         userId, 
@@ -89,10 +73,11 @@ class ChallengeGenerationService {
       // Get the previous response ID for conversation continuity
       const previousResponseId = await this.aiStateManager.getLastResponseId(conversationState.id);
       
-      this.log('debug', 'Retrieved conversation state for challenge generation', { 
+      this.logger.debug('Retrieved conversation state for challenge generation', { 
         stateId: conversationState.id,
         userId,
-        hasLastResponseId: !!previousResponseId
+        hasLastResponseId: !!previousResponseId,
+        service: 'ChallengeGenerationService'
       });
       
       // Get focus area and ensure it's set properly
@@ -113,10 +98,11 @@ class ChallengeGenerationService {
         }
       });
       
-      this.log('debug', 'Generated challenge prompt using promptBuilder', { 
+      this.logger.debug('Generated challenge prompt using promptBuilder', { 
         promptLength: prompt.length, 
         userId,
-        focusArea
+        focusArea,
+        service: 'ChallengeGenerationService'
       });
       
       // Format messages for AI service
@@ -133,10 +119,11 @@ class ChallengeGenerationService {
         previousResponseId
       };
       
-      // Call the AI service for challenge generation using aiClient instead of openAIClient
-      this.log('debug', 'Calling AI service for challenge generation', { 
+      // Call the AI service for challenge generation
+      this.logger.debug('Calling AI service for challenge generation', { 
         userId, 
-        stateId: conversationState.id
+        stateId: conversationState.id,
+        service: 'ChallengeGenerationService'
       });
       
       const response = await this.aiClient.sendJsonMessage(messages, apiOptions);
@@ -157,18 +144,20 @@ class ChallengeGenerationService {
         title: response.data.title || `New ${focusArea} Challenge`
       };
       
-      this.log('info', 'Successfully generated challenge', { 
+      this.logger.info('Successfully generated challenge', { 
         userId,
         focusArea,
-        responseId: response.responseId
+        responseId: response.responseId,
+        service: 'ChallengeGenerationService'
       });
       
       return result;
     } catch (error) {
-      this.log('error', 'Error generating challenge', { 
+      this.logger.error('Error generating challenge', { 
         error: error.message, 
         stack: error.stack,
-        userId: user?.id || user?.email
+        userId: user?.id || user?.email,
+        service: 'ChallengeGenerationService'
       });
       
       throw new ChallengeGenerationError(`Failed to generate challenge: ${error.message}`, { cause: error });
@@ -186,16 +175,16 @@ class ChallengeGenerationService {
   async generateChallengeVariation(challenge, user, options = {}) {
     try {
       if (!challenge) {
-        throw new Error('Challenge is required for variation generation');
+        throw new ChallengeGenerationError('Challenge is required for variation generation');
       }
       
       if (!user) {
-        throw new Error('User data is required for variation generation');
+        throw new ChallengeGenerationError('User data is required for variation generation');
       }
       
       const threadId = options.threadId;
       if (!threadId) {
-        throw new Error('Thread ID is required for variation generation');
+        throw new ChallengeGenerationError('Thread ID is required for variation generation');
       }
       
       // Get or create a conversation state for this variation thread
@@ -219,10 +208,11 @@ class ChallengeGenerationService {
         gameState: options.gameState || {}
       });
       
-      this.log('debug', 'Generated variation prompt using promptBuilder', { 
+      this.logger.debug('Generated variation prompt using promptBuilder', { 
         promptLength: prompt.length, 
         user: user.id || user.email,
-        originalChallengeId: challenge.id
+        originalChallengeId: challenge.id,
+        service: 'ChallengeGenerationService'
       });
       
       // Format messages for Responses API
@@ -243,11 +233,12 @@ ${systemMessage || ''}`
         previousResponseId
       };
       
-      // Call the OpenAI Responses API for variation generation
-      this.log('debug', 'Calling OpenAI Responses API for challenge variation', { 
+      // Call the AI service for variation generation
+      this.logger.debug('Calling AI service for challenge variation', { 
         user: user.id || user.email, 
         stateId: conversationState.id,
-        originalChallengeId: challenge.id
+        originalChallengeId: challenge.id,
+        service: 'ChallengeGenerationService'
       });
       
       const response = await this.aiClient.sendJsonMessage(messages, apiOptions);
@@ -257,7 +248,7 @@ ${systemMessage || ''}`
       
       // Validate the variation data
       if (!response || !response.data || !response.data.title || !response.data.content) {
-        throw new Error('Invalid variation response format from OpenAI Responses API');
+        throw new ChallengeGenerationError('Invalid variation response format from AI service');
       }
       
       const variationData = response.data;
@@ -285,25 +276,27 @@ ${systemMessage || ''}`
         }
       });
       
-      this.log('info', 'Successfully generated challenge variation', { 
+      this.logger.info('Successfully generated challenge variation', { 
         variationId: variation.id,
         userId: user.id || user.email,
         originalChallengeId: challenge.id,
-        variationType: options.variationType
+        variationType: options.variationType,
+        service: 'ChallengeGenerationService'
       });
       
       return variation;
     } catch (error) {
-      this.log('error', 'Error generating challenge variation', { 
+      this.logger.error('Error generating challenge variation', { 
         error: error.message,
         stack: error.stack,
         userId: user?.id || user?.email,
         originalChallengeId: challenge?.id,
-        variationType: options?.variationType
+        variationType: options?.variationType,
+        service: 'ChallengeGenerationService'
       });
-      throw new Error(`Failed to generate challenge variation: ${error.message}`);
+      throw new ChallengeGenerationError(`Failed to generate challenge variation: ${error.message}`, { cause: error });
     }
   }
 }
 
-export default ChallengeGenerationService;
+export default ChallengeGenerationService; 

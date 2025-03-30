@@ -1,11 +1,11 @@
-import PersonalityCoordinator from "../../application/PersonalityCoordinator.js";
-import FocusAreaCoordinatorFacade from "../../application/focusArea/FocusAreaCoordinatorFacade.js";
-import ChallengeCoordinator from "../../application/challengeCoordinator.js";
-import UserJourneyCoordinator from "../../application/userJourneyCoordinator.js";
-import FocusAreaGenerationCoordinator from "../../application/focusArea/FocusAreaGenerationCoordinator.js";
-import FocusAreaManagementCoordinator from "../../application/focusArea/FocusAreaManagementCoordinator.js";
-import ProgressCoordinator from "../../application/progress/ProgressCoordinator.js";
-import ApplicationEventHandlers from "../../application/EventHandlers.js";
+import PersonalityCoordinator from "@/application/PersonalityCoordinator.js";
+import FocusAreaCoordinatorFacade from "@/application/focusArea/FocusAreaCoordinatorFacade.js";
+import ChallengeCoordinator from "@/application/challengeCoordinator.js";
+import UserJourneyCoordinator from "@/application/userJourneyCoordinator.js";
+import FocusAreaGenerationCoordinator from "@/application/focusArea/FocusAreaGenerationCoordinator.js";
+import FocusAreaManagementCoordinator from "@/application/focusArea/FocusAreaManagementCoordinator.js";
+import ProgressCoordinator from "@/application/progress/ProgressCoordinator.js";
+import ApplicationEventHandlers from "@/application/EventHandlers.js";
 'use strict';
 /**
  * Coordinator Components Registration

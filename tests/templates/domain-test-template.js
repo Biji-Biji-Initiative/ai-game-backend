@@ -1,13 +1,13 @@
 import { expect } from "chai";
 import sinon from "sinon";
-import inMemory from "../../helpers/inMemory";
+import inMemory from "../../helpers/inMemory.js";
 // Import in-memory repositories
 const { createInMemoryUserRepository,
 // Import other repositories as needed
  } = inMemory;
 // Import domain models and services
-// const User = require('../../src/core/user/models/User');
-// const UserService = require('../../src/core/user/services/UserService');
+// import User from "../../src/core/user/models/User.js";
+// import UserService from "../../src/core/user/services/UserService.js";
 describe('Domain Component Name', function () {
     // Test setup
     let sandbox;

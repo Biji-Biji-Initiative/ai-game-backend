@@ -1,6 +1,6 @@
 import { expect } from "chai";
-import openai from "../../../src/infra/openai";
-import types from "../../../src/infra/openai/types";
+import openai from "@/infra/openai";
+import types from "@/infra/openai/types";
 import testEnv from "../../../loadEnv.js";
 import { skipIfMissingEnv } from "../../../helpers/testHelpers.js";
 const { OpenAIClient } = openai;

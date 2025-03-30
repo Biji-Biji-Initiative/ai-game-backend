@@ -4,8 +4,8 @@ import { v4 as uuidv4 } from "uuid";
 import { createInMemoryPersonalityRepository, createInMemoryUserRepository } from "../../helpers/inMemory/index.js";
 import { createUserId, UserId } from "../../../src/core/common/valueObjects/index.js";
 // Import the service (assuming module path, adjust if needed)
-// const PersonalityService = require('../../../src/core/personality/services/PersonalityService');
-// const Personality = require('../../../src/core/personality/models/Personality');
+// import PersonalityService from "../../../src/core/personality/services/PersonalityService.js";
+// import Personality from "../../../src/core/personality/models/Personality.js";
 describe('Personality Service Domain Tests', function () {
     // Set longer timeout for API calls
     this.timeout(30000);

@@ -1,12 +1,12 @@
 'use strict';
 
-import FocusArea from "../../models/config/FocusArea.js";
-import focusAreaMapper from "../../mappers/FocusAreaMapper.js";
+import FocusArea from "../../../challenge/models/config/FocusArea.js";
+import focusAreaMapper from "../../../challenge/mappers/FocusAreaMapper.js";
 import { challengeLogger } from "../../../infra/logging/domainLogger.js";
 import { supabaseClient } from "../../../infra/db/supabaseClient.js";
 import { ValidationError, DatabaseError, EntityNotFoundError } from "../../../infra/repositories/BaseRepository.js";
 import { withRepositoryErrorHandling, createErrorMapper } from "../../../infra/errors/errorStandardization.js";
-import challengeErrors from "../../errors/ChallengeErrors.js";
+import challengeErrors from "../../../challenge/errors/ChallengeErrors.js";
 
 // Import domain-specific error classes
 const { 

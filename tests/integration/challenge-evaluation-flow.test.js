@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 import testEnv from "../loadEnv.js";
 import { skipIfMissingEnv } from "../helpers/testHelpers.js";
 import { config } from "dotenv";
-import openai from "../../../src/infra/openai";
+import openai from "@/infra/openai";
 import { createClient } from "@supabase/supabase-js";
 ({ config }.config());
 // Generate a unique test ID for this run
@@ -71,6 +71,14 @@ describe('Integration: Challenge-Evaluation Cross-Domain Flow', function () {
             catch (error) {
                 // If we can't load the exact modules, create minimal versions for testing
                 console.warn('Could not import exact modules, creating test versions');
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// ESM equivalent of __dirname and __filename
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+
                 logTestAction('ImportError', { message: error.message });
                 // Create OpenAI client
                 const { OpenAIClient } = openai;

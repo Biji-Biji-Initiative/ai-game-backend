@@ -1,10 +1,10 @@
-import DifficultyLevel from "../../models/config/DifficultyLevel.js";
-import difficultyLevelMapper from "../../mappers/DifficultyLevelMapper.js";
+import DifficultyLevel from "../../../challenge/models/config/DifficultyLevel.js";
+import difficultyLevelMapper from "../../../challenge/mappers/DifficultyLevelMapper.js";
 import { challengeLogger } from "../../../infra/logging/domainLogger.js";
 import { supabaseClient } from "../../../infra/db/supabaseClient.js";
 import { ValidationError, DatabaseError, EntityNotFoundError } from "../../../infra/repositories/BaseRepository.js";
 import { withRepositoryErrorHandling, createErrorMapper } from "../../../infra/errors/errorStandardization.js";
-import challengeErrors from "../../errors/ChallengeErrors.js";
+import challengeErrors from "../../../challenge/errors/ChallengeErrors.js";
 'use strict';
 
 // Import domain-specific error classes

@@ -1,5 +1,5 @@
 // eslint-disable-next-line import/no-unresolved
-import { AppError } from "../../infra/errors/ErrorHandler.js";
+import { AppError, StandardErrorCodes } from "../../infra/errors/ErrorHandler.js";
 'use strict';
 /**
  * Base class for Challenge domain errors
@@ -9,9 +9,13 @@ class ChallengeError extends AppError {
      * Create a new ChallengeError instance
      * @param {string} message - Error message
      * @param {number} statusCode - HTTP status code
+     * @param {Object} options - Additional options
      */
-    constructor(message = 'Challenge operation failed', statusCode = 400) {
-        super(message, statusCode);
+    constructor(message = 'Challenge operation failed', statusCode = 400, options = {}) {
+        super(message, statusCode, {
+            ...options,
+            errorCode: options.errorCode || 'CHALLENGE_ERROR'
+        });
         this.name = 'ChallengeError';
     }
 }
@@ -26,7 +30,10 @@ class ChallengeNotFoundError extends ChallengeError {
      */
     constructor(identifier = '') {
         const message = identifier ? `Challenge not found: ${identifier}` : 'Challenge not found';
-        super(message, 404);
+        super(message, 404, {
+            errorCode: StandardErrorCodes.NOT_FOUND,
+            metadata: { identifier }
+        });
         this.name = 'ChallengeNotFoundError';
     }
 }
@@ -38,9 +45,13 @@ class ChallengeValidationError extends ChallengeError {
     /**
      * Create a new ChallengeValidationError instance
      * @param {string} message - Error message describing the validation issue
+     * @param {Object} validationErrors - Specific validation errors
      */
-    constructor(message = 'Invalid challenge data') {
-        super(message, 400);
+    constructor(message = 'Invalid challenge data', validationErrors = null) {
+        super(message, 400, {
+            errorCode: StandardErrorCodes.VALIDATION_ERROR,
+            metadata: { validationErrors }
+        });
         this.name = 'ChallengeValidationError';
     }
 }
@@ -52,9 +63,13 @@ class ChallengeProcessingError extends ChallengeError {
     /**
      * Create a new ChallengeProcessingError instance
      * @param {string} message - Error message describing the processing issue
+     * @param {Object} options - Additional error options
      */
-    constructor(message = 'Failed to process challenge') {
-        super(message, 500);
+    constructor(message = 'Failed to process challenge', options = {}) {
+        super(message, 500, {
+            ...options,
+            errorCode: StandardErrorCodes.DOMAIN_ERROR
+        });
         this.name = 'ChallengeProcessingError';
     }
 }
@@ -71,10 +86,13 @@ class ChallengeRepositoryError extends ChallengeError {
      * @param {Object} [options.metadata] - Additional metadata about the error
      */
     constructor(message = 'Failed to perform challenge repository operation', options = {}) {
-        super(message, 500);
+        super(message, 500, {
+            ...options,
+            errorCode: StandardErrorCodes.DATABASE_ERROR,
+            cause: options.cause,
+            metadata: options.metadata
+        });
         this.name = 'ChallengeRepositoryError';
-        this.cause = options.cause || null;
-        this.metadata = options.metadata || {};
     }
 }
 /**
@@ -89,9 +107,12 @@ class ChallengeGenerationError extends ChallengeError {
      * @param {Error} [options.cause] - The original error that caused this error
      */
     constructor(message = 'Failed to generate challenge', options = {}) {
-        super(message, 500);
+        super(message, 500, {
+            ...options,
+            errorCode: options.errorCode || 'CHALLENGE_GENERATION_ERROR',
+            cause: options.cause
+        });
         this.name = 'ChallengeGenerationError';
-        this.cause = options.cause || null;
     }
 }
 export { ChallengeError };

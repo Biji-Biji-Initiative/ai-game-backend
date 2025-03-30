@@ -1,4 +1,4 @@
-import BaseCoordinator from "../BaseCoordinator.js";
+import BaseCoordinator from "@/application/BaseCoordinator.js";
 import appError from "../../core/infra/errors/AppError.js";
 import { 
     Email, ChallengeId, FocusArea,

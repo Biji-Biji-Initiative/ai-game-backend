@@ -1,6 +1,6 @@
 import domainEvents from "../../common/events/domainEvents.js";
 import { v4 as uuidv4 } from "uuid";
-import { focusAreaSchema, validate } from "../schemas/focusAreaValidation.js";
+import { focusAreaSchema, validate } from "../../focusArea/schemas/focusAreaValidation.js";
 import Entity from "../../common/models/Entity.js";
 'use strict';
 /**

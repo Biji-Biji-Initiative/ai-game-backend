@@ -2,6 +2,7 @@ import { expect } from "chai";
 import sinon from "sinon";
 import { v4 as uuidv4 } from "uuid";
 import testSetup from "../setup.js";
+import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationProcessingError, EvaluationRepositoryError } from "../../../src/core/evaluation/errors/evaluationErrors.js";
 describe('Evaluation Service', function () {
     // Set longer timeout for API calls
     this.timeout(30000);

@@ -1,12 +1,13 @@
 import { expect } from "chai";
 import sinon from "sinon";
 import { v4 as uuidv4 } from "uuid";
+import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError, ChallengeRepositoryError, ChallengeGenerationError } from "../../../src/core/challenge/errors/ChallengeErrors.js";
 // Import the Prompt model - adjust path as needed
 let Prompt;
 try {
     Prompt = require('../../../src/core/prompt/models/Prompt');
 }
-catch (error) {
+catch (ChallengeError) {
     // If the model can't be loaded, create a simple version for testing
     Prompt = class Prompt {
         /**
@@ -137,7 +138,7 @@ describe('Domain: Prompt Template Generator', function () {
             await promptService.generatePromptTemplate('challenge', 'A description');
             expect.fail('Should have thrown an error');
         }
-        catch (error) {
+        catch (ChallengeError) {
             expect(error.message).to.equal('API Error');
         }
         // Verify OpenAI was called

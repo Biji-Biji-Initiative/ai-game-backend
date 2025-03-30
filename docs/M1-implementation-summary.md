@@ -108,3 +108,48 @@ To complete this ticket, the following steps are needed:
 3. **Domain Model Integrity**: Better representation of domain concepts
 4. **Improved Testability**: Easier to test with mock Value Objects
 5. **Reduced Duplication**: Less repetitive validation code
+
+## APP-303: Review and Refactor Magic Numbers/Rules in Mapping Logic
+
+### Problem:
+The codebase contained numerous "magic numbers" in mapping logic, particularly in:
+- `PersonalityCoordinator._mapAttitudesToPreferences` - using hardcoded values like 70, 100, 150
+- `UserContextService` methods - containing hardcoded thresholds for skill levels (80, 60) and other values
+
+These magic numbers made the code hard to understand, maintain, and modify. The purpose of these thresholds was not clear without additional context, and any changes would require finding all instances in the code.
+
+### Solution:
+To address this issue, we:
+
+1. **Created configuration files to store all magic numbers as named constants**:
+   - Created `src/core/personality/config/attitudeMappingConfig.js` for personality-related thresholds
+   - Created `src/application/evaluation/config/evaluationConfig.js` for evaluation-related thresholds
+
+2. **Extracted and organized thresholds with appropriate naming**:
+   - Mapped generic numbers to meaningful constants (e.g., `ATTITUDE_THRESHOLD.SIGNIFICANT` instead of `70`)
+   - Added detailed comments explaining the purpose of each threshold
+   - Grouped related constants into logical categories
+
+3. **Refactored the PersonalityCoordinator._mapAttitudesToPreferences method**:
+   - Replaced all hardcoded numbers with named constants
+   - Improved code readability with better variable names and spacing
+   - Added type constants for possible values (e.g., `DETAIL_LEVEL.COMPREHENSIVE` instead of `'comprehensive'`)
+
+4. **Refactored the UserContextService**:
+   - Replaced magic numbers with named constants
+   - Extracted collection limits (10, 5) to configuration
+   - Moved all default weights into the configuration
+   - Simplified the getDefaultCategoryWeights method using the configuration
+
+### Benefits:
+1. **Improved maintainability**: Changes to thresholds can now be made in a single location
+2. **Enhanced readability**: Constants provide context about what each value represents
+3. **Better documentation**: Added comments explain the purpose of each threshold
+4. **Easier modification**: Business rules can now be adjusted by changing configuration values
+5. **Reduced risk**: Centralized constants reduce the chance of inconsistent values
+
+### Files changed:
+- Created: `src/core/personality/config/attitudeMappingConfig.js`
+- Created: `src/application/evaluation/config/evaluationConfig.js` 
+- Modified: `src/application/PersonalityCoordinator.js`
+- Modified: `src/application/evaluation/UserContextService.js`

@@ -1,4 +1,5 @@
 import AppError from "../../infra/errors/AppError.js";
+import { StandardErrorCodes } from "../../infra/errors/ErrorHandler.js";
 'use strict';
 /**
  * Base class for Personality domain errors
@@ -8,9 +9,13 @@ class PersonalityError extends AppError {
      * Create a new PersonalityError
      * @param {string} message - Error message
      * @param {number} statusCode - HTTP status code
+     * @param {Object} options - Additional options
      */
-    constructor(message = 'Personality operation failed', statusCode = 400) {
-        super(message, statusCode);
+    constructor(message = 'Personality operation failed', statusCode = 400, options = {}) {
+        super(message, statusCode, {
+            ...options,
+            errorCode: options.errorCode || 'PERSONALITY_ERROR'
+        });
         this.name = 'PersonalityError';
     }
 }
@@ -25,7 +30,10 @@ class PersonalityNotFoundError extends PersonalityError {
      */
     constructor(identifier = '') {
         const message = identifier ? `Personality not found: ${identifier}` : 'Personality not found';
-        super(message, 404);
+        super(message, 404, {
+            errorCode: StandardErrorCodes.NOT_FOUND,
+            metadata: { identifier }
+        });
         this.name = 'PersonalityNotFoundError';
     }
 }
@@ -37,9 +45,13 @@ class PersonalityValidationError extends PersonalityError {
     /**
      * Create a new PersonalityValidationError
      * @param {string} message - Error message describing the validation failure
+     * @param {Object} validationErrors - Specific validation errors
      */
-    constructor(message = 'Invalid personality data') {
-        super(message, 400);
+    constructor(message = 'Invalid personality data', validationErrors = null) {
+        super(message, 400, {
+            errorCode: StandardErrorCodes.VALIDATION_ERROR,
+            metadata: { validationErrors }
+        });
         this.name = 'PersonalityValidationError';
     }
 }
@@ -50,10 +62,14 @@ class PersonalityValidationError extends PersonalityError {
 class PersonalityProcessingError extends PersonalityError {
     /**
      * Create a new PersonalityProcessingError
-     * @param {string} message - Error message describing the processing failure
+     * @param {string} message - Error message describing the processing issue
+     * @param {Object} options - Additional options
      */
-    constructor(message = 'Failed to process personality') {
-        super(message, 500);
+    constructor(message = 'Failed to process personality', options = {}) {
+        super(message, 500, {
+            ...options,
+            errorCode: StandardErrorCodes.DOMAIN_ERROR
+        });
         this.name = 'PersonalityProcessingError';
     }
 }
@@ -64,16 +80,16 @@ class PersonalityProcessingError extends PersonalityError {
 class PersonalityRepositoryError extends PersonalityError {
     /**
      * Create a new PersonalityRepositoryError
-     * @param {string} message - Error message describing the repository operation failure
-     * @param {Object} options - Additional error options
-     * @param {Error} [options.cause] - The underlying error that caused this error
-     * @param {Object} [options.metadata] - Additional metadata about the error
+     * @param {string} message - Error message describing the repository issue
+     * @param {Object} options - Additional options
      */
     constructor(message = 'Failed to perform personality repository operation', options = {}) {
-        super(message, 500);
+        super(message, 500, {
+            ...options,
+            errorCode: StandardErrorCodes.DATABASE_ERROR,
+            cause: options.cause
+        });
         this.name = 'PersonalityRepositoryError';
-        this.cause = options.cause || null;
-        this.metadata = options.metadata || {};
     }
 }
 // Additional domain-specific errors

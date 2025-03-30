@@ -1,8 +1,8 @@
-import CacheService from "./CacheService.js";
-import RedisCacheProvider from "./RedisCacheProvider.js";
-import MemoryCacheProvider from "./MemoryCacheProvider.js";
-import { CacheInvalidationManager } from "./CacheInvalidationManager.js";
-import { logger } from "../logging/logger.js";
+import CacheService from "../../infra/cache/CacheService.js";
+import RedisCacheProvider from "../../infra/cache/RedisCacheProvider.js";
+import MemoryCacheProvider from "../../infra/cache/MemoryCacheProvider.js";
+import { CacheInvalidationManager } from "../../infra/cache/CacheInvalidationManager.js";
+import { logger } from "../../infra/logging/logger.js";
 import config from "../../../config/config.js";
 'use strict';
 /**

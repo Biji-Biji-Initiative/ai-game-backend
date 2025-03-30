@@ -1,5 +1,5 @@
 import { withControllerErrorHandling } from "../../infra/errors/errorStandardization.js";
-import { AuthError, AuthNotFoundError, AuthValidationError, AuthProcessingError } from "../errors/AuthErrors.js";
+import { AuthError, AuthNotFoundError, AuthValidationError, AuthProcessingError } from "../../auth/errors/AuthErrors.js";
 'use strict';
 // Error mappings for controllers
 const authControllerErrorMappings = [

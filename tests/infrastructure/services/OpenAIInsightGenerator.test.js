@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import sinon from "sinon";
-import OpenAIInsightGenerator from "../../src/infrastructure/services/OpenAIInsightGenerator";
-import domainLogger from "../../src/core/infra/logging/domainLogger";
+import OpenAIInsightGenerator from "@/infrastructure/services/OpenAIInsightGenerator";
+import domainLogger from "../../../src/core/infra/logging/domainLogger.js";
 const { personalityLogger } = domainLogger;
 describe('OpenAI Insight Generator', () => {
     // Set longer timeout for API calls

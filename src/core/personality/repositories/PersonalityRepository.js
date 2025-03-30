@@ -1,11 +1,11 @@
-import Personality from "../models/Personality.js";
-import personalityMapper from "../mappers/PersonalityMapper.js";
+import Personality from "../../personality/models/Personality.js";
+import personalityMapper from "../../personality/mappers/PersonalityMapper.js";
 import { supabaseClient } from "../../infra/db/supabaseClient.js";
 import { v4 as uuidv4 } from "uuid";
-import { personalityDatabaseSchema } from "../schemas/personalitySchema.js";
+import { personalityDatabaseSchema } from "../../personality/schemas/personalitySchema.js";
 import domainEvents from "../../common/events/domainEvents.js";
 import { BaseRepository, EntityNotFoundError, ValidationError, DatabaseError } from "../../infra/repositories/BaseRepository.js";
-import { PersonalityError, PersonalityNotFoundError, PersonalityValidationError, PersonalityRepositoryError } from "../errors/PersonalityErrors.js";
+import { PersonalityError, PersonalityNotFoundError, PersonalityValidationError, PersonalityRepositoryError } from "../../personality/errors/PersonalityErrors.js";
 import { createErrorMapper, createErrorCollector, withRepositoryErrorHandling } from "../../infra/errors/errorStandardization.js";
 'use strict';
 const { eventBus, EventTypes } = domainEvents;
@@ -204,25 +204,32 @@ class PersonalityRepository extends BaseRepository {
                 validationErrors: validation.errors
             });
         }
+        
         // Collect domain events before saving
         const domainEvents = personality.getDomainEvents ? personality.getDomainEvents() : [];
+        
         // Clear the events from the entity to prevent double-publishing
-        if (domainEvents.length > 0 && personality.clearDomainEvents) {
+        if (personality.clearDomainEvents) {
             personality.clearDomainEvents();
         }
-        return await this._withRetry(async () => {
+        
+        // Use withTransaction to ensure events are only published after successful commit
+        return this.withTransaction(async (transaction) => {
             // Set created_at and updated_at if not already set
             const now = new Date().toISOString();
             if (!personality.createdAt) {
                 personality.createdAt = now;
             }
             personality.updatedAt = now;
+            
             // Generate ID if not present (for new profiles)
             if (!personality.id) {
                 personality.id = uuidv4();
             }
+            
             // Convert to database format
             const personalityData = personalityMapper.toPersistence(personality);
+            
             // Validate database format
             const dbValidationResult = personalityDatabaseSchema.safeParse(personalityData);
             if (!dbValidationResult.success) {
@@ -231,17 +238,20 @@ class PersonalityRepository extends BaseRepository {
                     validationErrors: dbValidationResult.error.flatten()
                 });
             }
+            
             this._log('debug', 'Saving personality profile', {
                 id: personality.id,
                 userId: personality.userId,
                 isNew: !personality.createdAt
             });
+            
             // Upsert personality data
-            const { data, error } = await this.db
+            const { data, error } = await transaction
                 .from(this.tableName)
                 .upsert(personalityData)
                 .select()
                 .single();
+                
             if (error) {
                 throw new DatabaseError(`Failed to save personality profile: ${error.message}`, {
                     cause: error,
@@ -250,61 +260,24 @@ class PersonalityRepository extends BaseRepository {
                     metadata: { id: personality.id, userId: personality.userId }
                 });
             }
+            
             this._log('info', 'Personality profile saved successfully', { id: data.id });
+            
             // Convert snake_case fields to camelCase
             const camelCaseData = this._snakeToCamel(data);
+            
             // Create the updated personality object
             const savedPersonality = new Personality(camelCaseData);
-            // Create an error collector for non-critical operations
-            const errorCollector = createErrorCollector();
-            // Publish collected domain events AFTER successful persistence
-            if (domainEvents.length > 0) {
-                try {
-                    this._log('debug', 'Publishing collected domain events', {
-                        id: savedPersonality.id,
-                        eventCount: domainEvents.length
-                    });
-                    // Publish the events one by one in sequence (maintaining order)
-                    for (const event of domainEvents) {
-                        await this.eventBus.publish(event.type, event.payload);
-                    }
-                }
-                catch (eventError) {
-                    // Collect but don't throw errors from event publishing
-                    errorCollector.collect(eventError, 'event_publishing');
-                    this._log('error', 'Error publishing domain events', {
-                        id: savedPersonality.id,
-                        error: eventError.message
-                    });
-                }
-            }
-            else {
-                // If no domain events were collected, but this is a create/update operation
-                // Publish a standard event for consistency
-                try {
-                    const standardEvent = {
-                        type: EventTypes.PERSONALITY_PROFILE_UPDATED,
-                        payload: {
-                            personalityId: savedPersonality.id,
-                            userId: savedPersonality.userId,
-                            timestamp: savedPersonality.updatedAt
-                        }
-                    };
-                    await this.eventBus.publish(standardEvent.type, standardEvent.payload);
-                    this._log('debug', 'Published standard personality updated event', { id: savedPersonality.id });
-                }
-                catch (eventError) {
-                    // Collect but don't throw errors from event publishing
-                    errorCollector.collect(eventError, 'standard_event_publishing');
-                    this._log('error', 'Error publishing standard personality event', {
-                        id: savedPersonality.id,
-                        error: eventError.message
-                    });
-                }
-            }
-            // Return updated personality
-            return savedPersonality;
-        }, 'save', { id: personality.id });
+            
+            // Return both the result and the domain events for publishing after commit
+            return {
+                result: savedPersonality,
+                domainEvents: domainEvents
+            };
+        }, {
+            publishEvents: true,
+            eventBus: this.eventBus
+        });
     }
     /**
      * Delete a personality profile by ID
@@ -315,15 +288,29 @@ class PersonalityRepository extends BaseRepository {
      */
     async delete(id) {
         this._validateId(id);
-        return await this._withRetry(async () => {
+        
+        return this.withTransaction(async (transaction) => {
             this._log('debug', 'Deleting personality profile by ID', { id });
+            
             // First check if profile exists
             const existing = await this.findById(id, true);
+            
+            // Create a domain event for the deletion
+            const domainEvents = [{
+                type: EventTypes.PERSONALITY_PROFILE_DELETED,
+                data: {
+                    personalityId: id,
+                    userId: existing.userId,
+                    timestamp: new Date().toISOString()
+                }
+            }];
+            
             // Do the delete
-            const { error } = await this.db
+            const { error } = await transaction
                 .from(this.tableName)
                 .delete()
                 .eq('id', id);
+                
             if (error) {
                 throw new DatabaseError(`Failed to delete personality profile: ${error.message}`, {
                     cause: error,
@@ -332,29 +319,18 @@ class PersonalityRepository extends BaseRepository {
                     metadata: { id }
                 });
             }
+            
             this._log('info', 'Personality profile deleted successfully', { id });
-            // Publish a domain event for the deletion
-            try {
-                const deletionEvent = {
-                    type: EventTypes.PERSONALITY_PROFILE_DELETED,
-                    payload: {
-                        personalityId: id,
-                        userId: existing.userId,
-                        timestamp: new Date().toISOString()
-                    }
-                };
-                await this.eventBus.publish(deletionEvent.type, deletionEvent.payload);
-                this._log('debug', 'Published personality deleted event', { id });
-            }
-            catch (eventError) {
-                // Log but don't fail the operation
-                this._log('error', 'Error publishing personality deleted event', {
-                    id,
-                    error: eventError.message
-                });
-            }
-            return true;
-        }, 'delete', { id });
+            
+            // Return both the result and the domain events for publishing after commit
+            return {
+                result: true,
+                domainEvents: domainEvents
+            };
+        }, {
+            publishEvents: true,
+            eventBus: this.eventBus
+        });
     }
     /**
      * Delete a personality profile by user ID
@@ -365,19 +341,34 @@ class PersonalityRepository extends BaseRepository {
      */
     async deleteByUserId(userId) {
         this._validateRequiredParams({ userId }, ['userId']);
-        return await this._withRetry(async () => {
+        
+        return this.withTransaction(async (transaction) => {
             this._log('debug', 'Deleting personality profile by user ID', { userId });
+            
             // First check if profile exists for this user
             const existing = await this.findByUserId(userId);
+            
             if (!existing) {
                 this._log('debug', 'No personality profile found for user', { userId });
-                return true; // Nothing to delete, so technically successful
+                return { result: true, domainEvents: [] }; // Nothing to delete, so technically successful with no events
             }
+            
+            // Create a domain event for the deletion
+            const domainEvents = [{
+                type: EventTypes.PERSONALITY_PROFILE_DELETED,
+                data: {
+                    personalityId: existing.id,
+                    userId,
+                    timestamp: new Date().toISOString()
+                }
+            }];
+            
             // Do the delete
-            const { error } = await this.db
+            const { error } = await transaction
                 .from(this.tableName)
                 .delete()
                 .eq('user_id', userId);
+                
             if (error) {
                 throw new DatabaseError(`Failed to delete personality profile for user: ${error.message}`, {
                     cause: error,
@@ -386,36 +377,21 @@ class PersonalityRepository extends BaseRepository {
                     metadata: { userId }
                 });
             }
+            
             this._log('info', 'Personality profile deleted successfully for user', {
                 userId,
                 profileId: existing.id
             });
-            // Publish a domain event for the deletion
-            try {
-                const deletionEvent = {
-                    type: EventTypes.PERSONALITY_PROFILE_DELETED,
-                    payload: {
-                        personalityId: existing.id,
-                        userId,
-                        timestamp: new Date().toISOString()
-                    }
-                };
-                await this.eventBus.publish(deletionEvent.type, deletionEvent.payload);
-                this._log('debug', 'Published personality deleted event', {
-                    userId,
-                    profileId: existing.id
-                });
-            }
-            catch (eventError) {
-                // Log but don't fail the operation
-                this._log('error', 'Error publishing personality deleted event', {
-                    userId,
-                    profileId: existing.id,
-                    error: eventError.message
-                });
-            }
-            return true;
-        }, 'deleteByUserId', { userId });
+            
+            // Return both the result and the domain events for publishing after commit
+            return {
+                result: true,
+                domainEvents: domainEvents
+            };
+        }, {
+            publishEvents: true,
+            eventBus: this.eventBus
+        });
     }
 }
 export default PersonalityRepository;

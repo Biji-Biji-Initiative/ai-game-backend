@@ -1,8 +1,8 @@
-import { focusAreaConfigRepository } from "../repositories/config/FocusAreaConfigRepository.js";
-import { FocusAreaConfigDTOMapper } from "../dtos/FocusAreaConfigDTO.js";
-import FocusArea from "../models/config/FocusArea.js";
+import { focusAreaConfigRepository } from "../../challenge/repositories/config/FocusAreaConfigRepository.js";
+import { FocusAreaConfigDTOMapper } from "../../challenge/dtos/FocusAreaConfigDTO.js";
+import FocusArea from "../../challenge/models/config/FocusArea.js";
 import { withControllerErrorHandling } from "../../infra/errors/errorStandardization.js";
-import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError } from "../errors/ChallengeErrors.js";
+import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError } from "../../challenge/errors/ChallengeErrors.js";
 'use strict';
 /**
  * FocusAreaConfig Controller

@@ -12,6 +12,7 @@ import { ErrorHandler } from "../../core/infra/errors/ErrorHandler.js";
 import HealthCheckService from "../../core/infra/health/HealthCheckService.js";
 import { runDatabaseHealthCheck } from "../../core/infra/db/databaseConnection.js";
 import { checkOpenAIStatus } from "../../core/infra/openai/healthCheck.js";
+import openAIConfig from "../../core/infra/openai/config.js";
 'use strict';
 /**
  * Infrastructure Components Registration
@@ -82,7 +83,7 @@ function registerInfrastructureComponents(container) {
     // Register OpenAI services
     container
         .register('openAIConfig', _c => {
-        return require('../../core/infra/openai/config');
+        return openAIConfig;
     }, true // Singleton: YES - configuration with no state
     )
         .register('openAIClient', c => {
@@ -109,7 +110,7 @@ function registerInfrastructureComponents(container) {
         return new OpenAIStateManager({
             openAIClient: c.get('openAIClient'),
             logger: c.get('logger'),
-            redisCache: c.get('redisCache')
+            redisCache: c.has('redisCache') ? c.get('redisCache') : null
         });
     }, true // Singleton: YES - manages shared state
     );

@@ -1,11 +1,11 @@
-import ChallengeType from "../../models/config/ChallengeType.js";
-import challengeTypeMapper from "../../mappers/ChallengeTypeMapper.js";
+import ChallengeType from "../../../challenge/models/config/ChallengeType.js";
+import challengeTypeMapper from "../../../challenge/mappers/ChallengeTypeMapper.js";
 import { withRepositoryErrorHandling, createErrorMapper } from "../../../infra/errors/errorStandardization.js";
 import { supabaseClient } from "../../../infra/db/supabaseClient.js";
 import { BaseRepository, ValidationError, DatabaseError, EntityNotFoundError } from "../../../infra/repositories/BaseRepository.js";
-import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError } from "../../errors/ChallengeErrors.js";
+import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError } from "../../../challenge/errors/ChallengeErrors.js";
 import { challengeLogger } from "../../../infra/logging/domainLogger.js";
-import challengeErrors from "../../errors/ChallengeErrors.js";
+import challengeErrors from "../../../challenge/errors/ChallengeErrors.js";
 'use strict';
 
 // Preserve the error types

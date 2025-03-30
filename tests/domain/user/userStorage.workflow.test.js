@@ -5,6 +5,7 @@ import testEnv from "../../loadEnv.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
+import { UserError, UserNotFoundError, UserUpdateError, UserValidationError, UserInvalidStateError, UserAuthenticationError, UserAuthorizationError } from "../../../src/core/user/errors/UserErrors.js";
 ({ config }.config());
 // Generate a unique test ID for this run
 const TEST_ID = `test_${Date.now()}`;
@@ -51,7 +52,7 @@ describe('Integration: User Storage Workflow', function () {
                     testUserId = null;
                 }
             }
-            catch (error) {
+            catch (UserError) {
                 console.warn(`Failed to delete test user: ${error.message}`);
             }
         }
@@ -74,7 +75,7 @@ describe('Integration: User Storage Workflow', function () {
             .single();
         if (createError) {
             console.error('Error creating test user:', createError);
-            throw new Error(`Failed to create test user: ${createError.message}`);
+            throw new UserError(`Failed to create test user: ${createError.message}`);
         }
         testUserId = createdUser.id; // Save for cleanup
         console.log(`Created test user: ${testUserId}`);
@@ -91,7 +92,7 @@ describe('Integration: User Storage Workflow', function () {
             .single();
         if (retrieveError) {
             console.error('Error retrieving test user:', retrieveError);
-            throw new Error(`Failed to retrieve test user: ${retrieveError.message}`);
+            throw new UserError(`Failed to retrieve test user: ${retrieveError.message}`);
         }
         // 5. ASSERT - Verify retrieved user matches
         expect(retrievedUser).to.exist;
@@ -116,7 +117,7 @@ describe('Integration: User Storage Workflow', function () {
             .single();
         if (createError) {
             console.error('Error creating test user:', createError);
-            throw new Error(`Failed to create test user: ${createError.message}`);
+            throw new UserError(`Failed to create test user: ${createError.message}`);
         }
         testUserId = createdUser.id; // Save for cleanup
         // Updates to apply
@@ -133,7 +134,7 @@ describe('Integration: User Storage Workflow', function () {
             .single();
         if (updateError) {
             console.error('Error updating test user:', updateError);
-            throw new Error(`Failed to update test user: ${updateError.message}`);
+            throw new UserError(`Failed to update test user: ${updateError.message}`);
         }
         // 3. ASSERT - Verify user was updated
         expect(updatedUser).to.exist;
@@ -160,7 +161,7 @@ describe('Integration: User Storage Workflow', function () {
             .single();
         if (createError) {
             console.error('Error creating test user:', createError);
-            throw new Error(`Failed to create test user: ${createError.message}`);
+            throw new UserError(`Failed to create test user: ${createError.message}`);
         }
         testUserId = createdUser.id; // Save for cleanup
         // 2. ACT - Find user by email
@@ -171,7 +172,7 @@ describe('Integration: User Storage Workflow', function () {
             .single();
         if (findError) {
             console.error('Error finding test user:', findError);
-            throw new Error(`Failed to find test user: ${findError.message}`);
+            throw new UserError(`Failed to find test user: ${findError.message}`);
         }
         // 3. ASSERT - Verify user was found
         expect(foundUser).to.exist;
@@ -196,7 +197,7 @@ describe('Integration: User Storage Workflow', function () {
             .single();
         if (createError) {
             console.error('Error creating test user:', createError);
-            throw new Error(`Failed to create test user: ${createError.message}`);
+            throw new UserError(`Failed to create test user: ${createError.message}`);
         }
         const userIdToDelete = createdUser.id;
         // 2. ACT - Delete the user
@@ -206,7 +207,7 @@ describe('Integration: User Storage Workflow', function () {
             .eq('id', userIdToDelete);
         if (deleteError) {
             console.error('Error deleting test user:', deleteError);
-            throw new Error(`Failed to delete test user: ${deleteError.message}`);
+            throw new UserError(`Failed to delete test user: ${deleteError.message}`);
         }
         // 3. ASSERT - Check that the user no longer exists
         const { data: deletedUser, error: findError } = await supabaseClient

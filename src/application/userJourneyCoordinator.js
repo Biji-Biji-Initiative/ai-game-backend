@@ -7,7 +7,7 @@
  * of user progression through the platform.
  * This coordinator follows DDD principles by coordinating across multiple domains.
  */
-import BaseCoordinator from './BaseCoordinator.js';
+import BaseCoordinator from "@/application/BaseCoordinator.js";
 
 /**
  * Class representing the User Journey Coordinator

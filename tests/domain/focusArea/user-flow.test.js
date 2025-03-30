@@ -59,9 +59,18 @@ describe('Integration: User Flow', function () {
                     userService: !!userService
                 });
             }
-            catch (error) {
+            catch (FocusAreaError) {
                 // If we can't load the exact modules, create minimal versions for testing
                 console.warn('Could not import exact modules, creating test versions');
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import { FocusAreaError, FocusAreaNotFoundError, FocusAreaValidationError, FocusAreaGenerationError, FocusAreaPersistenceError, FocusAreaAccessDeniedError } from "../../../src/core/focusArea/errors/focusAreaErrors.js";
+
+// ESM equivalent of __dirname and __filename
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+
                 logTestAction('ImportError', { message: error.message });
                 // Use environment variables to create Supabase client
                 const supabaseUrl = testEnv.getTestConfig().supabase.url;
@@ -164,7 +173,7 @@ describe('Integration: User Flow', function () {
                 message: 'User flow integration test passed'
             });
         }
-        catch (error) {
+        catch (FocusAreaError) {
             logTestAction('TestError', {
                 message: error.message,
                 stack: error.stack

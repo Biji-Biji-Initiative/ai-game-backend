@@ -1,10 +1,10 @@
-import FormatType from "../../models/config/FormatType.js";
-import formatTypeMapper from "../../mappers/FormatTypeMapper.js";
+import FormatType from "../../../challenge/models/config/FormatType.js";
+import formatTypeMapper from "../../../challenge/mappers/FormatTypeMapper.js";
 import { challengeLogger } from "../../../infra/logging/domainLogger.js";
 import { supabaseClient } from "../../../infra/db/supabaseClient.js";
 import { BaseRepository, ValidationError, DatabaseError, EntityNotFoundError } from "../../../infra/repositories/BaseRepository.js";
 import { withRepositoryErrorHandling, createErrorMapper } from "../../../infra/errors/errorStandardization.js";
-import challengeErrors from "../../errors/ChallengeErrors.js";
+import challengeErrors from "../../../challenge/errors/ChallengeErrors.js";
 'use strict';
 // Challenge domain errors - imported via error mapper but not directly used
 // ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeRepositoryError
@@ -498,9 +498,8 @@ class FormatTypeRepository extends BaseRepository {
 }
 // Create singleton instance
 const formatTypeRepository = new FormatTypeRepository();
+
+// Fix exports to ensure the class is properly exported
+export default FormatTypeRepository;
 export { FormatTypeRepository };
 export { formatTypeRepository };
-export default {
-  FormatTypeRepository,
-  formatTypeRepository
-};

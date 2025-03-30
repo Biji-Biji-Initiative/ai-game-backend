@@ -1,5 +1,5 @@
 import { createErrorMapper, withServiceErrorHandling } from "../../infra/errors/errorStandardization.js";
-import { UserJourneyError, UserJourneyNotFoundError, UserJourneyValidationError, UserJourneyProcessingError } from "../errors/userJourneyErrors.js";
+import { UserJourneyError, UserJourneyNotFoundError, UserJourneyValidationError, UserJourneyProcessingError } from "../../userJourney/errors/userJourneyErrors.js";
 import { logger } from "../../infra/logging/logger.js";
 import { userJourneyLogger } from "../../infra/logging/domainLogger.js";
 'use strict';

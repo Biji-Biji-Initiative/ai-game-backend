@@ -1,7 +1,7 @@
 import { supabaseClient } from "../../infra/db/supabaseClient.js";
 import { applyRepositoryErrorHandling, createErrorMapper } from "../../infra/errors/errorStandardization.js";
 import { EntityNotFoundError, ValidationError, DatabaseError } from "../../infra/repositories/BaseRepository.js";
-import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationRepositoryError } from "../errors/EvaluationErrors.js";
+import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationRepositoryError } from "../../evaluation/errors/EvaluationErrors.js";
 'use strict';
 // Create an error mapper for repositories
 const evaluationRepositoryErrorMapper = createErrorMapper({
@@ -31,8 +31,43 @@ class EvaluationCategoryRepository {
         }
         this.supabase = dependencies.supabase || supabaseClient;
         this.logger = dependencies.logger;
-        // Apply standardized error handling to methods
-        applyRepositoryErrorHandling(this, evaluationRepositoryErrorMapper);
+        
+        // Apply error handling to each method individually
+        this.getAllCategories = applyRepositoryErrorHandling(this, 'getAllCategories', {
+            domainName: 'evaluation',
+            logger: this.logger,
+            errorMapper: evaluationRepositoryErrorMapper
+        });
+        
+        this.getCategoriesForFocusArea = applyRepositoryErrorHandling(this, 'getCategoriesForFocusArea', {
+            domainName: 'evaluation',
+            logger: this.logger,
+            errorMapper: evaluationRepositoryErrorMapper
+        });
+        
+        this.getCategoryWeightsForFocusArea = applyRepositoryErrorHandling(this, 'getCategoryWeightsForFocusArea', {
+            domainName: 'evaluation',
+            logger: this.logger,
+            errorMapper: evaluationRepositoryErrorMapper
+        });
+        
+        this.getCategoryDescription = applyRepositoryErrorHandling(this, 'getCategoryDescription', {
+            domainName: 'evaluation',
+            logger: this.logger,
+            errorMapper: evaluationRepositoryErrorMapper
+        });
+        
+        this.getCategoryDescriptions = applyRepositoryErrorHandling(this, 'getCategoryDescriptions', {
+            domainName: 'evaluation',
+            logger: this.logger,
+            errorMapper: evaluationRepositoryErrorMapper
+        });
+        
+        this.mapFocusAreasToCategories = applyRepositoryErrorHandling(this, 'mapFocusAreasToCategories', {
+            domainName: 'evaluation',
+            logger: this.logger,
+            errorMapper: evaluationRepositoryErrorMapper
+        });
     }
     /**
      * Get all evaluation categories

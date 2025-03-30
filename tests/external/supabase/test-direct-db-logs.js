@@ -3,6 +3,14 @@ import fs from "fs";
 import path from "path";
 import util from "util";
 import { createClient } from "@supabase/supabase-js";
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// ESM equivalent of __dirname and __filename
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+
 /**
  * Direct Supabase DB Operations Logging
  * This script tests actual database operations and logs the results

@@ -1,17 +1,17 @@
 import { logger } from "../infra/logging/logger.js";
-import { PROMPT_TYPES } from "./promptTypes.js";
-import { PromptBuilderNotFoundError, PromptConstructionError } from "./common/errors.js";
+import { PROMPT_TYPES } from "../prompt/promptTypes.js";
+import { PromptBuilderNotFoundError, PromptConstructionError } from "../prompt/common/errors.js";
 
 // Import all prompt builders
-import EvaluationPromptBuilder from './builders/EvaluationPromptBuilder.js';
-import ChallengePromptBuilder from './builders/ChallengePromptBuilder.js';
-import FocusAreaPromptBuilder from './builders/FocusAreaPromptBuilder.js';
-import PersonalityPromptBuilder from './builders/PersonalityPromptBuilder.js';
-import ProgressPromptBuilder from './builders/ProgressPromptBuilder.js';
-import AdaptiveChallengeSelectionPromptBuilder from './builders/AdaptiveChallengeSelectionPromptBuilder.js';
-import DifficultyCalibratonPromptBuilder from './builders/DifficultyCalibratonPromptBuilder.js';
-import PersonalizedLearningPathPromptBuilder from './builders/PersonalizedLearningPathPromptBuilder.js';
-import EngagementOptimizationPromptBuilder from './builders/EngagementOptimizationPromptBuilder.js';
+import EvaluationPromptBuilder from "../prompt/builders/EvaluationPromptBuilder.js";
+import ChallengePromptBuilder from "../prompt/builders/ChallengePromptBuilder.js";
+import FocusAreaPromptBuilder from "../prompt/builders/FocusAreaPromptBuilder.js";
+import PersonalityPromptBuilder from "../prompt/builders/PersonalityPromptBuilder.js";
+import ProgressPromptBuilder from "../prompt/builders/ProgressPromptBuilder.js";
+import AdaptiveChallengeSelectionPromptBuilder from "../prompt/builders/AdaptiveChallengeSelectionPromptBuilder.js";
+import DifficultyCalibratonPromptBuilder from "../prompt/builders/DifficultyCalibratonPromptBuilder.js";
+import PersonalizedLearningPathPromptBuilder from "../prompt/builders/PersonalizedLearningPathPromptBuilder.js";
+import EngagementOptimizationPromptBuilder from "../prompt/builders/EngagementOptimizationPromptBuilder.js";
 
 'use strict';
 // Builder registry to store all available prompt builders

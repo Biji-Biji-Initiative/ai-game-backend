@@ -81,8 +81,15 @@ Welcome to the backend documentation. This directory contains detailed informati
 - [Authorization](./architecture/authorization.md) - Authorization model and implementation
 - [Security](./architecture/security.md) - Security architecture and best practices
 - [Dependency Injection](./architecture/dependency-injection.md) - DI approach and best practices
+  - [DI Container Guidelines](./architecture/DIContainerGuidelines.md) - When to use singletons and other DI best practices 
+  - [DI Container Examples](./architecture/DIContainerExamples.md) - Practical examples of using the DI container
 - [Value Objects](./architecture/value-objects.md) - Value Objects and standardized patterns
 - [Data Model](./architecture/data-model.md) - Database schema and relationships
+- [Core Business Logic](./architecture/core-business-logic.md) - Domain models, aggregates, entities, and repositories
+- [Event System](./architecture/event-system.md) - How the event system works
+- [Result Pattern](./architecture/result-pattern.md) - Result pattern for error handling
+- [Service Layer](./architecture/service-layer.md) - Application services and use cases
+- [Swagger Configuration](./architecture/swagger-configuration.md) - API documentation setup and configuration
 
 ### Domain Documentation
 

@@ -1,4 +1,4 @@
-import BaseCoordinator from "../BaseCoordinator.js";
+import BaseCoordinator from "@/application/BaseCoordinator.js";
 import { FocusAreaError } from "../../core/focusArea/errors/focusAreaErrors.js";
 'use strict';
 /**

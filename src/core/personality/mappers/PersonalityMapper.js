@@ -1,5 +1,5 @@
-import Personality from "../models/Personality.js";
-import { personalityDatabaseSchema } from "../schemas/personalitySchema.js";
+import Personality from "../../personality/models/Personality.js";
+import { personalityDatabaseSchema } from "../../personality/schemas/personalitySchema.js";
 'use strict';
 /**
  * PersonalityMapper class

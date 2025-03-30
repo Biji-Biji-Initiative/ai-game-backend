@@ -1,10 +1,10 @@
-import { OpenAIStateManager } from "./stateManager.js";
-import { formatForResponsesApi, formatMultimodalContent, formatContentWithFiles } from "./messageFormatter.js";
-import streamProcessor from "./streamProcessor.js";
-import { OpenAIResponseHandler } from "./responseHandler.js";
-import { createOpenAIError, OpenAIError, OpenAIRequestError } from "./errors.js";
-import { MessageRole } from "./types.js";
-import OpenAIClient from "./client.js";
+import { OpenAIStateManager } from "../../infra/openai/stateManager.js";
+import { formatForResponsesApi, formatMultimodalContent, formatContentWithFiles } from "../../infra/openai/messageFormatter.js";
+import streamProcessor from "../../infra/openai/streamProcessor.js";
+import { OpenAIResponseHandler } from "../../infra/openai/responseHandler.js";
+import { createOpenAIError, OpenAIError, OpenAIRequestError } from "../../infra/openai/errors.js";
+import { MessageRole } from "../../infra/openai/types.js";
+import OpenAIClient from "../../infra/openai/client.js";
 'use strict';
 const { processStreamResponse, processResponseChunks } = streamProcessor;
 // Configuration

@@ -3,12 +3,12 @@ import sinon from "sinon";
 import { v4 as uuidv4 } from "uuid";
 import { createInMemoryChallengeRepository, createInMemoryEvaluationRepository, createInMemoryFocusAreaRepository, createInMemoryUserRepository } from "../helpers/inMemory/index.js";
 // Import domain models and services
-// const Challenge = require('../../src/core/challenge/models/Challenge');
-// const ChallengeService = require('../../src/core/challenge/services/ChallengeService');
-// const EvaluationService = require('../../src/core/evaluation/services/EvaluationService');
-// const FocusAreaService = require('../../src/core/focusArea/services/FocusAreaService');
+// import Challenge from "../../src/core/challenge/models/Challenge.js";
+// import ChallengeService from "../../src/core/challenge/services/ChallengeService.js";
+// import EvaluationService from "../../src/core/evaluation/services/EvaluationService.js";
+// import FocusAreaService from "../../src/core/focusArea/services/FocusAreaService.js";
 // Import domain events if applicable
-// const domainEvents = require('../../src/core/common/events/domainEvents');
+// import domainEvents from "../../src/core/common/events/domainEvents.js";
 describe('Integration: Workflow Name', function () {
     // Test setup
     let sandbox;

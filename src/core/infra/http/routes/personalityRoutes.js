@@ -1,6 +1,6 @@
 import express from 'express';
-import PersonalityController from '../../../personality/controllers/PersonalityController.js';
-import { authenticateUser } from '../middleware/auth.js';
+import PersonalityController from "../../../personality/controllers/PersonalityController.js";
+import { authenticateUser } from "../../../infra/http/middleware/auth.js";
 'use strict';
 
 /**

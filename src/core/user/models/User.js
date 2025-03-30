@@ -1,7 +1,7 @@
 import domainEvents from "../../common/events/domainEvents.js";
-import { userSchema } from "../schemas/userSchema.js";
+import { userSchema } from "../../user/schemas/userSchema.js";
 import { Email, FocusArea } from "../../common/valueObjects/index.js";
-import { UserValidationError, UserInvalidStateError } from "../errors/UserErrors.js";
+import { UserValidationError, UserInvalidStateError } from "../../user/errors/UserErrors.js";
 'use strict';
 /**
  * User domain model

@@ -1,4 +1,4 @@
-import { logger } from "../logging/logger.js";
+import { logger } from "../../infra/logging/logger.js";
 import domainEvents from "../../common/events/domainEvents.js";
 import { registerEvaluationEventHandlers } from "../../evaluation/events/evaluationEvents.js";
 import { registerPersonalityEventHandlers } from "../../personality/events/personalityEvents.js";

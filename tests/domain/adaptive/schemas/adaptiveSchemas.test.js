@@ -1,6 +1,6 @@
 import { expect } from "chai";
-import difficultySchema from "../../../src/core/adaptive/schemas/DifficultySchema";
-import recommendationSchema from "../../../src/core/adaptive/schemas/RecommendationSchema";
+import difficultySchema from "../../../../src/core/adaptive/schemas/DifficultySchema.js";
+import recommendationSchema from "../../../../src/core/adaptive/schemas/RecommendationSchema.js";
 const { DifficultySchema, PersonalityTraitsSchema } = difficultySchema;
 const { RecommendationSchema, RecommendationDatabaseSchema } = recommendationSchema;
 describe('Adaptive Domain Schemas', () => {

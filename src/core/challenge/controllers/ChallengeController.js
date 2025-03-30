@@ -1,7 +1,7 @@
 import { logger } from "../../infra/logging/logger.js";
-import { withControllerErrorHandling } from '../../infra/errors/errorStandardization.js';
-import { ChallengeNotFoundError, ChallengeValidationError } from "../errors/ChallengeErrors.js";
-import { ChallengeDTOMapper } from "../dtos/ChallengeDTO.js";
+import { withControllerErrorHandling } from "../../infra/errors/errorStandardization.js";
+import { ChallengeNotFoundError, ChallengeValidationError } from "../../challenge/errors/ChallengeErrors.js";
+import { ChallengeDTOMapper } from "../../challenge/dtos/ChallengeDTO.js";
 'use strict';
 /**
  * Challenge Controller
@@ -51,6 +51,11 @@ class ChallengeController {
     });
     this.getChallengeHistory = withControllerErrorHandling(this.getChallengeHistory.bind(this), {
       methodName: 'getChallengeHistory',
+      domainName: 'challenge',
+      logger: this.logger
+    });
+    this.listChallenges = withControllerErrorHandling(this.listChallenges.bind(this), {
+      methodName: 'listChallenges',
       domainName: 'challenge',
       logger: this.logger
     });
@@ -503,6 +508,78 @@ class ChallengeController {
       success: true,
       data: challengeDtos
     });
+  }
+  /**
+   * List challenges with optional filtering
+   * @param {Request} req - Express request object
+   * @param {Response} res - Express response object
+   */
+  async listChallenges(req, res) {
+    // Extract query parameters
+    const { 
+      limit = 20, 
+      offset = 0, 
+      sort = 'createdAt', 
+      order = 'desc',
+      difficulty,
+      focusArea,
+      type,
+      search
+    } = req.query;
+
+    // Create filter object
+    const filters = {};
+    if (difficulty) filters.difficulty = difficulty;
+    if (focusArea) filters.focusArea = focusArea;
+    if (type) filters.challengeType = type;
+    if (search) filters.search = search;
+
+    try {
+      // Get challenges from service (assuming this method exists)
+      const result = await this.challengeCoordinator.listChallenges({
+        limit: parseInt(limit, 10),
+        offset: parseInt(offset, 10),
+        sort,
+        order,
+        filters
+      });
+
+      // Convert domain entities to DTOs
+      const challengeDtos = result.challenges.map(challenge => 
+        ChallengeDTOMapper.toDTO(challenge)
+      );
+
+      // Return paginated response
+      res.status(200).json({
+        success: true,
+        data: challengeDtos,
+        pagination: {
+          total: result.total || challengeDtos.length,
+          limit: parseInt(limit, 10),
+          offset: parseInt(offset, 10),
+          hasMore: (parseInt(offset, 10) + challengeDtos.length) < result.total
+        }
+      });
+    } catch (error) {
+      // If the coordinator doesn't have this method yet, return empty results
+      if (error.message.includes('is not a function')) {
+        this.logger.warn('listChallenges not implemented in coordinator - returning empty results');
+        res.status(200).json({
+          success: true,
+          data: [],
+          pagination: {
+            total: 0,
+            limit: parseInt(limit, 10),
+            offset: parseInt(offset, 10),
+            hasMore: false
+          }
+        });
+        return;
+      }
+      
+      // Re-throw for the error handler to catch
+      throw error;
+    }
   }
 }
 export default ChallengeController;

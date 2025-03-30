@@ -1,6 +1,6 @@
 import { expect } from "chai";
-import openai from "../../../src/infra/openai";
-import types from "../../../src/infra/openai/types";
+import openai from "@/infra/openai";
+import types from "@/infra/openai/types";
 import FocusAreaGenerationService from "../../../src/core/focusArea/services/focusAreaGenerationService.js";
 import FocusArea from "../../../src/core/focusArea/models/FocusArea.js";
 import promptBuilder from "../../../src/core/prompt/promptBuilder.js";

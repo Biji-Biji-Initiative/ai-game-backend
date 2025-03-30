@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
-import { ChallengeValidationError } from "../errors/ChallengeErrors.js";
-import { ChallengeSchema } from "../schemas/ChallengeSchema.js";
+import { ChallengeValidationError } from "../../challenge/errors/ChallengeErrors.js";
+import { ChallengeSchema } from "../../challenge/schemas/ChallengeSchema.js";
 'use strict';
 /**
  * @swagger

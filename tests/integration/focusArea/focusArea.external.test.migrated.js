@@ -1,7 +1,7 @@
 import { expect } from "chai";
-import openai from "../../../src/infra/openai";
-import testEnv from "../loadEnv";
-import testHelpers from "../../tests/helpers/testHelpers";
+import openai from "@/infra/openai";
+import testEnv from "../loadEnv.js";
+import testHelpers from "../../tests/helpers/testHelpers.js";
 import { config } from "dotenv";
 const { OpenAIClient } = openai;
 const { skipIfMissingEnv } = testHelpers;

@@ -126,26 +126,10 @@ pm2 delete ai-fight-club-api 2>/dev/null || true
 # Set NODE_ENV environment variable
 export NODE_ENV=$ENVIRONMENT
 export PORT=$PORT
-export NODE_OPTIONS="--import-map=import-map.json"
 
 # Test the database connection
 echo "Testing database connection..."
-node -e "
-require('dotenv').config();
-const { createClient } = require('@supabase/supabase-js');
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
-supabase.from('users').select('count').then(result => {
-  if (result.error) {
-    console.error('Database connection error:', result.error);
-    process.exit(1);
-  }
-  console.log('Database connection successful!');
-  process.exit(0);
-}).catch(err => {
-  console.error('Supabase connection error:', err);
-  process.exit(1);
-});
-"
+node scripts/db-test.js
 
 # Check if database test was successful
 if [ $? -ne 0 ]; then

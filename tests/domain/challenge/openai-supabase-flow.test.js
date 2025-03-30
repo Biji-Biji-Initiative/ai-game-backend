@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 import testEnv from "../../loadEnv.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 import { config } from "dotenv";
-import openai from "../../../src/infra/openai";
+import openai from "@/infra/openai";
 import { createClient } from "@supabase/supabase-js";
 ({ config }.config());
 // Generate a unique test ID for this run
@@ -65,9 +65,18 @@ describe('Integration: Complete OpenAI to Supabase Flow', function () {
                     supabaseClient: !!supabaseClient
                 });
             }
-            catch (error) {
+            catch (ChallengeError) {
                 // If we can't load the exact modules, create minimal versions for testing
                 console.warn('Could not import exact modules, creating test versions');
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError, ChallengeRepositoryError, ChallengeGenerationError } from "../../../src/core/challenge/errors/ChallengeErrors.js";
+
+// ESM equivalent of __dirname and __filename
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+
                 logTestAction('ImportError', { message: error.message });
                 // Create OpenAI client
                 const { OpenAIClient } = openai;
@@ -137,13 +146,13 @@ describe('Integration: Complete OpenAI to Supabase Flow', function () {
                                     details: error.details,
                                     fullError: JSON.stringify(error)
                                 });
-                                throw new Error('Failed to save challenge: ' + (error.message || 'Unknown error'));
+                                throw new ChallengeRepositoryError(`Failed to save challenge: ' + (error.message || 'Unknown error`));
                             }
                             // Log successful save
                             logTestAction('SaveSuccess', { data });
                             return data && data.length > 0 ? data[0] : challenge;
                         }
-                        catch (e) {
+                        catch (ChallengeError) {
                             logTestAction('RepositorySaveError', {
                                 error: e.message || 'Unknown repository error',
                                 stack: e.stack,
@@ -174,7 +183,7 @@ describe('Integration: Complete OpenAI to Supabase Flow', function () {
                                 createdAt: data.created_at
                             });
                         }
-                        catch (e) {
+                        catch (ChallengeError) {
                             logTestAction('RepositoryFindError', { error: e.message, stack: e.stack });
                             throw e;
                         }
@@ -283,7 +292,7 @@ describe('Integration: Complete OpenAI to Supabase Flow', function () {
             // Consider the test successful if at least OpenAI worked
             return true;
         }
-        catch (error) {
+        catch (ChallengeError) {
             // Log any failures
             const errorDetails = {
                 message: error.message || 'Unknown error',
@@ -300,7 +309,7 @@ describe('Integration: Complete OpenAI to Supabase Flow', function () {
             }
             logTestAction('TestError', errorDetails);
             // Re-throw to fail the test
-            throw new Error(`Integration test failed: ${error.message || 'Unknown error'}`);
+            throw new ChallengeProcessingError(`Integration test failed: ${error.message || 'Unknown error'}`);
         }
     });
 });

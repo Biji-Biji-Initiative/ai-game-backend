@@ -1,22 +1,23 @@
 /**
  * Challenge Evaluation Service
  * 
- * Domain service that handles the evaluation of challenge responses.
+ * Application service that handles the evaluation of challenge responses.
+ * Orchestrates between challenge domain, evaluation criteria, and AI services.
  * Provides functionality to evaluate responses and stream evaluation results.
- * Updated to use AIClient and AIStateManager ports instead of direct OpenAI dependencies.
  */
 
 'use strict';
 
-import { createErrorMapper, withServiceErrorHandling } from '../../../core/infra/errors/errorStandardization.js';
-import { ChallengeError } from '../errors/ChallengeErrors.js';
-import promptBuilder from '../../prompt/promptBuilder.js';
-import { PROMPT_TYPES } from '../../prompt/promptTypes.js';
-import messageFormatter from "../../infra/openai/messageFormatter.js";
-import { MissingParameterError } from "../../../core/infra/errors/MissingParameterError.js";
+import { createErrorMapper, withServiceErrorHandling } from "../../core/infra/errors/errorStandardization.js";
+import { ChallengeError } from "../../core/challenge/errors/ChallengeErrors.js";
+import promptBuilder from "../../core/prompt/promptBuilder.js";
+import { PROMPT_TYPES } from "../../core/prompt/promptTypes.js";
+import messageFormatter from "../../core/infra/openai/messageFormatter.js";
+import { MissingParameterError } from "../../core/infra/errors/MissingParameterError.js";
+import { challengeLogger } from "../../core/infra/logging/domainLogger.js";
 
 /**
- * Service for handling challenge response evaluations
+ * Application service for handling challenge response evaluations
  */
 class ChallengeEvaluationService {
   /**
@@ -42,7 +43,7 @@ class ChallengeEvaluationService {
     this.aiClient = aiClient;
     this.aiStateManager = aiStateManager;
     this.openAIConfig = openAIConfig || {};
-    this.logger = logger || console;
+    this.logger = logger || challengeLogger.child({ service: 'ChallengeEvaluationService' });
     this.MessageRole = {
       SYSTEM: 'system',
       USER: 'user',
@@ -318,4 +319,4 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`
   }
 }
 
-export default ChallengeEvaluationService;
+export default ChallengeEvaluationService; 

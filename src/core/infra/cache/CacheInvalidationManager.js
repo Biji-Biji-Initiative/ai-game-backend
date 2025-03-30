@@ -1,4 +1,4 @@
-import { logger } from "../logging/logger.js";
+import { logger } from "../../infra/logging/logger.js";
 'use strict';
 /**
  * Cache Invalidation Manager

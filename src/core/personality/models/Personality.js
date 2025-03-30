@@ -1,7 +1,8 @@
 import domainEvents from "../../common/events/domainEvents.js";
 import { v4 as uuidv4 } from "uuid";
-import { personalitySchema } from "../schemas/personalitySchema.js";
-import { TraitsValidationError, AttitudesValidationError } from "../errors/PersonalityErrors.js";
+import { personalitySchema } from "../../personality/schemas/personalitySchema.js";
+import { TraitsValidationError, AttitudesValidationError } from "../../personality/errors/PersonalityErrors.js";
+import Entity from "../../common/models/Entity.js";
 'use strict';
 /**
  * Personality Domain Model
@@ -10,12 +11,12 @@ import { TraitsValidationError, AttitudesValidationError } from "../errors/Perso
  * AI attitudes, and insights in the system.
  * Uses Zod for data validation to ensure integrity.
  */
-const { EventTypes, eventBus } = domainEvents;
+const { EventTypes } = domainEvents;
 /**
  * Personality class
  * Represents a user's personality traits, AI attitudes, and insights
  */
-class Personality {
+class Personality extends Entity {
     /**
      * Create a personality instance
      * @param {Object} data - Personality data
@@ -24,8 +25,11 @@ class Personality {
      * Method constructor
      */
     constructor(data = {}) {
+        // Call Entity constructor with the id
+        super(data.id);
+        
         const personalityData = {
-            id: data.id || uuidv4(),
+            id: this.id, // Already set by Entity constructor
             userId: data.userId || data.user_id || null,
             personalityTraits: data.personalityTraits || data.personality_traits || {},
             aiAttitudes: data.aiAttitudes || data.ai_attitudes || {},
@@ -93,9 +97,9 @@ class Personality {
             ...traits,
         };
         this.updatedAt = new Date().toISOString();
-        // Publish domain event
+        // Add domain event instead of directly publishing
         if (this.userId) {
-            eventBus.publishEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
+            this.addDomainEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
                 userId: this.userId,
                 personalityId: this.id,
                 traits: this.personalityTraits,
@@ -124,9 +128,9 @@ class Personality {
             ...attitudes,
         };
         this.updatedAt = new Date().toISOString();
-        // Publish domain event
+        // Add domain event instead of directly publishing
         if (this.userId) {
-            eventBus.publishEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
+            this.addDomainEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
                 userId: this.userId,
                 personalityId: this.id,
                 aiAttitudes: this.aiAttitudes,
@@ -177,9 +181,9 @@ class Personality {
     setInsights(insights) {
         this.insights = insights;
         this.updatedAt = new Date().toISOString();
-        // Publish domain event
+        // Add domain event instead of directly publishing
         if (this.userId) {
-            eventBus.publishEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
+            this.addDomainEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
                 userId: this.userId,
                 personalityId: this.id,
                 updateType: 'insights',

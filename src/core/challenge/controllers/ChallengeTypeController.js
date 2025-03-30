@@ -1,5 +1,5 @@
-import ChallengeTypeRepository from "../repositories/config/ChallengeTypeRepository.js";
-import { ChallengeTypeDTOMapper } from "../dtos/ChallengeTypeDTO.js";
+import ChallengeTypeRepository from "../../challenge/repositories/config/ChallengeTypeRepository.js";
+import { ChallengeTypeDTOMapper } from "../../challenge/dtos/ChallengeTypeDTO.js";
 import { withControllerErrorHandling } from "../../infra/errors/errorStandardization.js";
 import { logger } from "../../infra/logging/logger.js";
 'use strict';

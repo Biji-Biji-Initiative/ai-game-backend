@@ -1,8 +1,10 @@
 import { expect } from "chai";
+import { Evaluation } from "../../../src/../../src/core/evaluation/models/Evaluation.js";
 import sinon from "sinon";
-import proxyquire from "proxyquire";
+
 import { createSupabaseProxyStub } from "../../helpers/mockSupabaseClient.js";
-const proxyquireNoCallThru = proxyquire.noCallThru();
+import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationProcessingError, EvaluationRepositoryError } from "../../../src/core/evaluation/errors/evaluationErrors.js";
+
 // Set up mocks for dependencies
 const mockEvaluationCategoryRepository = {
     mapFocusAreasToCategories: sinon.stub().resolves([
@@ -42,9 +44,9 @@ const mockEvaluationCategoryRepositoryWithDeps = proxyquire('../../../src/core/e
     })
 });
 // Use proxyquire to load the Evaluation module with mocked dependencies
-const Evaluation = proxyquire('../../../src/core/evaluation/models/Evaluation', {
-    '../../infra/db/supabaseClient': createSupabaseProxyStub()
-});
+const evaluation = new Evaluation({
+      supabaseClient: createSupabaseProxyStub
+    });
 describe('Evaluation Model Integration', () => {
     beforeEach(() => {
         // Reset the stubs before each test

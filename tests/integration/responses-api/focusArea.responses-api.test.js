@@ -1,6 +1,6 @@
 import { config } from "dotenv";
-import openai from "../../../src/infra/openai";
-import config from "../../../src/infra/openai/config";
+import openai from "../../../src/infra/openai.js";
+import config from "../../../src/infra/openai/config.js";
 import FocusAreaGenerationService from "../../../src/core/focusArea/services/focusAreaGenerationService.js";
 import promptBuilder from "../../../src/core/prompt/promptBuilder.js";
 import { expect } from "chai";

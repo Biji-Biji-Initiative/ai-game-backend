@@ -1,5 +1,5 @@
-import { supabaseClient } from "./supabaseClient.js";
-import { logger } from "../logging/logger.js";
+import { supabaseClient } from "../../infra/db/supabaseClient.js";
+import { logger } from "../../infra/logging/logger.js";
 'use strict';
 /**
  * Initialize Supabase connection

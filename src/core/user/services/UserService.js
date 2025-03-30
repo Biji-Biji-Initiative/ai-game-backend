@@ -5,15 +5,15 @@
  * Personality data is managed by the personality domain.
  */
 // Imports using ES modules
-import User from '../models/User.js';
-import UserRepository from '../repositories/UserRepository.js';
-import { EventTypes, eventBus } from '../../common/events/domainEvents.js';
+import User from "../../user/models/User.js";
+import UserRepository from "../../user/repositories/UserRepository.js";
+import { EventTypes, eventBus } from "../../common/events/domainEvents.js";
 import { v4 as uuidv4 } from 'uuid';
-import { userLogger } from '../../../core/infra/logging/domainLogger.js';
-import { UserNotFoundError, UserValidationError, UserError } from '../errors/UserErrors.js';
-import { withServiceErrorHandling, createErrorMapper } from '../../../core/infra/errors/errorStandardization.js';
+import { userLogger } from "../../infra/logging/domainLogger.js";
+import { UserNotFoundError, UserValidationError, UserError } from "../../user/errors/UserErrors.js";
+import { withServiceErrorHandling, createErrorMapper } from "../../infra/errors/errorStandardization.js";
 // Import value objects
-import { Email, UserId, createEmail, createUserId } from '../../common/valueObjects/index.js';
+import { Email, UserId, createEmail, createUserId } from "../../common/valueObjects/index.js";
 // Only keep the cache TTL that is used
 const USER_CACHE_TTL = 300; // 5 minutes
 // Create an error mapper for the user service

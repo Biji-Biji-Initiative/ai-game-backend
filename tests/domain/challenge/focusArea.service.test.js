@@ -2,6 +2,7 @@ import { expect } from "chai";
 import sinon from "sinon";
 import { v4 as uuidv4 } from "uuid";
 import testSetup from "../setup.js";
+import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError, ChallengeRepositoryError, ChallengeGenerationError } from "../../../src/core/challenge/errors/ChallengeErrors.js";
 describe('FocusArea Service Domain Tests', function () {
     // Set longer timeout for API calls
     this.timeout(30000);
@@ -110,8 +111,8 @@ describe('FocusArea Service Domain Tests', function () {
                     await focusAreaRepository.save(focusArea);
                     return focusArea;
                 }
-                catch (error) {
-                    throw new Error(`Failed to recommend focus area: ${error.message}`);
+                catch (ChallengeError) {
+                    throw new ChallengeError(`Failed to recommend focus area: ${error.message}`);
                 }
             },
             getFocusAreaById: async (id) => {
@@ -197,7 +198,7 @@ describe('FocusArea Service Domain Tests', function () {
                 // If we get here, the test failed
                 expect.fail('Expected an error to be thrown');
             }
-            catch (error) {
+            catch (ChallengeError) {
                 expect(error.message).to.include('Failed to recommend focus area');
                 expect(error.message).to.include('OpenAI API error');
             }

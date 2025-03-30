@@ -24,6 +24,8 @@ import testEnv from "../../loadEnv.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 import { ChallengeDTO, ChallengeDTOMapper } from "../../../src/core/challenge/dtos/index.js";
 import { createUserId, createChallengeId, UserId, ChallengeId } from "../../../src/core/common/valueObjects/index.js";
+import ChallengeDTOMapper from "../../../src/application/challenge/mappers/ChallengeDTOMapper.js";
+import ChallengeResponseDTOMapper from "../../../src/application/challenge/mappers/ChallengeResponseDTOMapper.js";
 // Mock challenge generation service - we'll replace this with the real one when available
 // This is just to simulate what the real service would do in production
 /**

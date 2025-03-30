@@ -1,10 +1,10 @@
 import { supabaseClient } from "../../infra/db/supabaseClient.js";
-import evaluation from "../models/Evaluation.js";
-import { EvaluationSchema, EvaluationUpdateSchema } from "../schemas/EvaluationSchema.js";
+import evaluation from "../../evaluation/models/Evaluation.js";
+import { EvaluationSchema, EvaluationUpdateSchema } from "../../evaluation/schemas/EvaluationSchema.js";
 import { v4 as uuidv4 } from "uuid";
 import domainEvents from "../../common/events/domainEvents.js";
 import { BaseRepository, EntityNotFoundError, ValidationError, DatabaseError } from "../../infra/repositories/BaseRepository.js";
-import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationRepositoryError } from "../errors/EvaluationErrors.js";
+import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationRepositoryError } from "../../evaluation/errors/EvaluationErrors.js";
 import { createErrorMapper, createErrorCollector, withRepositoryErrorHandling } from "../../infra/errors/errorStandardization.js";
 'use strict';
 const { Evaluation } = evaluation;

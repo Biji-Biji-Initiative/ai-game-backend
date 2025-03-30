@@ -1,6 +1,14 @@
 import sinon from "sinon";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// ESM equivalent of __dirname and __filename
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+
 // Store created stubs so we can restore them
 let stubs = [];
 let sandbox;

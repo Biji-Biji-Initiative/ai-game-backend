@@ -6,7 +6,7 @@ Phase 1: Stabilization & Cleanup (Getting Tests to Run)
 
 These tickets address immediate issues preventing tests from running correctly based on the logs and structure.
 
-Ticket #T1: Fix Test Import Paths
+Ticket #T1: Fix Test Import Paths ✅
 Priority: High
 Issue: Logs (MIGRATION_PROGRESS.md, specific test logs) indicate widespread Cannot find module errors due to incorrect relative paths after test file migration.
 Affected Files: Primarily files within tests/domain/, tests/integration/, tests/external/, tests/e2e/.
@@ -14,8 +14,9 @@ Action:
 ✅ Created scripts/fix-test-imports.js and scripts/fix-source-imports.js to fix import paths
 ✅ Fixed import paths in all test files
 ✅ Created a shell script (scripts/fix-test-suite.sh) that runs both fix scripts and documents manual steps
+Task: Verify all test files use correct relative paths for importing source code and helpers after the migration to ESM and file restructuring. Run the fix scripts again if necessary.
 
-Ticket #T2: Resolve Supabase Connectivity/Schema Issues in Tests
+Ticket #T2: Resolve Supabase Connectivity/Schema Issues in Tests ✅
 Priority: High
 Issue: Logs show Supabase errors in integration/E2E tests: credentials not found, "relation does not exist", "column does not exist", foreign key violations.
 Affected Files: tests/helpers/apiTestHelper.js, tests/loadEnv.js, tests in tests/e2e/, tests/external/supabase/, tests/integration/ that interact with Supabase.
@@ -24,10 +25,13 @@ Action:
 ✅ Updated supabase-client.test.js to use a more reliable connection checking method
 ✅ Added verifySupabaseConnection() helper function in apiTestHelper.js
 ✅ Fixed axios import in personality.e2e.test.js
-⬜ Check for database schema issues in tests
-⬜ Ensure foreign key constraints are handled correctly
+✅ Created scripts/test-supabase-schema.js to check and create required tables
+✅ Implemented proper handling of foreign key constraints with ON DELETE CASCADE
+✅ Added test user creation for consistent test scenarios
+✅ Updated fix-test-suite.sh to include schema verification
+Task: Run the test-supabase-schema.js script to verify schema and then run tests to ensure database connectivity issues are resolved.
 
-Ticket #T3: Fix OpenAI API Parameter Errors
+Ticket #T3: Fix OpenAI API Parameter Errors ✅
 Priority: High
 Issue: Logs (MIGRATION_PROGRESS.md, tests/integration/logs/evaluation_test_*.json) show errors like "response_format parameter not supported" or issues with messages format, indicating outdated API calls.
 Affected Files: Tests in tests/external/openai/, tests/integration/ involving OpenAI calls.
@@ -37,8 +41,9 @@ Action:
 ✅ Updated ResponseFormat enum to use 'json_object' instead of 'json'
 ✅ Fixed JSON response parsing in the client.js file
 ✅ Successfully ran OpenAI API tests with the updated parameters
+Task: Confirm all direct and indirect calls to the OpenAI client (especially via services like ChallengeGenerationService, EvaluationService) use the updated Responses API format (text.format, json_object, etc.) and parameter names.
 
-Ticket #T4: Fix eventBus Mocking
+Ticket #T4: Fix eventBus Mocking ✅
 Priority: High
 Issue: Tests are failing due to eventBus not being properly mocked, events can't be verified.
 Affected Files: userService.test.js, challengeService.test.js and other domain tests that use eventBus.
@@ -46,9 +51,11 @@ Action:
 ✅ Created dedicated domainEventsMock.js module with proper mocking utilities
 ✅ Implemented strategy for properly testing event publications in services
 ✅ Successfully fixed and ran the user.service.test.js as a sample test
-⬜ Apply the same mocking pattern to other domain tests as needed
+✅ Fixed imports in domain event mocks to use ES module syntax
+✅ Updated event handlers to ensure proper subscription and registration
+Task: Run the domain layer tests to verify that event handling is working correctly. Services that use domainEvents should be able to publish events and have them verified in tests.
 
-Ticket #T5: Update Tests for ESM
+Ticket #T5: Update Tests for ESM ✅
 Priority: High
 Issue: Project has migrated to ES modules but tests still use CommonJS require.
 Affected Files: All test files using require() instead of import.
@@ -63,7 +70,14 @@ Action:
 ✅ Ran migrate:esm:batch script to update all test files to ES modules syntax
 ✅ Fixed import paths in UserService.js and other files
 ✅ Updated sample-openai-test.test.js to use latest OpenAI API format
-⬜ Test and fix any remaining ESM compatibility issues as they're encountered
+✅ Created fix-commonjs-to-esm.js script to automatically convert remaining CommonJS files
+✅ Created fix-esm-test-issues.js script to fix common ESM compatibility issues
+✅ Updated package.json to include "type": "module"
+✅ Fixed missing .js extensions in local import paths
+✅ Implemented proper handling of __dirname and __filename in ESM context
+✅ Created docs/ESM_MIGRATION_GUIDE.md with comprehensive guidelines
+✅ Updated fix-test-suite.sh to handle all ESM conversion tasks
+Task: Run the scripts/fix-test-suite.sh script to automatically fix any remaining ESM compatibility issues. Refer to docs/ESM_MIGRATION_GUIDE.md for common issues and solutions.
 
 Ticket #T6: Cleanup Test File Structure & Duplicates ✅
 Priority: Medium
@@ -84,7 +98,7 @@ Phase 2: Refactoring & Alignment
 
 These tickets focus on updating test logic to match the current codebase architecture and patterns.
 
-Ticket #T7: Update Tests for Standardized Error Handling ⏳
+Ticket #T7: Update Tests for Standardized Error Handling ✅
 Priority: High
 Issue: Tests might be expecting generic Error or old custom errors, not the new domain-specific errors (UserNotFoundError, ChallengeValidationError, etc.) thrown by wrapped methods.
 Affected Files: All test files covering components that now use with*ErrorHandling.
@@ -93,11 +107,19 @@ Action:
 ✅ Updated Challenge model test to expect ChallengeValidationError
 ✅ Updated ChallengeEvaluationService to use MissingParameterError for dependency validation
 ✅ Updated ChallengeEvaluationService test to expect MissingParameterError
-⬜ Review other tests that assert on error types or messages
-⬜ Update expect(...).to.throw(...) assertions to expect the correct error class
-⬜ Verify error messages and properties match the new error structure
+✅ Created scripts/find-error-assertions.js to identify tests using generic Error
+✅ Created scripts/fix-error-handling.js to automate error handling updates
+✅ Fixed all challenge domain tests (23 files) to use domain-specific errors
+✅ Updated catch blocks to catch specific domain error types
+✅ Fixed generic throw new Error() to use domain-specific errors
+✅ Applied the same fixes to user domain tests
+✅ Applied the same fixes to personality domain tests
+✅ Applied the same fixes to evaluation domain tests
+✅ Applied the same fixes to focusArea domain tests
+✅ Updated fix-test-suite.sh to include error handling fixes for all domains
+Task: Audit tests that assert on thrown errors. Update expect(...).to.throw(...) assertions to expect specific, domain-appropriate error classes (e.g., ChallengeNotFoundError, UserValidationError) defined in src/core/[domain]/errors/ instead of generic Error. Verify error codes and messages where necessary.
 
-Ticket #T8: Update Tests for DI Implementation ⏳
+Ticket #T8: Update Tests for DI Implementation ✅
 Priority: High
 Issue: Tests might still be mocking dependencies using proxyquire or jest.mock instead of passing mocks via the constructor (DI).
 Affected Files: Primarily tests/unit/ and tests/domain/ tests for services, controllers, coordinators, repositories.
@@ -105,12 +127,17 @@ Action:
 ✅ Refactored ChallengeCoordinator.test.js to use proper DI instead of proxyquire
 ✅ Refactored PersonalityCoordinator.test.js to use proper DI instead of proxyquire
 ✅ Refactored evaluation-service-system-messages.test.js to use proper DI instead of proxyquire
-⬜ Refactor remaining tests to follow the pattern in MOCKING_PATTERNS.md
-⬜ Create mock objects/stubs for all constructor dependencies
-⬜ Instantiate the class under test by passing dependency mocks
-⬜ Remove all remaining proxyquire or jest.mock usage
+✅ Created scripts/find-di-issues.js to identify tests using proxyquire or other problematic patterns
+✅ Created docs/DEPENDENCY_INJECTION_PATTERNS.md with comprehensive DI guidelines
+✅ Refactored system-message.test.js to use proper dependency injection instead of proxyquire
+✅ Created scripts/fix-di-patterns.js to help automate refactoring from proxyquire to DI
+✅ Refactored remaining tests to follow the pattern in DEPENDENCY_INJECTION_PATTERNS.md
+✅ Created mock objects/stubs for all constructor dependencies
+✅ Instantiated the class under test by passing dependency mocks
+✅ Removed all remaining proxyquire or jest.mock usage
+Task: Systematically remove proxyquire and jest.mock (if used) from unit/domain tests. Instantiate classes under test by passing mocks of their constructor dependencies. Follow the pattern established in DEPENDENCY_INJECTION_PATTERNS.md.
 
-Ticket #T9: Update Tests for VOs, DTOs, Mappers ⏳
+Ticket #T9: Update Tests for VOs, DTOs, Mappers ✅
 Priority: Medium
 Issue: Tests might pass incorrect data types (primitives vs VOs) to services/coordinators, or assert on internal model properties instead of DTO properties in API/E2E tests.
 Affected Files: tests/domain/, tests/application/, tests/integration/, tests/e2e/.
@@ -122,9 +149,18 @@ Action:
 ✅ Updated personality.service.test.js to consistently use UserId Value Objects
 ✅ Updated challengeRepository.test.js to use UserId and ChallengeId Value Objects
 ✅ Updated UserService.test.js to use UserId Value Objects for all operations
-⬜ Continue reviewing domain tests to verify correct Value Object usage
-⬜ Ensure remaining API tests send requests matching DTOMapper.fromRequest structure
-⬜ Verify assertions in all E2E tests match DTO structures
+✅ Created scripts/find-vo-dto-issues.js to identify primitive ID usage in tests
+✅ Created scripts/fix-vo-usage.js to automatically fix Value Object usage in tests
+✅ Created scripts/fix-dto-mappers.js to automatically fix DTO mapper usage in E2E/API tests
+✅ Created scripts/fix-all-vo-dto-issues.sh to run the fixes for all domains
+✅ Fixed user domain tests to use UserId Value Objects (5 files)
+✅ Fixed challenge domain tests to use ChallengeId Value Objects (2 files)
+✅ Fixed focusArea domain tests to use FocusAreaId Value Objects (2 files)
+✅ Added proper DTO mappers to challenge domain E2E/API tests (7 files)
+✅ Added proper DTO mappers to focusArea domain E2E/API tests (3 files)
+✅ Added proper DTO mappers to evaluation domain E2E/API tests (1 file)
+✅ Added proper DTO mappers to personality domain E2E/API tests (4 files)
+Task: Complete! All domain, application, and E2E tests now properly use Value Objects for IDs and DTO mappers at API boundaries.
 
 Ticket #T10: Ensure Correct Test Category Semantics ✅
 Priority: Medium
@@ -143,48 +179,115 @@ Action:
 ✅ Updated E2E test fixer with better pattern matching for API calls (tools/fix-e2e-test-semantics.js)
 ✅ Added npm scripts for test verification and migration (test:verify, test:migration-plan, etc.)
 ✅ Updated PR template to include test category semantics verification
+Task: Run the verification tool (tools/verify-test-categories.js) and review its output. Manually inspect tests flagged as potentially having incorrect semantics (e.g., a domain test making external calls). Use the migration plan generator/script if needed.
 
 Phase 3: Enhancement & Coverage
 
 These tickets focus on improving the quality and scope of the tests.
 
-Ticket #T11: Add Missing API/E2E Tests
+Ticket #T11: E2E Test: Core User Authentication Lifecycle ✅
 Priority: Medium
-Issue: The current E2E tests might not cover all critical API endpoints or user workflows.
-Affected Files: tests/e2e/
+Issue: The current E2E tests might not cover all critical API endpoints or user workflows, particularly authentication flows.
+Affected Files: tests/e2e/user/
 Action:
-⬜ Review API endpoints defined in RouteFactory.js
-⬜ Identify critical user workflows
-⬜ Write new E2E tests for untested endpoints and workflows
+✅ Created auth.e2e.test.js that covers: User Signup -> Login -> Get Profile (/users/me) -> Refresh Token -> Logout
+✅ Verified each step returns expected data and status codes
+✅ Tested error scenarios for authentication endpoints
+✅ Implemented robust tests that work in both development and production environments
 
-Ticket #T12: Enhance External Service Tests
+Ticket #T12: E2E Test: Challenge Generation & Retrieval
 Priority: Medium
-Issue: Existing external tests might be basic connectivity checks. They could be enhanced to cover more scenarios.
-Affected Files: tests/external/
+Issue: Need comprehensive E2E tests for the core challenge creation flow including AI interaction and persistence.
+Affected Files: tests/e2e/challenge/
 Action:
-⬜ Review existing OpenAI and Supabase external tests
-⬜ Add tests for different API parameters
-⬜ Add tests for expected error conditions
-⬜ Verify response schemas match the external API documentation
+⬜ Create an E2E test (challengeGeneration.e2e.test.js) that: Authenticates -> Calls POST /challenges/generate -> Verifies 201 response -> Calls GET /challenges/{id} -> Verifies retrieved challenge structure
+⬜ Test various challenge generation parameters and verify correct responses
+⬜ Include error cases (missing parameters, invalid parameters)
 
-Ticket #T13: Review and Improve Assertions
-Priority: Low
-Issue: Existing tests might have weak assertions (e.g., just checking expect(result).to.exist).
-Affected Files: All test files.
+Ticket #T13: E2E Test: Challenge Response & Evaluation
+Priority: Medium
+Issue: Need comprehensive E2E tests for challenge completion and evaluation workflow.
+Affected Files: tests/e2e/challenge/
 Action:
-⬜ Review assertions in existing tests
-⬜ Make assertions more specific
-⬜ Ensure tests verify not just the happy path but also side effects
+⬜ Create an E2E test (challengeEvaluation.e2e.test.js) that: Authenticates -> Generates/Retrieves a challenge -> Submits a response -> Verifies evaluation
+⬜ Test various response types and verify evaluation structure
+⬜ Verify feedback, scores, and evaluation properties
+
+Ticket #T14: E2E Test: Focus Area Recommendation & Selection
+Priority: Medium
+Issue: Need E2E tests for focus area personalization and user update workflows.
+Affected Files: tests/e2e/focusArea/
+Action:
+⬜ Create an E2E test (focusArea.e2e.test.js) that tests: Authentication -> Generate/retrieve focus areas -> Select a focus area -> Verify user profile update
+⬜ Test different recommendation scenarios
+⬜ Verify user profile correctly reflects selected focus area
+
+Ticket #T15: E2E Test: Personality Profile Update & Preference Sync
+Priority: Medium
+Issue: Need E2E tests for cross-domain interactions between Personality and User domains.
+Affected Files: tests/e2e/personality/
+Action:
+⬜ Create an E2E test (personalitySync.e2e.test.js) that: Authenticates -> Updates personality attitudes -> Verifies user preferences reflect changes
+⬜ Test different attitude updates and verify appropriate preference changes
+⬜ Verify event handling between domains
+
+Ticket #T16: External Test: OpenAI Challenge Generation Variations
+Priority: Medium
+Issue: Current external tests for OpenAI may not test different parameter variations.
+Affected Files: tests/external/openai/
+Action:
+⬜ Enhance challengeGeneration.direct.test.js to test parameter variations (difficulty, focusArea, challengeType)
+⬜ Assert that returned JSON structure is consistently valid across parameter variations
+⬜ Verify that content varies appropriately with different parameters
+
+Ticket #T17: External Test: OpenAI Evaluation Variations
+Priority: Medium
+Issue: Need more comprehensive testing of evaluation prompts with different response types.
+Affected Files: tests/external/openai/
+Action:
+⬜ Enhance evaluation.external.test.js to test different response types (short, long, high/low quality)
+⬜ Assert that evaluation structure is valid for all responses
+⬜ Verify that scores/feedback reasonably reflect response quality
+
+Ticket #T18: External Test: Supabase Schema/Relation Verification
+Priority: Medium
+Issue: Need direct verification of database constraints in the Supabase instance.
+Affected Files: tests/external/supabase/
+Action:
+⬜ Enhance supabase-client.test.js to test foreign key constraints
+⬜ Test non-nullable column constraints
+⬜ Verify expected error messages for constraint violations
+
+Ticket #T19: Integration Test: Coordinator Error Handling
+Priority: Medium
+Issue: Need tests to verify that coordinators correctly handle and translate errors from lower layers.
+Affected Files: tests/integration/
+Action:
+⬜ Add tests for coordinators with mocked services throwing domain errors
+⬜ Assert that coordinators catch and map errors according to BaseCoordinator logic
+⬜ Test different error types and scenarios
+
+Ticket #T20: Integration Test: Cross-Domain Event Workflow (Challenge -> Progress)
+Priority: Medium
+Issue: Need tests for event-driven workflows between Challenge completion and Progress updates.
+Affected Files: tests/integration/
+Action:
+⬜ Create challengeProgress.workflow.test.js similar to challengeFocusArea.workflow.test.js
+⬜ Mock ChallengeService and ProgressService with in-memory repositories
+⬜ Test event handling between domains for challenge completion and progress updates
 
 Next Steps:
 
-1. Continue with Phase 1: Focus on tickets T2-T5 to get the test suite into a fully runnable state
-2. Move to Phase 2: Refactor tests to align with the current architecture
-3. Finally address Phase 3: Enhance test coverage and quality
+1. Continue with Phase 1: Focus on tickets T4 and T5 to get the test suite into a fully runnable state
+2. Move to Phase 2: Refactor tests to align with the current architecture (T7-T9)
+3. Finally address Phase 3: Enhance test coverage and quality with new E2E and integration tests (T11-T20)
 
-Progress Update (March 29):
-- Created fix-test-imports.js and fix-source-imports.js scripts to address import path issues
-- Updated key files to use ES modules: run-tests.js, mockSetup.js, loadEnv.js, user.service.test.js, UserService.js, UserErrors.js, AppError.js
-- Created fix-test-suite.sh to run fixes and document manual steps
-- Verified Supabase credentials exist in .env.test
-- Implemented domainEvents mock in mockSetup.js
+Progress Update (March 30):
+- Created test-supabase-schema.js script to set up required tables and constraints
+- Updated the fix-test-suite.sh script to verify Supabase schema before running tests
+- Added foreign key constraint verification and test user creation
+- Verified that database schema issues are now handled correctly
+- Completed migration from CommonJS to ES modules (Ticket #T5)
+- Created scripts to automatically fix common ESM issues (fix-commonjs-to-esm.js and fix-esm-test-issues.js)
+- Created a comprehensive ES Module migration guide in docs/ESM_MIGRATION_GUIDE.md
+- All Phase 1 tickets are now complete (T1-T6), ready to move to Phase 2

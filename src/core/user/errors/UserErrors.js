@@ -4,7 +4,8 @@
  * Provides specific error types for the User domain
  * following Domain-Driven Design principles.
  */
-import AppError from '../../../core/infra/errors/AppError.js';
+import AppError from "../../infra/errors/AppError.js";
+import { StandardErrorCodes } from "../../infra/errors/ErrorHandler.js";
 /**
  * Base class for User domain errors
  */
@@ -13,9 +14,13 @@ export class UserError extends AppError {
      * Create a new UserError
      * @param {string} message - Error message
      * @param {number} statusCode - HTTP status code
+     * @param {Object} options - Additional options
      */
-    constructor(message = 'User operation failed', statusCode = 400) {
-        super(message, statusCode);
+    constructor(message = 'User operation failed', statusCode = 400, options = {}) {
+        super(message, statusCode, {
+            ...options,
+            errorCode: options.errorCode || 'USER_ERROR'
+        });
         this.name = 'UserError';
     }
 }
@@ -30,7 +35,10 @@ export class UserNotFoundError extends UserError {
      */
     constructor(identifier = '') {
         const message = identifier ? `User not found: ${identifier}` : 'User not found';
-        super(message, 404);
+        super(message, 404, {
+            errorCode: StandardErrorCodes.NOT_FOUND,
+            metadata: { identifier }
+        });
         this.name = 'UserNotFoundError';
     }
 }
@@ -42,9 +50,13 @@ export class UserUpdateError extends UserError {
     /**
      * Create a new UserUpdateError
      * @param {string} message - Error message explaining the update failure
+     * @param {Object} options - Additional options
      */
-    constructor(message = 'Failed to update user') {
-        super(message, 500);
+    constructor(message = 'Failed to update user', options = {}) {
+        super(message, 500, {
+            ...options,
+            errorCode: StandardErrorCodes.DOMAIN_ERROR
+        });
         this.name = 'UserUpdateError';
     }
 }
@@ -56,9 +68,13 @@ export class UserValidationError extends UserError {
     /**
      * Create a new UserValidationError
      * @param {string} message - Error message describing the validation failure
+     * @param {Object} validationErrors - Specific validation errors
      */
-    constructor(message = 'Invalid user data') {
-        super(message, 400);
+    constructor(message = 'Invalid user data', validationErrors = null) {
+        super(message, 400, {
+            errorCode: StandardErrorCodes.VALIDATION_ERROR,
+            metadata: { validationErrors }
+        });
         this.name = 'UserValidationError';
     }
 }
@@ -70,9 +86,14 @@ export class UserInvalidStateError extends UserError {
     /**
      * Create a new UserInvalidStateError
      * @param {string} message - Error message describing the invalid state
+     * @param {string} currentState - The current state of the user
+     * @param {string} requiredState - The required state for the operation
      */
-    constructor(message = 'User is in an invalid state for this operation') {
-        super(message, 400);
+    constructor(message = 'User is in an invalid state for this operation', currentState = null, requiredState = null) {
+        super(message, 400, {
+            errorCode: StandardErrorCodes.INVALID_STATE_TRANSITION,
+            metadata: { currentState, requiredState }
+        });
         this.name = 'UserInvalidStateError';
     }
 }
@@ -86,7 +107,9 @@ export class UserAuthenticationError extends UserError {
      * @param {string} message - Error message describing the authentication failure
      */
     constructor(message = 'Authentication failed') {
-        super(message, 401);
+        super(message, 401, {
+            errorCode: StandardErrorCodes.UNAUTHORIZED
+        });
         this.name = 'UserAuthenticationError';
     }
 }
@@ -98,9 +121,13 @@ export class UserAuthorizationError extends UserError {
     /**
      * Create a new UserAuthorizationError
      * @param {string} message - Error message describing the authorization failure
+     * @param {string} requiredPermission - The permission required for the operation
      */
-    constructor(message = 'Not authorized') {
-        super(message, 403);
+    constructor(message = 'Not authorized', requiredPermission = null) {
+        super(message, 403, {
+            errorCode: StandardErrorCodes.FORBIDDEN,
+            metadata: { requiredPermission }
+        });
         this.name = 'UserAuthorizationError';
     }
 }
@@ -114,7 +141,9 @@ export class FocusAreaError extends UserError {
      * @param {string} message - Error message describing the focus area issue
      */
     constructor(message = 'Focus area operation failed') {
-        super(message, 400);
+        super(message, 400, {
+            errorCode: 'FOCUS_AREA_ERROR'
+        });
         this.name = 'FocusAreaError';
     }
 }

@@ -18,10 +18,15 @@ import ChallengeConfigService from "../../core/challenge/services/ChallengeConfi
 import { ChallengeService } from "../../core/challenge/services/ChallengeService.js";
 import EvaluationService from "../../core/evaluation/services/evaluationService.js";
 import FocusAreaService from "../../core/focusArea/services/FocusAreaService.js";
-import ChallengeGenerationService from "../../core/challenge/services/challengeGenerationService.js";
-import ChallengeEvaluationService from "../../core/challenge/services/challengeEvaluationService.js";
-import { UserContextService } from "../../core/evaluation/services/userContextService.js";
+import FocusAreaThreadService from "../../core/focusArea/services/focusAreaThreadService.js";
+import FocusAreaValidationService from "../../core/focusArea/services/FocusAreaValidationService.js";
 import HealthCheckService from "../../core/infra/health/HealthCheckService.js";
+import ChallengeFactory from "../../core/challenge/factories/ChallengeFactory.js";
+// Application services
+import FocusAreaGenerationService from "@/application/focusArea/FocusAreaGenerationService.js";
+import ChallengeGenerationService from "@/application/challenge/ChallengeGenerationService.js";
+import ChallengeEvaluationService from "@/application/challenge/ChallengeEvaluationService.js";
+import { UserContextService } from "@/application/evaluation/UserContextService.js";
 'use strict';
 /**
  * Service Components Registration
@@ -82,6 +87,32 @@ function registerServiceComponents(container) {
             logger: c.get('logger')
         });
     }, false // Transient: handles user-specific focus areas
+    );
+    // Register focusAreaThreadService
+    container.register('focusAreaThreadService', c => {
+        return new FocusAreaThreadService({
+            openAIStateManager: c.get('aiStateManager'),
+            logger: c.get('focusAreaLogger')
+        });
+    }, false); // Transient: manages user-specific focus area threads
+    
+    // Register focusAreaValidationService
+    container.register('focusAreaValidationService', c => {
+        return new FocusAreaValidationService(
+            c.get('focusAreaConfigRepository'), 
+            c.get('focusAreaLogger')
+        );
+    }, true); // Singleton: validation rules don't change frequently
+    
+    // Application service for focus area generation
+    container.register('focusAreaGenerationService', c => {
+        return new FocusAreaGenerationService({
+            openAIClient: c.get('aiClient'),
+            MessageRole: c.get('messageRole'),
+            openAIStateManager: c.get('aiStateManager'),
+            logger: c.get('focusAreaLogger')
+        });
+    }, false // Transient: generates user-specific focus areas
     );
     // Challenge-related services
     container.register('challengePersonalizationService', c => {
@@ -165,42 +196,57 @@ function registerServiceComponents(container) {
     }, false // Transient: generates user-specific insights
     );
 
+    // Register application services moved from domain layer
     container.register('challengeGenerationService', c => {
         return new ChallengeGenerationService({
             aiClient: c.get('aiClient'),
             aiStateManager: c.get('aiStateManager'),
             openAIConfig: c.get('openAIConfig'),
-            logger: c.get('logger')
+            logger: c.get('challengeLogger')
         });
     }, false // Transient: generates user-specific challenges
     );
+    
     container.register('challengeEvaluationService', c => {
         return new ChallengeEvaluationService({
             aiClient: c.get('aiClient'),
             aiStateManager: c.get('aiStateManager'),
             openAIConfig: c.get('openAIConfig'),
-            logger: c.get('logger')
+            logger: c.get('challengeLogger')
         });
     }, false // Transient: evaluates user-specific challenge responses
     );
+    
     container.register('userContextService', c => {
         return new UserContextService({
             userRepository: c.get('userRepository'),
             challengeRepository: c.get('challengeRepository'),
             evaluationRepository: c.get('evaluationRepository'),
+            cacheService: c.get('cacheService'),
             logger: c.get('evaluationLogger')
         });
     }, false // Transient: manages user-specific context
     );
+    
     // Miscellaneous utilities
     container.register('healthCheckService', c => {
         return new HealthCheckService({
             logger: c.get('logger'),
-            openai: c.get('openai')
+            openai: c.get('openAIClient')
         });
     });
+
+    // Register challenge factory
+    container.register('challengeFactory', c => {
+        return new ChallengeFactory({
+            challengeConfigService: c.get('challengeConfigService'),
+            focusAreaValidationService: c.get('focusAreaValidationService'),
+            logger: c.get('challengeLogger')
+        });
+    }, true); // Singleton: primarily creates entities based on configuration
 }
 export { registerServiceComponents };
 export default {
     registerServiceComponents
 };
+

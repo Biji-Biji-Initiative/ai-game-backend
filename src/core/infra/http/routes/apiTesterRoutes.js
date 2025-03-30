@@ -1,7 +1,7 @@
 'use strict';
 
 import express from 'express';
-import { logger } from '../../logging/logger.js';
+import { logger } from "../../../infra/logging/logger.js";
 
 /**
  * Creates API tester routes for debugging

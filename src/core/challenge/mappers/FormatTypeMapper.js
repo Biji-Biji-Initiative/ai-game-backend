@@ -1,4 +1,4 @@
-import FormatType from "../models/config/FormatType.js";
+import FormatType from "../../challenge/models/config/FormatType.js";
 'use strict';
 /**
  * FormatTypeMapper class

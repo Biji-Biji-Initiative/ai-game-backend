@@ -1,6 +1,7 @@
 import { expect } from "chai";
 import sinon from "sinon";
 import evaluationCategoryRepository from "../../../src/core/evaluation/repositories/evaluationCategoryRepository.js";
+import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationProcessingError, EvaluationRepositoryError } from "../../../src/core/evaluation/errors/evaluationErrors.js";
 describe('Evaluation Category Repository', () => {
     it('getAllCategories returns data in the correct format', async () => {
         try {
@@ -16,7 +17,7 @@ describe('Evaluation Category Repository', () => {
                 expect(category).to.have.property('description');
             }
         }
-        catch (error) {
+        catch (EvaluationError) {
             // Allow test to pass if the database table doesn't exist yet
             if (error.message && error.message.includes('does not exist')) {
                 console.log('Table does not exist yet, skipping test');
@@ -42,7 +43,7 @@ describe('Evaluation Category Repository', () => {
                 expect(category).to.have.property('weight');
             }
         }
-        catch (error) {
+        catch (EvaluationError) {
             // Allow test to pass if the database table doesn't exist yet
             if (error.message && error.message.includes('does not exist')) {
                 console.log('Table does not exist yet, skipping test');
@@ -67,7 +68,7 @@ describe('Evaluation Category Repository', () => {
             const sampleCategory = Object.keys(weights)[0];
             expect(typeof weights[sampleCategory]).to.equal('number');
         }
-        catch (error) {
+        catch (EvaluationError) {
             // Allow test to pass if the database table doesn't exist yet
             if (error.message && error.message.includes('does not exist')) {
                 console.log('Table does not exist yet, skipping test');
@@ -90,7 +91,7 @@ describe('Evaluation Category Repository', () => {
             const sampleCategory = Object.keys(descriptions)[0];
             expect(typeof descriptions[sampleCategory]).to.equal('string');
         }
-        catch (error) {
+        catch (EvaluationError) {
             // Allow test to pass if the database table doesn't exist yet
             if (error.message && error.message.includes('does not exist')) {
                 console.log('Table does not exist yet, skipping test');
@@ -120,7 +121,7 @@ describe('Evaluation Category Repository', () => {
             // Should have categories with multiple focus areas
             expect(multipleCategories.length).to.be.above(0);
         }
-        catch (error) {
+        catch (EvaluationError) {
             // Allow test to pass if the database table doesn't exist yet
             if (error.message && error.message.includes('does not exist')) {
                 console.log('Table does not exist yet, skipping test');
@@ -142,7 +143,7 @@ describe('Evaluation Category Repository', () => {
             expect(typeof description).to.equal('string');
             expect(description.length).to.be.above(0);
         }
-        catch (error) {
+        catch (EvaluationError) {
             // Allow test to pass if the database table doesn't exist yet
             if (error.message && error.message.includes('does not exist')) {
                 console.log('Table does not exist yet, skipping test');

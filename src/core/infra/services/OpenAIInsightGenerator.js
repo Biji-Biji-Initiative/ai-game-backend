@@ -1,4 +1,4 @@
-import { personalityLogger } from "../logging/domainLogger.js";
+import { personalityLogger } from "../../infra/logging/domainLogger.js";
 import InsightGenerator from "../../personality/ports/InsightGenerator.js";
 'use strict';
 /**

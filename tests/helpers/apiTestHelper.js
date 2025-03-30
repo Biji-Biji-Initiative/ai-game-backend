@@ -5,7 +5,7 @@
  */
 import { randomUUID } from 'crypto';
 import axios from 'axios';
-import { supabaseClient, supabaseAdmin } from '../../src/core/infra/db/supabaseClient.js';
+import { supabaseClient } from "../../src/core/infra/db/supabaseClient.js";
 import testConfig from '../loadEnv.js';
 import { v4 as uuidv4 } from 'uuid';
 // Initialize test environment
@@ -138,12 +138,21 @@ async function cleanupTestUser(userId) {
 async function apiRequest(method, endpoint, data = null, token) {
     try {
         const config = {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
+            headers: {}
         };
+        
+        // Add auth token if provided
+        if (token) {
+            config.headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        // Use the environment variable API_URL or fallback to localhost
+        const baseUrl = process.env.API_URL || 'http://localhost:3000/api/v1';
+        const url = `${baseUrl}/${endpoint.replace(/^\//, '')}`;
+        
+        console.log(`Making API request to: ${url}`);
+        
         let response;
-        const url = `${env.API_URL}/${endpoint.replace(/^\//, '')}`;
         switch (method.toLowerCase()) {
             case 'get':
                 response = await axios.get(url, config);

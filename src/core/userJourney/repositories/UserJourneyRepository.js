@@ -1,12 +1,12 @@
 import { v4 as uuidv4 } from "uuid";
-import UserJourneyEvent from "../models/UserJourneyEvent.js";
-import userJourneyEventMapper from "../mappers/UserJourneyEventMapper.js";
-import { UserJourneyEventCreateSchema, UserJourneyEventDatabaseSchema, UserJourneyEventQuerySchema } from "../schemas/UserJourneyEventSchema.js";
+import UserJourneyEvent from "../../userJourney/models/UserJourneyEvent.js";
+import userJourneyEventMapper from "../../userJourney/mappers/UserJourneyEventMapper.js";
+import { UserJourneyEventCreateSchema, UserJourneyEventDatabaseSchema, UserJourneyEventQuerySchema } from "../../userJourney/schemas/UserJourneyEventSchema.js";
 import { supabaseClient } from "../../infra/db/supabaseClient.js";
 import { logger } from "../../infra/logging/logger.js";
 import domainEvents from "../../common/events/domainEvents.js";
 import { ValidationError, DatabaseError } from "../../infra/repositories/BaseRepository.js";
-import { UserJourneyNotFoundError, UserJourneyValidationError, UserJourneyError } from "../errors/userJourneyErrors.js";
+import { UserJourneyNotFoundError, UserJourneyValidationError, UserJourneyError } from "../../userJourney/errors/userJourneyErrors.js";
 import { createErrorMapper, withRepositoryErrorHandling } from "../../infra/errors/errorStandardization.js";
 'use strict';
 const {

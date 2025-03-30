@@ -3,8 +3,9 @@ import sinon from "sinon";
 import { v4 as uuidv4 } from "uuid";
 import { createInMemoryPersonalityRepository, createInMemoryUserRepository } from "../../helpers/inMemory/index.js";
 // Import the service (assuming module path, adjust if needed)
-// const PersonalityService = require('../../../src/core/personality/services/PersonalityService');
-// const Personality = require('../../../src/core/personality/models/Personality');
+// import PersonalityService from "../../../src/core/personality/services/PersonalityService.js";
+// import Personality from "../../../src/core/personality/models/Personality.js";
+import { UserError, UserNotFoundError, UserUpdateError, UserValidationError, UserInvalidStateError, UserAuthenticationError, UserAuthorizationError } from "../../../src/core/user/errors/UserErrors.js";
 describe('Personality Service Domain Tests', function () {
     // Set longer timeout for API calls
     this.timeout(30000);

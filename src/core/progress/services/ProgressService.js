@@ -1,5 +1,5 @@
 import { createErrorMapper, withServiceErrorHandling } from "../../infra/errors/errorStandardization.js";
-import { ProgressError } from "../errors/progressErrors.js";
+import { ProgressError } from "../../progress/errors/progressErrors.js";
 'use strict';
 /**
  * Service for handling progress-related operations

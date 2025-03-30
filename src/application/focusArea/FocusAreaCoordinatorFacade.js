@@ -1,7 +1,7 @@
-import BaseCoordinator from "../BaseCoordinator.js";
+import BaseCoordinator from "@/application/BaseCoordinator.js";
 import { FocusAreaError as _FocusAreaError } from "../../core/focusArea/errors/focusAreaErrors.js";
-import FocusAreaGenerationCoordinator from "./FocusAreaGenerationCoordinator.js";
-import FocusAreaManagementCoordinator from "./FocusAreaManagementCoordinator.js";
+import FocusAreaGenerationCoordinator from "@/application/focusArea/FocusAreaGenerationCoordinator.js";
+import FocusAreaManagementCoordinator from "@/application/focusArea/FocusAreaManagementCoordinator.js";
 'use strict';
 /**
  * FocusAreaCoordinatorFacade class

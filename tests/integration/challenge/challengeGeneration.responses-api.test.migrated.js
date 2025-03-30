@@ -1,9 +1,9 @@
 import { expect } from "chai";
-import openai from "../../../src/infra/openai";
-import types from "../../../src/infra/openai/types";
+import openai from "@/infra/openai";
+import types from "@/infra/openai/types";
 import { v4 as uuidv4 } from "uuid";
-import testEnv from "../loadEnv";
-import testHelpers from "../../tests/helpers/testHelpers";
+import testEnv from "../loadEnv.js";
+import testHelpers from "../../tests/helpers/testHelpers.js";
 const { OpenAIClient } = openai;
 const { MessageRole } = types;
 const { skipIfMissingEnv } = testHelpers;

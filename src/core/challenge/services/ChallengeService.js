@@ -1,8 +1,8 @@
 import { v4 as uuidv4 } from "uuid";
 import { getCacheService, getCacheInvalidationManager } from "../../infra/cache/cacheFactory.js";
 import { withServiceErrorHandling, createErrorMapper } from "../../infra/errors/errorStandardization.js";
-import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError } from "../errors/ChallengeErrors.js";
-import challengeErrors from "../errors/ChallengeErrors.js";
+import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError } from "../../challenge/errors/ChallengeErrors.js";
+import challengeErrors from "../../challenge/errors/ChallengeErrors.js";
 import { Email, ChallengeId, FocusArea, createEmail, createChallengeId, createFocusArea } from "../../common/valueObjects/index.js";
 'use strict';
 

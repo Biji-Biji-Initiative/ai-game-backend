@@ -2,7 +2,7 @@ import { expect } from "chai";
 import sinon from "sinon";
 import { v4 as uuidv4 } from "uuid";
 import { createEmail, createChallengeId, Email, ChallengeId } from "../../../src/core/common/valueObjects/index.js";
-import ChallengeCoordinator from "../../../src/application/challengeCoordinator.js";
+import ChallengeCoordinator from "@/application/challengeCoordinator.js";
 'use strict';
 
 // Mock the domain logger

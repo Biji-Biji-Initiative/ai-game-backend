@@ -5,7 +5,7 @@
  * Moved from utilities to follow Domain-Driven Design principles.
  */
 import { createClient } from '@supabase/supabase-js';
-import { logger } from "../logging/logger.js";
+import { logger } from "../../infra/logging/logger.js";
 
 /**
  * Initialize Supabase client with proper error handling
