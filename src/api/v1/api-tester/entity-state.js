@@ -5,11 +5,11 @@
 
 const { Router } = require('express');
 const { v4: uuidv4 } = require('uuid');
-const { getRepositoryByEntityType } = require('../../../core/repositories');
-const { logger } = require('../../../utils/logger');
-const { asyncHandler } = require('../../middleware/asyncHandler');
-const { requireAdmin } = require('../../middleware/requireAdmin');
-const { isDevMode } = require('../../../utils/environment');
+const { getRepositoryByEntityType } = require('@/core/repositories');
+const { logger } = require('@/utils/logger');
+const { asyncHandler } = require('@/api/middleware/asyncHandler');
+const { requireAdmin } = require('@/api/middleware/requireAdmin');
+const { isDevMode } = require('@/utils/environment');
 
 // Create a router
 const router = Router();

@@ -5,8 +5,8 @@
 
 const { Router } = require('express');
 const entityStateRouter = require('./entity-state');
-const { isDevMode } = require('../../../utils/environment');
-const { requireAdmin } = require('../../middleware/requireAdmin');
+const { isDevMode } = require('@/utils/environment');
+const { requireAdmin } = require('@/api/middleware/requireAdmin');
 
 // Create a router
 const router = Router();

@@ -9,8 +9,8 @@ import PersonalityDataLoader from "@/core/personality/services/PersonalityDataLo
 import AdaptiveService from "@/core/adaptive/services/AdaptiveService.js";
 import ProgressService from "@/core/progress/services/ProgressService.js";
 // AI Chat Services - temporarily commented out until fixed
-// import AiChatService from "../../services/ai/AiChatService.js";
-// import AiAnalysisService from "../../services/ai/AiAnalysisService.js";
+// import AiChatService from "@/services/ai/AiChatService.js";
+// import AiAnalysisService from "@/services/ai/AiAnalysisService.js";
 import UserService from "@/core/user/services/UserService.js";
 import UserPreferencesManager from "@/core/user/services/UserPreferencesManager.js";
 import UserJourneyService from "@/core/userJourney/services/UserJourneyService.js";
