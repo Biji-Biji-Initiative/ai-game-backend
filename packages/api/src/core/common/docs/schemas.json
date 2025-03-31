@@ -1,0 +1,266 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "AI Fight Club API Schemas",
+    "description": "Common schema definitions for the API",
+    "version": "1.0.0"
+  },
+  "components": {
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "default": false
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message"
+          },
+          "errorCode": {
+            "type": "string",
+            "description": "Error code for client-side error handling"
+          },
+          "details": {
+            "type": "object",
+            "description": "Additional error details"
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "required": [
+          "id",
+          "email"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier for the user"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "User's email address"
+          },
+          "fullName": {
+            "type": "string",
+            "description": "User's full name"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the user account was created"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the user account was last updated"
+          }
+        }
+      },
+      "Challenge": {
+        "type": "object",
+        "required": [
+          "id",
+          "content",
+          "userEmail",
+          "status",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier for the challenge"
+          },
+          "content": {
+            "type": "string",
+            "description": "The challenge content/question"
+          },
+          "userEmail": {
+            "type": "string",
+            "format": "email",
+            "description": "Email of the user the challenge is for"
+          },
+          "focusArea": {
+            "type": "string",
+            "description": "The focus area of the challenge"
+          },
+          "challengeType": {
+            "type": "string",
+            "description": "The type of challenge"
+          },
+          "formatType": {
+            "type": "string",
+            "description": "The format of the challenge"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "beginner",
+              "intermediate",
+              "advanced",
+              "expert"
+            ],
+            "description": "Difficulty level of the challenge"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "submitted",
+              "evaluated"
+            ],
+            "description": "Current status of the challenge"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the challenge was created"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the challenge was last updated"
+          }
+        }
+      },
+      "Evaluation": {
+        "type": "object",
+        "required": [
+          "id",
+          "challengeId",
+          "score",
+          "feedback"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier for the evaluation"
+          },
+          "challengeId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of the evaluated challenge"
+          },
+          "score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Overall evaluation score"
+          },
+          "feedback": {
+            "type": "string",
+            "description": "Detailed feedback on the response"
+          },
+          "categoryScores": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Scores broken down by category"
+          },
+          "strengths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Identified strengths in the response"
+          },
+          "improvements": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Areas for improvement"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the evaluation was created"
+          }
+        }
+      },
+      "FocusArea": {
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier for the focus area"
+          },
+          "code": {
+            "type": "string",
+            "description": "Focus area code"
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the focus area"
+          },
+          "description": {
+            "type": "string",
+            "description": "Detailed description"
+          },
+          "category": {
+            "type": "string",
+            "description": "Category this focus area belongs to"
+          }
+        }
+      },
+      "PersonalityProfile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Profile identifier"
+          },
+          "userEmail": {
+            "type": "string",
+            "format": "email",
+            "description": "User this profile belongs to"
+          },
+          "traits": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "score": {
+                  "type": "number"
+                },
+                "description": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "insights": {
+            "type": "object",
+            "description": "AI-generated insights based on personality"
+          },
+          "lastUpdated": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the profile was last updated"
+          }
+        }
+      }
+    }
+  }
+}

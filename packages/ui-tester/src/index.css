@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    @apply h-full leading-relaxed;
+    font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    font-size: 1rem;
+  }
+
+  #root {
+    @apply h-full;
+  }
+
+  body {
+    @apply m-0 min-w-[320px] min-h-screen antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold leading-tight mb-2;
+  }
+
+  h1 {
+    @apply text-4xl;
+  }
+
+  a {
+    @apply text-blue-600 no-underline hover:underline;
+  }
+
+  button {
+    @apply rounded-lg border border-transparent px-4 py-2 font-medium cursor-pointer transition-colors
+           focus:outline-none focus:ring-2 focus:ring-blue-300;
+    font-size: 1rem;
+  }
+
+  pre, code {
+    font-family: Monaco, Menlo, 'Ubuntu Mono', monospace;
+  }
+}
+
+@layer components {
+  .method {
+    @apply inline-block px-2 py-1 rounded font-bold mr-2 uppercase;
+    font-size: 0.75rem;
+  }
+
+  .method.get {
+    @apply bg-blue-100 text-blue-800;
+  }
+
+  .method.post {
+    @apply bg-green-100 text-green-800;
+  }
+
+  .method.put, .method.patch {
+    @apply bg-orange-100 text-orange-800;
+  }
+
+  .method.delete {
+    @apply bg-red-100 text-red-800;
+  }
+
+  .loading {
+    @apply flex justify-center items-center p-8 text-gray-500;
+  }
+
+  .no-results {
+    @apply flex justify-center items-center p-8 text-gray-500 italic;
+  }
+
+  .error-message {
+    @apply p-4 text-red-600;
+  }
+}
+
+/* Responsive design */
+@layer utilities {
+  @media (max-width: 768px) {
+    .app-main {
+      @apply flex-col;
+    }
+
+    .sidebar {
+      @apply w-full border-r-0 border-b border-gray-300 max-h-[300px];
+    }
+
+    .header-controls button {
+      @apply p-1;
+    }
+  }
+}

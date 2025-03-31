@@ -1,0 +1,21 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Colors for better output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
+echo "${GREEN}Validating commit message...${NC}"
+
+# Validate commit message
+npx --no -- commitlint --edit "${1}" || (
+  echo "${RED}Commit message validation failed.${NC}"
+  echo "${RED}Please follow the Conventional Commits format: type(scope): message${NC}"
+  echo "${RED}Examples:${NC}"
+  echo "${RED}  - feat(api): add user authentication${NC}"
+  echo "${RED}  - fix(ui): resolve button alignment issue${NC}"
+  echo "${RED}  - docs: update README with new instructions${NC}"
+  echo "${RED}Valid types: build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test${NC}"
+  false
+)

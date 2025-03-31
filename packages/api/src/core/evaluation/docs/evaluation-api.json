@@ -1,0 +1,548 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Enhanced Evaluation API",
+    "description": "API for generating detailed evaluations with category-based scoring and strength analysis",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/api",
+      "description": "Default API server"
+    }
+  ],
+  "paths": {
+    "/evaluations": {
+      "post": {
+        "summary": "Generate an evaluation",
+        "description": "Generates a detailed evaluation for a challenge response with category scoring and strength analysis",
+        "operationId": "createEvaluation",
+        "tags": [
+          "evaluations"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "challengeId",
+                  "userResponse"
+                ],
+                "properties": {
+                  "challengeId": {
+                    "type": "string",
+                    "description": "ID of the challenge being evaluated"
+                  },
+                  "userResponse": {
+                    "type": "string",
+                    "description": "User's response to the challenge"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Evaluation created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Challenge not found"
+          }
+        }
+      }
+    },
+    "/evaluations/{id}": {
+      "get": {
+        "summary": "Get evaluation by ID",
+        "description": "Retrieves an evaluation by its unique identifier",
+        "operationId": "getEvaluationById",
+        "tags": [
+          "evaluations"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID of the evaluation to retrieve",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Evaluation found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Evaluation not found"
+          }
+        }
+      }
+    },
+    "/evaluations/user/{userId}": {
+      "get": {
+        "summary": "Get evaluations for user",
+        "description": "Retrieves all evaluations for a specific user",
+        "operationId": "getUserEvaluations",
+        "tags": [
+          "evaluations"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "ID of the user whose evaluations to retrieve",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Evaluations found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/evaluations/challenge/{challengeId}": {
+      "get": {
+        "summary": "Get evaluations for challenge",
+        "description": "Retrieves all evaluations for a specific challenge (filtered to the current user)",
+        "operationId": "getChallengeEvaluations",
+        "tags": [
+          "evaluations"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "challengeId",
+            "in": "path",
+            "required": true,
+            "description": "ID of the challenge to retrieve evaluations for",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Evaluations found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/evaluations/stream": {
+      "post": {
+        "summary": "Stream an evaluation",
+        "description": "Streams the evaluation process in real-time using server-sent events",
+        "operationId": "streamEvaluation",
+        "tags": [
+          "evaluations"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "challengeId",
+                  "userResponse"
+                ],
+                "properties": {
+                  "challengeId": {
+                    "type": "string",
+                    "description": "ID of the challenge being evaluated"
+                  },
+                  "userResponse": {
+                    "type": "string",
+                    "description": "User's response to the challenge"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Server-sent events stream started",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Challenge not found"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "CategoryScores": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "example": {
+          "ethical_reasoning": 35,
+          "comprehensiveness": 22,
+          "clarity": 18,
+          "practical_application": 10
+        }
+      },
+      "StrengthAnalysis": {
+        "type": "object",
+        "required": [
+          "strength",
+          "analysis",
+          "impact"
+        ],
+        "properties": {
+          "strength": {
+            "type": "string",
+            "description": "The identified strength"
+          },
+          "analysis": {
+            "type": "string",
+            "description": "Detailed explanation of why this is effective"
+          },
+          "impact": {
+            "type": "string",
+            "description": "How this contributes to overall quality"
+          }
+        }
+      },
+      "Metrics": {
+        "type": "object",
+        "properties": {
+          "normalizedScore": {
+            "type": "number",
+            "description": "Normalized score (0-100)"
+          },
+          "performanceLevel": {
+            "type": "string",
+            "enum": [
+              "excellent",
+              "good",
+              "average",
+              "needs improvement",
+              "poor"
+            ]
+          },
+          "categoryPerformanceLevels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "enum": [
+                "excellent",
+                "good",
+                "average",
+                "needs improvement",
+                "poor",
+                "not rated"
+              ]
+            }
+          },
+          "weightedScore": {
+            "type": "number",
+            "description": "Score weighted by category importance"
+          },
+          "strengthsCount": {
+            "type": "integer",
+            "description": "Number of strengths"
+          },
+          "strengthAnalysisCount": {
+            "type": "integer",
+            "description": "Number of detailed strength analyses"
+          },
+          "improvementAreasCount": {
+            "type": "integer",
+            "description": "Number of improvement areas"
+          },
+          "hasDetailedAnalysis": {
+            "type": "boolean",
+            "description": "Whether detailed strength analysis is available"
+          }
+        }
+      },
+      "Evaluation": {
+        "type": "object",
+        "required": [
+          "id",
+          "userId",
+          "challengeId",
+          "score",
+          "categoryScores",
+          "overallFeedback",
+          "strengths",
+          "strengthAnalysis",
+          "areasForImprovement",
+          "nextSteps",
+          "metrics",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique evaluation ID"
+          },
+          "userId": {
+            "type": "string",
+            "description": "ID of user who submitted the response"
+          },
+          "challengeId": {
+            "type": "string",
+            "description": "ID of the evaluated challenge"
+          },
+          "score": {
+            "type": "number",
+            "description": "Overall evaluation score (0-100)"
+          },
+          "categoryScores": {
+            "$ref": "#/components/schemas/CategoryScores"
+          },
+          "overallFeedback": {
+            "type": "string",
+            "description": "Comprehensive evaluation feedback"
+          },
+          "strengths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of identified strengths"
+          },
+          "strengthAnalysis": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StrengthAnalysis"
+            },
+            "description": "Detailed analysis of strengths"
+          },
+          "areasForImprovement": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of areas for improvement"
+          },
+          "nextSteps": {
+            "type": "string",
+            "description": "Recommended next steps"
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/Metrics"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the evaluation was created"
+          }
+        }
+      },
+      "EvaluationSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "userId",
+          "challengeId",
+          "score",
+          "categoryScores"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique evaluation ID"
+          },
+          "userId": {
+            "type": "string",
+            "description": "ID of user who submitted the response"
+          },
+          "challengeId": {
+            "type": "string",
+            "description": "ID of the evaluated challenge"
+          },
+          "score": {
+            "type": "number",
+            "description": "Overall evaluation score (0-100)"
+          },
+          "categoryScores": {
+            "$ref": "#/components/schemas/CategoryScores"
+          },
+          "strengths": {
+            "type": "integer",
+            "description": "Number of strengths"
+          },
+          "areasForImprovement": {
+            "type": "integer",
+            "description": "Number of areas for improvement"
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/Metrics"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the evaluation was created"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "default": false
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "EvaluationResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "default": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/Evaluation"
+          }
+        }
+      },
+      "EvaluationListResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "default": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EvaluationSummary"
+            }
+          }
+        }
+      }
+    }
+  }
+}

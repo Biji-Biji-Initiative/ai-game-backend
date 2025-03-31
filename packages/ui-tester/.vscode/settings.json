@@ -1,0 +1,10 @@
+{
+  "css.validate": false,
+  "less.validate": false,
+  "scss.validate": false,
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "tailwindCSS.emmetCompletions": true,
+  "editor.quickSuggestions": {
+    "strings": true
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "timestamp": "2025-03-27T00:15:18.360Z",
+  "label": "API Request",
+  "data": {
+    "url": "https://api.openai.com/v1/responses",
+    "method": "post",
+    "headers": {
+      "Accept": "application/json, text/plain, */*",
+      "Content-Type": "application/json",
+      "Authorization": "Bearer sk-...REDACTED"
+    },
+    "data": {
+      "model": "gpt-4o",
+      "instructions": "You are an expert evaluator of AI ethics responses. Format your response as JSON with a specific schema including overallScore, categoryScores, and strengths.",
+      "input": "Evaluate this response to an AI Ethics question:\n\nQuestion: What are the ethical implications of AI in healthcare?\n\nResponse: AI in healthcare presents several ethical considerations. First, patient privacy must be protected when handling sensitive health data. Second, AI diagnosis systems must be transparent so healthcare providers understand how recommendations are made. Third, we must ensure these systems are tested across diverse populations to prevent bias. Finally, human oversight is crucial - AI should augment rather than replace medical professionals.",
+      "temperature": 0.4
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "name": "@ai-fight-club/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "dev": "nodemon",
+    "start": "node --experimental-modules --loader ./src/importResolver.mjs src/index.js",
+    "prod": "NODE_ENV=production node --experimental-modules --loader ./src/importResolver.mjs src/index.js",
+    "pm2:start": "pm2 start ecosystem.config.cjs --env production",
+    "pm2:stop": "pm2 stop ecosystem.config.cjs",
+    "pm2:restart": "pm2 restart ecosystem.config.cjs",
+    "verify-sentry": "node --experimental-modules src/scripts/verify-sentry.js",
+    "setup-sourcemaps": "npx @sentry/wizard@latest -i sourcemaps --saas",
+    "swagger:build": "node --experimental-modules --loader ./src/importResolver.mjs src/scripts/build-swagger.js",
+    "swagger:validate": "node --experimental-modules --loader ./src/importResolver.mjs src/scripts/validate-swagger.js"
+  },
+  "dependencies": {
+    "@ai-fight-club/database": "workspace:*",
+    "@ai-fight-club/shared": "workspace:*",
+    "awilix": "^12.0.5",
+    "dataloader": "^2.2.3",
+    "http-status-codes": "^2.3.0"
+  },
+  "devDependencies": {
+    "chalk": "^5.4.1",
+    "jest": "^29.6.2",
+    "node-fetch": "^3.3.2",
+    "nodemon": "^3.0.1",
+    "ora": "^8.2.0",
+    "supertest": "^6.3.3"
+  }
+}

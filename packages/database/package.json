@@ -1,0 +1,20 @@
+{
+  "name": "@ai-fight-club/database",
+  "version": "1.0.0",
+  "description": "Database layer for AI Fight Club",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node src/index.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "lint": "eslint src --ext .js",
+    "migrate": "node src/scripts/run-migrations.js",
+    "seed": "node src/scripts/seed-data.js"
+  },
+  "dependencies": {
+    "@ai-fight-club/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "jest": "^29.6.2"
+  }
+}

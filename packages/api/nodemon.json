@@ -1,0 +1,6 @@
+{
+  "watch": ["src/**/*"],
+  "ext": "js,json",
+  "ignore": ["node_modules", "dist"],
+  "exec": "node --experimental-modules --loader ./src/importResolver.mjs src/index.js"
+}

@@ -1,0 +1,491 @@
+[
+  {
+    "name": "List Users",
+    "path": "/users",
+    "method": "GET",
+    "description": "Get a list of all users",
+    "category": "Users",
+    "parameters": [
+      {
+        "name": "limit",
+        "required": false,
+        "description": "Maximum number of users to return",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      {
+        "name": "offset",
+        "required": false,
+        "description": "Number of users to skip",
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "responseExample": {
+      "users": [
+        {
+          "id": "1",
+          "username": "player1",
+          "email": "player1@example.com"
+        }
+      ],
+      "total": 1
+    }
+  },
+  {
+    "name": "Get User",
+    "path": "/users/{id}",
+    "method": "GET",
+    "description": "Get a specific user by ID",
+    "category": "Users",
+    "parameters": [
+      {
+        "name": "id",
+        "required": true,
+        "description": "User ID",
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "responseExample": {
+      "id": "1",
+      "username": "player1",
+      "email": "player1@example.com",
+      "createdAt": "2023-01-01T00:00:00Z"
+    }
+  },
+  {
+    "name": "Create User",
+    "path": "/users",
+    "method": "POST",
+    "description": "Create a new user",
+    "category": "Users",
+    "parameters": [],
+    "requestBody": {
+      "name": "User Data",
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "username": {
+                "type": "string",
+                "example": "newplayer"
+              },
+              "email": {
+                "type": "string",
+                "example": "newplayer@example.com"
+              },
+              "password": {
+                "type": "string",
+                "example": "securepassword123"
+              }
+            },
+            "required": ["username", "email", "password"]
+          }
+        }
+      }
+    },
+    "responseExample": {
+      "id": "2",
+      "username": "newplayer",
+      "email": "newplayer@example.com",
+      "createdAt": "2023-09-01T00:00:00Z"
+    }
+  },
+  {
+    "name": "Update User",
+    "path": "/users/{id}",
+    "method": "PUT",
+    "description": "Update an existing user",
+    "category": "Users",
+    "parameters": [
+      {
+        "name": "id",
+        "required": true,
+        "description": "User ID",
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "requestBody": {
+      "name": "User Update Data",
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "username": {
+                "type": "string",
+                "example": "updatedplayer"
+              },
+              "email": {
+                "type": "string",
+                "example": "updated@example.com"
+              }
+            }
+          }
+        }
+      }
+    },
+    "responseExample": {
+      "id": "1",
+      "username": "updatedplayer",
+      "email": "updated@example.com",
+      "updatedAt": "2023-09-02T00:00:00Z"
+    }
+  },
+  {
+    "name": "Delete User",
+    "path": "/users/{id}",
+    "method": "DELETE",
+    "description": "Delete a user",
+    "category": "Users",
+    "parameters": [
+      {
+        "name": "id",
+        "required": true,
+        "description": "User ID",
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "responseExample": {
+      "success": true,
+      "message": "User deleted successfully"
+    }
+  },
+  {
+    "name": "List Games",
+    "path": "/games",
+    "method": "GET",
+    "description": "Get a list of all games",
+    "category": "Games",
+    "parameters": [
+      {
+        "name": "status",
+        "required": false,
+        "description": "Filter games by status",
+        "schema": {
+          "type": "string",
+          "enum": ["active", "completed", "waiting"]
+        }
+      },
+      {
+        "name": "limit",
+        "required": false,
+        "description": "Maximum number of games to return",
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "responseExample": {
+      "games": [
+        {
+          "id": "game1",
+          "status": "active",
+          "players": ["player1", "player2"],
+          "startedAt": "2023-09-01T00:00:00Z"
+        }
+      ],
+      "total": 1
+    }
+  },
+  {
+    "name": "Get Game",
+    "path": "/games/{id}",
+    "method": "GET",
+    "description": "Get a specific game by ID",
+    "category": "Games",
+    "parameters": [
+      {
+        "name": "id",
+        "required": true,
+        "description": "Game ID",
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "responseExample": {
+      "id": "game1",
+      "status": "active",
+      "players": [
+        {
+          "id": "player1",
+          "username": "player1"
+        },
+        {
+          "id": "player2",
+          "username": "player2"
+        }
+      ],
+      "currentTurn": "player1",
+      "board": [
+        ["X", "", ""],
+        ["", "O", ""],
+        ["", "", ""]
+      ],
+      "startedAt": "2023-09-01T00:00:00Z"
+    }
+  },
+  {
+    "name": "Create Game",
+    "path": "/games",
+    "method": "POST",
+    "description": "Create a new game",
+    "category": "Games",
+    "parameters": [],
+    "requestBody": {
+      "name": "Game Settings",
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "gameType": {
+                "type": "string",
+                "example": "tic-tac-toe"
+              },
+              "publicGame": {
+                "type": "boolean",
+                "example": true
+              }
+            },
+            "required": ["gameType"]
+          }
+        }
+      }
+    },
+    "responseExample": {
+      "id": "newgame1",
+      "status": "waiting",
+      "createdBy": "player1",
+      "gameType": "tic-tac-toe",
+      "publicGame": true,
+      "createdAt": "2023-09-03T00:00:00Z"
+    }
+  },
+  {
+    "name": "Join Game",
+    "path": "/games/{id}/join",
+    "method": "POST",
+    "description": "Join an existing game",
+    "category": "Games",
+    "parameters": [
+      {
+        "name": "id",
+        "required": true,
+        "description": "Game ID",
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "responseExample": {
+      "success": true,
+      "gameId": "game1",
+      "status": "active",
+      "yourTurn": false
+    }
+  },
+  {
+    "name": "Make Move",
+    "path": "/games/{id}/move",
+    "method": "POST",
+    "description": "Make a move in a game",
+    "category": "Games",
+    "parameters": [
+      {
+        "name": "id",
+        "required": true,
+        "description": "Game ID",
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "requestBody": {
+      "name": "Move Data",
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "position": {
+                "type": "object",
+                "properties": {
+                  "row": {
+                    "type": "integer",
+                    "example": 0
+                  },
+                  "col": {
+                    "type": "integer",
+                    "example": 1
+                  }
+                },
+                "required": ["row", "col"]
+              }
+            },
+            "required": ["position"]
+          }
+        }
+      }
+    },
+    "responseExample": {
+      "success": true,
+      "gameId": "game1",
+      "status": "active",
+      "board": [
+        ["X", "X", ""],
+        ["", "O", ""],
+        ["", "", ""]
+      ],
+      "yourTurn": false,
+      "nextPlayer": "player2"
+    }
+  },
+  {
+    "name": "Get Leaderboard",
+    "path": "/leaderboard",
+    "method": "GET",
+    "description": "Get the current leaderboard",
+    "category": "Statistics",
+    "parameters": [
+      {
+        "name": "gameType",
+        "required": false,
+        "description": "Filter by game type",
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "limit",
+        "required": false,
+        "description": "Maximum number of players to return",
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "responseExample": {
+      "players": [
+        {
+          "username": "player1",
+          "wins": 10,
+          "losses": 2,
+          "winRate": 0.833
+        },
+        {
+          "username": "player2",
+          "wins": 8,
+          "losses": 4,
+          "winRate": 0.667
+        }
+      ]
+    }
+  },
+  {
+    "name": "Login",
+    "path": "/auth/login",
+    "method": "POST",
+    "description": "Authenticate a user and get a token",
+    "category": "Authentication",
+    "parameters": [],
+    "requestBody": {
+      "name": "Login Credentials",
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "email": {
+                "type": "string",
+                "example": "player1@example.com"
+              },
+              "password": {
+                "type": "string",
+                "example": "securepassword123"
+              }
+            },
+            "required": ["email", "password"]
+          }
+        }
+      }
+    },
+    "responseExample": {
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "user": {
+        "id": "1",
+        "username": "player1",
+        "email": "player1@example.com"
+      }
+    }
+  },
+  {
+    "name": "Register",
+    "path": "/auth/register",
+    "method": "POST",
+    "description": "Register a new user account",
+    "category": "Authentication",
+    "parameters": [],
+    "requestBody": {
+      "name": "Registration Data",
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "username": {
+                "type": "string",
+                "example": "newplayer"
+              },
+              "email": {
+                "type": "string",
+                "example": "newplayer@example.com"
+              },
+              "password": {
+                "type": "string",
+                "example": "securepassword123"
+              }
+            },
+            "required": ["username", "email", "password"]
+          }
+        }
+      }
+    },
+    "responseExample": {
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "user": {
+        "id": "2",
+        "username": "newplayer",
+        "email": "newplayer@example.com"
+      }
+    }
+  },
+  {
+    "name": "Logout",
+    "path": "/auth/logout",
+    "method": "POST",
+    "description": "Logout a user (invalidate token)",
+    "category": "Authentication",
+    "parameters": [],
+    "responseExample": {
+      "success": true,
+      "message": "Successfully logged out"
+    }
+  }
+]
