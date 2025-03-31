@@ -199,7 +199,7 @@ class ProgressRepository extends BaseRepository {
                         // Get the repository from container or directly
                         const challengeRepo = this.container ? 
                             this.container.get('challengeRepository') : 
-                            require('../../challenge/repositories/challengeRepository').default;
+                            require('@/core/challenge/repositories/challengeRepository').default;
                             
                         // Batch load all challenges
                         const challenges = await challengeRepo.findByIds(challengeIds);
@@ -229,7 +229,7 @@ class ProgressRepository extends BaseRepository {
                         // Get the repository from container or directly
                         const userRepo = this.container ? 
                             this.container.get('userRepository') : 
-                            require('../../user/repositories/UserRepository').default;
+                            require('@/core/user/repositories/UserRepository').default;
                             
                         // Batch load all users
                         const users = await userRepo.findByIds(userIds);

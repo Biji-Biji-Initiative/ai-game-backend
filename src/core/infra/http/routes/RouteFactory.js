@@ -97,19 +97,19 @@ class RouteFactory {
             // Mount routes individually with error handling
             await mountRouteWithErrorHandling('/users', userRoutesPromise, 'Users');
             await mountRouteWithErrorHandling('/auth', authRoutesPromise, 'Authentication');
-            mountRouteWithErrorHandling('/personality', this.createPersonalityRoutes(), 'Personality');
-            mountRouteWithErrorHandling('/progress', this.createProgressRoutes(), 'Progress');
-            mountRouteWithErrorHandling('/challenges', this.createChallengeRoutes(), 'Challenges');
-            mountRouteWithErrorHandling('/evaluations', this.createEvaluationRoutes(), 'Evaluations');
-            mountRouteWithErrorHandling('/adaptive', this.createAdaptiveRoutes(), 'Adaptive');
-            mountRouteWithErrorHandling('/user-journey', this.createUserJourneyRoutes(), 'User Journey');
-            mountRouteWithErrorHandling('/focus-areas', this.createFocusAreaRoutes(), 'Focus Areas');
-            mountRouteWithErrorHandling('/health', this.createHealthRoutes(), 'Health Check');
-            mountRouteWithErrorHandling('/events', this.createEventBusRoutes(), 'Event Bus');
+            await mountRouteWithErrorHandling('/personality', this.createPersonalityRoutes(), 'Personality');
+            await mountRouteWithErrorHandling('/progress', this.createProgressRoutes(), 'Progress');
+            await mountRouteWithErrorHandling('/challenges', this.createChallengeRoutes(), 'Challenges');
+            await mountRouteWithErrorHandling('/evaluations', this.createEvaluationRoutes(), 'Evaluations');
+            await mountRouteWithErrorHandling('/adaptive', this.createAdaptiveRoutes(), 'Adaptive');
+            await mountRouteWithErrorHandling('/user-journey', this.createUserJourneyRoutes(), 'User Journey');
+            await mountRouteWithErrorHandling('/focus-areas', this.createFocusAreaRoutes(), 'Focus Areas');
+            await mountRouteWithErrorHandling('/health', this.createHealthRoutes(), 'Health Check');
+            await mountRouteWithErrorHandling('/events', this.createEventBusRoutes(), 'Event Bus');
             
             // In development mode, add a test error route to verify fault isolation
             if (process.env.NODE_ENV !== 'production') {
-                mountRouteWithErrorHandling('/test-error', this.createTestErrorRoute(), 'Test Error');
+                await mountRouteWithErrorHandling('/test-error', this.createTestErrorRoute(), 'Test Error');
             }
             
             // Provide a summary of route registration results
@@ -311,7 +311,7 @@ class RouteFactory {
             return import('./authRoutes.js').then(module => {
                 const createAuthRoutes = module.default;
                 
-                return import('../middleware/validation.js').then(validation => {
+                return import('@/core/infra/http/middleware/validation.js').then(validation => {
                     // Create the router with resolved dependencies
                     return createAuthRoutes({
                         authController,
@@ -523,8 +523,8 @@ class RouteFactory {
             // Import dynamically for better error handling
             return import('./userRoutes.js').then(module => {
                 const createUserRoutes = module.default;
-                const authMiddleware = import('../middleware/auth.js');
-                const validationMiddleware = import('../middleware/validation.js');
+                const authMiddleware = import('@/core/infra/http/middleware/auth.js');
+                const validationMiddleware = import('@/core/infra/http/middleware/validation.js');
                 
                 return Promise.all([authMiddleware, validationMiddleware]).then(([auth, validation]) => {
                     console.log('Creating real user routes');

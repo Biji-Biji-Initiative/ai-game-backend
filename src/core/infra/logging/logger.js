@@ -1,6 +1,9 @@
 import * as winston from "winston";
 import { v4 as uuidv4 } from "uuid";
 import { AsyncLocalStorage } from "async_hooks";
+import fs from 'fs';
+import path from 'path';
+
 // Default config if config.js module is not available
 const defaultConfig = {
     logging: {
@@ -9,6 +12,21 @@ const defaultConfig = {
     }
 };
 
+// Ensure logs directory exists
+try {
+  // Determine logs directory - relative to current file
+  const logsDir = path.resolve(process.cwd(), 'logs');
+  
+  // Check if directory exists, create it if it doesn't
+  if (!fs.existsSync(logsDir)) {
+    console.log(`Creating logs directory at: ${logsDir}`);
+    fs.mkdirSync(logsDir, { recursive: true });
+  }
+} catch (error) {
+  console.error(`Error ensuring logs directory exists: ${error.message}`);
+  // Continue anyway - the winston transports will handle file errors
+}
+
 // Try to import config, fallback to default if not found
 let config;
 
@@ -16,7 +34,7 @@ let config;
 (async () => {
   try {
     // Dynamic import to handle potential missing module
-    const configModule = await import("../../../config/config.js");
+    const configModule = await import("@/config/config.js");
     config = configModule.default;
     
     // If we got a config but it doesn't have logging settings, apply defaults
@@ -66,14 +84,18 @@ const transports = [
     new winston.transports.File({
         filename: 'logs/error.log',
         level: 'error',
-        maxsize: 10485760, // 10MB
-        maxFiles: 5,
+        maxsize: process.env.NODE_ENV === 'production' ? 5242880 : 10485760, // 5MB in prod, 10MB in dev
+        maxFiles: process.env.NODE_ENV === 'production' ? 10 : 5, // More history in production
+        tailable: true,
+        zippedArchive: process.env.NODE_ENV === 'production', // Compress older logs in production
     }),
     new winston.transports.File({
         filename: 'logs/combined.log',
         level: config.logging.fileLevel || 'info',
         maxsize: 10485760, // 10MB
-        maxFiles: 10,
+        maxFiles: process.env.NODE_ENV === 'production' ? 20 : 10, // More history in production
+        tailable: true,
+        zippedArchive: process.env.NODE_ENV === 'production', // Compress older logs in production
     }),
 ];
 // Create the Winston logger
@@ -326,7 +348,7 @@ const errorLogger = (err, req, res, next) => {
         url: req.url,
         query: req.query,
         body: req.body,
-        headers: req.headers,
+        headers: filterSensitiveHeaders(req.headers),
         ip: req.ip,
     });
     next(err);

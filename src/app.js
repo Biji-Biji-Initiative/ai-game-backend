@@ -111,7 +111,7 @@ app.use(requestLogger);
 initializeSwagger(app, logger);
 
 // Setup OpenAPI validation middleware
-const apiSpecPath = path.join(__dirname, '../openapi-spec.json');
+const apiSpecPath = path.join(process.cwd(), 'openapi-spec.json');
 if (fs.existsSync(apiSpecPath)) {
   logger.info('Setting up OpenAPI validation middleware');
   app.use(
@@ -134,7 +134,7 @@ if (fs.existsSync(apiSpecPath)) {
 // NOTE: This is the only place where API tester UI static files should be served.
 // The application uses the admin directory for UI assets, not public/tester.
 // See JIRA-1 for history on this decision.
-const testerUiPath = path.join(__dirname, '../admin');
+const testerUiPath = path.join(process.cwd(), 'admin');
 app.use(config.api.testerPath, express.static(testerUiPath));
 logger.info(`API Tester UI available at ${config.api.testerPath}`);
 
