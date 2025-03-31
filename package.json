@@ -4,6 +4,10 @@
   "description": "A stateful web app that challenges users with dynamic, AI-generated cognitive challenges to highlight their unique Human Edge",
   "main": "index.js",
   "type": "module",
+  "imports": {
+    "#/*": "./src/*",
+    "@/*": "./src/*"
+  },
   "engines": {
     "node": ">=22.11.0"
   },
@@ -11,9 +15,9 @@
     "responses-cli": "./cli.js"
   },
   "scripts": {
-    "start": "node --experimental-loader=./src/importResolver.js ./start.sh",
-    "dev": "node --experimental-loader=./src/importResolver.js ./start.sh development",
-    "prod": "node --experimental-loader=./src/importResolver.js ./start.sh production",
+    "start": "node ./start.sh",
+    "dev": "node ./start.sh development",
+    "prod": "node ./start.sh production",
     "test": "jest",
     "pm2:status": "pm2 list",
     "pm2:logs": "pm2 logs ai-fight-club-api",
@@ -71,10 +75,10 @@
     "swagger:gen": "node -e \"import swaggerJSDoc from 'swagger-jsdoc'; import options from './src/config/swagger.js'; import fs from 'fs'; const spec = swaggerJSDoc(options); fs.writeFileSync('./openapi.json', JSON.stringify(spec, null, 2));\"",
     "swagger:bundle": "swagger-cli bundle openapi/index.yaml -o openapi-spec.json -t json",
     "swagger:bundle:yaml": "swagger-cli bundle openapi/index.yaml -o openapi-spec.yaml -t yaml",
-    "swagger:setup-validator": "node --experimental-loader=./src/importResolver.js src/scripts/setup-openapi-validator.js",
+    "swagger:setup-validator": "node ./src/scripts/setup-openapi-validator.js",
     "swagger:setup": "npm run swagger:bundle && npm run swagger:setup-validator",
-    "swagger:remove-jsdoc": "node --experimental-loader=./src/importResolver.js src/scripts/remove-swagger-jsdoc.js",
-    "swagger:migrate": "node --experimental-loader=./src/importResolver.js scripts/openapi-migration.js",
+    "swagger:remove-jsdoc": "node ./src/scripts/remove-swagger-jsdoc.js",
+    "swagger:migrate": "node ./scripts/openapi-migration.js",
     "events:update-services": "node scripts/update-services.js",
     "events:update-services:dry": "node scripts/update-services.js --dry-run --verbose",
     "events:update-coordinators": "node scripts/update-coordinators.js",
