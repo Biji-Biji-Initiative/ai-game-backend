@@ -1,7 +1,7 @@
 import express from 'express';
-import EvaluationController from "../../../evaluation/controllers/EvaluationController.js";
-import { authenticateUser, requireAdmin } from "../middleware/auth.js";
-import { authorizeResource, authorizeUserSpecificResource } from "../middleware/resourceAuth.js";
+import EvaluationController from "@/core/evaluation/controllers/EvaluationController.js";
+import { authenticateUser, requireAdmin } from "@/core/infra/http/middleware/auth.js";
+import { authorizeResource, authorizeUserSpecificResource } from "@/core/infra/http/middleware/resourceAuth.js";
 'use strict';
 
 /**

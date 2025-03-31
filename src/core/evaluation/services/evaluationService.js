@@ -1,10 +1,11 @@
 import { v4 as uuidv4 } from "uuid";
-import promptBuilder from "../../prompt/promptBuilder.js";
-import { PROMPT_TYPES } from "../../prompt/promptTypes.js";
-import Evaluation from "../../evaluation/models/Evaluation.js";
-import messageFormatter from "../../infra/openai/messageFormatter.js";
-import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationProcessingError } from "../../evaluation/errors/EvaluationErrors.js";
-import { createErrorMapper, withServiceErrorHandling } from "../../infra/errors/errorStandardization.js";
+import promptBuilder from "@/core/prompt/promptBuilder.js";
+import { PROMPT_TYPES } from "@/core/prompt/promptTypes.js";
+import Evaluation from "@/core/evaluation/models/Evaluation.js";
+import messageFormatter from "@/core/infra/openai/messageFormatter.js";
+import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationProcessingError } from "@/core/evaluation/errors/EvaluationErrors.js";
+import { createErrorMapper, withServiceErrorHandling } from "@/core/infra/errors/errorStandardization.js";
+import ConfigurationError from "@/core/infra/errors/ConfigurationError.js";
 'use strict';
 const { formatForResponsesApi } = messageFormatter;
 // Create an error mapper for services
@@ -31,8 +32,33 @@ class EvaluationService {
      */
     constructor({ aiClient, logger, evaluationRepository, evaluationCategoryRepository, aiStateManager, evaluationDomainService, eventBus }) {
         if (!aiClient) {
-            throw new Error('aiClient is required for EvaluationService');
+            if (process.env.NODE_ENV === 'production') {
+                throw new ConfigurationError('aiClient is required for EvaluationService in production mode', {
+                    serviceName: 'EvaluationService',
+                    dependencyName: 'aiClient'
+                });
+            } else {
+                throw new Error('aiClient is required for EvaluationService');
+            }
         }
+        
+        if (process.env.NODE_ENV === 'production') {
+            // Check for other required dependencies in production
+            if (!evaluationRepository) {
+                throw new ConfigurationError('evaluationRepository is required for EvaluationService in production mode', {
+                    serviceName: 'EvaluationService',
+                    dependencyName: 'evaluationRepository'
+                });
+            }
+            
+            if (!aiStateManager) {
+                throw new ConfigurationError('aiStateManager is required for EvaluationService in production mode', {
+                    serviceName: 'EvaluationService',
+                    dependencyName: 'aiStateManager'
+                });
+            }
+        }
+        
         this.aiClient = aiClient;
         this.logger = logger;
         this.evaluationRepository = evaluationRepository;

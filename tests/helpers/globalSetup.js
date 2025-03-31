@@ -1,5 +1,5 @@
 import testEnv from "./setupTestEnv.js";
-import { logger } from "../../src/core/infra/logging/logger.js";
+import { logger } from "@/core/infra/logging/logger.js";
 import * as chai from "chai";
 import sinon from "sinon";
 // Set test environment

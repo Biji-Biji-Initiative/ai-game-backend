@@ -3,12 +3,12 @@
 import { expect } from "chai";
 import sinon from "sinon";
 import PersonalityCoordinator from "@/application/PersonalityCoordinator.js";
-import User from "../../../src/core/user/models/User.js";
-import domainEvents from "../../../src/core/common/events/domainEvents.js";
-import appLogger from "../../../src/core/infra/logging/appLogger.js";
+import User from "@/core/user/models/User.js";
+import domainEvents from "@/core/common/events/domainEvents.js";
+import appLogger from "@/core/infra/logging/appLogger.js";
 import { registerEventHandlers } from "@/application/EventHandlers.js";
-import { UserError, UserNotFoundError, UserUpdateError, UserValidationError, UserInvalidStateError, UserAuthenticationError, UserAuthorizationError } from "../../../src/core/user/errors/UserErrors.js";
-import UserId from "../../../src/core/common/valueObjects/UserId.js";
+import { UserError, UserNotFoundError, UserUpdateError, UserValidationError, UserInvalidStateError, UserAuthenticationError, UserAuthorizationError } from "@/core/user/errors/UserErrors.js";
+import UserId from "@/core/common/valueObjects/UserId.js";
 const { EventTypes, eventBus } = domainEvents;
 
 // Helper for creating UserId value objects

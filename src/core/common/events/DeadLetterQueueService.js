@@ -1,5 +1,5 @@
-import { supabaseClient } from "../../infra/db/supabaseClient.js";
-import { logger } from "../../infra/logging/logger.js";
+import { supabaseClient } from "@/core/infra/db/supabaseClient.js";
+import { logger } from "@/core/infra/logging/logger.js";
 import { v4 as uuidv4 } from 'uuid';
 
 /**

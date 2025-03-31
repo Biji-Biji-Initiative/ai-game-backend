@@ -1,11 +1,13 @@
-import Personality from "../../personality/models/Personality.js";
-import PersonalityRepository from "../../personality/repositories/PersonalityRepository.js";
-import domainEvents from "../../common/events/domainEvents.js";
+import Personality from "@/core/personality/models/Personality.js";
+import PersonalityRepository from "@/core/personality/repositories/PersonalityRepository.js";
+import domainEvents from "@/core/common/events/domainEvents.js";
 import { v4 as uuidv4 } from "uuid";
-import { personalityLogger } from "../../infra/logging/domainLogger.js";
-import { applyRepositoryErrorHandling, applyServiceErrorHandling, applyControllerErrorHandling, createErrorMapper } from "../../infra/errors/centralizedErrorUtils.js";
-import { PersonalityError, PersonalityNotFoundError, PersonalityValidationError, PersonalityProcessingError } from "../../personality/errors/PersonalityErrors.js";
-import { NoPersonalityDataError } from "../../personality/errors/PersonalityErrors.js";
+import { personalityLogger } from "@/core/infra/logging/domainLogger.js";
+import { applyRepositoryErrorHandling, applyServiceErrorHandling, applyControllerErrorHandling, createErrorMapper } from "@/core/infra/errors/centralizedErrorUtils.js";
+import { PersonalityError, PersonalityNotFoundError, PersonalityValidationError, PersonalityProcessingError } from "@/core/personality/errors/PersonalityErrors.js";
+import { NoPersonalityDataError } from "@/core/personality/errors/PersonalityErrors.js";
+import ConfigurationError from "@/core/infra/errors/ConfigurationError.js";
+import { validateDependencies } from "@/core/shared/utils/serviceUtils.js";
 'use strict';
 const {
   EventTypes,
@@ -24,15 +26,51 @@ const personalityServiceErrorMapper = createErrorMapper({
 class PersonalityService {
   /**
    * Create a new PersonalityService
-   * @param {Object} personalityRepository - Repository for personality data
-   * @param {Object} traitsAnalysisService - Service for analyzing traits
-   * @param {Object} insightGenerator - Service for generating insights, via port
+   * @param {Object} dependencies - Service dependencies
+   * @param {Object} dependencies.personalityRepository - Repository for personality data
+   * @param {Object} dependencies.traitsAnalysisService - Service for analyzing traits
+   * @param {Object} dependencies.insightGenerator - Service for generating insights, via port
    */
-  constructor(personalityRepository, traitsAnalysisService, insightGenerator) {
-    this.personalityRepository = personalityRepository || new PersonalityRepository();
+  constructor(dependencies = {}) {
+    // Extract dependencies
+    const { personalityRepository, traitsAnalysisService, insightGenerator } = 
+      typeof dependencies === 'object' && dependencies !== null ? dependencies : {};
+    
+    // Validate required dependencies
+    validateDependencies(
+      { personalityRepository, traitsAnalysisService, insightGenerator },
+      { 
+        serviceName: 'PersonalityService',
+        required: ['personalityRepository', 'traitsAnalysisService', 'insightGenerator'],
+        productionOnly: true
+      }
+    );
+    
+    // Store logger
+    this.logger = personalityLogger.child('service');
+    
+    // Store dependencies
+    this.personalityRepository = personalityRepository;
     this.traitsAnalysisService = traitsAnalysisService;
     this.insightGenerator = insightGenerator;
-    this.logger = personalityLogger.child('service');
+    
+    // In non-production environments, provide fallbacks for easier development
+    if (process.env.NODE_ENV !== 'production') {
+      // Only set fallbacks if dependencies weren't provided
+      if (!personalityRepository) {
+        this.logger.warn('PersonalityRepository not provided, using fallback implementation');
+        this.personalityRepository = new PersonalityRepository();
+      }
+      
+      // Log warnings for missing dependencies
+      if (!traitsAnalysisService) {
+        this.logger.warn('TraitsAnalysisService not provided, some functionality will be limited');
+      }
+      
+      if (!insightGenerator) {
+        this.logger.warn('InsightGenerator not provided, insights generation will be disabled');
+      }
+    }
   }
   /**
    * Get or create a personality profile for a user
@@ -163,12 +201,21 @@ class PersonalityService {
       // Save updated profile
       const savedProfile = await this.personalityRepository.save(profile);
       // Publish domain event for user service to update its copy if needed
-      await eventBus.publishEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
+      
+    // Get entity to add domain event
+    const entity = await this.personalityRepository.findById(userId);
+    if (entity) {
+      // Add domain event to entity
+      entity.addDomainEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
         userId: profile.userId,
         personalityId: profile.id,
         personalityTraits: profile.personalityTraits,
         updateType: 'traits'
       });
+      
+      // Save entity which will publish the event
+      await this.personalityRepository.save(entity);
+    }
       return savedProfile;
     } catch (error) {
       this.logger.error('Error updating personality traits', {
@@ -196,12 +243,21 @@ class PersonalityService {
       // Save updated profile
       const savedProfile = await this.personalityRepository.save(profile);
       // Publish domain event for user service to update its copy if needed
-      await eventBus.publishEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
+      
+    // Get entity to add domain event
+    const entity = await this.personalityRepository.findById(userId);
+    if (entity) {
+      // Add domain event to entity
+      entity.addDomainEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
         userId: profile.userId,
         personalityId: profile.id,
         aiAttitudes: profile.aiAttitudes,
         updateType: 'attitudes'
       });
+      
+      // Save entity which will publish the event
+      await this.personalityRepository.save(entity);
+    }
       return savedProfile;
     } catch (error) {
       this.logger.error('Error updating AI attitudes', {
@@ -259,9 +315,19 @@ class PersonalityService {
     try {
       const deleted = await this.personalityRepository.deleteByUserId(userId);
       if (deleted) {
-        await eventBus.publishEvent(EventTypes.PERSONALITY_PROFILE_DELETED, {
-          userId
-        });
+        
+    // Get entity to add domain event before deleting
+    const entity = await this.personalityRepository.findById(userId);
+    if (entity) {
+      // Add domain event to entity
+      entity.addDomainEvent(EventTypes.PERSONALITY_PROFILE_DELETED, {
+        personalityId: userId,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Delete entity with events included
+      await this.personalityRepository.delete(userId);
+    }
       }
       return deleted;
     } catch (error) {

@@ -2,7 +2,7 @@ import { expect } from "chai";
 import sinon from "sinon";
 import { v4 as uuidv4 } from "uuid";
 import testSetup from "../setup.js";
-import { FocusAreaError, FocusAreaNotFoundError, FocusAreaValidationError, FocusAreaGenerationError, FocusAreaPersistenceError, FocusAreaAccessDeniedError } from "../../../src/core/focusArea/errors/focusAreaErrors.js";
+import { FocusAreaError, FocusAreaNotFoundError, FocusAreaValidationError, FocusAreaGenerationError, FocusAreaPersistenceError, FocusAreaAccessDeniedError } from "@/core/focusArea/errors/focusAreaErrors.js";
 describe('FocusArea Service Domain Tests', function () {
     // Set longer timeout for API calls
     this.timeout(30000);

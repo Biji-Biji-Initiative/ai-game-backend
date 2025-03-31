@@ -1,10 +1,10 @@
 import { expect } from "chai";
 import sinon from "sinon";
 import { v4 as uuidv4 } from "uuid";
-import EvaluationService from "../../../src/core/evaluation/services/evaluationService.js";
-import { createUserId, createEvaluationId, UserId, EvaluationId } from "../../../src/core/common/valueObjects/index.js";
-import { EvaluationDTO, EvaluationMapper } from "../../../src/core/evaluation/dtos/index.js";
-import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationProcessingError, EvaluationRepositoryError } from "../../../src/core/evaluation/errors/evaluationErrors.js";
+import EvaluationService from "@/core/evaluation/services/evaluationService.js";
+import { createUserId, createEvaluationId, UserId, EvaluationId } from "@/core/common/valueObjects/index.js";
+import { EvaluationDTO, EvaluationMapper } from "@/core/evaluation/dtos/index.js";
+import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationProcessingError, EvaluationRepositoryError } from "@/core/evaluation/errors/evaluationErrors.js";
 
 describe('evaluation EvaluationService', () => {
     // Set longer timeout for API calls

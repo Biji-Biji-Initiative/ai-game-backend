@@ -1,9 +1,9 @@
 import { expect } from "chai";
 import testHelper from "../testHelper.js";
-import promptBuilder from "../../../src/core/prompt/promptBuilder.js";
-import focusAreaGenerationService from "../../../src/core/focusArea/services/focusAreaGenerationService.js";
-import FocusArea from "../../../src/core/focusArea/models/FocusArea.js";
-import { PROMPT_TYPES } from "../../../src/core/prompt/promptTypes.js";
+import promptBuilder from "@/core/prompt/promptBuilder.js";
+import focusAreaGenerationService from "@/core/focusArea/services/focusAreaGenerationService.js";
+import FocusArea from "@/core/focusArea/models/FocusArea.js";
+import { PROMPT_TYPES } from "@/core/prompt/promptTypes.js";
 import testEnv from "../../loadEnv.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 describe('Focus Area Generation with Real APIs', function () {

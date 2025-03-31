@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import sinon from 'sinon';
-import { createValidationMiddleware } from '../../../../../../src/core/infra/http/middleware/validationFactory.js';
-import * as validationModule from '../../../../../../src/core/infra/http/middleware/validation.js';
+import { createValidationMiddleware } from "@/core/infra/http/middleware/validationFactory.js";
+import * as validationModule from "@/core/infra/http/middleware/validation.js";
 import { z } from 'zod';
 
 describe('Validation Factory', () => {

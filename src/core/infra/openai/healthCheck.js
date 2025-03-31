@@ -1,4 +1,4 @@
-import { apiLogger } from "../../infra/logging/domainLogger.js";
+import { apiLogger } from "@/core/infra/logging/domainLogger.js";
 'use strict';
 /**
  * Check the health of the OpenAI API connection

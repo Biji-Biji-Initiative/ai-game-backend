@@ -1,11 +1,11 @@
-import FormatTypeRepository from "../../challenge/repositories/config/FormatTypeRepository.js";
-import { FormatTypeDTOMapper } from "../../challenge/dtos/FormatTypeDTO.js";
-import { withControllerErrorHandling } from "../../infra/errors/errorStandardization.js";
+import FormatTypeRepository from "@/core/challenge/repositories/config/FormatTypeRepository.js";
+import { FormatTypeDTOMapper } from "@/core/challenge/dtos/FormatTypeDTO.js";
+import { withControllerErrorHandling } from "@/core/infra/errors/errorStandardization.js";
 import { 
   ChallengeError, 
   ChallengeNotFoundError,
   ChallengeValidationError 
-} from "../../challenge/errors/ChallengeErrors.js";
+} from "@/core/challenge/errors/ChallengeErrors.js";
 'use strict';
 /**
  * FormatType Controller

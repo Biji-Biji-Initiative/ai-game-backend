@@ -1,7 +1,7 @@
-import { supabaseClient } from "../../infra/db/supabaseClient.js";
-import { applyRepositoryErrorHandling, createErrorMapper } from "../../infra/errors/errorStandardization.js";
-import { EntityNotFoundError, ValidationError, DatabaseError } from "../../infra/repositories/BaseRepository.js";
-import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationRepositoryError } from "../../evaluation/errors/EvaluationErrors.js";
+import { supabaseClient } from "@/core/infra/db/supabaseClient.js";
+import { applyRepositoryErrorHandling, createErrorMapper } from "@/core/infra/errors/errorStandardization.js";
+import { EntityNotFoundError, ValidationError, DatabaseError } from "@/core/infra/repositories/BaseRepository.js";
+import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationRepositoryError } from "@/core/evaluation/errors/EvaluationErrors.js";
 'use strict';
 // Create an error mapper for repositories
 const evaluationRepositoryErrorMapper = createErrorMapper({

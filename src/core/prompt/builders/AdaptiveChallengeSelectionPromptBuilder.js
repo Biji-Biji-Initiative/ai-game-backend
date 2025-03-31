@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { logger } from "../../infra/logging/logger.js";
-import apiStandards from "../../prompt/common/apiStandards.js";
-import messageFormatter from "../../infra/openai/messageFormatter.js";
+import { logger } from "@/core/infra/logging/logger.js";
+import apiStandards from "@/core/prompt/common/apiStandards.js";
+import messageFormatter from "@/core/infra/openai/messageFormatter.js";
 'use strict';
 const {
   _appendApiInstructions

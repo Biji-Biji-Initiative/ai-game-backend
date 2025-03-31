@@ -1,5 +1,6 @@
-import { createErrorMapper, withServiceErrorHandling } from "../../infra/errors/errorStandardization.js";
-import { ProgressError } from "../../progress/errors/progressErrors.js";
+import { createErrorMapper, withServiceErrorHandling } from "@/core/infra/errors/errorStandardization.js";
+import { ProgressError } from "@/core/progress/errors/progressErrors.js";
+import ConfigurationError from "@/core/infra/errors/ConfigurationError.js";
 'use strict';
 /**
  * Service for handling progress-related operations
@@ -14,9 +15,18 @@ class ProgressService {
      */
     constructor(dependencies = {}) {
         const { progressRepository, logger, cacheService } = dependencies;
+        
         if (!progressRepository) {
-            throw new Error('progressRepository is required for ProgressService');
+            if (process.env.NODE_ENV === 'production') {
+                throw new ConfigurationError('progressRepository is required for ProgressService in production mode', {
+                    serviceName: 'ProgressService',
+                    dependencyName: 'progressRepository'
+                });
+            } else {
+                throw new Error('progressRepository is required for ProgressService');
+            }
         }
+        
         this.progressRepository = progressRepository;
         this.logger = logger || console;
         this.cache = cacheService;

@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import AIStateManager from "../../../../src/core/ai/ports/AIStateManager.js";
+import AIStateManager from "@/core/ai/ports/AIStateManager.js";
 'use strict';
 /**
  * Unit Tests for AIStateManager Port Interface

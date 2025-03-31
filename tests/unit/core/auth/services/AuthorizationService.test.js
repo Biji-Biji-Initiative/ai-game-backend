@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import sinon from 'sinon';
-import AuthorizationService from '../../../../../src/core/auth/services/AuthorizationService.js';
-import { UserAuthorizationError } from '../../../../../src/core/user/errors/UserErrors.js';
+import AuthorizationService from "@/core/auth/services/AuthorizationService.js";
+import { UserAuthorizationError } from "@/core/user/errors/UserErrors.js";
 
 describe('AuthorizationService', () => {
   let authService;

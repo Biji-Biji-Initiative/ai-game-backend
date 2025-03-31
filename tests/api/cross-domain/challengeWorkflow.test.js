@@ -1,14 +1,14 @@
 import { expect } from "chai";
 import * as testHelper from "../../helpers/apiTestHelper.js";
-import Challenge from "../../../src/core/challenge/models/Challenge.js";
-import challengeRepository from "../../../src/core/challenge/repositories/ChallengeRepository.js";
-import domainEvents from "../../../src/core/common/events/domainEvents.js";
-import promptBuilder from "../../../src/core/prompt/promptBuilder.js";
-import { PROMPT_TYPES } from "../../../src/core/prompt/promptTypes.js";
+import Challenge from "@/core/challenge/models/Challenge.js";
+import challengeRepository from "@/core/challenge/repositories/ChallengeRepository.js";
+import domainEvents from "@/core/common/events/domainEvents.js";
+import promptBuilder from "@/core/prompt/promptBuilder.js";
+import { PROMPT_TYPES } from "@/core/prompt/promptTypes.js";
 import testEnv from "../../loadEnv.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
-import ChallengeDTOMapper from "../../../src/application/challenge/mappers/ChallengeDTOMapper.js";
-import ChallengeResponseDTOMapper from "../../../src/application/challenge/mappers/ChallengeResponseDTOMapper.js";
+import ChallengeDTOMapper from "@/application/challenge/mappers/ChallengeDTOMapper.js";
+import ChallengeResponseDTOMapper from "@/application/challenge/mappers/ChallengeResponseDTOMapper.js";
 // Mock challenge generation service - we'll replace this with the real one when available
 // This is just to simulate what the real service would do in production
 /**

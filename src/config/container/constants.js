@@ -1,4 +1,4 @@
-import { MessageRole, ResponsesApiModel, ContentType } from "../../core/infra/openai/types.js";
+import { MessageRole, ResponsesApiModel, ContentType } from "@/core/infra/openai/types.js";
 
 /**
  * Constants Registration

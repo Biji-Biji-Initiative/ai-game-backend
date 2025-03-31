@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import sinon from "sinon";
 import { v4 as uuidv4 } from "uuid";
-import { createEmail, createChallengeId, Email, ChallengeId } from "../../../src/core/common/valueObjects/index.js";
+import { createEmail, createChallengeId, Email, ChallengeId } from "@/core/common/valueObjects/index.js";
 import ChallengeCoordinator from "@/application/challengeCoordinator.js";
 'use strict';
 
@@ -20,7 +20,7 @@ import {
     ChallengeNotFoundError,
     ChallengeGenerationError,
     ChallengeResponseError
-} from "../../../src/core/challenge/errors/ChallengeErrors.js";
+} from "@/core/challenge/errors/ChallengeErrors.js";
 
 describe('ChallengeCoordinator Integration', () => {
     let challengeCoordinator;

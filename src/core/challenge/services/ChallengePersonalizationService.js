@@ -1,4 +1,4 @@
-import { withServiceErrorHandling } from "../../infra/errors/errorStandardization.js";
+import { withServiceErrorHandling } from "@/core/infra/errors/errorStandardization.js";
 'use strict';
 // Difficulty level threshold constants
 const DIFFICULTY_THRESHOLDS = {

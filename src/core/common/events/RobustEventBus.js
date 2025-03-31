@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events';
-import { logger } from "../../infra/logging/logger.js";
-import { deadLetterQueueService } from "./DeadLetterQueueService.js";
+import { logger } from "@/core/infra/logging/logger.js";
+import { deadLetterQueueService } from "@/core/common/events/DeadLetterQueueService.js";
+import { standardizeEvent } from "@/core/common/events/eventUtils.js";
 
 /**
  * RobustEventBus
@@ -212,49 +213,56 @@ class RobustEventBus {
 
   /**
    * Publish an event to all registered handlers
-   * @param {string} eventName - Name of the event to publish
-   * @param {Object} eventData - Data to pass to handlers
-   * @param {Object} options - Publish options
-   * @param {string} options.correlationId - Correlation ID for tracing
-   * @param {string} options.sourceId - Source identifier (entity ID, etc.)
+   * @param {Object} event - The standardized event object with type, data, and metadata fields
    * @returns {Promise<void>} Resolves when all handlers complete
    */
-  async publish(eventName, eventData = {}, options = {}) {
-    const eventId = `${eventName}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-    const timestamp = new Date().toISOString();
-    const correlationId = options.correlationId || eventId;
+  async publish(event) {
+    try {
+      // Apply standardization to ensure the event follows the expected structure
+      const standardizedEvent = standardizeEvent(event);
+      
+      // Use standardized event from this point forward
+      const eventName = standardizedEvent.type;
+      const eventId = `${eventName}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      
+      // Add id to the event envelope for tracing
+      const eventEnvelope = {
+        id: eventId,
+        ...standardizedEvent
+      };
 
-    // Create the event envelope
-    const eventEnvelope = {
-      id: eventId,
-      name: eventName,
-      timestamp,
-      correlationId,
-      sourceId: options.sourceId,
-      data: eventData
-    };
-
-    // Record in history if enabled
-    if (this.recordHistory) {
-      this.eventHistory.unshift(eventEnvelope);
-      if (this.eventHistory.length > this.historyLimit) {
-        this.eventHistory.pop();
+      // Record in history if enabled
+      if (this.recordHistory) {
+        this.eventHistory.unshift(eventEnvelope);
+        if (this.eventHistory.length > this.historyLimit) {
+          this.eventHistory.pop();
+        }
       }
+
+      // Log event
+      this.logger.info(`Publishing event: ${eventName}`, {
+        eventId,
+        correlationId: eventEnvelope.metadata.correlationId,
+        entityId: eventEnvelope.data.entityId,
+        entityType: eventEnvelope.data.entityType
+      });
+
+      // Track metrics
+      this.metrics.publishedEvents++;
+
+      // Emit to all listeners
+      this.emitter.emit(eventName, eventEnvelope);
+      return Promise.resolve();
+    } catch (error) {
+      this.logger.error(`Error publishing event: ${error.message}`, {
+        error: error.stack,
+        event: typeof event === 'object' ? {
+          type: event.type,
+          entityId: event.data?.entityId
+        } : event
+      });
+      throw error;
     }
-
-    // Log event (with appropriate level based on event type)
-    this.logger.info(`Publishing event: ${eventName}`, {
-      eventId,
-      correlationId,
-      sourceId: options.sourceId
-    });
-
-    // Track metrics
-    this.metrics.publishedEvents++;
-
-    // Emit to all listeners
-    this.emitter.emit(eventName, eventEnvelope);
-    return Promise.resolve();
   }
 
   /**

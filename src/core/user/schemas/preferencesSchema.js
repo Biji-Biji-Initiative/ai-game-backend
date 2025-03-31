@@ -12,16 +12,11 @@ import { z } from 'zod';
  * Controls the appearance and behavior of the user interface
  */
 export const uiPreferencesSchema = z.object({
-  theme: z.enum(['light', 'dark', 'system'], {
-    errorMap: () => ({ message: 'Theme must be one of: light, dark, system' }),
-  }).default('system'),
-  fontSize: z.enum(['small', 'medium', 'large'], {
-    errorMap: () => ({ message: 'Font size must be one of: small, medium, large' }),
-  }).default('medium'),
+  theme: z.enum(['light', 'dark', 'system']).default('system'),
+  fontSize: z.enum(['small', 'medium', 'large']).default('medium'),
   compactView: z.boolean().default(false),
   highContrast: z.boolean().default(false),
   animationsEnabled: z.boolean().default(true),
-  sidebarCollapsed: z.boolean().default(false),
 }).strict();
 
 /**
@@ -34,8 +29,6 @@ export const notificationPreferencesSchema = z.object({
   challengeReminders: z.boolean().default(true),
   weeklyProgressReports: z.boolean().default(true),
   newFeaturesAnnouncements: z.boolean().default(true),
-  dailyDigest: z.boolean().default(false),
-  marketingCommunications: z.boolean().default(false),
 }).strict();
 
 /**
@@ -43,18 +36,11 @@ export const notificationPreferencesSchema = z.object({
  * Controls how AI features interact with the user
  */
 export const aiInteractionPreferencesSchema = z.object({
-  detailLevel: z.enum(['basic', 'detailed', 'comprehensive'], {
-    errorMap: () => ({ message: 'Detail level must be one of: basic, detailed, comprehensive' }),
-  }).default('detailed'),
-  communicationStyle: z.enum(['formal', 'casual', 'technical'], {
-    errorMap: () => ({ message: 'Communication style must be one of: formal, casual, technical' }),
-  }).default('casual'),
-  responseFormat: z.enum(['structured', 'conversational', 'mixed'], {
-    errorMap: () => ({ message: 'Response format must be one of: structured, conversational, mixed' }),
-  }).default('mixed'),
+  detailLevel: z.enum(['basic', 'detailed', 'comprehensive']).default('detailed'),
+  communicationStyle: z.enum(['formal', 'casual', 'technical']).default('casual'),
+  responseFormat: z.enum(['structured', 'conversational', 'mixed']).default('mixed'),
   codeExamplesEnabled: z.boolean().default(true),
   includeExplanations: z.boolean().default(true),
-  showSimilarChallenges: z.boolean().default(true),
 }).strict();
 
 /**
@@ -63,17 +49,10 @@ export const aiInteractionPreferencesSchema = z.object({
  */
 export const learningPreferencesSchema = z.object({
   preferredChallengeTypes: z.array(z.string()).default([]),
-  preferredDifficulty: z.enum(['beginner', 'intermediate', 'advanced', 'expert'], {
-    errorMap: () => ({ message: 'Difficulty must be one of: beginner, intermediate, advanced, expert' }),
-  }).default('intermediate'),
+  preferredDifficulty: z.enum(['beginner', 'intermediate', 'advanced', 'expert']).default('intermediate'),
   topicsToAvoid: z.array(z.string()).default([]),
-  learningStyle: z.enum(['visual', 'auditory', 'reading', 'kinesthetic'], {
-    errorMap: () => ({ message: 'Learning style must be one of: visual, auditory, reading, kinesthetic' }),
-  }).default('reading'),
-  preferredFeedbackStyle: z.enum(['direct', 'gentle', 'detailed', 'minimal'], {
-    errorMap: () => ({ message: 'Feedback style must be one of: direct, gentle, detailed, minimal' }),
-  }).default('detailed'),
-  showProgressMetrics: z.boolean().default(true),
+  learningStyle: z.enum(['visual', 'auditory', 'reading', 'kinesthetic']).default('reading'),
+  preferredFeedbackStyle: z.enum(['direct', 'gentle', 'detailed', 'minimal']).default('detailed'),
 }).strict();
 
 /**
@@ -88,7 +67,7 @@ export const preferencesSchema = z.object({
 }).strict();
 
 /**
- * Get default preferences object
+ * Returns default preferences for all categories
  * @returns {Object} Default preferences
  */
 export function getDefaultPreferences() {
@@ -96,11 +75,10 @@ export function getDefaultPreferences() {
 }
 
 /**
- * Validate preferences for a specific category
+ * Validates preferences for a specific category
  * @param {string} category - Preference category
- * @param {Object} data - Category data to validate
- * @returns {Object} Validated category data
- * @throws {Error} If validation fails
+ * @param {Object} data - Data to validate
+ * @returns {Object} Validated data
  */
 export function validatePreferenceCategory(category, data) {
   switch (category) {

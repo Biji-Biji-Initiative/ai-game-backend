@@ -37,6 +37,8 @@
     "imports:test": "node scripts/test-import-conversion.js",
     "imports:revert-test": "node scripts/revert-test-import.js",
     "imports:convert-tests": "node scripts/convert-test-imports.js",
+    "imports:verify": "node scripts/verify-imports.js",
+    "imports:fix-all": "npm run imports:backup && npm run imports:convert && npm run imports:convert-tests && npm run imports:verify",
     "test:domain": "node scripts/run-tests.js domain",
     "test:unit": "jest --config=jest.unit.config.json",
     "test:integration": "jest --config=jest.integration.config.json",
@@ -72,7 +74,19 @@
     "swagger:setup-validator": "node --experimental-loader=./src/importResolver.js src/scripts/setup-openapi-validator.js",
     "swagger:setup": "npm run swagger:bundle && npm run swagger:setup-validator",
     "swagger:remove-jsdoc": "node --experimental-loader=./src/importResolver.js src/scripts/remove-swagger-jsdoc.js",
-    "swagger:migrate": "node --experimental-loader=./src/importResolver.js scripts/openapi-migration.js"
+    "swagger:migrate": "node --experimental-loader=./src/importResolver.js scripts/openapi-migration.js",
+    "events:update-services": "node scripts/update-services.js",
+    "events:update-services:dry": "node scripts/update-services.js --dry-run --verbose",
+    "events:update-coordinators": "node scripts/update-coordinators.js",
+    "events:update-coordinators:dry": "node scripts/update-coordinators.js --dry-run --verbose",
+    "events:update-event-files": "node scripts/update-event-files.js",
+    "events:update-event-files:dry": "node scripts/update-event-files.js --dry-run --verbose",
+    "events:verify": "node scripts/verify-event-migration.js",
+    "events:verify:verbose": "node scripts/verify-event-migration.js --verbose",
+    "events:migrate": "npm run events:update-services && npm run events:update-coordinators && npm run events:update-event-files && npm run events:verify",
+    "events:migrate:dry": "npm run events:update-services:dry && npm run events:update-coordinators:dry && npm run events:update-event-files:dry && npm run events:verify:verbose",
+    "events:full-migration": "node scripts/run-full-domain-event-migration.js",
+    "events:full-migration:dry": "node scripts/run-full-domain-event-migration.js --dry-run"
   },
   "jest": {
     "setupFilesAfterEnv": [
@@ -95,7 +109,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.3",
+    "@supabase/supabase-js": "^2.49.4",
     "axios": "^1.8.4",
     "body-parser": "^2.2.0",
     "chalk": "^5.4.1",

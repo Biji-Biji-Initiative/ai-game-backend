@@ -14,8 +14,8 @@
  * 2. For new event types, register them with registerEventType for better documentation
  * 3. Gradually migrate to using robustEventBus directly in new code
  */
-import robustEventBus from "../../common/events/RobustEventBus.js";
-import { logger } from "../../infra/logging/logger.js";
+import robustEventBus from "@/core/common/events/RobustEventBus.js";
+import { logger } from "@/core/infra/logging/logger.js";
 
 // Standard event types used across the application
 const EventTypes = {

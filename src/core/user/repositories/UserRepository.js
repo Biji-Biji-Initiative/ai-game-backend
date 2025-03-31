@@ -1,12 +1,12 @@
-import User from "../../user/models/User.js";
-import UserMapper from "../../user/mappers/UserMapper.js";
-import { supabaseClient } from "../../infra/db/supabaseClient.js";
-import { userDatabaseSchema } from "../../user/schemas/userSchema.js";
-import { UserNotFoundError, UserValidationError, UserError } from "../../user/errors/UserErrors.js";
-import domainEvents from "../../common/events/domainEvents.js";
-import { BaseRepository, EntityNotFoundError, ValidationError, DatabaseError } from "../../infra/repositories/BaseRepository.js";
-import { withRepositoryErrorHandling, createErrorMapper, createErrorCollector } from "../../infra/errors/errorStandardization.js";
-import { EventTypes } from "../../common/events/domainEvents.js";
+import User from "@/core/user/models/User.js";
+import UserMapper from "@/core/user/mappers/UserMapper.js";
+import { supabaseClient } from "@/core/infra/db/supabaseClient.js";
+import { userDatabaseSchema } from "@/core/user/schemas/userSchema.js";
+import { UserNotFoundError, UserValidationError, UserError } from "@/core/user/errors/UserErrors.js";
+import domainEvents from "@/core/common/events/domainEvents.js";
+import { BaseRepository, EntityNotFoundError, ValidationError, DatabaseError } from "@/core/infra/repositories/BaseRepository.js";
+import { withRepositoryErrorHandling, createErrorMapper, createErrorCollector } from "@/core/infra/errors/errorStandardization.js";
+import { EventTypes } from "@/core/common/events/domainEvents.js";
 'use strict';
 const { eventBus } = domainEvents;
 // Create an error mapper for the user domain
@@ -205,48 +205,32 @@ class UserRepository extends BaseRepository {
         }, 'findByEmail', { email });
     }
     /**
-     * Save a user domain object to the database
-     * @param {User} user - User domain object to save
-     * @returns {Promise<User>} Updated user domain object
-     * @throws {UserValidationError} If the user object fails validation
-     * @throws {UserError} If database operation fails
+     * Save a user to the database (create or update)
+     * @param {User} user - User domain entity to save
+     * @returns {Promise<User>} Saved user
+     * @throws {ValidationError} If user is invalid
+     * @throws {DatabaseError} If database operation fails
      */
     save(user) {
-        // Validate user object
-        if (!user) {
-            throw new ValidationError('User object is required', {
-                entityType: this.domainName,
-            });
-        }
         if (!(user instanceof User)) {
-            throw new ValidationError('Object must be a User instance', {
-                entityType: this.domainName,
-            });
+            throw new ValidationError('Invalid user object provided to save method');
         }
         
-        // Extract domain events before saving
-        const domainEvents = user.getDomainEvents ? user.getDomainEvents() : [];
+        const isNew = !user.id || !(this.exists(user.id));
+        this._log('debug', `${isNew ? 'Creating' : 'Updating'} user`, { userId: user.id });
         
-        // Clear events from the entity to prevent double publishing
-        if (user.clearDomainEvents) {
-            user.clearDomainEvents();
-        }
+        // Collect domain events from the entity before saving
+        const domainEvents = user.getDomainEvents();
         
-        // Use withTransaction to ensure events are only published after successful commit
         return this.withTransaction(async (transaction) => {
-            // Convert domain object to database format using the mapper
-            const dbData = UserMapper.toDatabase(user);
-            
-            // Set the updated_at timestamp if not already set
-            if (!dbData.updated_at) {
-                dbData.updated_at = new Date().toISOString();
-            }
-            
             let result;
             
-            if (user.id) {
+            // Convert domain model to database format
+            const dbData = UserMapper.toDatabase(user);
+            
+            if (!isNew) {
                 // Update existing user
-                this._log('debug', 'Updating existing user', { id: user.id });
+                this._log('debug', 'Updating user', { userId: user.id });
                 
                 const { data, error } = await transaction
                     .from(this.tableName)
@@ -290,15 +274,19 @@ class UserRepository extends BaseRepository {
             const userData = UserMapper.fromDatabase(result);
             const savedUser = new User(userData);
             
+            // Clear domain events from the original entity since they will be published
+            user.clearDomainEvents();
+            
             // Return both the result and the domain events for publishing after commit
             return {
                 result: savedUser,
                 domainEvents: domainEvents
             };
-        }, {publishEvents: true,
+        }, {
+            publishEvents: true,
             eventBus: this.eventBus,
-            invalidateCache: true, // Enable cache invalidation
-            cacheInvalidator: this.cacheInvalidator // Use repository's invalidator
+            invalidateCache: true,
+            cacheInvalidator: this.cacheInvalidator
         });
     }
     /**
@@ -338,6 +326,19 @@ class UserRepository extends BaseRepository {
                 });
             }
             
+            // Convert to domain entity to collect events
+            const userData = UserMapper.fromDatabase(userRecord);
+            const user = new User(userData);
+            
+            // Add domain event for deletion
+            user.addDomainEvent(EventTypes.USER_DELETED, {
+                userId: id,
+                action: 'deleted'
+            });
+            
+            // Collect domain events from the entity
+            const domainEvents = user.getDomainEvents();
+            
             // Delete from the database
             const { data: result, error: deleteError } = await transaction
                 .from(this.tableName)
@@ -359,14 +360,8 @@ class UserRepository extends BaseRepository {
                 throw new UserError(`Failed to delete user with ID ${id}`);
             }
             
-            // Prepare domain events
-            const domainEvents = [{
-                type: EventTypes.USER_UPDATED,
-                payload: { 
-                    userId: result.id,
-                    action: 'deleted'
-                }
-            }];
+            // Clear events from entity since they will be published
+            user.clearDomainEvents();
             
             return {
                 result: { deleted: true, id: result.id },

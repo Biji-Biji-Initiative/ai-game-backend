@@ -1,11 +1,11 @@
-import { supabaseClient } from "../../infra/db/supabaseClient.js";
-import evaluation from "../../evaluation/models/Evaluation.js";
-import { EvaluationSchema, EvaluationUpdateSchema } from "../../evaluation/schemas/EvaluationSchema.js";
+import { supabaseClient } from "@/core/infra/db/supabaseClient.js";
+import evaluation from "@/core/evaluation/models/Evaluation.js";
+import { EvaluationSchema, EvaluationUpdateSchema } from "@/core/evaluation/schemas/EvaluationSchema.js";
 import { v4 as uuidv4 } from "uuid";
-import domainEvents from "../../common/events/domainEvents.js";
-import { BaseRepository, EntityNotFoundError, ValidationError, DatabaseError } from "../../infra/repositories/BaseRepository.js";
-import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationRepositoryError } from "../../evaluation/errors/EvaluationErrors.js";
-import { createErrorMapper, createErrorCollector, withRepositoryErrorHandling } from "../../infra/errors/errorStandardization.js";
+import domainEvents from "@/core/common/events/domainEvents.js";
+import { BaseRepository, EntityNotFoundError, ValidationError, DatabaseError } from "@/core/infra/repositories/BaseRepository.js";
+import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationRepositoryError } from "@/core/evaluation/errors/EvaluationErrors.js";
+import { createErrorMapper, createErrorCollector, withRepositoryErrorHandling } from "@/core/infra/errors/errorStandardization.js";
 'use strict';
 const { Evaluation } = evaluation;
 const { eventBus, EventTypes } = domainEvents;
@@ -396,16 +396,21 @@ class EvaluationRepository extends BaseRepository {
                 // Publish evaluation updated event
                 const errorCollector = createErrorCollector();
                 try {
-                    await this.eventBus.publish({
-                        type: EventTypes.EVALUATION_UPDATED,
-                        payload: {
-                            evaluationId: updatedEvaluation.id,
-                            userId: updatedEvaluation.userId,
-                            challengeId: updatedEvaluation.challengeId,
-                            score: updatedEvaluation.score,
-                            timestamp: updatedEvaluation.updatedAt
-                        }
-                    });
+                    
+    // Find evaluation entity and add domain event
+    const evaluationEntity = await this.findById(evaluationId);
+    if (evaluationEntity) {
+      evaluationEntity.addDomainEvent(EventTypes.EVALUATION_UPDATED, {
+        evaluationId: updatedEvaluation.id,
+        userId: updatedEvaluation.userId,
+        challengeId: updatedEvaluation.challengeId,
+        score: updatedEvaluation.score,
+        timestamp: updatedEvaluation.updatedAt
+      });
+      
+      // Save entity with events
+      await this.save(evaluationEntity);
+    }
                     this._log('debug', 'Published evaluation updated event', {
                         id: updatedEvaluation.id
                     });

@@ -1,17 +1,17 @@
-import { logger } from "../infra/logging/logger.js";
-import { PROMPT_TYPES } from "../prompt/promptTypes.js";
-import { PromptBuilderNotFoundError, PromptConstructionError } from "../prompt/common/errors.js";
+import { logger } from "@/core/infra/logging/logger.js";
+import { PROMPT_TYPES } from "@/core/prompt/promptTypes.js";
+import { PromptBuilderNotFoundError, PromptConstructionError } from "@/core/prompt/common/errors.js";
 
 // Import all prompt builders
-import EvaluationPromptBuilder from "../prompt/builders/EvaluationPromptBuilder.js";
-import ChallengePromptBuilder from "../prompt/builders/ChallengePromptBuilder.js";
-import FocusAreaPromptBuilder from "../prompt/builders/FocusAreaPromptBuilder.js";
-import PersonalityPromptBuilder from "../prompt/builders/PersonalityPromptBuilder.js";
-import ProgressPromptBuilder from "../prompt/builders/ProgressPromptBuilder.js";
-import AdaptiveChallengeSelectionPromptBuilder from "../prompt/builders/AdaptiveChallengeSelectionPromptBuilder.js";
-import DifficultyCalibratonPromptBuilder from "../prompt/builders/DifficultyCalibratonPromptBuilder.js";
-import PersonalizedLearningPathPromptBuilder from "../prompt/builders/PersonalizedLearningPathPromptBuilder.js";
-import EngagementOptimizationPromptBuilder from "../prompt/builders/EngagementOptimizationPromptBuilder.js";
+import EvaluationPromptBuilder from "@/core/prompt/builders/EvaluationPromptBuilder.js";
+import ChallengePromptBuilder from "@/core/prompt/builders/ChallengePromptBuilder.js";
+import FocusAreaPromptBuilder from "@/core/prompt/builders/FocusAreaPromptBuilder.js";
+import PersonalityPromptBuilder from "@/core/prompt/builders/PersonalityPromptBuilder.js";
+import ProgressPromptBuilder from "@/core/prompt/builders/ProgressPromptBuilder.js";
+import AdaptiveChallengeSelectionPromptBuilder from "@/core/prompt/builders/AdaptiveChallengeSelectionPromptBuilder.js";
+import DifficultyCalibratonPromptBuilder from "@/core/prompt/builders/DifficultyCalibratonPromptBuilder.js";
+import PersonalizedLearningPathPromptBuilder from "@/core/prompt/builders/PersonalizedLearningPathPromptBuilder.js";
+import EngagementOptimizationPromptBuilder from "@/core/prompt/builders/EngagementOptimizationPromptBuilder.js";
 
 'use strict';
 // Builder registry to store all available prompt builders

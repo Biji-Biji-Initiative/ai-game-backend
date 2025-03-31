@@ -14,7 +14,12 @@ import * as path from 'path';
  * @returns {boolean} - True if the import points to src
  */
 function isSrcImport(importPath) {
-  return importPath.includes('../src/') || importPath.includes('../../src/') || importPath.includes('../../../src/');
+  // Expanded to handle more patterns including deeper nesting and ./src/ pattern
+  return importPath.includes('../src/') || 
+         importPath.includes('../../src/') || 
+         importPath.includes('../../../src/') ||
+         importPath.includes('../../../../src/') || 
+         importPath.includes('./src/');
 }
 
 /**
@@ -23,14 +28,17 @@ function isSrcImport(importPath) {
  * @returns {string} - The @ import path
  */
 function convertToAtImport(importPath) {
+  // Normalize path by replacing double slashes with single slash
+  const normalizedImportPath = importPath.replace('//', '/');
+  
   // Find the src/ part in the import path
-  const srcIndex = importPath.indexOf('src/');
+  const srcIndex = normalizedImportPath.indexOf('src/');
   if (srcIndex === -1) {
     return importPath; // Not a src import
   }
   
   // Convert to @ import (replacing src/ with @/)
-  return '@/' + importPath.substring(srcIndex + 4);
+  return '@/' + normalizedImportPath.substring(srcIndex + 4);
 }
 
 /**

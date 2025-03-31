@@ -18,7 +18,7 @@ import { setupTestUser, cleanupTestUser, getAuthToken } from "../../helpers/apiT
 import { UserDTO, UserDTOMapper } from "../../../src/core/user/dtos/index.js";
 import { PersonalityDTO, PersonalityDTOMapper } from "../../../src/core/personality/dtos/index.js";
 import { createUserId, UserId } from "../../../src/core/common/valueObjects/index.js";
-import UserDTOMapper from "../../../src/application/user/mappers/UserDTOMapper.js";
+import { UserDTOMapper } from "../../../src/core/user/dtos/UserDTO.js";
 import UserProfileDTOMapper from "../../../src/application/user/mappers/UserProfileDTOMapper.js";
 import FocusAreaDTOMapper from "../../../src/application/focusArea/mappers/FocusAreaDTOMapper.js";
 

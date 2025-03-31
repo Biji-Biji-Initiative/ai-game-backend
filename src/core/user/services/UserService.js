@@ -5,15 +5,17 @@
  * Personality data is managed by the personality domain.
  */
 // Imports using ES modules
-import User from "../../user/models/User.js";
-import UserRepository from "../../user/repositories/UserRepository.js";
-import { EventTypes, eventBus } from "../../common/events/domainEvents.js";
+import User from "@/core/user/models/User.js";
+import UserRepository from "@/core/user/repositories/UserRepository.js";
+import { EventTypes, eventBus } from "@/core/common/events/domainEvents.js";
 import { v4 as uuidv4 } from 'uuid';
-import { userLogger } from "../../infra/logging/domainLogger.js";
-import { UserNotFoundError, UserValidationError, UserError } from "../../user/errors/UserErrors.js";
-import { withServiceErrorHandling, createErrorMapper } from "../../infra/errors/errorStandardization.js";
+import { userLogger } from "@/core/infra/logging/domainLogger.js";
+import { UserNotFoundError, UserValidationError, UserError } from "@/core/user/errors/UserErrors.js";
+import { withServiceErrorHandling, createErrorMapper } from "@/core/infra/errors/errorStandardization.js";
+import ConfigurationError from "@/core/infra/errors/ConfigurationError.js";
+import { validateDependencies } from "@/core/shared/utils/serviceUtils.js";
 // Import value objects
-import { Email, UserId, createEmail, createUserId } from "../../common/valueObjects/index.js";
+import { Email, UserId, createEmail, createUserId } from "@/core/common/valueObjects/index.js";
 // Only keep the cache TTL that is used
 const USER_CACHE_TTL = 300; // 5 minutes
 // Create an error mapper for the user service
@@ -35,36 +37,57 @@ export default class UserService {
      * @param {Object} dependencies.logger - Logger instance
      * @param {Object} dependencies.eventBus - Event bus instance
      * @param {CacheService} dependencies.cacheService - Cache service for optimizing data access
+     * @param {UserPreferencesManager} dependencies.userPreferencesManager - User preferences manager
      * @throws {Error} If cacheService is not provided
      */
     constructor(dependencies = {}) {
-        const { userRepository, logger, eventBus, cacheService } = dependencies;
+        const { userRepository, logger, eventBus, cacheService, userPreferencesManager } = dependencies;
         
-        this.userRepository = userRepository || new UserRepository();
+        // Validate required dependencies
+        validateDependencies(dependencies, {
+            serviceName: 'UserService',
+            required: ['userRepository', 'cacheService'],
+            productionOnly: true
+        });
+        
+        // Store repository reference
+        this.userRepository = userRepository;
+        this.cache = cacheService;
+        
+        // In development mode, provide fallbacks if needed
+        if (process.env.NODE_ENV !== 'production') {
+            // In development/testing, allow fallbacks for easier development
+            if (!userRepository) {
+                this.userRepository = new UserRepository();
+            }
+            
+            // Handle missing cache service with a fallback implementation in non-production
+            if (!cacheService) {
+                this.logger = logger || userLogger.child('service');
+                this.logger.warn('No CacheService provided, using in-memory fallback cache');
+                
+                // Create a simple in-memory cache as fallback
+                this.cache = {
+                    // eslint-disable-next-line no-unused-vars
+                    async get(_key) { return null; },
+                    // eslint-disable-next-line no-unused-vars
+                    async set(_key, _value, _ttl) { return true; },
+                    // eslint-disable-next-line no-unused-vars
+                    async delete(_key) { return true; },
+                    // eslint-disable-next-line no-unused-vars
+                    async keys(_pattern) { return []; },
+                    // eslint-disable-next-line no-unused-vars
+                    async getOrSet(_key, factory, _ttl) { return await factory(); },
+                    // eslint-disable-next-line no-unused-vars
+                    async invalidateCache(_prefix) { return true; }
+                };
+            }
+        }
+        
+        // Common initialization for all environments
         this.logger = logger || userLogger.child('service');
         this.eventBus = eventBus || null;
-        
-        // Handle missing cache service with a fallback implementation
-        if (!cacheService) {
-            this.logger.warn('No CacheService provided, using in-memory fallback cache');
-            // Create a simple in-memory cache as fallback
-            this.cache = {
-                // eslint-disable-next-line no-unused-vars
-                async get(_key) { return null; },
-                // eslint-disable-next-line no-unused-vars
-                async set(_key, _value, _ttl) { return true; },
-                // eslint-disable-next-line no-unused-vars
-                async delete(_key) { return true; },
-                // eslint-disable-next-line no-unused-vars
-                async keys(_pattern) { return []; },
-                // eslint-disable-next-line no-unused-vars
-                async getOrSet(_key, factory, _ttl) { return await factory(); },
-                // eslint-disable-next-line no-unused-vars
-                async invalidateCache(_prefix) { return true; }
-            };
-        } else {
-            this.cache = cacheService;
-        }
+        this.userPreferencesManager = userPreferencesManager;
         
         // Apply standardized error handling to methods
         this.createUser = withServiceErrorHandling(this.createUser.bind(this), {
@@ -134,10 +157,15 @@ export default class UserService {
         // Save user to database
         const savedUser = await this.userRepository.save(user);
         // Publish user created event
-        await eventBus.publishEvent(EventTypes.USER_CREATED, {
-            userId: savedUser.id,
+        
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.USER_CREATED, {
+      userId: savedUser.id,
             email: savedUser.email
-        });
+    });
+    
+    // Save entity with events
+    await this.userRepository.save(entity);
         // Cache the new user
         await this.cache.set(`user:id:${savedUser.id}`, savedUser, USER_CACHE_TTL);
         await this.cache.set(`user:email:${savedUser.email}`, savedUser, USER_CACHE_TTL);
@@ -293,5 +321,78 @@ export default class UserService {
      */
     findByEmail(email) {
         return this.getUserByEmail(email);
+    }
+    /**
+     * Get all preferences for a user
+     * @param {string} userId - User ID
+     * @returns {Promise<Object>} User preferences
+     */
+    async getUserPreferences(userId) {
+        if (!this.userPreferencesManager) {
+            throw new UserError('UserPreferencesManager not available for preference operations');
+        }
+        return this.userPreferencesManager.getUserPreferences(userId);
+    }
+    /**
+     * Get preferences for a specific category
+     * @param {string} userId - User ID
+     * @param {string} category - Preference category
+     * @returns {Promise<Object>} Category preferences
+     */
+    async getUserPreferencesByCategory(userId, category) {
+        if (!this.userPreferencesManager) {
+            throw new UserError('UserPreferencesManager not available for preference operations');
+        }
+        return this.userPreferencesManager.getUserPreferencesByCategory(userId, category);
+    }
+    /**
+     * Update all user preferences
+     * @param {string} userId - User ID
+     * @param {Object} preferences - New preferences
+     * @returns {Promise<Object>} Updated preferences
+     */
+    async updateUserPreferences(userId, preferences) {
+        if (!this.userPreferencesManager) {
+            throw new UserError('UserPreferencesManager not available for preference operations');
+        }
+        return this.userPreferencesManager.updateUserPreferences(userId, preferences);
+    }
+    /**
+     * Update preferences for a specific category
+     * @param {string} userId - User ID
+     * @param {string} category - Preference category
+     * @param {Object} categoryPreferences - New category preferences
+     * @returns {Promise<Object>} Updated category preferences
+     */
+    async updateUserPreferencesByCategory(userId, category, categoryPreferences) {
+        if (!this.userPreferencesManager) {
+            throw new UserError('UserPreferencesManager not available for preference operations');
+        }
+        return this.userPreferencesManager.updateUserPreferencesByCategory(userId, category, categoryPreferences);
+    }
+    /**
+     * Set a single user preference
+     * @param {string} userId - User ID
+     * @param {string} key - Preference key
+     * @param {any} value - Preference value
+     * @returns {Promise<Object>} Updated preferences
+     */
+    async setUserPreference(userId, key, value) {
+        if (!this.userPreferencesManager) {
+            throw new UserError('UserPreferencesManager not available for preference operations');
+        }
+        return this.userPreferencesManager.setUserPreference(userId, key, value);
+    }
+    /**
+     * Reset a preference to default
+     * @param {string} userId - User ID
+     * @param {string} key - Preference key
+     * @returns {Promise<Object>} Updated preferences
+     */
+    async resetUserPreference(userId, key) {
+        if (!this.userPreferencesManager) {
+            throw new UserError('UserPreferencesManager not available for preference operations');
+        }
+        return this.userPreferencesManager.resetUserPreference(userId, key);
     }
 }

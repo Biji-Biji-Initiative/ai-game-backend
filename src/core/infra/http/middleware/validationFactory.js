@@ -2,7 +2,7 @@ import {
   validateBody,
   validateQuery,
   validateParams 
-} from './validation.js';
+} from "@/core/infra/http/middleware/validation.js";
 
 /**
  * Validation Factory

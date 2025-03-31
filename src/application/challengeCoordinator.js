@@ -1,12 +1,12 @@
-import { challengeLogger } from "../core/infra/logging/domainLogger.js";
+import { challengeLogger } from "@/core/infra/logging/domainLogger.js";
 import BaseCoordinator from "@/application/BaseCoordinator.js";
-import Challenge from "../core/challenge/models/Challenge.js";
-import challengeErrors from "../core/challenge/errors/ChallengeErrors.js";
+import Challenge from "@/core/challenge/models/Challenge.js";
+import challengeErrors from "@/core/challenge/errors/ChallengeErrors.js";
 import { 
     createEmail, createChallengeId, createFocusArea, createDifficultyLevel, 
     Email, ChallengeId, FocusArea, DifficultyLevel, 
     ensureVO 
-} from "../core/common/valueObjects/index.js";
+} from "@/core/common/valueObjects/index.js";
 'use strict';
 // Import domain errors
 const { ChallengeNotFoundError, ChallengeGenerationError, ChallengeResponseError } = challengeErrors;
@@ -96,8 +96,8 @@ class ChallengeCoordinator extends BaseCoordinator {
             }
             // Get user's recent challenges for context
             const recentChallenges = await this.challengeService.getRecentChallengesForUser(emailVO, 3);
-            // Create a conversation context identifier
-            const conversationContext = `challenge_gen_${emailVO.value}`;
+            // Create a thread identifier
+            const threadId = `challenge_gen_${emailVO.value}`;
             // Use the factory to create the challenge with validated parameters
             const challengeEntity = await this.challengeFactory.createChallenge({
                 user,
@@ -120,7 +120,7 @@ class ChallengeCoordinator extends BaseCoordinator {
                 typeMetadata: challengeEntity.typeMetadata,
                 formatMetadata: challengeEntity.formatMetadata
             }, recentChallenges, {
-                conversationContext,
+                threadId,
                 allowDynamicTypes: true
             });
             // Update the challenge entity with generated content
@@ -195,15 +195,15 @@ class ChallengeCoordinator extends BaseCoordinator {
             // Format responses as an array for compatibility
             const responses = Array.isArray(response) ? response : [{ response }];
             
-            // Create a conversation context identifier
-            const conversationContext = `challenge_eval_${challengeIdVO.value}`;
+            // Create a thread identifier
+            const threadId = `challenge_eval_${challengeIdVO.value}`;
             
             // Submit responses to the challenge using domain model method
             challenge.submitResponses(responses);
             
             // Evaluate the responses using the domain service
             const evaluation = await this.challengeEvaluationService.evaluateResponses(challenge, responses, {
-                conversationContext,
+                threadId,
                 stateMetadata: { challengeId: challengeIdVO.value }
             });
             

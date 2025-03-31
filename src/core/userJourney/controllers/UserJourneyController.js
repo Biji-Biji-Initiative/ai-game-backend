@@ -1,8 +1,8 @@
-import { logger } from "../../infra/logging/logger.js";
-import { UserJourneyError, UserJourneyNotFoundError, UserJourneyValidationError, UserJourneyProcessingError } from "../../userJourney/errors/userJourneyErrors.js";
-import { UserJourneyDTOMapper } from "../../userJourney/dtos/UserJourneyDTO.js";
-import AppError from "../../infra/errors/AppError.js";
-import { withControllerErrorHandling } from "../../infra/errors/errorStandardization.js";
+import { logger } from "@/core/infra/logging/logger.js";
+import { UserJourneyError, UserJourneyNotFoundError, UserJourneyValidationError, UserJourneyProcessingError } from "@/core/userJourney/errors/userJourneyErrors.js";
+import { UserJourneyDTOMapper } from "@/core/userJourney/dtos/UserJourneyDTO.js";
+import AppError from "@/core/infra/errors/AppError.js";
+import { withControllerErrorHandling } from "@/core/infra/errors/errorStandardization.js";
 'use strict';
 /**
  * User Journey Controller

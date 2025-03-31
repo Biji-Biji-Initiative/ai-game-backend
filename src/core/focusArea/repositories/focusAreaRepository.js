@@ -1,13 +1,13 @@
 'use strict';
 
-import FocusArea from "../../focusArea/models/FocusArea.js";
-import { FocusAreaNotFoundError, FocusAreaPersistenceError, FocusAreaValidationError, FocusAreaError } from "../../focusArea/errors/focusAreaErrors.js";
-import domainEvents from "../../common/events/domainEvents.js";
-import { supabaseClient } from "../../infra/db/supabaseClient.js";
-import { BaseRepository, EntityNotFoundError, ValidationError, DatabaseError } from "../../infra/repositories/BaseRepository.js";
+import FocusArea from "@/core/focusArea/models/FocusArea.js";
+import { FocusAreaNotFoundError, FocusAreaPersistenceError, FocusAreaValidationError, FocusAreaError } from "@/core/focusArea/errors/focusAreaErrors.js";
+import domainEvents from "@/core/common/events/domainEvents.js";
+import { supabaseClient } from "@/core/infra/db/supabaseClient.js";
+import { BaseRepository, EntityNotFoundError, ValidationError, DatabaseError } from "@/core/infra/repositories/BaseRepository.js";
 // Importing but not using directly - needed for schema definitions
 // import { focusAreaSchema } from "../schemas/focusAreaValidation.js";
-import { withRepositoryErrorHandling, createErrorMapper, createErrorCollector } from "../../infra/errors/errorStandardization.js";
+import { withRepositoryErrorHandling, createErrorMapper, createErrorCollector } from "@/core/infra/errors/errorStandardization.js";
 import { v4 as uuidv4 } from "uuid";
 
 const { eventBus, EventTypes } = domainEvents;
@@ -388,6 +388,9 @@ class FocusAreaRepository extends BaseRepository {
             });
         }
         
+        // Collect domain events before saving
+        const domainEvents = focusArea.getDomainEvents();
+        
         // Convert focus area to database format
         const focusAreaData = {
             id: focusArea.id,
@@ -400,7 +403,7 @@ class FocusAreaRepository extends BaseRepository {
             updated_at: new Date().toISOString()
         };
         
-        return this._withRetry(async () => {
+        return this.withTransaction(async (transaction) => {
             // Check if this is a new focus area or an update
             const existingFocusArea = await this.findById(focusArea.id).catch(() => null);
             const isUpdate = existingFocusArea !== null;
@@ -409,7 +412,7 @@ class FocusAreaRepository extends BaseRepository {
             if (isUpdate) {
                 // Update existing focus area
                 this._log('debug', 'Updating existing focus area', { id: focusArea.id });
-                const { data, error } = await this.db
+                const { data, error } = await transaction
                     .from(this.tableName)
                     .update(focusAreaData)
                     .eq('id', focusArea.id)
@@ -429,7 +432,7 @@ class FocusAreaRepository extends BaseRepository {
             else {
                 // Insert new focus area
                 this._log('debug', 'Creating new focus area', { id: focusArea.id });
-                const { data, error } = await this.db
+                const { data, error } = await transaction
                     .from(this.tableName)
                     .insert(focusAreaData)
                     .select()
@@ -454,31 +457,20 @@ class FocusAreaRepository extends BaseRepository {
             // Create domain object from database result
             const savedFocusArea = FocusArea.fromDatabase(result);
             
-            // Publish an event
-            try {
-                const eventType = isUpdate ? EventTypes.FOCUS_AREA_UPDATED : EventTypes.FOCUS_AREA_CREATED;
-                const event = {
-                    type: eventType,
-                    payload: {
-                        focusAreaId: savedFocusArea.id,
-                        userId: savedFocusArea.userId,
-                        name: savedFocusArea.name
-                    }
-                };
-                
-                await this.eventBus.publish(event.type, event.payload);
-                this._log('debug', `Published ${eventType} event`, { id: savedFocusArea.id });
-            }
-            catch (eventError) {
-                // Log but don't fail the operation
-                this._log('error', 'Error publishing focus area event', {
-                    id: savedFocusArea.id,
-                    error: eventError.message
-                });
-            }
+            // Clear domain events from the original entity since they will be published
+            focusArea.clearDomainEvents();
             
-            return savedFocusArea;
-        }, 'save', { focusAreaId: focusArea.id });
+            // Return both the result and the domain events for publishing after commit
+            return {
+                result: savedFocusArea,
+                domainEvents
+            };
+        }, {
+            publishEvents: true,
+            eventBus: this.eventBus,
+            invalidateCache: true,
+            cacheInvalidator: this.cacheInvalidator
+        });
     }
 
     /**
@@ -525,7 +517,7 @@ class FocusAreaRepository extends BaseRepository {
         });
         
         // eslint-disable-next-line no-unused-vars
-        return this.withTransaction(async (_unused) => {
+        return this.withTransaction(async (transaction) => {
             // Save each focus area individually, tracking domain events
             const savedAreas = [];
             const allDomainEvents = [];
@@ -533,20 +525,43 @@ class FocusAreaRepository extends BaseRepository {
             
             for (const focusArea of focusAreaEntities) {
                 try {
-                    // Use the save method but wrap in error collector
-                    const savedArea = await this.save(focusArea);
-                    savedAreas.push(savedArea);
+                    // Collect domain events from each entity before saving
+                    const entityEvents = focusArea.getDomainEvents();
+                    allDomainEvents.push(...entityEvents);
                     
-                    // Collect domain events if available
-                    if (focusArea.getDomainEvents) {
-                        const events = focusArea.getDomainEvents();
-                        allDomainEvents.push(...events);
+                    // Clear events from the entity so they don't get published twice
+                    focusArea.clearDomainEvents();
+                    
+                    // Save focus area using the transaction
+                    const dbData = {
+                        id: focusArea.id,
+                        user_id: focusArea.userId,
+                        name: focusArea.name,
+                        description: focusArea.description || '',
+                        priority: focusArea.priority || 1,
+                        metadata: focusArea.metadata || {},
+                        created_at: focusArea.createdAt || new Date().toISOString(),
+                        updated_at: new Date().toISOString()
+                    };
+                    
+                    const { data, error } = await transaction
+                        .from(this.tableName)
+                        .upsert(dbData, { onConflict: 'id' })
+                        .select()
+                        .single();
                         
-                        // Clear events
-                        if (focusArea.clearDomainEvents) {
-                            focusArea.clearDomainEvents();
-                        }
+                    if (error) {
+                        throw new DatabaseError(`Failed to save focus area: ${error.message}`, {
+                            cause: error,
+                            entityType: this.domainName,
+                            operation: 'saveBatch',
+                            metadata: { focusAreaId: focusArea.id }
+                        });
                     }
+                    
+                    // Create domain object from database result
+                    const savedArea = FocusArea.fromDatabase(data);
+                    savedAreas.push(savedArea);
                 }
                 catch (error) {
                     errorCollector.collect(error, `save_focus_area_${focusArea.id}`);
@@ -568,27 +583,22 @@ class FocusAreaRepository extends BaseRepository {
                 });
             }
             
-            // Publish collected domain events
-            for (const event of allDomainEvents) {
-                try {
-                    await this.eventBus.publish(event.type, event.payload);
-                }
-                catch (eventError) {
-                    errorCollector.collect(eventError, 'event_publishing');
-                    this._log('error', 'Error publishing domain event', {
-                        eventType: event.type,
-                        error: eventError.message
-                    });
-                }
-            }
-            
             this._log('info', 'Successfully saved batch of focus areas', {
                 userId,
                 count: savedAreas.length,
-                eventsPublished: allDomainEvents.length
+                eventsCount: allDomainEvents.length
             });
             
-            return savedAreas;
+            // Return both the result and collected domain events
+            return {
+                result: savedAreas,
+                domainEvents: allDomainEvents
+            };
+        }, {
+            publishEvents: true,
+            eventBus: this.eventBus,
+            invalidateCache: true,
+            cacheInvalidator: this.cacheInvalidator
         });
     }
 
@@ -604,50 +614,72 @@ class FocusAreaRepository extends BaseRepository {
         // Validate ID
         this._validateId(id);
         
-        // First check if focus area exists (this will throw if not found)
-        const focusArea = await this.findById(id, true);
-        
-        return this._withRetry(async () => {
-            this._log('debug', 'Deleting focus area', { id });
-            
-            const { error } = await this.db
+        return this.withTransaction(async (transaction) => {
+            // First find the focus area to ensure it exists
+            const { data: focusAreaRecord, error: findError } = await transaction
                 .from(this.tableName)
-                .delete()
-                .eq('id', id);
+                .select('*')
+                .eq('id', id)
+                .maybeSingle();
                 
-            if (error) {
-                throw new DatabaseError(`Failed to delete focus area: ${error.message}`, {
-                    cause: error,
+            if (findError) {
+                throw new DatabaseError(`Failed to find focus area for deletion: ${findError.message}`, {
+                    cause: findError,
                     entityType: this.domainName,
                     operation: 'delete',
                     metadata: { id }
                 });
             }
             
-            // Publish deletion event
-            try {
-                const event = {
-                    type: EventTypes.FOCUS_AREA_DELETED,
-                    payload: {
-                        focusAreaId: id,
-                        userId: focusArea.userId,
-                        name: focusArea.name
-                    }
-                };
-                
-                await this.eventBus.publish(event.type, event.payload);
-                this._log('debug', 'Published focus area deleted event', { id });
-            }
-            catch (eventError) {
-                // Log but don't fail the operation
-                this._log('error', 'Error publishing focus area deleted event', {
-                    id,
-                    error: eventError.message
+            if (!focusAreaRecord) {
+                throw new EntityNotFoundError(`Focus area with ID ${id} not found`, {
+                    entityId: id,
+                    entityType: this.domainName
                 });
             }
             
-            return true;
-        }, 'deleteById', { id });
+            // Convert to domain entity to collect events
+            const focusArea = FocusArea.fromDatabase(focusAreaRecord);
+            
+            // Add domain event for deletion
+            focusArea.addDomainEvent(EventTypes.FOCUS_AREA_DELETED, {
+                focusAreaId: id,
+                userId: focusArea.userId,
+                name: focusArea.name,
+                action: 'deleted'
+            });
+            
+            // Collect domain events from the entity
+            const domainEvents = focusArea.getDomainEvents();
+            
+            // Delete from the database
+            const { error: deleteError } = await transaction
+                .from(this.tableName)
+                .delete()
+                .eq('id', id);
+                
+            if (deleteError) {
+                throw new DatabaseError(`Failed to delete focus area: ${deleteError.message}`, {
+                    cause: deleteError,
+                    entityType: this.domainName,
+                    operation: 'delete',
+                    metadata: { id }
+                });
+            }
+            
+            // Clear events from entity since they will be published
+            focusArea.clearDomainEvents();
+            
+            return {
+                result: { deleted: true, id },
+                domainEvents
+            };
+        }, {
+            publishEvents: true,
+            eventBus: this.eventBus,
+            invalidateCache: true,
+            cacheInvalidator: this.cacheInvalidator
+        });
     }
 
     /**

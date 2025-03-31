@@ -1,6 +1,6 @@
 import { expect } from "chai";
-import challengeRepository from "../../../../src/core/challenge/repositories/challengeRepository.js";
-import Challenge from "../../../../src/core/challenge/models/Challenge.js";
+import challengeRepository from "@/core/challenge/repositories/challengeRepository.js";
+import Challenge from "@/core/challenge/models/Challenge.js";
 // Isolated test suite for unit testing the Challenge Repository with Zod validation
 describe.only('Challenge Repository with Zod Validation', () => {
     // Reset the repository state before each test

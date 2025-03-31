@@ -1,11 +1,11 @@
 import { expect } from "chai";
 import testHelper from "../testHelper.js";
-import domainEvents from "../../../src/core/common/events/domainEvents.js";
-import Challenge from "../../../src/core/challenge/models/Challenge.js";
-import FocusArea from "../../../src/core/focusArea/models/FocusArea.js";
-import challengeRepository from "../../../src/core/challenge/repositories/challengeRepository.js";
-import focusAreaRepository from "../../../src/core/focusArea/repositories/focusAreaRepository.js";
-import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError, ChallengeRepositoryError, ChallengeGenerationError } from "../../../src/core/challenge/errors/ChallengeErrors.js";
+import domainEvents from "@/core/common/events/domainEvents.js";
+import Challenge from "@/core/challenge/models/Challenge.js";
+import FocusArea from "@/core/focusArea/models/FocusArea.js";
+import challengeRepository from "@/core/challenge/repositories/challengeRepository.js";
+import focusAreaRepository from "@/core/focusArea/repositories/focusAreaRepository.js";
+import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError, ChallengeRepositoryError, ChallengeGenerationError } from "@/core/challenge/errors/ChallengeErrors.js";
 // Focus Area Progress Service for handling focus area updates
 /**
  *

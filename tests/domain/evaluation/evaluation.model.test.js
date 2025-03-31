@@ -1,9 +1,9 @@
 import { expect } from "chai";
-import { Evaluation } from "../../../src/../../src/core/evaluation/models/Evaluation.js";
+import { Evaluation } from "@/../../src/core/evaluation/models/Evaluation.js";
 import sinon from "sinon";
 
 import { createSupabaseProxyStub } from "../../helpers/mockSupabaseClient.js";
-import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationProcessingError, EvaluationRepositoryError } from "../../../src/core/evaluation/errors/evaluationErrors.js";
+import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationProcessingError, EvaluationRepositoryError } from "@/core/evaluation/errors/evaluationErrors.js";
 
 // Set up mocks for dependencies
 const mockEvaluationCategoryRepository = {

@@ -1,5 +1,5 @@
-import { logger as defaultLogger } from "../infra/logging/logger.js";
-import MissingParameterError from "../infra/errors/MissingParameterError.js";
+import { logger as defaultLogger } from "@/core/infra/logging/logger.js";
+import MissingParameterError from "@/core/infra/errors/MissingParameterError.js";
 
 /**
  * Base Service Class

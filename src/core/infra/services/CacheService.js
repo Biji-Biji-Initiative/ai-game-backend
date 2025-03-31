@@ -1,4 +1,4 @@
-import { logger } from "../../infra/logging/logger.js";
+import { logger } from "@/core/infra/logging/logger.js";
 'use strict';
 /**
  * Cache Service

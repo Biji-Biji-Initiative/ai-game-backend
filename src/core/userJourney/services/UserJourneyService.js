@@ -1,7 +1,7 @@
-import { createErrorMapper, withServiceErrorHandling } from "../../infra/errors/errorStandardization.js";
-import { UserJourneyError, UserJourneyNotFoundError, UserJourneyValidationError, UserJourneyProcessingError } from "../../userJourney/errors/userJourneyErrors.js";
-import { logger } from "../../infra/logging/logger.js";
-import { userJourneyLogger } from "../../infra/logging/domainLogger.js";
+import { createErrorMapper, withServiceErrorHandling } from "@/core/infra/errors/errorStandardization.js";
+import { UserJourneyError, UserJourneyNotFoundError, UserJourneyValidationError, UserJourneyProcessingError } from "@/core/userJourney/errors/userJourneyErrors.js";
+import { logger } from "@/core/infra/logging/logger.js";
+import { userJourneyLogger } from "@/core/infra/logging/domainLogger.js";
 'use strict';
 // Create an error mapper for services
 const userJourneyErrorMapper = createErrorMapper({

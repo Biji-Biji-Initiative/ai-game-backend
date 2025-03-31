@@ -1,7 +1,9 @@
 import domainEvents from "../../common/events/domainEvents.js";
 import { logger } from "../../infra/logging/logger.js";
-'use strict';
-/**
+
+import { UserRepository } from '../repositories/userRepository.js';'use strict';
+
+import { UserRepository } from '../repositories/userRepository.js';/**
  * User Domain Events
  *
  * Events that occur within the User domain.
@@ -28,10 +30,42 @@ const {
 async function publishUserCreated(userId, email) {
   logger.warn('DEPRECATED: Direct event publishing via publishUserCreated. Use entity-based event collection instead.');
   try {
+    
+  // Get entity to add domain event
+  const entity = await userRepository.findById(userId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.USER_CREATED, {
+      userId,
+      email
+    });
+    
+    // Save entity which will publish the event
+    await userRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${userId} not found for event USER_CREATED. Using direct event publishing.`);
+    
+  // Get entity to add domain event
+  const entity = await userRepository.findById(userId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.USER_CREATED, {
+      userId,
+      email
+    });
+    
+    // Save entity which will publish the event
+    await userRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${userId} not found for event USER_CREATED. Using direct event publishing.`);
     await eventBus.publishEvent(EventTypes.USER_CREATED, {
       userId,
       email
     });
+  }
+  }
     logger.debug('Published user created event', {
       userId,
       email
@@ -54,10 +88,42 @@ async function publishUserCreated(userId, email) {
 async function publishUserUpdated(userId, changes) {
   logger.warn('DEPRECATED: Direct event publishing via publishUserUpdated. Use entity-based event collection instead.');
   try {
+    
+  // Get entity to add domain event
+  const entity = await userRepository.findById(userId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.USER_UPDATED, {
+      userId,
+      changes
+    });
+    
+    // Save entity which will publish the event
+    await userRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${userId} not found for event USER_UPDATED. Using direct event publishing.`);
+    
+  // Get entity to add domain event
+  const entity = await userRepository.findById(userId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.USER_UPDATED, {
+      userId,
+      changes
+    });
+    
+    // Save entity which will publish the event
+    await userRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${userId} not found for event USER_UPDATED. Using direct event publishing.`);
     await eventBus.publishEvent(EventTypes.USER_UPDATED, {
       userId,
       changes
     });
+  }
+  }
     logger.debug('Published user updated event', {
       userId
     });
@@ -78,10 +144,42 @@ async function publishUserUpdated(userId, changes) {
 async function publishUserProfileCompleted(userId, email) {
   logger.warn('DEPRECATED: Direct event publishing via publishUserProfileCompleted. Use entity-based event collection instead.');
   try {
+    
+  // Get entity to add domain event
+  const entity = await userRepository.findById(userId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.USER_PROFILE_COMPLETED, {
+      userId,
+      email
+    });
+    
+    // Save entity which will publish the event
+    await userRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${userId} not found for event USER_PROFILE_COMPLETED. Using direct event publishing.`);
+    
+  // Get entity to add domain event
+  const entity = await userRepository.findById(userId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.USER_PROFILE_COMPLETED, {
+      userId,
+      email
+    });
+    
+    // Save entity which will publish the event
+    await userRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${userId} not found for event USER_PROFILE_COMPLETED. Using direct event publishing.`);
     await eventBus.publishEvent(EventTypes.USER_PROFILE_COMPLETED, {
       userId,
       email
     });
+  }
+  }
     logger.debug('Published user profile completed event', {
       userId,
       email

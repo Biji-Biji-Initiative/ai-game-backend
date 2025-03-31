@@ -6,9 +6,9 @@ import crypto from "crypto";
 import testEnv from "../loadEnv.js";
 import { skipIfMissingEnv } from "../helpers/testHelpers.js";
 import { config } from "dotenv";
-import User from "../../../src/core/user/models/User.js";
-import UserRepository from "../../../src/core/user/repositories/UserRepository.js";
-import UserService from "../../../src/core/user/services/UserService.js";
+import User from "@/core/user/models/User.js";
+import UserRepository from "@/core/user/repositories/UserRepository.js";
+import UserService from "@/core/user/services/UserService.js";
 import { createClient } from "@supabase/supabase-js";
 ({ config }.config());
 // Generate a unique test ID for this run

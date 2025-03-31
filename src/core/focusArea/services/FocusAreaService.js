@@ -1,6 +1,7 @@
-import { focusAreaLogger } from "../../infra/logging/domainLogger.js";
-import { FocusAreaError, FocusAreaNotFoundError } from "../../focusArea/errors/focusAreaErrors.js";
-import { withServiceErrorHandling, createErrorMapper } from "../../infra/errors/errorStandardization.js";
+import { focusAreaLogger } from "@/core/infra/logging/domainLogger.js";
+import { FocusAreaError, FocusAreaNotFoundError } from "@/core/focusArea/errors/focusAreaErrors.js";
+import { withServiceErrorHandling, createErrorMapper } from "@/core/infra/errors/errorStandardization.js";
+import ConfigurationError from "@/core/infra/errors/ConfigurationError.js";
 'use strict';
 // Create an error mapper for the focus area service
 const focusAreaServiceErrorMapper = createErrorMapper({
@@ -26,7 +27,14 @@ class FocusAreaService {
     logger
   }) {
     if (!focusAreaRepository) {
-      throw new Error('focusAreaRepository is required for FocusAreaService');
+      if (process.env.NODE_ENV === 'production') {
+        throw new ConfigurationError('focusAreaRepository is required for FocusAreaService in production mode', {
+          serviceName: 'FocusAreaService',
+          dependencyName: 'focusAreaRepository'
+        });
+      } else {
+        throw new Error('focusAreaRepository is required for FocusAreaService');
+      }
     }
     this.focusAreaRepository = focusAreaRepository;
     this.eventBus = eventBus;

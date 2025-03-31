@@ -1,4 +1,4 @@
-import ChallengeType from "../../challenge/models/config/ChallengeType.js";
+import ChallengeType from "@/core/challenge/models/config/ChallengeType.js";
 'use strict';
 /**
  * ChallengeTypeMapper class

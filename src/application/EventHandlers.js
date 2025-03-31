@@ -1,4 +1,4 @@
-import domainEvents from "../core/common/events/domainEvents.js";
+import domainEvents from "@/core/common/events/domainEvents.js";
 'use strict';
 /**
  * Application Event Handlers

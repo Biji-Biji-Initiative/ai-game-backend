@@ -1,5 +1,5 @@
-import centralizedErrorUtils from "../../../core/infra/errors/centralizedErrorUtils.js";
-import evaluationErrors from "../../../evaluation/services/errors/EvaluationErrors.js";
+import centralizedErrorUtils from "@/core/core/infra/errors/centralizedErrorUtils.js";
+import evaluationErrors from "@/core/evaluation/services/errors/EvaluationErrors.js";
 'use strict';
 /**
  * Evaluation Domain Service

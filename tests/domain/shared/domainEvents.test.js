@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import sinon from "sinon";
-import domainEvents from "../../../src/core/common/events/domainEvents.js";
+import domainEvents from "@/core/common/events/domainEvents.js";
 import testSetup from "../setup.js";
 describe('Domain Events Integration', function () {
     beforeEach(function () {

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { 
   preferencesSchema, 
   getValidPreferenceCategories 
-} from './preferencesSchema.js';
+} from "@/core/user/schemas/preferencesSchema.js";
 'use strict';
 /**
  * Schema for validating user profile update requests
@@ -102,10 +102,8 @@ const notificationSettingsSchema = z
  * Schema for preference category parameter validation
  */
 const preferencesCategoryParamSchema = z.object({
-  category: z.enum(getValidPreferenceCategories(), {
-    errorMap: () => ({ 
-      message: `Category must be one of: ${getValidPreferenceCategories().join(', ')}` 
-    })
+  category: z.enum(['ui', 'notifications', 'aiInteraction', 'learning'], {
+    errorMap: () => ({ message: 'Category must be one of: ui, notifications, aiInteraction, learning' })
   })
 }).strict();
 

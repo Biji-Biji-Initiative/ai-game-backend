@@ -5,7 +5,7 @@
  * Moved from utilities to follow Domain-Driven Design principles.
  */
 import { createClient } from '@supabase/supabase-js';
-import { logger } from "../../infra/logging/logger.js";
+import { logger } from "@/core/infra/logging/logger.js";
 
 /**
  * Initialize Supabase client with proper error handling
@@ -14,16 +14,27 @@ let supabaseClient = null;
 
 try {
   const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.NODE_ENV === 'production' 
-    ? process.env.SUPABASE_SERVICE_ROLE_KEY 
-    : process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY;
+  let supabaseKey;
+  
+  if (process.env.NODE_ENV === 'production') {
+    // In production, require the service role key for server operations
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error('SUPABASE_SERVICE_ROLE_KEY is required in production');
+    }
+    supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    logger.info('Using SUPABASE_SERVICE_ROLE_KEY in production environment');
+  } else {
+    // In development/testing, use anon key or regular key
+    supabaseKey = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY;
+    logger.info(`Using ${process.env.SUPABASE_KEY ? 'SUPABASE_KEY' : 'SUPABASE_ANON_KEY'} in development environment`);
+  }
   
   if (!supabaseUrl) {
     throw new Error('SUPABASE_URL environment variable is required');
   }
   
   if (!supabaseKey) {
-    throw new Error('SUPABASE_KEY/SUPABASE_ANON_KEY (or SUPABASE_SERVICE_ROLE_KEY in production) environment variable is required');
+    throw new Error('No Supabase key available. Set SUPABASE_KEY/SUPABASE_ANON_KEY for development or SUPABASE_SERVICE_ROLE_KEY for production');
   }
   
   // Create the Supabase client

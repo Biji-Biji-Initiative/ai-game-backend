@@ -1,4 +1,4 @@
-import Entity from "../../common/models/Entity.js";
+import Entity from "@/core/common/models/Entity.js";
 'use strict';
 /**
  * Class representing a recommendation for user learning

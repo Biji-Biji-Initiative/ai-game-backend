@@ -1,8 +1,8 @@
 import { config } from "dotenv";
-import Challenge from "../../../../src/core/challenge/models/Challenge.js";
-import challengeThreadService from "../../../../src/core/challenge/services/challengeThreadService.js";
-import challengeGenerationService from "../../../../src/core/challenge/services/challengeGenerationService.js";
-import challengeEvaluationService from "../../../../src/core/challenge/services/challengeEvaluationService.js";
+import Challenge from "@/core/challenge/models/Challenge.js";
+import challengeThreadService from "@/core/challenge/services/challengeThreadService.js";
+import challengeGenerationService from "@/core/challenge/services/challengeGenerationService.js";
+import challengeEvaluationService from "@/core/challenge/services/challengeEvaluationService.js";
 import logger from "@/utils/logger";
 /**
  * Challenge Module Tests

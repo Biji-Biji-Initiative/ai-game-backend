@@ -8,9 +8,10 @@
  * and provide redundant coverage to ensure data is always fresh.
  */
 
-import { EventTypes } from '../../core/common/events/domainEvents.js';
-import { getCacheInvalidationManager } from '../../core/infra/cache/cacheFactory.js';
-import { logger } from '../../core/infra/logging/logger.js';
+import { EventTypes } from "@/core/common/events/domainEvents.js";
+import { getCacheInvalidationManager } from "@/core/infra/cache/cacheFactory.js";
+import { logger } from "@/core/infra/logging/logger.js";
+import { getUserIdFromEvent, getEntityIdFromEvent } from "@/core/common/events/eventUtils.js";
 
 /**
  * Register cache invalidation event handlers with the event bus
@@ -30,7 +31,7 @@ export function registerCacheInvalidationEventHandlers(eventBus) {
   // User-related events
   eventBus.subscribe(EventTypes.USER_CREATED, async (event) => {
     try {
-      const userId = event.data?.userId || event.payload?.userId;
+      const userId = getUserIdFromEvent(event);
       if (!userId) {
         log.warn('User ID missing from USER_CREATED event', { event });
         return;
@@ -49,7 +50,7 @@ export function registerCacheInvalidationEventHandlers(eventBus) {
   
   eventBus.subscribe(EventTypes.USER_UPDATED, async (event) => {
     try {
-      const userId = event.data?.userId || event.payload?.userId;
+      const userId = getUserIdFromEvent(event);
       if (!userId) {
         log.warn('User ID missing from USER_UPDATED event', { event });
         return;
@@ -67,7 +68,7 @@ export function registerCacheInvalidationEventHandlers(eventBus) {
   
   eventBus.subscribe(EventTypes.USER_DEACTIVATED, async (event) => {
     try {
-      const userId = event.data?.userId || event.payload?.userId;
+      const userId = getUserIdFromEvent(event);
       if (!userId) {
         log.warn('User ID missing from USER_DEACTIVATED event', { event });
         return;
@@ -87,7 +88,7 @@ export function registerCacheInvalidationEventHandlers(eventBus) {
   // Challenge-related events
   eventBus.subscribe(EventTypes.CHALLENGE_CREATED, async (event) => {
     try {
-      const challengeId = event.data?.challengeId || event.payload?.challengeId;
+      const challengeId = getEntityIdFromEvent(event, 'challenge');
       if (!challengeId) {
         log.warn('Challenge ID missing from CHALLENGE_CREATED event', { event });
         return;
@@ -98,7 +99,7 @@ export function registerCacheInvalidationEventHandlers(eventBus) {
       await cacheInvalidator.invalidateListCaches('challenge');
       
       // Also invalidate user's challenges if userId is available
-      const userId = event.data?.userId || event.payload?.userId;
+      const userId = getUserIdFromEvent(event);
       if (userId) {
         await cacheInvalidator.invalidatePattern(`challenge:byUser:${userId}:*`);
       }
@@ -112,7 +113,7 @@ export function registerCacheInvalidationEventHandlers(eventBus) {
   
   eventBus.subscribe(EventTypes.CHALLENGE_UPDATED, async (event) => {
     try {
-      const challengeId = event.data?.challengeId || event.payload?.challengeId;
+      const challengeId = getEntityIdFromEvent(event, 'challenge');
       if (!challengeId) {
         log.warn('Challenge ID missing from CHALLENGE_UPDATED event', { event });
         return;
@@ -130,7 +131,7 @@ export function registerCacheInvalidationEventHandlers(eventBus) {
   
   eventBus.subscribe(EventTypes.CHALLENGE_DELETED, async (event) => {
     try {
-      const challengeId = event.data?.challengeId || event.payload?.challengeId;
+      const challengeId = getEntityIdFromEvent(event, 'challenge');
       if (!challengeId) {
         log.warn('Challenge ID missing from CHALLENGE_DELETED event', { event });
         return;
@@ -141,7 +142,7 @@ export function registerCacheInvalidationEventHandlers(eventBus) {
       await cacheInvalidator.invalidateListCaches('challenge');
       
       // Also invalidate user's challenges if userId is available
-      const userId = event.data?.userId || event.payload?.userId;
+      const userId = getUserIdFromEvent(event);
       if (userId) {
         await cacheInvalidator.invalidatePattern(`challenge:byUser:${userId}:*`);
       }
@@ -155,7 +156,7 @@ export function registerCacheInvalidationEventHandlers(eventBus) {
   
   eventBus.subscribe(EventTypes.CHALLENGE_COMPLETED, async (event) => {
     try {
-      const challengeId = event.data?.challengeId || event.payload?.challengeId;
+      const challengeId = getEntityIdFromEvent(event, 'challenge');
       if (!challengeId) {
         log.warn('Challenge ID missing from CHALLENGE_COMPLETED event', { event });
         return;
@@ -165,7 +166,7 @@ export function registerCacheInvalidationEventHandlers(eventBus) {
       await cacheInvalidator.invalidateChallengeCaches(challengeId);
       
       // Also invalidate user's progress and challenges if userId is available
-      const userId = event.data?.userId || event.payload?.userId;
+      const userId = getUserIdFromEvent(event);
       if (userId) {
         await cacheInvalidator.invalidatePattern(`challenge:byUser:${userId}:*`);
         await cacheInvalidator.invalidatePattern(`progress:byUser:${userId}:*`);
@@ -181,7 +182,7 @@ export function registerCacheInvalidationEventHandlers(eventBus) {
   // Evaluation-related events
   eventBus.subscribe(EventTypes.EVALUATION_COMPLETED, async (event) => {
     try {
-      const evaluationId = event.data?.evaluationId || event.payload?.evaluationId;
+      const evaluationId = getEntityIdFromEvent(event, 'evaluation');
       if (!evaluationId) {
         log.warn('Evaluation ID missing from EVALUATION_COMPLETED event', { event });
         return;
@@ -189,8 +190,8 @@ export function registerCacheInvalidationEventHandlers(eventBus) {
       
       log.debug('Invalidating caches for completed evaluation', { evaluationId });
       
-      const userId = event.data?.userId || event.payload?.userId;
-      const challengeId = event.data?.challengeId || event.payload?.challengeId;
+      const userId = getUserIdFromEvent(event);
+      const challengeId = event.data.challengeId;
       
       await cacheInvalidator.invalidateEvaluationCaches(evaluationId, userId, challengeId);
       
@@ -213,7 +214,7 @@ export function registerCacheInvalidationEventHandlers(eventBus) {
   // Progress-related events
   eventBus.subscribe(EventTypes.PROGRESS_UPDATED, async (event) => {
     try {
-      const userId = event.data?.userEmail || event.data?.userId || event.payload?.userId;
+      const userId = getUserIdFromEvent(event);
       if (!userId) {
         log.warn('User ID missing from PROGRESS_UPDATED event', { event });
         return;
@@ -232,7 +233,7 @@ export function registerCacheInvalidationEventHandlers(eventBus) {
   // Focus Area events
   eventBus.subscribe(EventTypes.FOCUS_AREA_SELECTED, async (event) => {
     try {
-      const userId = event.data?.userId || event.payload?.userId;
+      const userId = getUserIdFromEvent(event);
       if (!userId) {
         log.warn('User ID missing from FOCUS_AREA_SELECTED event', { event });
         return;

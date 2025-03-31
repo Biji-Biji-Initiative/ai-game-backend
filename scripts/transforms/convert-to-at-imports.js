@@ -25,11 +25,14 @@ function isInSrc(filePath) {
  * @returns {string} - The resolved absolute path
  */
 function resolveImportPath(importPath, filePath) {
+  // Normalize path by replacing double slashes with single slash
+  const normalizedImportPath = importPath.replace('//', '/');
+  
   // Get the directory of the current file
   const fileDir = path.dirname(filePath);
   
   // Resolve the relative path against the file directory
-  const absolutePath = path.resolve(fileDir, importPath);
+  const absolutePath = path.resolve(fileDir, normalizedImportPath);
   
   // Get the project root (directory containing src)
   const srcIndex = absolutePath.indexOf('/src/');

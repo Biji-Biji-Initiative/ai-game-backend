@@ -1,9 +1,9 @@
-import { focusAreaLogger } from "../../core/infra/logging/domainLogger.js";
-import { FocusAreaGenerationError } from "../../core/focusArea/errors/focusAreaErrors.js";
-import { withServiceErrorHandling, createErrorMapper } from "../../core/infra/errors/errorStandardization.js";
-import { formatJson } from "../../core/infra/openai/responseHandler.js";
-import FocusArea from "../../core/focusArea/models/FocusArea.js";
-import promptBuilder from "../../core/prompt/promptBuilder.js";
+import { focusAreaLogger } from "@/core/infra/logging/domainLogger.js";
+import { FocusAreaGenerationError } from "@/core/focusArea/errors/focusAreaErrors.js";
+import { withServiceErrorHandling, createErrorMapper } from "@/core/infra/errors/errorStandardization.js";
+import { formatJson } from "@/core/infra/openai/responseHandler.js";
+import FocusArea from "@/core/focusArea/models/FocusArea.js";
+import promptBuilder from "@/core/prompt/promptBuilder.js";
 'use strict';
 
 /**

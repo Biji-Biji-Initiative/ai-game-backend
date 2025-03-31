@@ -4,8 +4,8 @@ import { v4 as uuidv4 } from "uuid";
 import testEnv from "../../loadEnv.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 import testSetup from "../../helpers/testSetup.js";
-import { container } from "../../../src/config/container.js";
-import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationProcessingError, EvaluationRepositoryError } from "../../../src/core/evaluation/errors/evaluationErrors.js";
+import { container } from "@/config/container.js";
+import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationProcessingError, EvaluationRepositoryError } from "@/core/evaluation/errors/evaluationErrors.js";
 describe('Integration: OpenAI Responses API Workflow', function () {
     before(function () {
         skipIfMissingEnv(this, 'openai');

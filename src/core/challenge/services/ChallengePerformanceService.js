@@ -1,5 +1,5 @@
-import { createErrorMapper, withServiceErrorHandling } from "../../infra/errors/errorStandardization.js";
-import { ChallengeError } from "../../challenge/errors/ChallengeErrors.js";
+import { createErrorMapper, withServiceErrorHandling } from "@/core/infra/errors/errorStandardization.js";
+import { ChallengeError } from "@/core/challenge/errors/ChallengeErrors.js";
 'use strict';
 /**
  * Service for handling challenge performance analysis

@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import sinon from "sinon";
 import MockInsightGenerator from "@/infrastructure/services/MockInsightGenerator";
-import domainLogger from "../../../src/core/infra/logging/domainLogger.js";
+import domainLogger from "@/core/infra/logging/domainLogger.js";
 const { personalityLogger } = domainLogger;
 describe('Mock Insight Generator', () => {
     let mockInsightGenerator;

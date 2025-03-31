@@ -1,6 +1,6 @@
-import { withControllerErrorHandling } from "../../infra/errors/errorStandardization.js";
-import { AdaptiveError, AdaptiveValidationError, AdaptiveNotFoundError } from "../../adaptive/errors/adaptiveErrors.js";
-import { AuthError } from "../../auth/errors/AuthErrors.js";
+import { withControllerErrorHandling } from "@/core/infra/errors/errorStandardization.js";
+import { AdaptiveError, AdaptiveValidationError, AdaptiveNotFoundError } from "@/core/adaptive/errors/adaptiveErrors.js";
+import { AuthError } from "@/core/auth/errors/AuthErrors.js";
 'use strict';
 // Define error mappings for controllers
 const errorMappings = [

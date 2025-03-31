@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import sinon from "sinon";
 import { v4 as uuidv4 } from "uuid";
-import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError, ChallengeRepositoryError, ChallengeGenerationError } from "../../../src/core/challenge/errors/ChallengeErrors.js";
+import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError, ChallengeRepositoryError, ChallengeGenerationError } from "@/core/challenge/errors/ChallengeErrors.js";
 describe('Challenge Generation Integration', function () {
     // Set timeout for tests
     this.timeout(5000);
@@ -117,7 +117,7 @@ describe('Challenge Generation Integration', function () {
                 ];
                 // For different focus areas and difficulties, customize the mock response
                 if (focusArea !== 'AI Ethics' || difficulty !== 'intermediate') {
-                    const mockData = { ...openAIClient.sendJsonMessage.firstCall?.returnValue?.data || {} };
+                    const mockData = { ...(openAIClient.sendJsonMessage.firstCall?.returnValue?.data || {}) };
                     mockData.focusArea = focusArea;
                     mockData.difficulty = difficulty;
                     openAIClient.sendJsonMessage.resolves({

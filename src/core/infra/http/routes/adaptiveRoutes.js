@@ -1,6 +1,6 @@
 import express from 'express';
-import AdaptiveController from "../../../adaptive/controllers/AdaptiveController.js";
-import { authenticateUser } from "../../../infra/http/middleware/auth.js";
+import AdaptiveController from "@/core/adaptive/controllers/AdaptiveController.js";
+import { authenticateUser } from "@/core/infra/http/middleware/auth.js";
 'use strict';
 
 /**

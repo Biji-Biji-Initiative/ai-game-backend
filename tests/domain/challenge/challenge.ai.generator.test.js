@@ -1,8 +1,8 @@
 import { expect } from "chai";
 import sinon from "sinon";
 import { v4 as uuidv4 } from "uuid";
-import Challenge from "../../../src/core/challenge/models/Challenge.js";
-import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError, ChallengeRepositoryError, ChallengeGenerationError } from "../../../src/core/challenge/errors/ChallengeErrors.js";
+import Challenge from "@/core/challenge/models/Challenge.js";
+import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError, ChallengeRepositoryError, ChallengeGenerationError } from "@/core/challenge/errors/ChallengeErrors.js";
 describe('Domain: Challenge AI Generator', function () {
     // Set longer timeout for API calls
     this.timeout(30000);

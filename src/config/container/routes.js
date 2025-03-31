@@ -1,12 +1,12 @@
-import userRoutes from "../../core/infra/http/routes/userRoutes.js";
-import personalityRoutes from "../../core/infra/http/routes/personalityRoutes.js";
-import progressRoutes from "../../core/infra/http/routes/progressRoutes.js";
-import adaptiveRoutes from "../../core/infra/http/routes/adaptiveRoutes.js";
-import focusAreaRoutes from "../../core/infra/http/routes/focusAreaRoutes.js";
-import challengeRoutes from "../../core/infra/http/routes/challengeRoutes.js";
-import evaluationRoutes from "../../core/infra/http/routes/evaluationRoutes.js";
-import userJourneyRoutes from "../../core/infra/http/routes/userJourneyRoutes.js";
-import systemRoutes from "../../core/infra/http/routes/systemRoutes.js";
+import userRoutes from "@/core/infra/http/routes/userRoutes.js";
+import personalityRoutes from "@/core/infra/http/routes/personalityRoutes.js";
+import progressRoutes from "@/core/infra/http/routes/progressRoutes.js";
+import adaptiveRoutes from "@/core/infra/http/routes/adaptiveRoutes.js";
+import focusAreaRoutes from "@/core/infra/http/routes/focusAreaRoutes.js";
+import challengeRoutes from "@/core/infra/http/routes/challengeRoutes.js";
+import evaluationRoutes from "@/core/infra/http/routes/evaluationRoutes.js";
+import userJourneyRoutes from "@/core/infra/http/routes/userJourneyRoutes.js";
+import systemRoutes from "@/core/infra/http/routes/systemRoutes.js";
 // AI routes - temporarily disabled
 // import aiChatRoutes from "../../routes/ai/aiChatRoutes.js";
 // import aiAnalysisRoutes from "../../routes/ai/aiAnalysisRoutes.js";

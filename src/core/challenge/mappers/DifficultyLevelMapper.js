@@ -1,4 +1,4 @@
-import DifficultyLevel from "../../challenge/models/config/DifficultyLevel.js";
+import DifficultyLevel from "@/core/challenge/models/config/DifficultyLevel.js";
 'use strict';
 /**
  * DifficultyLevelMapper class

@@ -19,7 +19,7 @@ const ignoreDirs = [
   'tests',
   'coverage',
   'logs',
-  'api-tester-ui',
+  'admin',
   'supabase'
 ];
 

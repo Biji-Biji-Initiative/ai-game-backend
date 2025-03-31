@@ -1,12 +1,12 @@
-import ChallengeType from "../../challenge/models/config/ChallengeType.js";
-import FormatType from "../../challenge/models/config/FormatType.js";
-import FocusArea from "../../challenge/models/config/FocusArea.js";
-import DifficultyLevel from "../../challenge/models/config/DifficultyLevel.js";
-import ChallengeTypeRepository from "../../challenge/repositories/config/ChallengeTypeRepository.js";
-import FormatTypeRepository from "../../challenge/repositories/config/FormatTypeRepository.js";
-import { FocusAreaConfigRepository } from "../../challenge/repositories/config/FocusAreaConfigRepository.js";
-import DifficultyLevelRepository from "../../challenge/repositories/config/DifficultyLevelRepository.js";
-import seedData from "../../challenge/config/seedData.js";
+import ChallengeType from "@/core/challenge/models/config/ChallengeType.js";
+import FormatType from "@/core/challenge/models/config/FormatType.js";
+import FocusArea from "@/core/challenge/models/config/FocusArea.js";
+import DifficultyLevel from "@/core/challenge/models/config/DifficultyLevel.js";
+import ChallengeTypeRepository from "@/core/challenge/repositories/config/ChallengeTypeRepository.js";
+import FormatTypeRepository from "@/core/challenge/repositories/config/FormatTypeRepository.js";
+import { FocusAreaConfigRepository } from "@/core/challenge/repositories/config/FocusAreaConfigRepository.js";
+import DifficultyLevelRepository from "@/core/challenge/repositories/config/DifficultyLevelRepository.js";
+import seedData from "@/core/challenge/config/seedData.js";
 'use strict';
 /**
  * Initialize challenge configuration tables in the database

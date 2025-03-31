@@ -8,10 +8,10 @@
  */
 
 import { createServer } from 'http';
-import app from "./app.js";
-import { logger } from "./core/infra/logging/logger.js";
-import { initializeSupabase } from "./core/infra/db/databaseConnection.js";
-import config from "./config/config.js";
+import app from "@/app.js";
+import { logger } from "@/core/infra/logging/logger.js";
+import { initializeSupabase } from "@/core/infra/db/databaseConnection.js";
+import config from "@/config/config.js";
 
 /**
  * Start the server on the specified port
@@ -32,6 +32,14 @@ export async function startServer(port) {
   try {
     // Initialize database connection
     await initializeSupabase();
+    
+    // Security check for production environments
+    if (process.env.NODE_ENV === 'production' && 
+        (!process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGINS === '*')) {
+      logger.error('SECURITY RISK: ALLOWED_ORIGINS not properly configured for production');
+      logger.error('Set ALLOWED_ORIGINS to a comma-separated list of allowed domains');
+      throw new Error('ALLOWED_ORIGINS must be explicitly set in production');
+    }
     
     // Create HTTP server
     const server = createServer(app);

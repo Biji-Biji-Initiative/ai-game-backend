@@ -5,7 +5,7 @@ import { createInMemoryPersonalityRepository, createInMemoryUserRepository } fro
 // Import the service (assuming module path, adjust if needed)
 // import PersonalityService from "../../../src/core/personality/services/PersonalityService.js";
 // import Personality from "../../../src/core/personality/models/Personality.js";
-import { UserError, UserNotFoundError, UserUpdateError, UserValidationError, UserInvalidStateError, UserAuthenticationError, UserAuthorizationError } from "../../../src/core/user/errors/UserErrors.js";
+import { UserError, UserNotFoundError, UserUpdateError, UserValidationError, UserInvalidStateError, UserAuthenticationError, UserAuthorizationError } from "@/core/user/errors/UserErrors.js";
 describe('Personality Service Domain Tests', function () {
     // Set longer timeout for API calls
     this.timeout(30000);

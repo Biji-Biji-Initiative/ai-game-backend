@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import _domainEvents from "../../common/events/domainEvents.js";
+import _domainEvents from "@/core/common/events/domainEvents.js";
 'use strict';
 /**
  *

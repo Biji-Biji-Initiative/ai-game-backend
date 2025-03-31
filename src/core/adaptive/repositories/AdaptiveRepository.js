@@ -1,12 +1,12 @@
-import Recommendation from "../../adaptive/models/Recommendation.js";
-import recommendationMapper from "../../adaptive/mappers/RecommendationMapper.js";
-import { supabaseClient } from "../../infra/db/supabaseClient.js";
+import Recommendation from "@/core/adaptive/models/Recommendation.js";
+import recommendationMapper from "@/core/adaptive/mappers/RecommendationMapper.js";
+import { supabaseClient } from "@/core/infra/db/supabaseClient.js";
 import { v4 as uuidv4 } from "uuid";
-import { RecommendationDatabaseSchema } from "../../adaptive/schemas/RecommendationSchema.js";
-import { BaseRepository, ValidationError, DatabaseError } from "../../infra/repositories/BaseRepository.js";
-import { AdaptiveNotFoundError, AdaptiveValidationError, AdaptiveRepositoryError } from "../../adaptive/errors/adaptiveErrors.js";
-import { withRepositoryErrorHandling, createErrorMapper, createErrorCollector } from "../../infra/errors/errorStandardization.js";
-import domainEvents from "../../common/events/domainEvents.js";
+import { RecommendationDatabaseSchema } from "@/core/adaptive/schemas/RecommendationSchema.js";
+import { BaseRepository, ValidationError, DatabaseError } from "@/core/infra/repositories/BaseRepository.js";
+import { AdaptiveNotFoundError, AdaptiveValidationError, AdaptiveRepositoryError } from "@/core/adaptive/errors/adaptiveErrors.js";
+import { withRepositoryErrorHandling, createErrorMapper, createErrorCollector } from "@/core/infra/errors/errorStandardization.js";
+import domainEvents from "@/core/common/events/domainEvents.js";
 'use strict';
 
 // Create an error mapper for repositories

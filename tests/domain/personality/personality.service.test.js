@@ -2,7 +2,7 @@ import { expect } from "chai";
 import sinon from "sinon";
 import { v4 as uuidv4 } from "uuid";
 import { createInMemoryPersonalityRepository, createInMemoryUserRepository } from "../../helpers/inMemory/index.js";
-import { createUserId, UserId } from "../../../src/core/common/valueObjects/index.js";
+import { createUserId, UserId } from "@/core/common/valueObjects/index.js";
 // Import the service (assuming module path, adjust if needed)
 // import PersonalityService from "../../../src/core/personality/services/PersonalityService.js";
 // import Personality from "../../../src/core/personality/models/Personality.js";

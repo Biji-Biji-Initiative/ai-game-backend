@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import sinon from "sinon";
-import evaluationCategoryRepository from "../../../src/core/evaluation/repositories/evaluationCategoryRepository.js";
-import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationProcessingError, EvaluationRepositoryError } from "../../../src/core/evaluation/errors/evaluationErrors.js";
+import evaluationCategoryRepository from "@/core/evaluation/repositories/evaluationCategoryRepository.js";
+import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationProcessingError, EvaluationRepositoryError } from "@/core/evaluation/errors/evaluationErrors.js";
 describe('Evaluation Category Repository', () => {
     it('getAllCategories returns data in the correct format', async () => {
         try {

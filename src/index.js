@@ -9,7 +9,7 @@
 import * as dotenv from 'dotenv';
 dotenv.config();
 
-import { logger } from "./core/infra/logging/logger.js";
+import { logger } from "@/core/infra/logging/logger.js";
 import { startServer } from "@/server.js";
 
 // Get environment-specific port

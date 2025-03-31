@@ -5,9 +5,9 @@
  */
 import { expect } from 'chai';
 import sinon from 'sinon';
-import { EventTypes } from "../../../src/core/common/events/domainEvents.js";
-import { UserError, UserNotFoundError, UserUpdateError, UserValidationError, UserInvalidStateError, UserAuthenticationError, UserAuthorizationError } from "../../../src/core/user/errors/UserErrors.js";
-import UserId from "../../../src/core/common/valueObjects/UserId.js";
+import { EventTypes } from "@/core/common/events/domainEvents.js";
+import { UserError, UserNotFoundError, UserUpdateError, UserValidationError, UserInvalidStateError, UserAuthenticationError, UserAuthorizationError } from "@/core/user/errors/UserErrors.js";
+import UserId from "@/core/common/valueObjects/UserId.js";
 
 // Create an event bus mock
 const eventBusMock = {

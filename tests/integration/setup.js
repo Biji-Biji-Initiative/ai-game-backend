@@ -1,4 +1,4 @@
-import domainEvents from "../../../src/core/common/events/domainEvents.js";
+import domainEvents from "@/core/common/events/domainEvents.js";
 import logger from "@/utils/logger";
 // Configure the logger for tests
 if (logger.configure) {

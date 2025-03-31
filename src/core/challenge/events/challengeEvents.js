@@ -1,6 +1,7 @@
-import domainEvents from "../../common/events/domainEvents.js";
-import { logger } from "../../infra/logging/logger.js";
-'use strict';
+import domainEvents from "@/core/common/events/domainEvents.js";
+import { logger } from "@/core/infra/logging/logger.js";
+import { ChallengeRepository } from "@/core/challenge/repositories/challengeRepository.js";
+
 /**
  * Challenge Domain Events
  *
@@ -12,6 +13,10 @@ const {
   EventTypes,
   eventBus
 } = domainEvents;
+
+// Initialize repository
+const challengeRepository = new ChallengeRepository();
+
 /**
  * Publish an event when a challenge is created
  * @param {string} challengeId - ID of the challenge
@@ -21,11 +26,28 @@ const {
  */
 async function publishChallengeCreated(challengeId, userEmail, focusArea) {
   try {
-    await eventBus.publishEvent(EventTypes.CHALLENGE_CREATED, {
-      challengeId,
-      userEmail,
-      focusArea
-    });
+    // Get entity to add domain event
+    const entity = await challengeRepository.findById(challengeId);
+    if (entity) {
+      // Add domain event to entity
+      entity.addDomainEvent(EventTypes.CHALLENGE_CREATED, {
+        challengeId,
+        userEmail,
+        focusArea
+      });
+      
+      // Save entity which will publish the event
+      await challengeRepository.save(entity);
+    } else {
+      // Fallback to direct event publishing if entity not found
+      logger.warn(`Entity with ID ${challengeId} not found for event CHALLENGE_CREATED. Using direct event publishing.`);
+      await eventBus.publishEvent(EventTypes.CHALLENGE_CREATED, {
+        challengeId,
+        userEmail,
+        focusArea
+      });
+    }
+    
     logger.debug('Published challenge created event', {
       challengeId,
       userEmail
@@ -38,6 +60,7 @@ async function publishChallengeCreated(challengeId, userEmail, focusArea) {
     });
   }
 }
+
 /**
  * Publish an event when a challenge is updated
  * @param {string} challengeId - ID of the challenge
@@ -47,11 +70,28 @@ async function publishChallengeCreated(challengeId, userEmail, focusArea) {
  */
 async function publishChallengeUpdated(challengeId, userEmail, changes) {
   try {
-    await eventBus.publishEvent(EventTypes.CHALLENGE_UPDATED, {
-      challengeId,
-      userEmail,
-      changes
-    });
+    // Get entity to add domain event
+    const entity = await challengeRepository.findById(challengeId);
+    if (entity) {
+      // Add domain event to entity
+      entity.addDomainEvent(EventTypes.CHALLENGE_UPDATED, {
+        challengeId,
+        userEmail,
+        changes
+      });
+      
+      // Save entity which will publish the event
+      await challengeRepository.save(entity);
+    } else {
+      // Fallback to direct event publishing if entity not found
+      logger.warn(`Entity with ID ${challengeId} not found for event CHALLENGE_UPDATED. Using direct event publishing.`);
+      await eventBus.publishEvent(EventTypes.CHALLENGE_UPDATED, {
+        challengeId,
+        userEmail,
+        changes
+      });
+    }
+    
     logger.debug('Published challenge updated event', {
       challengeId,
       userEmail
@@ -64,6 +104,7 @@ async function publishChallengeUpdated(challengeId, userEmail, changes) {
     });
   }
 }
+
 /**
  * Publish an event when a challenge response is submitted
  * @param {string} challengeId - ID of the challenge
@@ -73,11 +114,28 @@ async function publishChallengeUpdated(challengeId, userEmail, changes) {
  */
 async function publishChallengeResponseSubmitted(challengeId, userEmail, response) {
   try {
-    await eventBus.publishEvent(EventTypes.CHALLENGE_RESPONSE_SUBMITTED, {
-      challengeId,
-      userEmail,
-      response
-    });
+    // Get entity to add domain event
+    const entity = await challengeRepository.findById(challengeId);
+    if (entity) {
+      // Add domain event to entity
+      entity.addDomainEvent(EventTypes.CHALLENGE_RESPONSE_SUBMITTED, {
+        challengeId,
+        userEmail,
+        response
+      });
+      
+      // Save entity which will publish the event
+      await challengeRepository.save(entity);
+    } else {
+      // Fallback to direct event publishing if entity not found
+      logger.warn(`Entity with ID ${challengeId} not found for event CHALLENGE_RESPONSE_SUBMITTED. Using direct event publishing.`);
+      await eventBus.publishEvent(EventTypes.CHALLENGE_RESPONSE_SUBMITTED, {
+        challengeId,
+        userEmail,
+        response
+      });
+    }
+    
     logger.debug('Published challenge response submitted event', {
       challengeId,
       userEmail
@@ -90,6 +148,7 @@ async function publishChallengeResponseSubmitted(challengeId, userEmail, respons
     });
   }
 }
+
 /**
  * Publish an event when a challenge is evaluated
  * @param {string} challengeId - ID of the challenge
@@ -99,11 +158,28 @@ async function publishChallengeResponseSubmitted(challengeId, userEmail, respons
  */
 async function publishChallengeEvaluated(challengeId, userEmail, evaluation) {
   try {
-    await eventBus.publishEvent(EventTypes.CHALLENGE_EVALUATED, {
-      challengeId,
-      userEmail,
-      evaluation
-    });
+    // Get entity to add domain event
+    const entity = await challengeRepository.findById(challengeId);
+    if (entity) {
+      // Add domain event to entity
+      entity.addDomainEvent(EventTypes.CHALLENGE_EVALUATED, {
+        challengeId,
+        userEmail,
+        evaluation
+      });
+      
+      // Save entity which will publish the event
+      await challengeRepository.save(entity);
+    } else {
+      // Fallback to direct event publishing if entity not found
+      logger.warn(`Entity with ID ${challengeId} not found for event CHALLENGE_EVALUATED. Using direct event publishing.`);
+      await eventBus.publishEvent(EventTypes.CHALLENGE_EVALUATED, {
+        challengeId,
+        userEmail,
+        evaluation
+      });
+    }
+    
     logger.debug('Published challenge evaluated event', {
       challengeId,
       userEmail
@@ -116,6 +192,7 @@ async function publishChallengeEvaluated(challengeId, userEmail, evaluation) {
     });
   }
 }
+
 /**
  * Set up challenge event subscriptions
  */
@@ -132,6 +209,7 @@ async function registerChallengeEventHandlers() {
       focusArea: event.payload.focusArea
     });
   });
+  
   // When progress is updated, adjust challenge difficulty
   eventBus.subscribe(EventTypes.PROGRESS_UPDATED, async event => {
     logger.debug('Handling progress updated event', {
@@ -142,6 +220,7 @@ async function registerChallengeEventHandlers() {
       userId: event.payload.userId
     });
   });
+  
   // When evaluation is completed, update challenge status
   eventBus.subscribe(EventTypes.EVALUATION_COMPLETED, async event => {
     logger.debug('Handling evaluation completed event', {
@@ -154,11 +233,13 @@ async function registerChallengeEventHandlers() {
     });
   });
 }
+
 export { publishChallengeCreated };
 export { publishChallengeUpdated };
 export { publishChallengeResponseSubmitted };
 export { publishChallengeEvaluated };
 export { registerChallengeEventHandlers };
+
 export default {
   publishChallengeCreated,
   publishChallengeUpdated,

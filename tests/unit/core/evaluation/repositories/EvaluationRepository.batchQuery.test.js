@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import sinon from 'sinon';
-import EvaluationRepository from '../../../../../src/core/evaluation/repositories/evaluationRepository.js';
-import { Evaluation } from '../../../../../src/core/evaluation/models/Evaluation.js';
+import EvaluationRepository from "@/core/evaluation/repositories/evaluationRepository.js";
+import { Evaluation } from "@/core/evaluation/models/Evaluation.js";
 
 describe('EvaluationRepository Batch Query Tests', () => {
   let mockDb;

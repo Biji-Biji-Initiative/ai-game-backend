@@ -1,7 +1,9 @@
 import domainEvents from "../../common/events/domainEvents.js";
 import { logger } from "../../infra/logging/logger.js";
-'use strict';
-/**
+
+import { UserJourneyRepository } from '../repositories/userJourneyRepository.js';'use strict';
+
+import { UserJourneyRepository } from '../repositories/userJourneyRepository.js';/**
  * User Journey Domain Events
  *
  * Events that occur within the User Journey domain.
@@ -21,11 +23,45 @@ const {
  */
 async function publishUserJourneyEventRecorded(userId, eventType, eventData) {
   try {
+    
+  // Get entity to add domain event
+  const entity = await userJourneyRepository.findById(userId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.USER_JOURNEY_EVENT_RECORDED, {
+      userId,
+      eventType,
+      eventData
+    });
+    
+    // Save entity which will publish the event
+    await userJourneyRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${userId} not found for event USER_JOURNEY_EVENT_RECORDED. Using direct event publishing.`);
+    
+  // Get entity to add domain event
+  const entity = await userJourneyRepository.findById(userId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.USER_JOURNEY_EVENT_RECORDED, {
+      userId,
+      eventType,
+      eventData
+    });
+    
+    // Save entity which will publish the event
+    await userJourneyRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${userId} not found for event USER_JOURNEY_EVENT_RECORDED. Using direct event publishing.`);
     await eventBus.publishEvent(EventTypes.USER_JOURNEY_EVENT_RECORDED, {
       userId,
       eventType,
       eventData
     });
+  }
+  }
     logger.debug('Published user journey event recorded', {
       userId,
       eventType
@@ -47,11 +83,45 @@ async function publishUserJourneyEventRecorded(userId, eventType, eventData) {
  */
 async function publishUserMilestoneReached(userId, milestone, milestoneData = {}) {
   try {
+    
+  // Get entity to add domain event
+  const entity = await userJourneyRepository.findById(userId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.USER_MILESTONE_REACHED, {
+      userId,
+      milestone,
+      milestoneData
+    });
+    
+    // Save entity which will publish the event
+    await userJourneyRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${userId} not found for event USER_MILESTONE_REACHED. Using direct event publishing.`);
+    
+  // Get entity to add domain event
+  const entity = await userJourneyRepository.findById(userId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.USER_MILESTONE_REACHED, {
+      userId,
+      milestone,
+      milestoneData
+    });
+    
+    // Save entity which will publish the event
+    await userJourneyRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${userId} not found for event USER_MILESTONE_REACHED. Using direct event publishing.`);
     await eventBus.publishEvent(EventTypes.USER_MILESTONE_REACHED, {
       userId,
       milestone,
       milestoneData
     });
+  }
+  }
     logger.debug('Published user milestone reached event', {
       userId,
       milestone

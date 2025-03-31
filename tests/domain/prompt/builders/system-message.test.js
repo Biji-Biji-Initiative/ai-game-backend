@@ -1,8 +1,8 @@
 import { expect } from "chai";
 import sinon from "sinon";
-import EvaluationPromptBuilder from "../../../../src/core/prompt/builders/EvaluationPromptBuilder.js";
-import ChallengePromptBuilder from "../../../../src/core/prompt/builders/ChallengePromptBuilder.js";
-import PromptBuilder from "../../../../src/core/prompt/promptBuilder.js";
+import EvaluationPromptBuilder from "@/core/prompt/builders/EvaluationPromptBuilder.js";
+import ChallengePromptBuilder from "@/core/prompt/builders/ChallengePromptBuilder.js";
+import PromptBuilder from "@/core/prompt/promptBuilder.js";
 
 /**
  * System Message Generation Tests

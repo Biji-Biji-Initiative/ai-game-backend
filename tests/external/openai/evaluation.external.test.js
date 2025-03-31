@@ -5,7 +5,7 @@
  * evaluations of challenge responses.
  */
 import { expect } from 'chai';
-import OpenAIClient from "../../../src/core/infra/openai/client.js";
+import OpenAIClient from "@/core/infra/openai/client.js";
 import testConfig from '../../loadEnv.js';
 import { skipIfMissingEnv } from '../../helpers/testHelpers.js';
 import dotenv from 'dotenv';

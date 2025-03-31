@@ -41,7 +41,7 @@ function registerCoordinatorComponents(container) {
             focusAreaGenerationService: c.get('focusAreaGenerationService'),
             eventBus: c.get('eventBus'),
             eventTypes: c.get('eventTypes'),
-            logger: c.get('logger'),
+            logger: c.get('focusAreaLogger'),
         });
     }, false // Transient: manages complex user focus area operations
     );
@@ -53,7 +53,7 @@ function registerCoordinatorComponents(container) {
             challengeFactory: c.get('challengeFactory'),
             challengeGenerationService: c.get('challengeGenerationService'),
             challengeEvaluationService: c.get('challengeEvaluationService'),
-            logger: c.get('logger'),
+            logger: c.get('challengeLogger'),
         });
     }, false // Transient: manages user-specific challenge operations
     );
@@ -63,7 +63,7 @@ function registerCoordinatorComponents(container) {
             challengeService: c.get('challengeService'),
             userJourneyService: c.get('userJourneyService'),
             config: c.get('config'),
-            logger: c.get('logger'),
+            logger: c.get('userJourneyLogger'),
         });
     }, false // Transient: handles user-specific journey progress
     );
@@ -78,7 +78,7 @@ function registerCoordinatorComponents(container) {
             focusAreaGenerationService: c.get('focusAreaGenerationService'),
             eventBus: c.get('eventBus'),
             eventTypes: c.get('eventTypes'),
-            logger: c.get('logger'),
+            logger: c.get('focusAreaLogger'),
         });
     }, false // Transient: generates user-specific focus areas
     );
@@ -90,7 +90,7 @@ function registerCoordinatorComponents(container) {
             focusAreaGenerationCoordinator: c.get('focusAreaGenerationCoordinator'),
             eventBus: c.get('eventBus'),
             eventTypes: c.get('eventTypes'),
-            logger: c.get('logger'),
+            logger: c.get('focusAreaLogger'),
         });
     }, false // Transient: manages user-specific focus areas
     );
@@ -100,7 +100,7 @@ function registerCoordinatorComponents(container) {
             userService: c.get('userService'),
             eventBus: c.get('eventBus'),
             eventTypes: c.get('eventTypes'),
-            logger: c.get('logger'),
+            logger: c.get('progressLogger'),
         });
     }, false // Transient: tracks user-specific progress
     );
@@ -108,7 +108,7 @@ function registerCoordinatorComponents(container) {
     container.register('applicationEventHandlers', c => {
         return new ApplicationEventHandlers({
             personalityCoordinator: c.get('personalityCoordinator'),
-            logger: c.get('logger').child('eventHandlers'),
+            logger: c.get('eventsLogger'),
         });
     }, true // Singleton: subscribes to events system-wide, should be initialized once
     );

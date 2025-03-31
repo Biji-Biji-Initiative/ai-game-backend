@@ -8,8 +8,8 @@
 import sinon from 'sinon';
 import { v4 as uuidv4 } from 'uuid';
 import { expect } from 'chai';
-import OpenAIClient from "../../src/core/infra/openai/client.js";
-import { MessageRole } from "../../src/core/infra/openai/types.js";
+import OpenAIClient from "@/core/infra/openai/client.js";
+import { MessageRole } from "@/core/infra/openai/types.js";
 import testConfig from '../loadEnv.js';
 /**
  * Creates an in-memory repository for testing

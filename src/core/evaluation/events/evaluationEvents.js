@@ -1,7 +1,9 @@
 import domainEvents from "../../common/events/domainEvents.js";
 import { logger } from "../../infra/logging/logger.js";
-'use strict';
-/**
+
+import { EvaluationRepository } from '../repositories/evaluationRepository.js';'use strict';
+
+import { EvaluationRepository } from '../repositories/evaluationRepository.js';/**
  * Evaluation Domain Events
  *
  * Events that occur within the Evaluation domain.
@@ -22,11 +24,45 @@ const {
  */
 async function publishEvaluationStarted(evaluationId, challengeId, userEmail) {
   try {
+    
+  // Get entity to add domain event
+  const entity = await evaluationRepository.findById(evaluationId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.EVALUATION_STARTED, {
+      evaluationId,
+      challengeId,
+      userEmail
+    });
+    
+    // Save entity which will publish the event
+    await evaluationRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${evaluationId} not found for event EVALUATION_STARTED. Using direct event publishing.`);
+    
+  // Get entity to add domain event
+  const entity = await evaluationRepository.findById(evaluationId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.EVALUATION_STARTED, {
+      evaluationId,
+      challengeId,
+      userEmail
+    });
+    
+    // Save entity which will publish the event
+    await evaluationRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${evaluationId} not found for event EVALUATION_STARTED. Using direct event publishing.`);
     await eventBus.publishEvent(EventTypes.EVALUATION_STARTED, {
       evaluationId,
       challengeId,
       userEmail
     });
+  }
+  }
     logger.debug('Published evaluation started event', {
       evaluationId,
       challengeId
@@ -49,6 +85,52 @@ async function publishEvaluationStarted(evaluationId, challengeId, userEmail) {
  */
 async function publishEvaluationCompleted(evaluationId, challengeId, userEmail, result) {
   try {
+    
+  // Get entity to add domain event
+  const entity = await evaluationRepository.findById(evaluationId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.EVALUATION_COMPLETED, {
+      evaluationId,
+      challengeId,
+      userEmail,
+      result: {
+        score: result.score,
+        feedback: result.feedback,
+        strengths: result.strengths || [],
+        weaknesses: result.weaknesses || [],
+        traits: result.traits || {}
+      }
+    });
+    
+    // Save entity which will publish the event
+    await evaluationRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${evaluationId} not found for event EVALUATION_COMPLETED. Using direct event publishing.`);
+    
+  // Get entity to add domain event
+  const entity = await evaluationRepository.findById(evaluationId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.EVALUATION_COMPLETED, {
+      evaluationId,
+      challengeId,
+      userEmail,
+      result: {
+        score: result.score,
+        feedback: result.feedback,
+        strengths: result.strengths || [],
+        weaknesses: result.weaknesses || [],
+        traits: result.traits || {}
+      }
+    });
+    
+    // Save entity which will publish the event
+    await evaluationRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${evaluationId} not found for event EVALUATION_COMPLETED. Using direct event publishing.`);
     await eventBus.publishEvent(EventTypes.EVALUATION_COMPLETED, {
       evaluationId,
       challengeId,
@@ -61,6 +143,8 @@ async function publishEvaluationCompleted(evaluationId, challengeId, userEmail, 
         traits: result.traits || {}
       }
     });
+  }
+  }
     logger.debug('Published evaluation completed event', {
       evaluationId,
       challengeId

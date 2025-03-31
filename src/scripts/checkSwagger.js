@@ -12,7 +12,7 @@
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import swaggerJsDoc from 'swagger-jsdoc';
-import getSwaggerOptions from "../config/swagger.js";
+import getSwaggerOptions from "@/config/swagger.js";
 import fs from 'fs';
 
 // Set up directories

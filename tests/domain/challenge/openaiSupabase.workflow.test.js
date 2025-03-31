@@ -6,9 +6,9 @@ import { config } from "dotenv";
 import * as apiTestHelper from "../../helpers/apiTestHelper.js";
 import openai from "@/infra/openai";
 import { createClient } from "@supabase/supabase-js";
-import { createUserId, createChallengeId, UserId, ChallengeId } from "../../../src/core/common/valueObjects/index.js";
-import { ChallengeDTO, ChallengeDTOMapper } from "../../../src/core/challenge/dtos/index.js";
-import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError, ChallengeRepositoryError, ChallengeGenerationError } from "../../../src/core/challenge/errors/ChallengeErrors.js";
+import { createUserId, createChallengeId, UserId, ChallengeId } from "@/core/common/valueObjects/index.js";
+import { ChallengeDTO, ChallengeDTOMapper } from "@/core/challenge/dtos/index.js";
+import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError, ChallengeRepositoryError, ChallengeGenerationError } from "@/core/challenge/errors/ChallengeErrors.js";
 ({ config }.config());
 // Test variables
 const TEST_ID = `test_${Date.now()}`;

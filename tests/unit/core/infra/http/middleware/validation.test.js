@@ -1,8 +1,8 @@
 import { expect } from 'chai';
 import sinon from 'sinon';
-import { validateBody, validateQuery, validateParams } from '../../../../../../src/core/infra/http/middleware/validation.js';
+import { validateBody, validateQuery, validateParams } from "@/core/infra/http/middleware/validation.js";
 import { z } from 'zod';
-import { AppError } from '../../../../../../src/core/infra/errors/AppError.js';
+import { AppError } from "@/core/infra/errors/AppError.js";
 
 describe('Validation Middleware', () => {
   let req, res, next;

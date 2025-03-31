@@ -1,9 +1,9 @@
 import { expect } from "chai";
-import challengeRepository from "../../../src/core/challenge/repositories/ChallengeRepository.js";
-import Challenge from "../../../src/core/challenge/models/Challenge.js";
-import { createUserId, createChallengeId, UserId, ChallengeId } from "../../../src/core/common/valueObjects/index.js";
+import challengeRepository from "@/core/challenge/repositories/ChallengeRepository.js";
+import Challenge from "@/core/challenge/models/Challenge.js";
+import { createUserId, createChallengeId, UserId, ChallengeId } from "@/core/common/valueObjects/index.js";
 import { v4 as uuidv4 } from "uuid";
-import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError, ChallengeRepositoryError, ChallengeGenerationError } from "../../../src/core/challenge/errors/ChallengeErrors.js";
+import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError, ChallengeRepositoryError, ChallengeGenerationError } from "@/core/challenge/errors/ChallengeErrors.js";
 
 // Isolated test suite for unit testing the Challenge Repository with Zod validation
 describe.only('Challenge Repository with Zod Validation', () => {

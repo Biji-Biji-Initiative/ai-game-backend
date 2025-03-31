@@ -1,5 +1,5 @@
 'use strict';
-import AppError from "../../infra/errors/AppError.js";
+import AppError from "@/core/infra/errors/AppError.js";
 /**
  * Focus Area Domain Errors
  *

@@ -1,7 +1,7 @@
-import { logger } from "../../infra/logging/logger.js";
-import { withControllerErrorHandling } from "../../infra/errors/errorStandardization.js";
-import { ChallengeNotFoundError, ChallengeValidationError } from "../../challenge/errors/ChallengeErrors.js";
-import { ChallengeDTOMapper } from "../../challenge/dtos/ChallengeDTO.js";
+import { logger } from "@/core/infra/logging/logger.js";
+import { withControllerErrorHandling } from "@/core/infra/errors/errorStandardization.js";
+import { ChallengeNotFoundError, ChallengeValidationError } from "@/core/challenge/errors/ChallengeErrors.js";
+import { ChallengeDTOMapper } from "@/core/challenge/dtos/ChallengeDTO.js";
 'use strict';
 /**
  * Challenge Controller

@@ -1,8 +1,8 @@
 import express from 'express';
-import { logger } from "../../logging/logger.js";
-import { getCacheService, getCacheInvalidationManager } from "../../cache/cacheFactory.js";
-import domainEvents from "../../../common/events/domainEvents.js";
-import { authenticateUser, requireAdmin } from "../middleware/auth.js";
+import { logger } from "@/core/infra/logging/logger.js";
+import { getCacheService, getCacheInvalidationManager } from "@/core/infra/cache/cacheFactory.js";
+import domainEvents from "@/core/common/events/domainEvents.js";
+import { authenticateUser, requireAdmin } from "@/core/infra/http/middleware/auth.js";
 'use strict';
 
 /**

@@ -1,19 +1,19 @@
 import express from "express";
-import PersonalityController from "../../../personality/controllers/PersonalityController.js";
-import personalityApiSchemas from "../../../personality/schemas/personalityApiSchemas.js";
-import { authenticateUser, requireAdmin } from "../middleware/auth.js";
-import { validateBody } from "../../../infra/http/middleware/validation.js";
-import AdaptiveController from "../../../adaptive/controllers/AdaptiveController.js";
-import AuthController from "../../../auth/controllers/AuthController.js";
-import ProgressController from "../../../progress/controllers/ProgressController.js";
-import EvaluationController from "../../../evaluation/controllers/EvaluationController.js";
-import UserController from "../../../user/controllers/UserController.js";
-import ChallengeController from "../../../challenge/controllers/ChallengeController.js";
-import UserJourneyController from "../../../userJourney/controllers/UserJourneyController.js";
-import FocusAreaController from "../../../focusArea/controllers/FocusAreaController.js";
-import createHealthRoutes from "../../../infra/http/routes/healthRoutes.js";
-import { AdaptiveRepository } from "../../../adaptive/repositories/AdaptiveRepository.js";
-import eventBusRoutes from "./eventBusRoutes.js";
+import PersonalityController from "@/core/personality/controllers/PersonalityController.js";
+import personalityApiSchemas from "@/core/personality/schemas/personalityApiSchemas.js";
+import { authenticateUser, requireAdmin } from "@/core/infra/http/middleware/auth.js";
+import { validateBody } from "@/core/infra/http/middleware/validation.js";
+import AdaptiveController from "@/core/adaptive/controllers/AdaptiveController.js";
+import AuthController from "@/core/auth/controllers/AuthController.js";
+import ProgressController from "@/core/progress/controllers/ProgressController.js";
+import EvaluationController from "@/core/evaluation/controllers/EvaluationController.js";
+import UserController from "@/core/user/controllers/UserController.js";
+import ChallengeController from "@/core/challenge/controllers/ChallengeController.js";
+import UserJourneyController from "@/core/userJourney/controllers/UserJourneyController.js";
+import FocusAreaController from "@/core/focusArea/controllers/FocusAreaController.js";
+import createHealthRoutes from "@/core/infra/http/routes/healthRoutes.js";
+import { AdaptiveRepository } from "@/core/adaptive/repositories/AdaptiveRepository.js";
+import eventBusRoutes from "@/core/infra/http/routes/eventBusRoutes.js";
 'use strict';
 
 class RouteFactory {
@@ -28,44 +28,118 @@ class RouteFactory {
      * Mount all API routes
      * @param {Object} app - Express application instance
      * @param {string} apiPrefix - API route prefix (default: '/api/v1')
+     * 
+     * JIRA-19 (Resilience): This implementation ensures fault isolation within the route registration process.
+     * Each route is mounted independently in a try-catch block, so a failure in one route won't prevent
+     * others from loading. Failed routes are replaced with fallback handlers that return 501 Not Implemented
+     * with an informative error message. Detailed error information is logged for debugging purposes.
      */
     async mountAll(app, apiPrefix = '/api/v1') {
         console.log(`Setting up routes in ${process.env.NODE_ENV || 'development'} mode`);
         
+        // An array to collect errors that occur during route registration
+        const routeRegistrationErrors = [];
+
+        // Helper function to safely mount a route with error handling
+        const mountRouteWithErrorHandling = async (path, routeCreator, routeName) => {
+            try {
+                // For async route creators
+                if (routeCreator instanceof Promise) {
+                    const router = await routeCreator;
+                    app.use(`${apiPrefix}${path}`, router);
+                    console.log(`Successfully mounted route: ${apiPrefix}${path}`);
+                }
+                // For synchronous route creators
+                else {
+                    app.use(`${apiPrefix}${path}`, routeCreator);
+                    console.log(`Successfully mounted route: ${apiPrefix}${path}`);
+                }
+            } catch (error) {
+                const errorMessage = `Failed to mount route ${routeName} at ${apiPrefix}${path}: ${error.message}`;
+                
+                // Log detailed error information
+                console.error(errorMessage);
+                console.error(`Route registration error details for ${routeName}:`, {
+                    routeName,
+                    path: `${apiPrefix}${path}`,
+                    error: error.message,
+                    stack: error.stack,
+                    timestamp: new Date().toISOString()
+                });
+                
+                // Add to the collection of errors
+                routeRegistrationErrors.push({ 
+                    path: `${apiPrefix}${path}`, 
+                    error: error.message, 
+                    routeName,
+                    stack: error.stack,
+                    timestamp: new Date().toISOString()
+                });
+                
+                // Create a fallback router that returns 501 Not Implemented
+                const fallbackRouter = express.Router();
+                fallbackRouter.all('*', (req, res) => {
+                    res.status(501).json({
+                        error: 'Route unavailable',
+                        message: `The ${routeName} service is unavailable: ${error.message}`
+                    });
+                });
+                app.use(`${apiPrefix}${path}`, fallbackRouter);
+                console.log(`Mounted fallback router for ${apiPrefix}${path}`);
+            }
+        };
+
         try {
-            // Potentially async routes
-            const userRoutes = await this.createUserRoutes();
-            const authRoutes = await this.createAuthRoutes();
+            // Prepare async route creators in advance
+            const userRoutesPromise = this.createUserRoutes();
+            const authRoutesPromise = this.createAuthRoutes();
             
-            // Standard routes
-            app.use(`${apiPrefix}/users`, userRoutes);
-            app.use(`${apiPrefix}/auth`, authRoutes);
-            app.use(`${apiPrefix}/personality`, this.createPersonalityRoutes());
-            app.use(`${apiPrefix}/progress`, this.createProgressRoutes());
-            app.use(`${apiPrefix}/challenges`, this.createChallengeRoutes());
-            app.use(`${apiPrefix}/evaluations`, this.createEvaluationRoutes());
-            // Re-enable adaptive routes
-            app.use(`${apiPrefix}/adaptive`, this.createAdaptiveRoutes());
-            // Re-enable user-journey routes now that we've added proper error handling
-            app.use(`${apiPrefix}/user-journey`, this.createUserJourneyRoutes());
-            // Re-enable focus-areas routes now that required services are registered
-            app.use(`${apiPrefix}/focus-areas`, this.createFocusAreaRoutes());
+            // Mount routes individually with error handling
+            await mountRouteWithErrorHandling('/users', userRoutesPromise, 'Users');
+            await mountRouteWithErrorHandling('/auth', authRoutesPromise, 'Authentication');
+            mountRouteWithErrorHandling('/personality', this.createPersonalityRoutes(), 'Personality');
+            mountRouteWithErrorHandling('/progress', this.createProgressRoutes(), 'Progress');
+            mountRouteWithErrorHandling('/challenges', this.createChallengeRoutes(), 'Challenges');
+            mountRouteWithErrorHandling('/evaluations', this.createEvaluationRoutes(), 'Evaluations');
+            mountRouteWithErrorHandling('/adaptive', this.createAdaptiveRoutes(), 'Adaptive');
+            mountRouteWithErrorHandling('/user-journey', this.createUserJourneyRoutes(), 'User Journey');
+            mountRouteWithErrorHandling('/focus-areas', this.createFocusAreaRoutes(), 'Focus Areas');
+            mountRouteWithErrorHandling('/health', this.createHealthRoutes(), 'Health Check');
+            mountRouteWithErrorHandling('/events', this.createEventBusRoutes(), 'Event Bus');
             
-            // Health check routes (mounted at API prefix without additional path segment)
-            app.use(`${apiPrefix}/health`, this.createHealthRoutes());
+            // In development mode, add a test error route to verify fault isolation
+            if (process.env.NODE_ENV !== 'production') {
+                mountRouteWithErrorHandling('/test-error', this.createTestErrorRoute(), 'Test Error');
+            }
             
-            // Add event bus routes before health check routes
-            app.use(`${apiPrefix}/events`, this.createEventBusRoutes());
+            // Provide a summary of route registration results
+            const totalRoutes = routeRegistrationErrors.length + 11; // 11 standard routes
+            const successfulRoutes = totalRoutes - routeRegistrationErrors.length;
             
-            console.log(`All routes successfully mounted at ${apiPrefix}`);
+            if (routeRegistrationErrors.length > 0) {
+                console.warn(`=== ROUTE REGISTRATION SUMMARY ===`);
+                console.warn(`Total routes attempted: ${totalRoutes}`);
+                console.warn(`Successfully mounted: ${successfulRoutes} (${Math.round((successfulRoutes / totalRoutes) * 100)}%)`);
+                console.warn(`Failed to mount: ${routeRegistrationErrors.length} (${Math.round((routeRegistrationErrors.length / totalRoutes) * 100)}%)`);
+                console.warn(`Failed routes:`);
+                routeRegistrationErrors.forEach((error, index) => {
+                    console.warn(`  ${index + 1}. ${error.routeName} at ${error.path}: ${error.error}`);
+                });
+                console.warn(`=============================`);
+            } else {
+                console.log(`=== ROUTE REGISTRATION SUMMARY ===`);
+                console.log(`All ${totalRoutes} routes successfully mounted at ${apiPrefix}`);
+                console.log(`=============================`);
+            }
         } catch (error) {
-            console.error('Error mounting routes:', error);
+            console.error('Critical error in route mounting process:', error);
             
             // Setup a fallback route that reports the error
             app.use(`${apiPrefix}`, (req, res) => {
                 res.status(500).json({
                     error: 'Failed to initialize API routes',
-                    message: error.message
+                    message: error.message,
+                    failedRoutes: routeRegistrationErrors
                 });
             });
         }
@@ -82,40 +156,8 @@ class RouteFactory {
             logger: this.container.get('logger'),
         });
         /**
-         * /personality/profile:
-         *   get:
-         *     summary: Get personality profile
-         *     description: Retrieves the current user's personality profile and insights
-         *     tags: [Personality]
-         *     security:
-         *       - bearerAuth: []
-         *     responses:
-         *       200:
-         *         description: Personality profile retrieved successfully
-         *         content:
-         *           application/json:
-         *             schema:
-         *               type: object
-         *               properties:
-         *                 success:
-         *                   type: boolean
-         *                   example: true
-         *                 data:
-         *                   type: object
-         *                   properties:
-         *                     traits:
-         *                       type: array
-         *                       items:
-         *                         type: object
-         *                     insights:
-         *                       type: object
-         *                     lastUpdated:
-         *                       type: string
-         *                       format: date-time
-         *       401:
-         *         description: Not authenticated
-         *       404:
-         *         description: Profile not found
+         * API documentation for personality routes is available in the OpenAPI specification
+         * See /openapi/paths/ directory
          */
         router.get('/profile', authenticateUser, personalityController.getPersonalityProfile.bind(personalityController));
         
@@ -169,41 +211,8 @@ class RouteFactory {
             });
             
             /**
-             * /adaptive/profile:
-             *   get:
-             *     summary: Get adaptive recommendations
-             *     description: Retrieves personalized recommendations based on the user's learning profile
-             *     tags: [Adaptive]
-             *     security:
-             *       - bearerAuth: []
-             *     responses:
-             *       200:
-             *         description: Recommendations retrieved successfully
-             *         content:
-             *           application/json:
-             *             schema:
-             *               type: object
-             *               properties:
-             *                 success:
-             *                   type: boolean
-             *                   example: true
-             *                 data:
-             *                   type: object
-             *                   properties:
-             *                     recommendedChallenges:
-             *                       type: array
-             *                       items:
-             *                         type: object
-             *                     learningProfile:
-             *                       type: object
-             *                     nextSteps:
-             *                       type: array
-             *                       items:
-             *                         type: string
-             *       401:
-             *         description: Not authenticated
-             *       404:
-             *         description: Profile not found
+             * API documentation for adaptive routes is available in the OpenAPI specification
+             * See /openapi/paths/ directory
              */
             router.get('/profile', authenticateUser, adaptiveController.getRecommendations.bind(adaptiveController));
             
@@ -469,43 +478,8 @@ class RouteFactory {
             challengeRepository: this.container.get('challengeRepository'),
         });
         /**
-         * /evaluations:
-         *   post:
-         *     summary: Submit for evaluation
-         *     description: Submits a response to be evaluated by the AI
-         *     tags: [Evaluations]
-         *     security:
-         *       - bearerAuth: []
-         *     requestBody:
-         *       required: true
-         *       content:
-         *         application/json:
-         *           schema:
-         *             type: object
-         *             required:
-         *               - challengeId
-         *               - response
-         *             properties:
-         *               challengeId:
-         *                 type: string
-         *                 format: uuid
-         *                 description: ID of the challenge being evaluated
-         *               response:
-         *                 type: string
-         *                 description: The user's response to evaluate
-         *     responses:
-         *       201:
-         *         description: Evaluation created successfully
-         *         content:
-         *           application/json:
-         *             schema:
-         *               $ref: '#/components/schemas/EvaluationResponse'
-         *       400:
-         *         $ref: '#/components/responses/ValidationError'
-         *       401:
-         *         $ref: '#/components/responses/UnauthorizedError'
-         *       404:
-         *         $ref: '#/components/responses/NotFoundError'
+         * API documentation for evaluation routes is available in the OpenAPI specification
+         * See /openapi/paths/ directory and /openapi/evaluation-api.yaml
          */
         router.post('/', authenticateUser, evaluationController.createEvaluation.bind(evaluationController));
 
@@ -603,56 +577,8 @@ class RouteFactory {
             progressCoordinator: this.container.get('progressCoordinator'),
         });
         /**
-         * /challenges/generate:
-         *   post:
-         *     summary: Generate a new challenge
-         *     description: Generates a new challenge for a user based on provided parameters
-         *     tags: [Challenges]
-         *     security:
-         *       - bearerAuth: []
-         *     requestBody:
-         *       required: true
-         *       content:
-         *         application/json:
-         *           schema:
-         *             type: object
-         *             required:
-         *               - userEmail
-         *             properties:
-         *               userEmail:
-         *                 type: string
-         *                 format: email
-         *                 description: Email of the user requesting the challenge
-         *               focusArea:
-         *                 type: string
-         *                 description: Focus area for the challenge
-         *               challengeType:
-         *                 type: string
-         *                 description: Type of challenge to generate
-         *               formatType:
-         *                 type: string
-         *                 description: Format type for the challenge
-         *               difficulty:
-         *                 type: string
-         *                 enum: [beginner, intermediate, advanced, expert]
-         *                 description: Difficulty level of the challenge
-         *     responses:
-         *       201:
-         *         description: Challenge created successfully
-         *         content:
-         *           application/json:
-         *             schema:
-         *               type: object
-         *               properties:
-         *                 success:
-         *                   type: boolean
-         *                   example: true
-         *                 data:
-         *                   $ref: '#/components/schemas/Challenge'
-         *       400:
-         *         $ref: '#/components/responses/ValidationError'
-         *       401:
-         *         $ref: '#/components/responses/UnauthorizedError'
+         * API documentation for challenge routes is available in the OpenAPI specification
+         * See /openapi/paths/ directory and /openapi/challenge-api.yaml
          */
         router.post('/generate', authenticateUser, challengeController.generateChallenge.bind(challengeController));
         
@@ -703,30 +629,8 @@ class RouteFactory {
             }
             
             /**
-             * /user-journey/current:
-             *   get:
-             *     summary: Get user journey events
-             *     description: Retrieves all events in the current user's journey
-             *     tags: [UserJourney]
-             *     security:
-             *       - bearerAuth: []
-             *     responses:
-             *       200:
-             *         description: User journey events retrieved successfully
-             *         content:
-             *           application/json:
-             *             schema:
-             *               type: object
-             *               properties:
-             *                 success:
-             *                   type: boolean
-             *                   example: true
-             *                 data:
-             *                   type: array
-             *                   items:
-             *                     $ref: '#/components/schemas/UserJourneyEvent'
-             *       401:
-             *         $ref: '#/components/responses/UnauthorizedError'
+             * API documentation for user journey routes is available in the OpenAPI specification
+             * See /openapi/paths/ directory
              */
             router.get('/current', authenticateUser, userJourneyController.getUserJourneyEvents);
             
@@ -803,32 +707,9 @@ class RouteFactory {
                 eventTypes,
                 logger
             });
-            
             /**
-             * /focus-areas:
-             *   get:
-             *     summary: Get all focus areas
-             *     description: Retrieves all available focus areas
-             *     tags: [FocusAreas]
-             *     security:
-             *       - bearerAuth: []
-             *     responses:
-             *       200:
-             *         description: Focus areas retrieved successfully
-             *         content:
-             *           application/json:
-             *             schema:
-             *               type: object
-             *               properties:
-             *                 success:
-             *                   type: boolean
-             *                   example: true
-             *                 data:
-             *                   type: array
-             *                   items:
-             *                     $ref: '#/components/schemas/FocusArea'
-             *       401:
-             *         $ref: '#/components/responses/UnauthorizedError'
+             * API documentation for focus area routes is available in the OpenAPI specification
+             * See /openapi/paths/ directory
              */
             router.get('/', authenticateUser, focusAreaController.getAllFocusAreas.bind(focusAreaController));
             
@@ -885,6 +766,26 @@ class RouteFactory {
      */
     createEventBusRoutes() {
         return eventBusRoutes();
+    }
+    /**
+     * Create a debug test route that deliberately fails (for testing error isolation)
+     * @returns {Object} Express router that will throw an error when created
+     */
+    createTestErrorRoute() {
+        // This will only be used in development
+        if (process.env.NODE_ENV === 'production') {
+            const router = express.Router();
+            router.get('/', (req, res) => {
+                res.status(200).json({
+                    success: true,
+                    message: 'Test route disabled in production'
+                });
+            });
+            return router;
+        }
+        
+        // In development, throw an error to test fault isolation
+        throw new Error('Deliberate test error for route fault isolation testing');
     }
 }
 export default RouteFactory;

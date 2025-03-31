@@ -1,4 +1,4 @@
-import { OpenAIResponseHandlingError } from "../../infra/openai/errors.js";
+import { OpenAIResponseHandlingError } from "@/core/infra/openai/errors.js";
 'use strict';
 /**
  * Creates a function definition object for use in the `tools` array.

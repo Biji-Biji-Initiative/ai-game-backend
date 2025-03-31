@@ -1,9 +1,9 @@
-import Email from "../../common/valueObjects/Email.js";
-import UserId from "../../common/valueObjects/UserId.js";
-import ChallengeId from "../../common/valueObjects/ChallengeId.js";
-import DifficultyLevel from "../../common/valueObjects/DifficultyLevel.js";
-import FocusArea from "../../common/valueObjects/FocusArea.js";
-import TraitScore from "../../common/valueObjects/TraitScore.js";
+import Email from "@/core/common/valueObjects/Email.js";
+import UserId from "@/core/common/valueObjects/UserId.js";
+import ChallengeId from "@/core/common/valueObjects/ChallengeId.js";
+import DifficultyLevel from "@/core/common/valueObjects/DifficultyLevel.js";
+import FocusArea from "@/core/common/valueObjects/FocusArea.js";
+import TraitScore from "@/core/common/valueObjects/TraitScore.js";
 'use strict';
 /**
  * Safely create an Email value object

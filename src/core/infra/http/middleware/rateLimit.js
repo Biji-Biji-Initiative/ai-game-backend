@@ -1,8 +1,8 @@
 'use strict';
 
 import rateLimit from 'express-rate-limit';
-import config from '../../../../config/config.js';
-import { logger } from '../../logging/logger.js';
+import config from "@/config/config.js";
+import { logger } from "@/core/infra/logging/logger.js";
 
 /**
  * Rate Limiting middleware factory

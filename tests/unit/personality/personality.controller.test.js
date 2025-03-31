@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import sinon from "sinon";
-import PersonalityController from "../../../src/core/personality/controllers/PersonalityController.js";
-import personalityErrors from "../../../src/core/personality/errors/PersonalityErrors.js";
+import PersonalityController from "@/core/personality/controllers/PersonalityController.js";
+import personalityErrors from "@/core/personality/errors/PersonalityErrors.js";
 const { ProfileNotFoundError, TraitsValidationError, AttitudesValidationError, InsightGenerationError, NoPersonalityDataError } = personalityErrors;
 describe('Personality Controller', () => {
     let personalityController;

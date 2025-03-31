@@ -1,9 +1,9 @@
 import { expect } from "chai";
-import EvaluationPromptBuilder from "../../../src/core/prompt/builders/EvaluationPromptBuilder.js";
-import ChallengePromptBuilder from "../../../src/core/prompt/builders/ChallengePromptBuilder.js";
-import FocusAreaPromptBuilder from "../../../src/core/prompt/builders/FocusAreaPromptBuilder.js";
-import PersonalityPromptBuilder from "../../../src/core/prompt/builders/PersonalityPromptBuilder.js";
-import ProgressPromptBuilder from "../../../src/core/prompt/builders/ProgressPromptBuilder.js";
+import EvaluationPromptBuilder from "@/core/prompt/builders/EvaluationPromptBuilder.js";
+import ChallengePromptBuilder from "@/core/prompt/builders/ChallengePromptBuilder.js";
+import FocusAreaPromptBuilder from "@/core/prompt/builders/FocusAreaPromptBuilder.js";
+import PersonalityPromptBuilder from "@/core/prompt/builders/PersonalityPromptBuilder.js";
+import ProgressPromptBuilder from "@/core/prompt/builders/ProgressPromptBuilder.js";
 import testSetup from "../setup.js";
 describe('Schema Validation Integration', function () {
     beforeEach(function () {

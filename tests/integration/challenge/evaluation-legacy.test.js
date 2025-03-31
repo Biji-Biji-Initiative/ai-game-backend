@@ -1,4 +1,4 @@
-import Evaluation from "../../../src/core/evaluation/models/Evaluation.js";
+import Evaluation from "@/core/evaluation/models/Evaluation.js";
 describe('Evaluation Model Integration', () => {
     test('Evaluation model constructor creates valid instance', () => {
         const evaluation = new Evaluation({

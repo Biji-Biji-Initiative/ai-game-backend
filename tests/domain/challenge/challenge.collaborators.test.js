@@ -1,11 +1,11 @@
 import { expect } from "chai";
 import sinon from "sinon";
 import { v4 as uuidv4 } from "uuid";
-import Challenge from "../../../src/core/challenge/models/Challenge.js";
-import { createUserId, createChallengeId, UserId, ChallengeId } from "../../../src/core/common/valueObjects/index.js";
-import domainEvents from "../../../src/core/common/events/domainEvents.js";
+import Challenge from "@/core/challenge/models/Challenge.js";
+import { createUserId, createChallengeId, UserId, ChallengeId } from "@/core/common/valueObjects/index.js";
+import domainEvents from "@/core/common/events/domainEvents.js";
 import testSetup from "../setup.js";
-import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError, ChallengeRepositoryError, ChallengeGenerationError } from "../../../src/core/challenge/errors/ChallengeErrors.js";
+import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError, ChallengeRepositoryError, ChallengeGenerationError } from "@/core/challenge/errors/ChallengeErrors.js";
 
 describe('Challenge Domain Integration', function () {
     let challengeRepository;

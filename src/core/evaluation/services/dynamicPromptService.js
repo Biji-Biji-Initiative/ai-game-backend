@@ -1,5 +1,5 @@
-import { applyRepositoryErrorHandling, applyServiceErrorHandling, applyControllerErrorHandling, createErrorMapper } from "../../infra/errors/centralizedErrorUtils.js";
-import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationProcessingError } from "../../evaluation/errors/EvaluationErrors.js";
+import { applyRepositoryErrorHandling, applyServiceErrorHandling, applyControllerErrorHandling, createErrorMapper } from "@/core/infra/errors/centralizedErrorUtils.js";
+import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationProcessingError } from "@/core/evaluation/errors/EvaluationErrors.js";
 'use strict';
 // Create an error mapper for services
 const evaluationServiceErrorMapper = createErrorMapper({

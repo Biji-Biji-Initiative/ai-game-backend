@@ -1,21 +1,21 @@
 import { 
   withServiceErrorHandling, 
   createErrorMapper
-} from "../../core/infra/errors/errorStandardization.js";
+} from "@/core/infra/errors/errorStandardization.js";
 import { 
   EvaluationError, 
   EvaluationNotFoundError, 
   EvaluationValidationError, 
   EvaluationProcessingError 
-} from "../../core/evaluation/errors/EvaluationErrors.js";
-import { evaluationLogger } from "../../core/infra/logging/domainLogger.js";
+} from "@/core/evaluation/errors/EvaluationErrors.js";
+import { evaluationLogger } from "@/core/infra/logging/domainLogger.js";
 import {
   SKILL_THRESHOLDS,
   COLLECTION_LIMITS,
   CONSISTENCY_THRESHOLD,
   WEIGHT_NORMALIZATION,
   DEFAULT_CATEGORY_WEIGHTS
-} from "./config/evaluationConfig.js";
+} from "@/application/evaluation/config/evaluationConfig.js";
 
 'use strict';
 

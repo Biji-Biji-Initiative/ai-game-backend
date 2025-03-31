@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import sinon from "sinon";
-import OpenAIStateManagerAdapter from "../../../../src/core/ai/adapters/OpenAIStateManagerAdapter.js";
-import AIStateManager from "../../../../src/core/ai/ports/AIStateManager.js";
+import OpenAIStateManagerAdapter from "@/core/ai/adapters/OpenAIStateManagerAdapter.js";
+import AIStateManager from "@/core/ai/ports/AIStateManager.js";
 'use strict';
 /**
  * Unit Tests for OpenAIStateManagerAdapter

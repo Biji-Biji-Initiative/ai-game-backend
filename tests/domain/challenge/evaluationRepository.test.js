@@ -1,10 +1,10 @@
 import { expect } from "chai";
 import sinon from "sinon";
-import EvaluationRepository from "../../../src/core/evaluation/repositories/evaluationRepository.js";
-import Evaluation from "../../../src/core/evaluation/models/Evaluation.js";
-import { EvaluationSchema } from "../../../src/core/evaluation/schemas/EvaluationSchema.js";
-import { ChallengeError, ChallengeNotFoundError } from "../../../src/core/challenge/errors/ChallengeErrors.js";
-import ChallengeId from "../../../src/core/common/valueObjects/ChallengeId.js";
+import EvaluationRepository from "@/core/evaluation/repositories/evaluationRepository.js";
+import Evaluation from "@/core/evaluation/models/Evaluation.js";
+import { EvaluationSchema } from "@/core/evaluation/schemas/EvaluationSchema.js";
+import { ChallengeError, ChallengeNotFoundError } from "@/core/challenge/errors/ChallengeErrors.js";
+import ChallengeId from "@/core/common/valueObjects/ChallengeId.js";
 
 // Isolated test suite for unit testing the Evaluation Repository with Zod validation
 describe('Evaluation Repository with Zod Validation', () => {

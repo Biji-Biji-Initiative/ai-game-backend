@@ -1,5 +1,6 @@
-import { OpenAIClientAdapter } from "../../core/ai/index.js";
-import { OpenAIStateManagerAdapter } from "../../core/ai/index.js";
+import { OpenAIClientAdapter } from "@/core/ai/index.js";
+import { OpenAIStateManagerAdapter } from "@/core/ai/index.js";
+import FocusAreaThreadStateAdapter from "@/core/infra/openai/adapters/FocusAreaThreadStateAdapter.js";
 'use strict';
 /**
  * AI Components Registration
@@ -23,6 +24,15 @@ function registerAIComponents(container) {
         return new OpenAIStateManagerAdapter({
             openAIStateManager: c.get('openAIStateManager'),
             logger: c.get('logger')
+        });
+    }, true // Singleton
+    );
+    
+    // Register focusAreaThreadState adapter
+    container.register('focusAreaThreadState', c => {
+        return new FocusAreaThreadStateAdapter({
+            openAIStateManager: c.get('openAIStateManager'),
+            logger: c.get('focusAreaLogger')
         });
     }, true // Singleton
     );

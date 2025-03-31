@@ -1,6 +1,6 @@
-import AppError from "../../infra/errors/AppError.js";
-import { logger } from "../../infra/logging/logger.js";
-import config from "../../../config/config.js";
+import AppError from "@/core/infra/errors/AppError.js";
+import { logger } from "@/core/infra/logging/logger.js";
+import config from "@/config/config.js";
 'use strict';
 
 // Standard error codes for API responses

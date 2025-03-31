@@ -1,6 +1,6 @@
 import path from "path";
 import { fileURLToPath } from 'url';
-import config from ".//config.js";
+import config from "@/config/config.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

@@ -17,10 +17,10 @@ import testEnv from "../../loadEnv.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 import { config } from "dotenv";
 import * as apiTestHelper from "../../helpers/apiTestHelper.js";
-import { PromptTemplateDTO, PromptTemplateDTOMapper } from "../../../src/core/prompt/dtos/index.js";
-import { createUserId, createPromptTemplateId, UserId, PromptTemplateId } from "../../../src/core/common/valueObjects/index.js";
-import ChallengeDTOMapper from "../../../src/application/challenge/mappers/ChallengeDTOMapper.js";
-import ChallengeResponseDTOMapper from "../../../src/application/challenge/mappers/ChallengeResponseDTOMapper.js";
+import { PromptTemplateDTO, PromptTemplateDTOMapper } from "@/core/prompt/dtos/index.js";
+import { createUserId, createPromptTemplateId, UserId, PromptTemplateId } from "@/core/common/valueObjects/index.js";
+import ChallengeDTOMapper from "@/application/challenge/mappers/ChallengeDTOMapper.js";
+import ChallengeResponseDTOMapper from "@/application/challenge/mappers/ChallengeResponseDTOMapper.js";
 
 ({ config }.config());
 

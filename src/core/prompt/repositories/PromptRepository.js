@@ -1,6 +1,6 @@
-import { challengeLogger } from "../../infra/logging/domainLogger.js";
-import { supabaseClient } from "../../infra/db/supabaseClient.js";
-import { PromptTemplateNotFoundError, PromptError } from "../../prompt/common/errors.js";
+import { challengeLogger } from "@/core/infra/logging/domainLogger.js";
+import { supabaseClient } from "@/core/infra/db/supabaseClient.js";
+import { PromptTemplateNotFoundError, PromptError } from "@/core/prompt/common/errors.js";
 'use strict';
 /**
  * Repository for managing prompt templates and usage history

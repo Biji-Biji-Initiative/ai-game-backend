@@ -1,7 +1,7 @@
-import { userLogger } from "../../infra/logging/domainLogger.js";
-import { UserNotFoundError, UserUpdateError, UserValidationError, FocusAreaError, UserError } from "../../user/errors/UserErrors.js";
-import { withControllerErrorHandling } from "../../infra/errors/errorStandardization.js";
-import { UserDTOMapper } from "../../user/dtos/UserDTO.js";
+import { userLogger } from "@/core/infra/logging/domainLogger.js";
+import { UserNotFoundError, UserUpdateError, UserValidationError, FocusAreaError, UserError } from "@/core/user/errors/UserErrors.js";
+import { withControllerErrorHandling } from "@/core/infra/errors/errorStandardization.js";
+import { UserDTOMapper } from "@/core/user/dtos/UserDTO.js";
 'use strict';
 /**
  * User Controller (Refactored with Standardized Error Handling)

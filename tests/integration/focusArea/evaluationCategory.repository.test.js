@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import sinon from "sinon";
-import evaluationCategoryRepository from "../../../src/core/evaluation/repositories/evaluationCategoryRepository.js";
+import evaluationCategoryRepository from "@/core/evaluation/repositories/evaluationCategoryRepository.js";
 describe('Evaluation Category Repository', () => {
     it('getAllCategories returns data in the correct format', async () => {
         try {

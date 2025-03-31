@@ -1,7 +1,9 @@
-import { logger } from "../../infra/logging/logger.js";
-import AppError from "../../infra/errors/AppError.js";
-import { createErrorCollector } from "../../infra/errors/errorStandardization.js";
-import { getCacheInvalidationManager } from "../../infra/cache/cacheFactory.js";
+import { logger } from "@/core/infra/logging/logger.js";
+import AppError from "@/core/infra/errors/AppError.js";
+import { createErrorCollector } from "@/core/infra/errors/errorStandardization.js";
+import { getCacheInvalidationManager } from "@/core/infra/cache/cacheFactory.js";
+import { DatabaseError } from "@/core/infra/errors/InfraErrors.js";
+import { standardizeEvent } from "@/core/common/events/eventUtils.js";
 'use strict';
 /**
  * Base Repository
@@ -146,52 +148,6 @@ class ValidationError extends AppError {
       errorCode: `${entityType.toUpperCase()}_VALIDATION_ERROR`
     });
     this.name = 'ValidationError';
-  }
-}
-/**
- * Database Error
- *
- * Used for database-specific errors.
- * Returns a 500 status code and includes operation details.
- *
- * @extends AppError
- */
-class DatabaseError extends AppError {
-  /**
-   * Create a new database error
-   *
-   * @param {string} message - Error message describing the database error
-   * @param {Object} options - Error options for additional context
-   * @param {Error} [options.cause] - Original error that caused this error (for error chaining)
-   * @param {string} [options.operation] - Database operation that failed (e.g., 'select', 'insert')
-   * @param {string} [options.entityType='unknown'] - Type of the entity (e.g., 'user', 'challenge')
-   * @param {Object} [options.metadata={}] - Additional error context data
-   *
-   * @example
-   * throw new DatabaseError('Failed to query database', {
-   *   cause: pgError,
-   *   operation: 'select',
-   *   entityType: 'user',
-   *   metadata: { query: 'SELECT * FROM users' }
-   * });
-   */
-  constructor(message, options = {}) {
-    const {
-      cause,
-      operation,
-      entityType = 'unknown',
-      metadata = {}
-    } = options;
-    super(message, 500, {
-      cause,
-      metadata: {
-        operation,
-        entityType,
-        ...metadata
-      },
-      errorCode: 'DATABASE_ERROR'
-    });
-    this.name = 'DatabaseError';
   }
 }
 /**
@@ -519,19 +475,50 @@ class BaseRepository {
     
     const errorCollector = createErrorCollector();
     
+    this._log('debug', `Publishing ${events.length} domain events post-commit`, {
+      eventTypes: events.map(e => e.type).join(', ')
+    });
+    
     for (const event of events) {
       try {
-        this._log('debug', 'Publishing domain event post-commit', {
-          eventType: event.type,
-          eventId: event.id
+        // Skip events without a type
+        if (!event.type) {
+          this._log('warn', 'Skipping malformed domain event - missing type', { 
+            event,
+            entityType: this.domainName
+          });
+          continue;
+        }
+        
+        // Apply standardization to ensure the event follows the expected structure
+        let standardizedEvent;
+        try {
+          standardizedEvent = standardizeEvent(event);
+        } catch (validationError) {
+          this._log('warn', `Skipping malformed domain event - ${validationError.message}`, { 
+            event,
+            entityType: this.domainName,
+            error: validationError.message
+          });
+          continue;
+        }
+        
+        this._log('debug', 'Publishing domain event', {
+          eventType: standardizedEvent.type,
+          entityId: standardizedEvent.data.entityId,
+          entityType: standardizedEvent.data.entityType,
+          correlationId: standardizedEvent.metadata.correlationId
         });
         
-        await eventBus.publish(event);
+        // Publish the standardized event
+        await eventBus.publish(standardizedEvent);
       } catch (error) {
         errorCollector.collect(error, `event_publishing_${event.type}`);
-        this._log('error', 'Failed to publish domain event post-commit', {
+        this._log('error', 'Failed to publish domain event', {
           eventType: event.type,
-          eventId: event.id,
+          entityId: event.data?.entityId,
+          entityType: event.data?.entityType,
+          correlationId: event.metadata?.correlationId,
           error: error.message,
           stack: error.stack
         });
@@ -540,7 +527,9 @@ class BaseRepository {
     
     if (errorCollector.hasErrors()) {
       this._log('warn', 'Some domain events failed to publish after transaction', {
-        errorCount: errorCollector.getErrors().length
+        errorCount: errorCollector.getErrors().length,
+        successCount: events.length - errorCollector.getErrors().length,
+        totalEvents: events.length
       });
     }
   }
@@ -807,6 +796,256 @@ class BaseRepository {
         }, {})
       });
     }
+  }
+  /**
+   * Helper to save an entity with proper domain event collection
+   * 
+   * This method standardizes the entity-based event collection pattern:
+   * 1. Collecting domain events from the entity before saving
+   * 2. Executing database operations within a transaction
+   * 3. Clearing domain events after collection
+   * 4. Publishing events only after successful transaction
+   * 
+   * @param {Object} entity - Domain entity to save
+   * @param {Function} saveOperation - Function that performs the actual save, receives transaction as argument
+   * @param {Object} options - Additional options
+   * @returns {Promise<Object>} Saved entity
+   * @protected
+   * 
+   * @example
+   * async save(user) {
+   *   return this._saveWithEvents(user, async (transaction) => {
+   *     // Database operations using transaction
+   *     const { data, error } = await transaction
+   *       .from(this.tableName)
+   *       .upsert(userData)
+   *       .select()
+   *       .single();
+   *     
+   *     if (error) {
+   *       throw new DatabaseError(`Failed to save user: ${error.message}`);
+   *     }
+   *     
+   *     return UserMapper.fromDatabase(data);
+   *   });
+   * }
+   */
+  async _saveWithEvents(entity, saveOperation, options = {}) {
+    if (!entity) {
+      throw new ValidationError('Entity is required for saving', {
+        entityType: this.domainName
+      });
+    }
+    
+    // Check if entity has domain event methods
+    if (!entity.getDomainEvents || !entity.clearDomainEvents) {
+      this._log('warn', 'Entity does not implement domain event methods', {
+        entityType: entity.constructor?.name || 'unknown'
+      });
+    }
+    
+    // Collect domain events from the entity before saving
+    const domainEvents = entity.getDomainEvents ? entity.getDomainEvents() : [];
+    
+    return this.withTransaction(async (transaction) => {
+      // Execute the provided save operation with transaction
+      const savedEntity = await saveOperation(transaction);
+      
+      // Clear domain events from the original entity since they will be published
+      if (entity.clearDomainEvents) {
+        entity.clearDomainEvents();
+      }
+      
+      // Return both the result and domain events for publishing after commit
+      return {
+        result: savedEntity,
+        domainEvents
+      };
+    }, {
+      publishEvents: true,
+      eventBus: options.eventBus || this.eventBus,
+      invalidateCache: options.invalidateCache !== false,
+      cacheInvalidator: options.cacheInvalidator || this.cacheInvalidator
+    });
+  }
+  
+  /**
+   * Helper to delete an entity with proper domain event collection
+   * 
+   * This method standardizes the entity-based event collection pattern for deletions:
+   * 1. Finding the entity within the transaction
+   * 2. Creating a domain event for deletion
+   * 3. Collecting all domain events
+   * 4. Executing the deletion within the transaction
+   * 5. Publishing events only after successful transaction
+   * 
+   * @param {string} id - ID of entity to delete
+   * @param {Function} entityFactory - Function to create entity from database record
+   * @param {string} eventType - Event type for deletion event
+   * @param {Function} deleteOperation - Function that performs the actual deletion
+   * @param {Object} options - Additional options
+   * @returns {Promise<Object>} Result of deletion operation
+   * @protected
+   * 
+   * @example
+   * async delete(id) {
+   *   return this._deleteWithEvents(
+   *     id,
+   *     (record) => User.fromDatabase(record),
+   *     EventTypes.USER_DELETED,
+   *     async (transaction) => {
+   *       const { error } = await transaction
+   *         .from(this.tableName)
+   *         .delete()
+   *         .eq('id', id);
+   *         
+   *       if (error) {
+   *         throw new DatabaseError(`Failed to delete user: ${error.message}`);
+   *       }
+   *       
+   *       return { deleted: true, id };
+   *     }
+   *   );
+   * }
+   */
+  async _deleteWithEvents(id, entityFactory, eventType, deleteOperation, options = {}) {
+    if (!id) {
+      throw new ValidationError('ID is required for deletion', {
+        entityType: this.domainName
+      });
+    }
+    
+    if (typeof entityFactory !== 'function') {
+      throw new ValidationError('Entity factory function is required', {
+        entityType: this.domainName
+      });
+    }
+    
+    return this.withTransaction(async (transaction) => {
+      // Find the entity first to ensure it exists
+      const { data, error } = await transaction
+        .from(this.tableName)
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+        
+      if (error) {
+        throw new DatabaseError(`Failed to find entity for deletion: ${error.message}`, {
+          cause: error,
+          entityType: this.domainName,
+          operation: 'delete',
+          metadata: { id }
+        });
+      }
+      
+      if (!data) {
+        throw new EntityNotFoundError(`Entity with ID ${id} not found`, {
+          entityId: id,
+          entityType: this.domainName
+        });
+      }
+      
+      // Create domain entity from database record
+      const entity = entityFactory(data);
+      
+      // Add domain event for deletion
+      if (entity.addDomainEvent) {
+        entity.addDomainEvent(eventType, {
+          entityId: id,
+          action: 'deleted'
+        });
+      } else {
+        this._log('warn', 'Entity does not implement addDomainEvent method', {
+          entityType: entity.constructor?.name || 'unknown'
+        });
+      }
+      
+      // Collect domain events from the entity
+      const domainEvents = entity.getDomainEvents ? entity.getDomainEvents() : [];
+      
+      // Execute the provided delete operation
+      const result = await deleteOperation(transaction);
+      
+      // Clear events from entity since they will be published
+      if (entity.clearDomainEvents) {
+        entity.clearDomainEvents();
+      }
+      
+      return {
+        result,
+        domainEvents
+      };
+    }, {
+      publishEvents: true,
+      eventBus: options.eventBus || this.eventBus,
+      invalidateCache: options.invalidateCache !== false,
+      cacheInvalidator: options.cacheInvalidator || this.cacheInvalidator
+    });
+  }
+  
+  /**
+   * Helper to save multiple entities with proper domain event collection
+   * 
+   * This method standardizes batch operations with entity-based event collection:
+   * 1. Collecting domain events from multiple entities
+   * 2. Executing batch operations within a single transaction
+   * 3. Collecting all domain events for publishing after commit
+   * 
+   * @param {Array} entities - Array of domain entities to save
+   * @param {Function} batchOperation - Function that performs the batch operation
+   * @param {Object} options - Additional options
+   * @returns {Promise<Object>} Result of batch operation and collected events
+   * @protected
+   * 
+   * @example
+   * async saveBatch(users) {
+   *   return this._batchWithEvents(users, async (transaction) => {
+   *     const savedUsers = [];
+   *     
+   *     for (const user of users) {
+   *       // Database operations for each user
+   *       // ...
+   *       savedUsers.push(savedUser);
+   *     }
+   *     
+   *     return savedUsers;
+   *   });
+   * }
+   */
+  async _batchWithEvents(entities, batchOperation, options = {}) {
+    if (!Array.isArray(entities) || entities.length === 0) {
+      return { result: [], domainEvents: [] };
+    }
+    
+    // Collect all domain events from entities
+    const allDomainEvents = [];
+    
+    for (const entity of entities) {
+      if (entity.getDomainEvents) {
+        const events = entity.getDomainEvents();
+        allDomainEvents.push(...events);
+        
+        // Clear events to prevent duplicates
+        if (entity.clearDomainEvents) {
+          entity.clearDomainEvents();
+        }
+      }
+    }
+    
+    return this.withTransaction(async (transaction) => {
+      // Execute the provided batch operation with transaction
+      const result = await batchOperation(transaction, entities);
+      
+      return {
+        result,
+        domainEvents: allDomainEvents
+      };
+    }, {
+      publishEvents: true,
+      eventBus: options.eventBus || this.eventBus,
+      invalidateCache: options.invalidateCache !== false,
+      cacheInvalidator: options.cacheInvalidator || this.cacheInvalidator
+    });
   }
 }
 export { BaseRepository };

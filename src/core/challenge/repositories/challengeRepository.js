@@ -1,16 +1,16 @@
 import { v4 as uuidv4 } from "uuid";
-import Challenge from "../../challenge/models/Challenge.js";
-import challengeMapper from "../../challenge/mappers/ChallengeMapper.js";
-import challengeSchema from "../../challenge/schemas/ChallengeSchema.js";
-import challengeErrors from "../../challenge/errors/ChallengeErrors.js";
-import domainEvents from "../../common/events/domainEvents.js";
-import { supabaseClient } from "../../infra/db/supabaseClient.js";
-import { BaseRepository, EntityNotFoundError, ValidationError, DatabaseError } from "../../infra/repositories/BaseRepository.js";
-import { createErrorMapper, createErrorCollector, withRepositoryErrorHandling } from "../../infra/errors/errorStandardization.js";
-import ChallengeId from "../../common/valueObjects/ChallengeId.js";
-import UserId from "../../common/valueObjects/UserId.js";
-import Email from "../../common/valueObjects/Email.js";
-import FocusArea from "../../common/valueObjects/FocusArea.js";
+import Challenge from "@/core/challenge/models/Challenge.js";
+import challengeMapper from "@/core/challenge/mappers/ChallengeMapper.js";
+import challengeSchema from "@/core/challenge/schemas/ChallengeSchema.js";
+import challengeErrors from "@/core/challenge/errors/ChallengeErrors.js";
+import domainEvents from "@/core/common/events/domainEvents.js";
+import { supabaseClient } from "@/core/infra/db/supabaseClient.js";
+import { BaseRepository, EntityNotFoundError, ValidationError, DatabaseError } from "@/core/infra/repositories/BaseRepository.js";
+import { createErrorMapper, createErrorCollector, withRepositoryErrorHandling } from "@/core/infra/errors/errorStandardization.js";
+import ChallengeId from "@/core/common/valueObjects/ChallengeId.js";
+import UserId from "@/core/common/valueObjects/UserId.js";
+import Email from "@/core/common/valueObjects/Email.js";
+import FocusArea from "@/core/common/valueObjects/FocusArea.js";
 'use strict';
 const { ChallengeSchema, ChallengeSearchSchema, SearchOptionsSchema } = challengeSchema;
 const { 

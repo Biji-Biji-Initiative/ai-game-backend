@@ -1,7 +1,7 @@
-import ChallengeTypeRepository from "../../challenge/repositories/config/ChallengeTypeRepository.js";
-import { ChallengeTypeDTOMapper } from "../../challenge/dtos/ChallengeTypeDTO.js";
-import { withControllerErrorHandling } from "../../infra/errors/errorStandardization.js";
-import { logger } from "../../infra/logging/logger.js";
+import ChallengeTypeRepository from "@/core/challenge/repositories/config/ChallengeTypeRepository.js";
+import { ChallengeTypeDTOMapper } from "@/core/challenge/dtos/ChallengeTypeDTO.js";
+import { withControllerErrorHandling } from "@/core/infra/errors/errorStandardization.js";
+import { logger } from "@/core/infra/logging/logger.js";
 'use strict';
 /**
  * ChallengeType Controller

@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import sinon from "sinon";
-import ChallengeEvaluationService from "../../../../src/core/challenge/services/challengeEvaluationService.js";
-import { MissingParameterError } from "../../../../src/core/infra/errors/MissingParameterError.js";
+import ChallengeEvaluationService from "@/core/challenge/services/challengeEvaluationService.js";
+import { MissingParameterError } from "@/core/infra/errors/MissingParameterError.js";
 'use strict';
 /**
  * Unit Tests for ChallengeEvaluationService

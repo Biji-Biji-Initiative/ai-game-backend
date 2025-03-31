@@ -28,13 +28,15 @@ try {
   const quotedTransformPath = `"${transformPath}"`;
   const quotedSrcDir = `"${srcDir}"`;
   
-  const command = `npx jscodeshift -t ${quotedTransformPath} ${quotedSrcDir} --extensions=js,jsx --parser=babel --verbose=2`;
+  // Updated to include ts and tsx extensions
+  const command = `npx jscodeshift -t ${quotedTransformPath} ${quotedSrcDir} --extensions=js,jsx,ts,tsx --parser=babel --verbose=2`;
   
   console.log(`\nRunning command: ${command}\n`);
   execSync(command, { stdio: 'inherit' });
   
   console.log('\nConversion complete!');
   console.log('Remember to update your import statements in test files if needed.');
+  console.log('Use "npm run imports:verify" to check for any remaining relative imports.');
 } catch (error) {
   console.error('Error during conversion:', error.message);
   process.exit(1);

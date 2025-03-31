@@ -1,7 +1,7 @@
 import express from 'express';
-import ChallengeController from "../../../challenge/controllers/ChallengeController.js";
-import { authenticateUser, requireAdmin } from "../middleware/auth.js";
-import { authorizeResource } from "../middleware/resourceAuth.js";
+import ChallengeController from "@/core/challenge/controllers/ChallengeController.js";
+import { authenticateUser, requireAdmin } from "@/core/infra/http/middleware/auth.js";
+import { authorizeResource } from "@/core/infra/http/middleware/resourceAuth.js";
 'use strict';
 
 /**
@@ -34,6 +34,18 @@ export default function challengeRoutes(challengeController) {
     (req, res) => challengeController.getAllChallenges(req, res)
   );
   
+  // Get challenge types (moved before /:id route)
+  router.get('/types', 
+    authenticateUser, 
+    (req, res) => challengeController.getChallengeTypes(req, res)
+  );
+  
+  // Generate a personalized challenge (moved before /:id route)
+  router.post('/generate', 
+    authenticateUser, 
+    (req, res) => challengeController.generateChallenge(req, res)
+  );
+  
   // Get a specific challenge (must be owner or admin)
   router.get('/:id', 
     authenticateUser,
@@ -44,12 +56,6 @@ export default function challengeRoutes(challengeController) {
       getResourceOwner: getChallengeOwner
     }),
     (req, res) => challengeController.getChallenge(req, res)
-  );
-  
-  // Create a new challenge
-  router.post('/', 
-    authenticateUser, 
-    (req, res) => challengeController.createChallenge(req, res)
   );
   
   // Submit challenge response (must be owner or admin)
@@ -64,18 +70,6 @@ export default function challengeRoutes(challengeController) {
     (req, res) => challengeController.submitChallengeResponse(req, res)
   );
   
-  // Get challenge types (available to all authenticated users)
-  router.get('/types', 
-    authenticateUser, 
-    (req, res) => challengeController.getChallengeTypes(req, res)
-  );
-  
-  // Generate a personalized challenge
-  router.post('/generate', 
-    authenticateUser, 
-    (req, res) => challengeController.generateChallenge(req, res)
-  );
-  
   // Challenge history for a specific user (must be same user or admin)
   router.get('/user/:userId/history', 
     authenticateUser,
@@ -85,6 +79,12 @@ export default function challengeRoutes(challengeController) {
       action: 'read'
     }),
     (req, res) => challengeController.getChallengeHistoryByUserId(req, res)
+  );
+  
+  // Create a new challenge
+  router.post('/', 
+    authenticateUser, 
+    (req, res) => challengeController.createChallenge(req, res)
   );
   
   // Admin operations

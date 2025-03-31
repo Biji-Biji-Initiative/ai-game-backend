@@ -7,11 +7,11 @@ import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { initializeSwagger } from "./config/swaggerSetup.js";
+import { initializeSwagger } from "@/config/swaggerSetup.js";
 import OpenApiValidator from 'express-openapi-validator';
 
 // Import container for dependency injection
-import { container } from "./config/container.js";
+import { container } from "@/config/container.js";
 const config = container.get('config');
 
 // Log application startup information
@@ -23,17 +23,17 @@ console.log('Environment:', {
 });
 
 // Get dependencies from container
-import { logger } from "./core/infra/logging/logger.js";
+import { logger } from "@/core/infra/logging/logger.js";
 import {
   requestLogger,
   errorLogger,
   correlationIdMiddleware,
-} from "./core/infra/logging/logger.js";
+} from "@/core/infra/logging/logger.js";
 // eslint-disable-next-line import/no-unresolved
-import { errorHandler, notFoundHandler } from "./core/infra/errors/ErrorHandler.js";
-import { responseFormatterMiddleware } from "./core/infra/http/responseFormatter.js";
-import RouteFactory from "./core/infra/http/routes/RouteFactory.js";
-import { applyRateLimiting } from "./core/infra/http/middleware/rateLimit.js";
+import { errorHandler, notFoundHandler } from "@/core/infra/errors/ErrorHandler.js";
+import { responseFormatterMiddleware } from "@/core/infra/http/responseFormatter.js";
+import RouteFactory from "@/core/infra/http/routes/RouteFactory.js";
+import { applyRateLimiting } from "@/core/infra/http/middleware/rateLimit.js";
 
 // Import domain events system - now used directly in event handling registration
 import { registerEventHandlers } from "@/application/EventHandlers.js";
@@ -42,7 +42,7 @@ import { registerEventHandlers } from "@/application/EventHandlers.js";
 registerEventHandlers(container);
 
 // Register domain event handlers (moved to a separate file)
-import { registerAllDomainEventHandlers } from "./core/infra/events/eventSetup.js";
+import { registerAllDomainEventHandlers } from "@/core/infra/events/eventSetup.js";
 
 // Get __dirname equivalent in ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -54,16 +54,24 @@ const app = express();
 // Create reusable CORS options function to avoid duplication
 const getCorsOptions = () => {
   const corsOptions = {
-    origin: config.isProduction 
-      ? (origin, callback) => {
-          // In production, allow only whitelisted origins
-          if (!origin || (Array.isArray(config.cors.allowedOrigins) && config.cors.allowedOrigins.includes(origin))) {
-            callback(null, true);
-          } else {
-            callback(new Error('Not allowed by CORS'));
-          }
+    origin: (origin, callback) => {
+      // Skip origin check if no origin (like same-origin requests)
+      if (!origin) {
+        return callback(null, true);
+      }
+      
+      // In production, strictly check against allowed origins list
+      if (config.isProduction) {
+        if (Array.isArray(config.cors.allowedOrigins) && config.cors.allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error(`Origin ${origin} not allowed by CORS policy`));
         }
-      : config.cors.allowedOrigins, // In development, use the value from config (defaults to '*')
+      } else {
+        // In development, use the configured value (typically '*')
+        callback(null, true);
+      }
+    },
     methods: config.cors.methods,
     allowedHeaders: config.cors.allowedHeaders,
     exposedHeaders: config.cors.exposedHeaders,
@@ -123,7 +131,10 @@ if (fs.existsSync(apiSpecPath)) {
 }
 
 // Ensure the API Tester UI static files
-const testerUiPath = path.join(__dirname, '../api-tester-ui');
+// NOTE: This is the only place where API tester UI static files should be served.
+// The application uses the admin directory for UI assets, not public/tester.
+// See JIRA-1 for history on this decision.
+const testerUiPath = path.join(__dirname, '../admin');
 app.use(config.api.testerPath, express.static(testerUiPath));
 logger.info(`API Tester UI available at ${config.api.testerPath}`);
 
@@ -137,7 +148,7 @@ app.get(`${config.api.prefix}/auth/status`, (req, res) => {
 });
 
 // Add API Tester specific endpoints for enhanced debugging
-import createApiTesterRoutes from "./core/infra/http/routes/apiTesterRoutes.js";
+import createApiTesterRoutes from "@/core/infra/http/routes/apiTesterRoutes.js";
 
 // Add middleware to make container available on request objects for API tester
 app.use((req, res, next) => {
@@ -177,10 +188,6 @@ async function mountRoutesAndFinalize() {
     next();
   });
 
-  // Make sure required tester static resources exist
-  app.use('/tester', express.static(path.join(__dirname, '../public/tester')));
-  logger.info('Tester UI static files mounted at /tester');
-  
   // Mount the actual API routes
   await routeFactory.mountAll(app, config.api.prefix);
   logger.info(`Routes mounted successfully at ${config.api.prefix}`);

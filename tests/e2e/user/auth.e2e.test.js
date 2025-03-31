@@ -13,8 +13,8 @@ import axios from 'axios';
 import { expect } from 'chai';
 import { v4 as uuidv4 } from 'uuid';
 import { setupTestUser, getAuthToken, apiRequest } from '../../helpers/apiTestHelper.js';
-import { UserDTO } from '../../../src/core/user/dtos/UserDTO.js';
-import { supabaseClient } from '../../../src/core/infra/db/supabaseClient.js';
+import { UserDTO } from "@/core/user/dtos/UserDTO.js";
+import { supabaseClient } from "@/core/infra/db/supabaseClient.js";
 
 // Base URL for API requests - used only for direct axios calls
 const API_URL = process.env.API_URL || 'http://localhost:3000/api/v1';

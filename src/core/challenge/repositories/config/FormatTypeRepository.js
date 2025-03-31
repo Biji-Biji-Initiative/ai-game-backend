@@ -1,10 +1,10 @@
-import FormatType from "../../../challenge/models/config/FormatType.js";
-import formatTypeMapper from "../../../challenge/mappers/FormatTypeMapper.js";
-import { challengeLogger } from "../../../infra/logging/domainLogger.js";
-import { supabaseClient } from "../../../infra/db/supabaseClient.js";
-import { BaseRepository, ValidationError, DatabaseError, EntityNotFoundError } from "../../../infra/repositories/BaseRepository.js";
-import { withRepositoryErrorHandling, createErrorMapper } from "../../../infra/errors/errorStandardization.js";
-import challengeErrors from "../../../challenge/errors/ChallengeErrors.js";
+import FormatType from "@/core/challenge/models/config/FormatType.js";
+import formatTypeMapper from "@/core/challenge/mappers/FormatTypeMapper.js";
+import { challengeLogger } from "@/core/infra/logging/domainLogger.js";
+import { supabaseClient } from "@/core/infra/db/supabaseClient.js";
+import { BaseRepository, ValidationError, DatabaseError, EntityNotFoundError } from "@/core/infra/repositories/BaseRepository.js";
+import { withRepositoryErrorHandling, createErrorMapper } from "@/core/infra/errors/errorStandardization.js";
+import challengeErrors from "@/core/challenge/errors/ChallengeErrors.js";
 'use strict';
 // Challenge domain errors - imported via error mapper but not directly used
 // ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeRepositoryError

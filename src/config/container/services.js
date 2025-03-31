@@ -1,34 +1,34 @@
 // Core Services
-import OpenAIStateManagerAdapter from "../../core/ai/adapters/OpenAIStateManagerAdapter.js";
-import OpenAIClientAdapter from "../../core/ai/adapters/OpenAIClientAdapter.js";
-import PersonalityService from "../../core/personality/services/PersonalityService.js";
-import MockInsightGenerator from "../../core/infra/services/MockInsightGenerator.js";
-import { OpenAIInsightGenerator } from "../../core/infra/services/OpenAIInsightGenerator.js";
-import TraitsAnalysisService from "../../core/personality/services/TraitsAnalysisService.js";
-import PersonalityDataLoader from "../../core/personality/services/PersonalityDataLoader.js";
-import AdaptiveService from "../../core/adaptive/services/AdaptiveService.js";
-import ProgressService from "../../core/progress/services/ProgressService.js";
+import OpenAIStateManagerAdapter from "@/core/ai/adapters/OpenAIStateManagerAdapter.js";
+import OpenAIClientAdapter from "@/core/ai/adapters/OpenAIClientAdapter.js";
+import PersonalityService from "@/core/personality/services/PersonalityService.js";
+import MockInsightGenerator from "@/core/infra/services/MockInsightGenerator.js";
+import { OpenAIInsightGenerator } from "@/core/infra/services/OpenAIInsightGenerator.js";
+import TraitsAnalysisService from "@/core/personality/services/TraitsAnalysisService.js";
+import PersonalityDataLoader from "@/core/personality/services/PersonalityDataLoader.js";
+import AdaptiveService from "@/core/adaptive/services/AdaptiveService.js";
+import ProgressService from "@/core/progress/services/ProgressService.js";
 // AI Chat Services - temporarily commented out until fixed
 // import AiChatService from "../../services/ai/AiChatService.js";
 // import AiAnalysisService from "../../services/ai/AiAnalysisService.js";
-import UserService from "../../core/user/services/UserService.js";
-import UserPreferencesManager from "../../core/user/services/UserPreferencesManager.js";
-import UserJourneyService from "../../core/userJourney/services/UserJourneyService.js";
-import ChallengePersonalizationService from "../../core/challenge/services/ChallengePersonalizationService.js";
-import ChallengeConfigService from "../../core/challenge/services/ChallengeConfigService.js";
-import { ChallengeService } from "../../core/challenge/services/ChallengeService.js";
-import EvaluationService from "../../core/evaluation/services/evaluationService.js";
-import FocusAreaService from "../../core/focusArea/services/FocusAreaService.js";
-import FocusAreaThreadService from "../../core/focusArea/services/focusAreaThreadService.js";
-import FocusAreaValidationService from "../../core/focusArea/services/FocusAreaValidationService.js";
-import HealthCheckService from "../../core/infra/health/HealthCheckService.js";
-import ChallengeFactory from "../../core/challenge/factories/ChallengeFactory.js";
+import UserService from "@/core/user/services/UserService.js";
+import UserPreferencesManager from "@/core/user/services/UserPreferencesManager.js";
+import UserJourneyService from "@/core/userJourney/services/UserJourneyService.js";
+import ChallengePersonalizationService from "@/core/challenge/services/ChallengePersonalizationService.js";
+import ChallengeConfigService from "@/core/challenge/services/ChallengeConfigService.js";
+import { ChallengeService } from "@/core/challenge/services/ChallengeService.js";
+import EvaluationService from "@/core/evaluation/services/evaluationService.js";
+import FocusAreaService from "@/core/focusArea/services/FocusAreaService.js";
+import FocusAreaValidationService from "@/core/focusArea/services/FocusAreaValidationService.js";
+import HealthCheckService from "@/core/infra/health/HealthCheckService.js";
+import ChallengeFactory from "@/core/challenge/factories/ChallengeFactory.js";
 // Application services
 import FocusAreaGenerationService from "@/application/focusArea/FocusAreaGenerationService.js";
+import FocusAreaThreadService from "@/application/focusArea/services/FocusAreaThreadService.js";
 import ChallengeGenerationService from "@/application/challenge/ChallengeGenerationService.js";
 import ChallengeEvaluationService from "@/application/challenge/ChallengeEvaluationService.js";
 import { UserContextService } from "@/application/evaluation/UserContextService.js";
-import AuthorizationService from "../../core/auth/services/AuthorizationService.js";
+import AuthorizationService from "@/core/auth/services/AuthorizationService.js";
 'use strict';
 /**
  * Service Components Registration
@@ -45,12 +45,23 @@ function registerServiceComponents(container) {
     // Register domain services - generally not singletons as they should be stateless
     // and safe to use in concurrent requests
     container.register('userService', c => {
-        return new UserService({
+        const userService = new UserService({
             userRepository: c.get('userRepository'),
-            logger: c.get('logger'),
+            logger: c.get('userLogger'),
             eventBus: c.get('eventBus'),
             cacheService: c.get('cacheService')
         });
+        
+        // Set up for dependency injection after both services are created
+        setTimeout(() => {
+            try {
+                userService.userPreferencesManager = c.get('userPreferencesManager');
+            } catch (error) {
+                c.get('userLogger').error('Failed to inject userPreferencesManager into userService', { error });
+            }
+        }, 0);
+        
+        return userService;
     }, false // Transient: user-specific operations should be isolated
     );
     
@@ -58,7 +69,7 @@ function registerServiceComponents(container) {
     container.register('userPreferencesManager', c => {
         return new UserPreferencesManager({
             userService: c.get('userService'),
-            logger: c.get('logger')
+            logger: c.get('userLogger')
         });
     }, false // Transient: handles user-specific preference operations
     );
@@ -70,7 +81,7 @@ function registerServiceComponents(container) {
     container.register('userJourneyService', c => {
         return new UserJourneyService({
             userJourneyRepository: c.get('userJourneyRepository'),
-            logger: c.get('logger'),
+            logger: c.get('userJourneyLogger'),
         });
     }, false // Transient: handles user-specific journey data
     );
@@ -85,7 +96,7 @@ function registerServiceComponents(container) {
     container.register('adaptiveService', c => {
         return new AdaptiveService({
             adaptiveRepository: c.get('adaptiveRepository'),
-            logger: c.get('logger'),
+            logger: c.get('adaptiveLogger'),
             eventBus: c.get('eventBus'),
         });
     }, false // Transient: handles user-specific adaptive difficulty
@@ -96,14 +107,14 @@ function registerServiceComponents(container) {
             focusAreaRepository: c.get('focusAreaRepository'),
             eventBus: c.get('eventBus'),
             eventTypes: c.get('eventTypes'),
-            logger: c.get('logger')
+            logger: c.get('focusAreaLogger')
         });
     }, false // Transient: handles user-specific focus areas
     );
     // Register focusAreaThreadService
     container.register('focusAreaThreadService', c => {
         return new FocusAreaThreadService({
-            openAIStateManager: c.get('aiStateManager'),
+            focusAreaThreadState: c.get('focusAreaThreadState'),
             logger: c.get('focusAreaLogger')
         });
     }, false); // Transient: manages user-specific focus area threads
@@ -243,7 +254,7 @@ function registerServiceComponents(container) {
     // Miscellaneous utilities
     container.register('healthCheckService', c => {
         return new HealthCheckService({
-            logger: c.get('logger'),
+            logger: c.get('infraLogger'),
             openai: c.get('openAIClient')
         });
     });

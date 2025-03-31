@@ -1,9 +1,11 @@
 import { v4 as uuidv4 } from "uuid";
-import { getCacheService, getCacheInvalidationManager } from "../../infra/cache/cacheFactory.js";
-import { withServiceErrorHandling, createErrorMapper } from "../../infra/errors/errorStandardization.js";
-import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError } from "../../challenge/errors/ChallengeErrors.js";
-import challengeErrors from "../../challenge/errors/ChallengeErrors.js";
-import { Email, UserId, ChallengeId, FocusArea, createEmail, createUserId, createChallengeId, createFocusArea } from "../../common/valueObjects/index.js";
+import { getCacheService, getCacheInvalidationManager } from "@/core/infra/cache/cacheFactory.js";
+import { withServiceErrorHandling, createErrorMapper } from "@/core/infra/errors/errorStandardization.js";
+import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError } from "@/core/challenge/errors/ChallengeErrors.js";
+import challengeErrors from "@/core/challenge/errors/ChallengeErrors.js";
+import { Email, UserId, ChallengeId, FocusArea, createEmail, createUserId, createChallengeId, createFocusArea } from "@/core/common/valueObjects/index.js";
+import ConfigurationError from "@/core/infra/errors/ConfigurationError.js";
+import { validateDependencies } from "@/core/shared/utils/serviceUtils.js";
 'use strict';
 
 const { ValidationError } = challengeErrors;
@@ -44,28 +46,44 @@ class ChallengeService {
     constructor(dependencies = {}) {
         const { challengeRepository, userService, logger } = dependencies;
         
-        // In any environment, try to use provided dependencies but fall back to mocks if needed
-        this.repository = challengeRepository || {
-            findById: () => Promise.resolve(null),
-            findByUserEmail: () => Promise.resolve([]),
-            findByUserId: () => Promise.resolve([]),
-            findAll: () => Promise.resolve([]),
-            save: (challenge) => Promise.resolve(challenge),
-            update: (challenge) => Promise.resolve(challenge),
-            delete: () => Promise.resolve(true)
-        };
+        // Validate required dependencies
+        validateDependencies(dependencies, {
+            serviceName: 'ChallengeService',
+            required: ['challengeRepository', 'logger'],
+            productionOnly: true
+        });
+        
+        // Store repository reference
+        this.repository = challengeRepository;
+        
+        // In development mode, provide mock fallbacks if needed
+        if (process.env.NODE_ENV !== 'production' && !challengeRepository) {
+            this.repository = {
+                findById: () => Promise.resolve(null),
+                findByUserEmail: () => Promise.resolve([]),
+                findByUserId: () => Promise.resolve([]),
+                findAll: () => Promise.resolve([]),
+                save: (challenge) => Promise.resolve(challenge),
+                update: (challenge) => Promise.resolve(challenge),
+                delete: () => Promise.resolve(true)
+            };
+        }
         
         // Store userService reference for resolving user IDs
         this.userService = userService;
         
-        this.logger = logger || console;
+        // No fallback for logger in any environment
+        this.logger = logger;
+        
+        if (!this.logger) {
+            throw new ConfigurationError('Logger is required for ChallengeService', {
+                serviceName: 'ChallengeService',
+                dependencyName: 'logger'
+            });
+        }
         
         if (process.env.NODE_ENV === 'production') {
-            if (!challengeRepository) {
-                console.warn('WARNING: ChallengeService running in production mode with mock repository. This is not recommended.');
-            } else {
-                console.log('ChallengeService initialized in production mode with real repository');
-            }
+            console.log('ChallengeService initialized in production mode with real repository');
         } else {
             console.log('ChallengeService running in development mode with ' + 
                 (challengeRepository ? 'real' : 'mock') + ' repository');

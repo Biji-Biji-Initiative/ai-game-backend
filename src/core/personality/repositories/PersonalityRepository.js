@@ -1,12 +1,12 @@
-import Personality from "../../personality/models/Personality.js";
-import personalityMapper from "../../personality/mappers/PersonalityMapper.js";
-import { supabaseClient } from "../../infra/db/supabaseClient.js";
+import Personality from "@/core/personality/models/Personality.js";
+import personalityMapper from "@/core/personality/mappers/PersonalityMapper.js";
+import { supabaseClient } from "@/core/infra/db/supabaseClient.js";
 import { v4 as uuidv4 } from "uuid";
-import { personalityDatabaseSchema } from "../../personality/schemas/personalitySchema.js";
-import domainEvents from "../../common/events/domainEvents.js";
-import { BaseRepository, EntityNotFoundError, ValidationError, DatabaseError } from "../../infra/repositories/BaseRepository.js";
-import { PersonalityError, PersonalityNotFoundError, PersonalityValidationError, PersonalityRepositoryError } from "../../personality/errors/PersonalityErrors.js";
-import { createErrorMapper, createErrorCollector, withRepositoryErrorHandling } from "../../infra/errors/errorStandardization.js";
+import { personalityDatabaseSchema } from "@/core/personality/schemas/personalitySchema.js";
+import domainEvents from "@/core/common/events/domainEvents.js";
+import { BaseRepository, EntityNotFoundError, ValidationError, DatabaseError } from "@/core/infra/repositories/BaseRepository.js";
+import { PersonalityError, PersonalityNotFoundError, PersonalityValidationError, PersonalityRepositoryError } from "@/core/personality/errors/PersonalityErrors.js";
+import { createErrorMapper, createErrorCollector, withRepositoryErrorHandling } from "@/core/infra/errors/errorStandardization.js";
 'use strict';
 const { eventBus, EventTypes } = domainEvents;
 // Create an error mapper for the personality domain

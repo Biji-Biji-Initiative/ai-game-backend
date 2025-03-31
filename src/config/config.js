@@ -6,7 +6,7 @@
  * configuration. This separates infrastructure concerns from domain knowledge.
  */
 // Load domain-specific configurations
-import personalityConfig from "../core/personality/config/personalityConfig.js";
+import personalityConfig from "@/core/personality/config/personalityConfig.js";
 // Main application configuration
 const config = {
     // Server configuration
@@ -21,13 +21,15 @@ const config = {
         prefix: process.env.API_PREFIX || '/api/v1',
         // API documentation path
         docsPath: process.env.API_DOCS_PATH || '/api-docs',
-        // API tester UI path
+        // API tester UI path - serves static assets from the admin directory
         testerPath: process.env.API_TESTER_PATH || '/tester',
     },
     // CORS configuration
     cors: {
-        // In production, use env var for allowed origins; in dev, allow all
-        allowedOrigins: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*',
+        // In production, require explicit allowed origins
+        allowedOrigins: process.env.NODE_ENV === 'production'
+            ? (process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [])
+            : '*',
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
         exposedHeaders: ['X-Request-Id', 'X-Response-Time'],

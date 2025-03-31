@@ -1,6 +1,6 @@
 import express from 'express';
-import ProgressController from "../../../progress/controllers/ProgressController.js";
-import { authenticateUser } from "../../../infra/http/middleware/auth.js";
+import ProgressController from "@/core/progress/controllers/ProgressController.js";
+import { authenticateUser } from "@/core/infra/http/middleware/auth.js";
 'use strict';
 
 /**

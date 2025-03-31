@@ -1,4 +1,4 @@
-import FocusArea from "../../challenge/models/config/FocusArea.js";
+import FocusArea from "@/core/challenge/models/config/FocusArea.js";
 'use strict';
 /**
  * FocusAreaMapper class

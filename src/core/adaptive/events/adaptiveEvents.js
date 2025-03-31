@@ -1,7 +1,9 @@
 import domainEvents from "../../common/events/domainEvents.js";
 import { logger } from "../../infra/logging/logger.js";
-'use strict';
-/**
+
+import { AdaptiveRepository } from '../repositories/adaptiveRepository.js';'use strict';
+
+import { AdaptiveRepository } from '../repositories/adaptiveRepository.js';/**
  * Adaptive Domain Events
  *
  * Events that occur within the Adaptive domain.
@@ -22,11 +24,45 @@ const {
  */
 async function publishRecommendationGenerated(userEmail, recommendations, source) {
   try {
+    
+  // Get entity to add domain event
+  const entity = await adaptiveRepository.findById(adaptiveId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.ADAPTIVE_RECOMMENDATION_GENERATED, {
+      userEmail,
+      recommendations,
+      source
+    });
+    
+    // Save entity which will publish the event
+    await adaptiveRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${adaptiveId} not found for event ADAPTIVE_RECOMMENDATION_GENERATED. Using direct event publishing.`);
+    
+  // Get entity to add domain event
+  const entity = await adaptiveRepository.findById(adaptiveId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.ADAPTIVE_RECOMMENDATION_GENERATED, {
+      userEmail,
+      recommendations,
+      source
+    });
+    
+    // Save entity which will publish the event
+    await adaptiveRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${adaptiveId} not found for event ADAPTIVE_RECOMMENDATION_GENERATED. Using direct event publishing.`);
     await eventBus.publishEvent(EventTypes.ADAPTIVE_RECOMMENDATION_GENERATED, {
       userEmail,
       recommendations,
       source
     });
+  }
+  }
     logger.debug('Published adaptive recommendation generated event', {
       userEmail,
       recommendationCount: recommendations.length

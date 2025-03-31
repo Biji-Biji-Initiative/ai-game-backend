@@ -1,5 +1,5 @@
-import AppError from "../../infra/errors/AppError.js";
-import { StandardErrorCodes } from "../../infra/errors/ErrorHandler.js";
+import AppError from "@/core/infra/errors/AppError.js";
+import { StandardErrorCodes } from "@/core/infra/errors/ErrorHandler.js";
 'use strict';
 /**
  * Base class for Personality domain errors

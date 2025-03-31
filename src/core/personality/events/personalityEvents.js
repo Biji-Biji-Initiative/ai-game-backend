@@ -1,7 +1,9 @@
 import domainEvents from "../../common/events/domainEvents.js";
 import { logger } from "../../infra/logging/logger.js";
-'use strict';
-/**
+
+import { PersonalityRepository } from '../repositories/personalityRepository.js';'use strict';
+
+import { PersonalityRepository } from '../repositories/personalityRepository.js';/**
  * Personality Domain Events
  *
  * Events that occur within the Personality domain.
@@ -23,6 +25,44 @@ const {
  */
 async function publishTraitIdentified(userEmail, traitName, traitScore, source) {
   try {
+    
+  // Get entity to add domain event
+  const entity = await personalityRepository.findById(personalityId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.PERSONALITY_TRAIT_IDENTIFIED, {
+      userEmail,
+      trait: {
+        name: traitName,
+        score: traitScore
+      },
+      source
+    });
+    
+    // Save entity which will publish the event
+    await personalityRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${personalityId} not found for event PERSONALITY_TRAIT_IDENTIFIED. Using direct event publishing.`);
+    
+  // Get entity to add domain event
+  const entity = await personalityRepository.findById(personalityId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.PERSONALITY_TRAIT_IDENTIFIED, {
+      userEmail,
+      trait: {
+        name: traitName,
+        score: traitScore
+      },
+      source
+    });
+    
+    // Save entity which will publish the event
+    await personalityRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${personalityId} not found for event PERSONALITY_TRAIT_IDENTIFIED. Using direct event publishing.`);
     await eventBus.publishEvent(EventTypes.PERSONALITY_TRAIT_IDENTIFIED, {
       userEmail,
       trait: {
@@ -31,6 +71,8 @@ async function publishTraitIdentified(userEmail, traitName, traitScore, source) 
       },
       source
     });
+  }
+  }
     logger.debug('Published personality trait identified event', {
       userEmail,
       traitName
@@ -51,6 +93,42 @@ async function publishTraitIdentified(userEmail, traitName, traitScore, source) 
  */
 async function publishProfileUpdated(userEmail, profile) {
   try {
+    
+  // Get entity to add domain event
+  const entity = await personalityRepository.findById(personalityId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
+      userEmail,
+      profile: {
+        dominantTraits: profile.dominantTraits || [],
+        traitScores: profile.traitScores || {}
+      }
+    });
+    
+    // Save entity which will publish the event
+    await personalityRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${personalityId} not found for event PERSONALITY_PROFILE_UPDATED. Using direct event publishing.`);
+    
+  // Get entity to add domain event
+  const entity = await personalityRepository.findById(personalityId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
+      userEmail,
+      profile: {
+        dominantTraits: profile.dominantTraits || [],
+        traitScores: profile.traitScores || {}
+      }
+    });
+    
+    // Save entity which will publish the event
+    await personalityRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${personalityId} not found for event PERSONALITY_PROFILE_UPDATED. Using direct event publishing.`);
     await eventBus.publishEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
       userEmail,
       profile: {
@@ -58,6 +136,8 @@ async function publishProfileUpdated(userEmail, profile) {
         traitScores: profile.traitScores || {}
       }
     });
+  }
+  }
     logger.debug('Published personality profile updated event', {
       userEmail
     });

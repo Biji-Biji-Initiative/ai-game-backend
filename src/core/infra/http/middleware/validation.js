@@ -8,8 +8,8 @@
  * @module validation
  * @requires zod
  */
-import AppError, { AppError as NamedAppError } from "../../../infra/errors/AppError.js";
-import { logger } from "../../../infra/logging/logger.js";
+import AppError, { AppError as NamedAppError } from "@/core/infra/errors/AppError.js";
+import { logger } from "@/core/infra/logging/logger.js";
 
 // Use either the named import or default import based on what's available
 const ErrorClass = NamedAppError || AppError;

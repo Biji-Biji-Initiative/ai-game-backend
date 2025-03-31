@@ -1,8 +1,8 @@
-import domainEvents from "../../common/events/domainEvents.js";
+import domainEvents from "@/core/common/events/domainEvents.js";
 import { v4 as uuidv4 } from "uuid";
-import { personalitySchema } from "../../personality/schemas/personalitySchema.js";
-import { TraitsValidationError, AttitudesValidationError } from "../../personality/errors/PersonalityErrors.js";
-import Entity from "../../common/models/Entity.js";
+import { personalitySchema } from "@/core/personality/schemas/personalitySchema.js";
+import { TraitsValidationError, AttitudesValidationError } from "@/core/personality/errors/PersonalityErrors.js";
+import Entity from "@/core/common/models/Entity.js";
 'use strict';
 /**
  * Personality Domain Model

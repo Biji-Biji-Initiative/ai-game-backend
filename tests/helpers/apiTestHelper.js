@@ -5,7 +5,7 @@
  */
 import { randomUUID } from 'crypto';
 import axios from 'axios';
-import { supabaseClient } from "../../src/core/infra/db/supabaseClient.js";
+import { supabaseClient } from "@/core/infra/db/supabaseClient.js";
 import testConfig from '../loadEnv.js';
 import { v4 as uuidv4 } from 'uuid';
 // Initialize test environment

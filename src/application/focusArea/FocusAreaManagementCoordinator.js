@@ -1,10 +1,10 @@
 import BaseCoordinator from "@/application/BaseCoordinator.js";
-import { FocusAreaError } from "../../core/focusArea/errors/focusAreaErrors.js";
+import { FocusAreaError } from "@/core/focusArea/errors/focusAreaErrors.js";
 import { 
     createUserId, createEmail, createFocusArea, 
     Email, UserId, FocusArea,
     ensureVO 
-} from "../../core/common/valueObjects/index.js";
+} from "@/core/common/valueObjects/index.js";
 'use strict';
 /**
  * FocusAreaManagementCoordinator class
@@ -43,10 +43,12 @@ class FocusAreaManagementCoordinator extends BaseCoordinator {
         this.focusAreaGenerationCoordinator = dependencies.focusAreaGenerationCoordinator;
     }
     /**
-     * Get focus areas for a user
+     * Get focus areas for a user with clear options for retrieval behavior
+     * 
      * @param {string|UserId} userId - User ID whose focus areas to retrieve
      * @param {Object} [options={}] - Retrieval options
-     * @param {boolean} [options.forceRefresh=false] - Force refresh from API even if cached
+     * @param {boolean} [options.generateIfMissing=true] - Generate focus areas if none exist
+     * @param {boolean} [options.forceRegeneration=false] - Force regeneration of focus areas
      * @param {boolean} [options.nameOnly=false] - Return only focus area names
      * @returns {Promise<Array>} List of personalized focus areas
      * @throws {FocusAreaError} If retrieval fails or user not found
@@ -58,40 +60,102 @@ class FocusAreaManagementCoordinator extends BaseCoordinator {
             if (!userIdVO) {
                 throw new FocusAreaError(`Invalid user ID: ${userId}`, 400);
             }
-            // First check if the user has existing focus areas in the database
-            let existingFocusAreas = [];
-            try {
-                existingFocusAreas = await this.focusAreaService.getFocusAreasForUser(userIdVO.value);
+
+            // Set default options
+            const retrievalOptions = {
+                generateIfMissing: true,
+                forceRegeneration: false,
+                nameOnly: false,
+                ...options
+            };
+            
+            // First, try to retrieve existing focus areas if not forcing regeneration
+            let focusAreas = [];
+            if (!retrievalOptions.forceRegeneration) {
+                try {
+                    focusAreas = await this.retrieveExistingFocusAreas(userIdVO.value);
+                    
+                    // If we have focus areas, return them
+                    if (focusAreas.length > 0) {
+                        this.logger.debug('Using existing focus areas', { 
+                            userId: userIdVO.value, 
+                            count: focusAreas.length 
+                        });
+                        
+                        return retrievalOptions.nameOnly
+                            ? focusAreas.map(area => area.name)
+                            : focusAreas;
+                    }
+                } catch (error) {
+                    this.logger.warn('Error retrieving existing focus areas', {
+                        userId: userIdVO.value,
+                        error: error.message
+                    });
+                    // We continue to generation if needed
+                }
             }
-            catch (error) {
-                this.logger.warn('Error fetching existing focus areas, continuing with generation', {
-                    userId: userIdVO.value,
-                    error: error.message
-                });
+            
+            // If we need to generate focus areas (missing or forced)
+            if ((focusAreas.length === 0 && retrievalOptions.generateIfMissing) || 
+                retrievalOptions.forceRegeneration) {
+                
+                // Generate new focus areas
+                return this.generateFocusAreas(userIdVO.value, retrievalOptions);
             }
-            // If focus areas exist and not forcing refresh, return them
-            if (existingFocusAreas.length > 0 && !options.forceRefresh) {
-                return options.nameOnly
-                    ? existingFocusAreas.map(area => area.name)
-                    : existingFocusAreas;
-            }
-            // No focus areas found or forcing refresh, use generation coordinator
-            if (!this.focusAreaGenerationCoordinator) {
-                throw new FocusAreaError('Focus area generation coordinator not available', 500);
-            }
-            // Generate new focus areas
-            const generatedFocusAreas = await this.focusAreaGenerationCoordinator.regenerateFocusAreas(userIdVO.value);
-            // Return focus areas based on requested format
-            return options.nameOnly
-                ? generatedFocusAreas.map(area => area.name)
-                : generatedFocusAreas;
-        }, 'getFocusAreas', { userId: userId instanceof UserId ? userId.value : userId, options }, FocusAreaError);
+            
+            // If we get here, we don't have focus areas and generateIfMissing is false
+            this.logger.debug('No focus areas found and generation not requested', { 
+                userId: userIdVO.value 
+            });
+            return [];
+        }, 'getFocusAreas', { 
+            userId: userId instanceof UserId ? userId.value : userId, 
+            options 
+        }, FocusAreaError);
+    }
+    /**
+     * Retrieve existing focus areas without generation fallback
+     * 
+     * @param {string} userId - User ID
+     * @returns {Promise<Array>} List of focus areas
+     * @private
+     */
+    async retrieveExistingFocusAreas(userId) {
+        this.logger.debug('Retrieving existing focus areas', { userId });
+        return this.focusAreaService.getFocusAreasForUser(userId);
+    }
+    /**
+     * Generate focus areas using the generation coordinator
+     * 
+     * @param {string} userId - User ID
+     * @param {Object} options - Generation options
+     * @returns {Promise<Array>} Generated focus areas
+     * @private
+     */
+    async generateFocusAreas(userId, options = {}) {
+        if (!this.focusAreaGenerationCoordinator) {
+            throw new FocusAreaError('Focus area generation coordinator not available', 500);
+        }
+
+        this.logger.debug('Generating focus areas', { 
+            userId, 
+            forceRegeneration: options.forceRegeneration 
+        });
+        
+        // Generate new focus areas
+        const generatedFocusAreas = await this.focusAreaGenerationCoordinator.regenerateFocusAreas(userId);
+        
+        // Return focus areas based on requested format
+        return options.nameOnly
+            ? generatedFocusAreas.map(area => area.name)
+            : generatedFocusAreas;
     }
     /**
      * Get focus areas for a user by email
      * @param {string|Email} userEmail - Email of the user whose focus areas to retrieve
      * @param {Object} [options={}] - Retrieval options
-     * @param {boolean} [options.forceRefresh=false] - Force refresh from API even if cached
+     * @param {boolean} [options.generateIfMissing=true] - Generate focus areas if none exist
+     * @param {boolean} [options.forceRegeneration=false] - Force regeneration of focus areas
      * @param {boolean} [options.nameOnly=false] - Return only focus area names
      * @returns {Promise<Array>} List of personalized focus areas
      * @throws {FocusAreaError} If user not found or retrieval fails
@@ -114,7 +178,10 @@ class FocusAreaManagementCoordinator extends BaseCoordinator {
                 throw new FocusAreaError(`Invalid user ID: ${user.id}`, 500);
             }
             // Get focus areas using the user's ID
-            return this.getFocusAreas(userIdVO, { ...options, nameOnly: true });
+            return this.getFocusAreas(userIdVO, { 
+                ...options, 
+                nameOnly: options.nameOnly !== undefined ? options.nameOnly : true 
+            });
         }, 'getFocusAreasForUser', { userEmail: userEmail instanceof Email ? userEmail.value : userEmail }, FocusAreaError);
     }
     /**
@@ -162,17 +229,27 @@ class FocusAreaManagementCoordinator extends BaseCoordinator {
                     }
                 }
             }
+            
+            // Get the user entity for adding domain events
+            const userEntity = await this.userService.getUserEntity(userIdVO.value);
+            if (!userEntity) {
+                throw new FocusAreaError(`User entity with ID ${userIdVO.value} not found`, 404);
+            }
+            
+            // Add domain event to the user entity
+            userEntity.addDomainEvent(this.EventTypes.USER_FOCUS_AREAS_SET, {
+                userId: userIdVO.value,
+                email: emailVO.value,
+                focusAreas: focusAreaVOs.map(fa => fa instanceof FocusArea ? fa.value : fa)
+            });
+            
             // Save focus areas using focusAreaService
             await this.focusAreaService.deleteAllForUser(userIdVO.value);
             await this.focusAreaService.save(userIdVO.value, focusAreaVOs.map(fa => fa instanceof FocusArea ? fa.value : fa));
-            // Publish a domain event if event bus is available
-            if (this.eventBus && this.EventTypes) {
-                await this.eventBus.publishEvent(this.EventTypes.USER_FOCUS_AREAS_SET, {
-                    userId: userIdVO.value,
-                    email: emailVO.value,
-                    focusAreas: focusAreaVOs.map(fa => fa instanceof FocusArea ? fa.value : fa)
-                });
-            }
+            
+            // Save the user entity to persist and publish domain events
+            await this.userService.saveUser(userEntity);
+            
             return true;
         }, 'setFocusAreasForUser', {
             email: email instanceof Email ? email.value : email,
@@ -212,17 +289,26 @@ class FocusAreaManagementCoordinator extends BaseCoordinator {
             if (!userIdVO) {
                 throw new FocusAreaError(`Invalid user ID: ${user.id}`, 500);
             }
-            // Update the user's focus area using userService
-            const updates = { focus_area: focusAreaVO.value };
-            const updatedUser = await this.userService.updateUser(emailVO.value, updates);
-            // Publish a domain event if event bus is available
-            if (this.eventBus && this.EventTypes) {
-                await this.eventBus.publishEvent(this.EventTypes.USER_FOCUS_AREA_SET, {
-                    userId: userIdVO.value,
-                    email: emailVO.value,
-                    focusArea: focusAreaVO.value
-                });
+            
+            // Get the user entity for adding domain events
+            const userEntity = await this.userService.getUserEntity(userIdVO.value);
+            if (!userEntity) {
+                throw new FocusAreaError(`User entity with ID ${userIdVO.value} not found`, 404);
             }
+            
+            // Update the user entity with the new focus area
+            userEntity.setFocusArea(focusAreaVO.value);
+            
+            // Add domain event to the user entity
+            userEntity.addDomainEvent(this.EventTypes.USER_FOCUS_AREA_SET, {
+                userId: userIdVO.value,
+                email: emailVO.value,
+                focusArea: focusAreaVO.value
+            });
+            
+            // Save the user entity to persist changes and publish domain events
+            const updatedUser = await this.userService.saveUser(userEntity);
+            
             return updatedUser;
         }, 'setUserFocusArea', {
             email: email instanceof Email ? email.value : email,

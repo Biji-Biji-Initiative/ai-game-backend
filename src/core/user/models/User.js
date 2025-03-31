@@ -1,7 +1,7 @@
-import domainEvents from "../../common/events/domainEvents.js";
-import { userSchema } from "../../user/schemas/userSchema.js";
-import { Email, FocusArea } from "../../common/valueObjects/index.js";
-import { UserValidationError, UserInvalidStateError } from "../../user/errors/UserErrors.js";
+import domainEvents from "@/core/common/events/domainEvents.js";
+import { userSchema } from "@/core/user/schemas/userSchema.js";
+import { Email, FocusArea } from "@/core/common/valueObjects/index.js";
+import { UserValidationError, UserInvalidStateError } from "@/core/user/errors/UserErrors.js";
 'use strict';
 /**
  * User domain model
@@ -80,6 +80,8 @@ class User {
             type: eventType,
             data: {
                 ...eventData,
+                // Always include entity identifiers
+                userId: this.id, // Include userId for user-related events
                 entityId: this.id,
                 entityType: 'User',
             },

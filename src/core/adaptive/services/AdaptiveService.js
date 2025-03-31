@@ -1,5 +1,5 @@
-import { createErrorMapper, withServiceErrorHandling } from "../../infra/errors/errorStandardization.js";
-import { AdaptiveError } from "../../adaptive/errors/adaptiveErrors.js";
+import { createErrorMapper, withServiceErrorHandling } from "@/core/infra/errors/errorStandardization.js";
+import { AdaptiveError } from "@/core/adaptive/errors/adaptiveErrors.js";
 import { v4 as uuidv4 } from "uuid";
 /**
  * Service for handling adaptive learning operations

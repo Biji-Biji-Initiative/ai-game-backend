@@ -1,7 +1,9 @@
 import domainEvents from "../../common/events/domainEvents.js";
 import { logger } from "../../infra/logging/logger.js";
-'use strict';
-/**
+
+import { FocusAreaRepository } from '../repositories/focusAreaRepository.js';'use strict';
+
+import { FocusAreaRepository } from '../repositories/focusAreaRepository.js';/**
  * Focus Area Domain Events
  *
  * Events that occur within the Focus Area domain.
@@ -20,10 +22,42 @@ const {
  */
 async function publishFocusAreaCreated(focusAreaId, name) {
   try {
+    
+  // Get entity to add domain event
+  const entity = await focusAreaRepository.findById(focusAreaId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.FOCUS_AREA_CREATED, {
+      focusAreaId,
+      name
+    });
+    
+    // Save entity which will publish the event
+    await focusAreaRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${focusAreaId} not found for event FOCUS_AREA_CREATED. Using direct event publishing.`);
+    
+  // Get entity to add domain event
+  const entity = await focusAreaRepository.findById(focusAreaId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.FOCUS_AREA_CREATED, {
+      focusAreaId,
+      name
+    });
+    
+    // Save entity which will publish the event
+    await focusAreaRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${focusAreaId} not found for event FOCUS_AREA_CREATED. Using direct event publishing.`);
     await eventBus.publishEvent(EventTypes.FOCUS_AREA_CREATED, {
       focusAreaId,
       name
     });
+  }
+  }
     logger.debug('Published focus area created event', {
       focusAreaId,
       name
@@ -44,10 +78,42 @@ async function publishFocusAreaCreated(focusAreaId, name) {
  */
 async function publishFocusAreaUpdated(focusAreaId, changes) {
   try {
+    
+  // Get entity to add domain event
+  const entity = await focusAreaRepository.findById(focusAreaId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.FOCUS_AREA_UPDATED, {
+      focusAreaId,
+      changes
+    });
+    
+    // Save entity which will publish the event
+    await focusAreaRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${focusAreaId} not found for event FOCUS_AREA_UPDATED. Using direct event publishing.`);
+    
+  // Get entity to add domain event
+  const entity = await focusAreaRepository.findById(focusAreaId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.FOCUS_AREA_UPDATED, {
+      focusAreaId,
+      changes
+    });
+    
+    // Save entity which will publish the event
+    await focusAreaRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${focusAreaId} not found for event FOCUS_AREA_UPDATED. Using direct event publishing.`);
     await eventBus.publishEvent(EventTypes.FOCUS_AREA_UPDATED, {
       focusAreaId,
       changes
     });
+  }
+  }
     logger.debug('Published focus area updated event', {
       focusAreaId
     });
@@ -66,10 +132,42 @@ async function publishFocusAreaUpdated(focusAreaId, changes) {
  */
 async function publishUserFocusAreaSet(userId, focusArea) {
   try {
+    
+  // Get entity to add domain event
+  const entity = await focusAreaRepository.findById(userId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.USER_FOCUS_AREA_SET, {
+      userId,
+      focusArea
+    });
+    
+    // Save entity which will publish the event
+    await focusAreaRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${userId} not found for event USER_FOCUS_AREA_SET. Using direct event publishing.`);
+    
+  // Get entity to add domain event
+  const entity = await focusAreaRepository.findById(userId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.USER_FOCUS_AREA_SET, {
+      userId,
+      focusArea
+    });
+    
+    // Save entity which will publish the event
+    await focusAreaRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${userId} not found for event USER_FOCUS_AREA_SET. Using direct event publishing.`);
     await eventBus.publishEvent(EventTypes.USER_FOCUS_AREA_SET, {
       userId,
       focusArea
     });
+  }
+  }
     logger.debug('Published user focus area set event', {
       userId,
       focusArea

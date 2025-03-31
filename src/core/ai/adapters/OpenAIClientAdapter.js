@@ -1,4 +1,5 @@
-import AIClient from "../../ai/ports/AIClient.js";
+import AIClient from "@/core/ai/ports/AIClient.js";
+import { OpenAIError } from "@/core/infra/errors/ApiIntegrationError.js";
 'use strict';
 /**
  * Implementation of AIClient using OpenAI's client
@@ -60,6 +61,7 @@ class OpenAIClientAdapter extends AIClient {
      * @param {Array} messages - The formatted messages to send
      * @param {Object} options - Additional options for the request
      * @returns {Promise<Object>} - The response from OpenAI
+     * @throws {OpenAIError} If the API request fails
      */
     async sendJsonMessage(messages, options = {}) {
         const correlationId = options.correlationId || `req_${Date.now()}`;
@@ -73,22 +75,47 @@ class OpenAIClientAdapter extends AIClient {
             messages: this._sanitizeMessagesForLogging(messages)
         });
 
-        const response = await this.openAIClient.sendJsonMessage(messages, options);
-        
-        // Log the full sanitized response
-        this.logger?.debug('Received JSON response from OpenAI', {
-            correlationId,
-            responseId: response?.responseId,
-            response: this._sanitizeResponseForLogging(response)
-        });
+        try {
+            const response = await this.openAIClient.sendJsonMessage(messages, options);
+            
+            // Log the full sanitized response
+            this.logger?.debug('Received JSON response from OpenAI', {
+                correlationId,
+                responseId: response?.responseId,
+                response: this._sanitizeResponseForLogging(response)
+            });
 
-        return response;
+            return response;
+        } catch (error) {
+            // Enhanced error with rich context
+            this.logger?.error('OpenAI API request failed', {
+                correlationId,
+                errorMessage: error.message,
+                statusCode: error.status || error.statusCode
+            });
+
+            throw new OpenAIError(`OpenAI API request failed: ${error.message}`, {
+                cause: error,
+                endpoint: '/v1/chat/completions',
+                method: 'POST',
+                statusCode: error.status || error.statusCode,
+                requestId: error.headers?.['x-request-id'],
+                model: options.model,
+                prompt: messages[0]?.content?.substring(0, 100) + '...', // Truncated for security
+                metadata: {
+                    messageCount: messages.length,
+                    correlationId: correlationId,
+                    operation: 'sendJsonMessage'
+                }
+            });
+        }
     }
     /**
      * Stream a message to OpenAI with real-time updates
      * @param {Array} messages - The formatted messages to send
      * @param {Object} options - Additional options for the request
      * @returns {Promise<void>}
+     * @throws {OpenAIError} If the API request fails
      */
     async streamMessage(messages, options = {}) {
         const correlationId = options.correlationId || `req_${Date.now()}`;
@@ -102,11 +129,36 @@ class OpenAIClientAdapter extends AIClient {
             messages: this._sanitizeMessagesForLogging(messages)
         });
 
-        await this.openAIClient.streamMessage(messages, options);
-        
-        this.logger?.debug('Completed streaming message to OpenAI', {
-            correlationId
-        });
+        try {
+            await this.openAIClient.streamMessage(messages, options);
+            
+            this.logger?.debug('Completed streaming message to OpenAI', {
+                correlationId
+            });
+        } catch (error) {
+            // Enhanced error with rich context
+            this.logger?.error('OpenAI API streaming request failed', {
+                correlationId,
+                errorMessage: error.message,
+                statusCode: error.status || error.statusCode
+            });
+
+            throw new OpenAIError(`OpenAI API streaming request failed: ${error.message}`, {
+                cause: error,
+                endpoint: '/v1/chat/completions',
+                method: 'POST',
+                statusCode: error.status || error.statusCode,
+                requestId: error.headers?.['x-request-id'],
+                model: options.model,
+                prompt: messages[0]?.content?.substring(0, 100) + '...', // Truncated for security
+                metadata: {
+                    messageCount: messages.length,
+                    correlationId: correlationId,
+                    operation: 'streamMessage',
+                    streaming: true
+                }
+            });
+        }
     }
 }
 export default OpenAIClientAdapter;

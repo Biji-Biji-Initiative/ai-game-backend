@@ -4,8 +4,8 @@
  * Provides specific error types for the User domain
  * following Domain-Driven Design principles.
  */
-import AppError from "../../infra/errors/AppError.js";
-import { StandardErrorCodes } from "../../infra/errors/ErrorHandler.js";
+import AppError from "@/core/infra/errors/AppError.js";
+import { StandardErrorCodes } from "@/core/infra/errors/ErrorHandler.js";
 /**
  * Base class for User domain errors
  */

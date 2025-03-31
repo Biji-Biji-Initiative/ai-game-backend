@@ -1,9 +1,9 @@
 import { expect } from "chai";
-import { FocusAreaGenerationService } from "../../../src/../../../src/core/focusArea/services/focusAreaGenerationService.js";
+import { FocusAreaGenerationService } from "@/../../../src/core/focusArea/services/focusAreaGenerationService.js";
 import sinon from "sinon";
 
-import { FocusAreaError, FocusAreaNotFoundError, FocusAreaValidationError, FocusAreaGenerationError, FocusAreaPersistenceError, FocusAreaAccessDeniedError } from "../../../src/core/focusArea/errors/focusAreaErrors.js";
-import FocusAreaId from "../../../src/core/common/valueObjects/FocusAreaId.js";
+import { FocusAreaError, FocusAreaNotFoundError, FocusAreaValidationError, FocusAreaGenerationError, FocusAreaPersistenceError, FocusAreaAccessDeniedError } from "@/core/focusArea/errors/focusAreaErrors.js";
+import FocusAreaId from "@/core/common/valueObjects/FocusAreaId.js";
 
 /**
  * Focus Area Generation Service System Message Tests

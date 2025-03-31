@@ -1,5 +1,5 @@
 import BaseCoordinator from "@/application/BaseCoordinator.js";
-import { FocusAreaError } from "../../core/focusArea/errors/focusAreaErrors.js";
+import { FocusAreaError } from "@/core/focusArea/errors/focusAreaErrors.js";
 'use strict';
 /**
  * FocusAreaGenerationCoordinator class
@@ -94,12 +94,26 @@ class FocusAreaGenerationCoordinator extends BaseCoordinator {
             if (focusAreas.length > 0 && focusAreas[0].metadata?.responseId) {
                 await this.focusAreaThreadService.updateWithResponseId(userData.focus_area_thread_id, focusAreas[0].metadata.responseId);
             }
-            // Publish domain event for focus area generation
-            await this.eventBus.publish(this.EventTypes.FOCUS_AREAS_GENERATED, {
-                userId: userData.id,
-                focusAreas: focusAreas.map(fa => fa.id || fa.code),
-                count: focusAreas.length,
-            });
+            
+            // Get user entity for adding domain events
+            const userEntity = await this.userService.getUserEntity(userData.id);
+            if (userEntity) {
+                // Add domain event to the user entity
+                userEntity.addDomainEvent(this.EventTypes.FOCUS_AREAS_GENERATED, {
+                    userId: userData.id,
+                    focusAreas: focusAreas.map(fa => fa.id || fa.code),
+                    count: focusAreas.length,
+                });
+                
+                // Save the user entity to persist and publish domain events
+                await this.userService.saveUser(userEntity);
+            } else {
+                this.logger.warn('Could not add domain event - user entity not found', {
+                    userId: userData.id,
+                    eventType: this.EventTypes.FOCUS_AREAS_GENERATED
+                });
+            }
+            
             return focusAreas;
         }, 'generateFocusAreas', context, FocusAreaError);
     }
@@ -118,8 +132,29 @@ class FocusAreaGenerationCoordinator extends BaseCoordinator {
             // Use thread service to create thread
             const threadId = await this.focusAreaThreadService.createThread(userId);
             try {
-                // Try to update user record with the new thread ID using userService instead of repository
-                await this.userService.updateUser(userId, { focus_area_thread_id: threadId });
+                // Get user entity for updating and adding domain events
+                const userEntity = await this.userService.getUserEntity(userId);
+                if (userEntity) {
+                    // Update the thread ID 
+                    userEntity.setFocusAreaThreadId(threadId);
+                    
+                    // Add domain event for thread creation
+                    userEntity.addDomainEvent(this.EventTypes.FOCUS_AREA_THREAD_CREATED, {
+                        userId,
+                        threadId
+                    });
+                    
+                    // Save the user entity to persist changes and publish domain events
+                    await this.userService.saveUser(userEntity);
+                } else {
+                    // Fallback to direct service update if entity not available
+                    await this.userService.updateUser(userId, { focus_area_thread_id: threadId });
+                    this.logger.warn('Could not add domain event - user entity not found', {
+                        userId,
+                        threadId,
+                        eventType: this.EventTypes.FOCUS_AREA_THREAD_CREATED
+                    });
+                }
             }
             catch (updateError) {
                 // Log the error but continue, since we already have the thread ID

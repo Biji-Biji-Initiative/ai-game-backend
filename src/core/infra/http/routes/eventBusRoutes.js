@@ -1,9 +1,9 @@
 import express from 'express';
-import { authenticateUser, requireAdmin } from "../middleware/auth.js";
-import { robustEventBus } from "../../../common/events/RobustEventBus.js";
-import { deadLetterQueueService } from "../../../common/events/DeadLetterQueueService.js";
-import { logger } from "../../../infra/logging/logger.js";
-import { createValidationMiddleware } from "../middleware/validationFactory.js";
+import { authenticateUser, requireAdmin } from "@/core/infra/http/middleware/auth.js";
+import { robustEventBus } from "@/core/common/events/RobustEventBus.js";
+import { deadLetterQueueService } from "@/core/common/events/DeadLetterQueueService.js";
+import { logger } from "@/core/infra/logging/logger.js";
+import { createValidationMiddleware } from "@/core/infra/http/middleware/validationFactory.js";
 import { z } from "zod";
 
 'use strict';

@@ -1,14 +1,14 @@
-import { logger } from "../../infra/logging/logger.js";
-import domainEvents from "../../common/events/domainEvents.js";
-import { registerEvaluationEventHandlers } from "../../evaluation/events/evaluationEvents.js";
-import { registerPersonalityEventHandlers } from "../../personality/events/personalityEvents.js";
-import { registerProgressEventHandlers } from "../../progress/events/progressEvents.js";
-import { registerAdaptiveEventHandlers } from "../../adaptive/events/adaptiveEvents.js";
-import { registerUserJourneyEventHandlers } from "../../userJourney/events/userJourneyEvents.js";
-import { registerFocusAreaEventHandlers } from "../../focusArea/events/focusAreaEvents.js";
-import { registerChallengeEventHandlers } from "../../challenge/events/challengeEvents.js";
-import { registerUserEventHandlers } from "../../user/events/userEvents.js";
-import { registerCacheInvalidationEventHandlers } from "../../../application/events/CacheInvalidationEventHandlers.js";
+import { logger } from "@/core/infra/logging/logger.js";
+import domainEvents from "@/core/common/events/domainEvents.js";
+import { registerEvaluationEventHandlers } from "@/core/evaluation/events/evaluationEvents.js";
+import { registerPersonalityEventHandlers } from "@/core/personality/events/personalityEvents.js";
+import { registerProgressEventHandlers } from "@/core/progress/events/progressEvents.js";
+import { registerAdaptiveEventHandlers } from "@/core/adaptive/events/adaptiveEvents.js";
+import { registerUserJourneyEventHandlers } from "@/core/userJourney/events/userJourneyEvents.js";
+import { registerFocusAreaEventHandlers } from "@/core/focusArea/events/focusAreaEvents.js";
+import { registerChallengeEventHandlers } from "@/core/challenge/events/challengeEvents.js";
+import { registerUserEventHandlers } from "@/core/user/events/userEvents.js";
+import { registerCacheInvalidationEventHandlers } from "@/application/events/CacheInvalidationEventHandlers.js";
 'use strict';
 const {
   eventBus,

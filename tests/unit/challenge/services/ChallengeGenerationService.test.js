@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import sinon from "sinon";
-import ChallengeGenerationService from "../../../../src/core/challenge/services/challengeGenerationService.js";
+import ChallengeGenerationService from "@/core/challenge/services/challengeGenerationService.js";
 'use strict';
 /**
  * Unit Tests for ChallengeGenerationService

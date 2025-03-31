@@ -1,11 +1,11 @@
-import ChallengeType from "../../../challenge/models/config/ChallengeType.js";
-import challengeTypeMapper from "../../../challenge/mappers/ChallengeTypeMapper.js";
-import { withRepositoryErrorHandling, createErrorMapper } from "../../../infra/errors/errorStandardization.js";
-import { supabaseClient } from "../../../infra/db/supabaseClient.js";
-import { BaseRepository, ValidationError, DatabaseError, EntityNotFoundError } from "../../../infra/repositories/BaseRepository.js";
-import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError } from "../../../challenge/errors/ChallengeErrors.js";
-import { challengeLogger } from "../../../infra/logging/domainLogger.js";
-import challengeErrors from "../../../challenge/errors/ChallengeErrors.js";
+import ChallengeType from "@/core/challenge/models/config/ChallengeType.js";
+import challengeTypeMapper from "@/core/challenge/mappers/ChallengeTypeMapper.js";
+import { withRepositoryErrorHandling, createErrorMapper } from "@/core/infra/errors/errorStandardization.js";
+import { supabaseClient } from "@/core/infra/db/supabaseClient.js";
+import { BaseRepository, ValidationError, DatabaseError, EntityNotFoundError } from "@/core/infra/repositories/BaseRepository.js";
+import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError } from "@/core/challenge/errors/ChallengeErrors.js";
+import { challengeLogger } from "@/core/infra/logging/domainLogger.js";
+import challengeErrors from "@/core/challenge/errors/ChallengeErrors.js";
 'use strict';
 
 // Preserve the error types

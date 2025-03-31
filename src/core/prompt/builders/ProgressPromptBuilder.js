@@ -1,7 +1,7 @@
-import { logger } from "../../infra/logging/logger.js";
-import { appendApiStandards, getStructuredOutputInstructions, getResponsesApiInstruction } from "../../prompt/common/apiStandards.js";
-import { validateProgressPromptParams } from "../../prompt/schemas/progressSchema.js";
-import messageFormatter from "../../infra/openai/messageFormatter.js";
+import { logger } from "@/core/infra/logging/logger.js";
+import { appendApiStandards, getStructuredOutputInstructions, getResponsesApiInstruction } from "@/core/prompt/common/apiStandards.js";
+import { validateProgressPromptParams } from "@/core/prompt/schemas/progressSchema.js";
+import messageFormatter from "@/core/infra/openai/messageFormatter.js";
 'use strict';
 const {
   formatForResponsesApi

@@ -4,9 +4,9 @@ import {
   authorizeResource, 
   authorizeUserSpecificResource, 
   requirePermission 
-} from '../../../../../../src/core/infra/http/middleware/resourceAuth.js';
-import AuthorizationService from '../../../../../../src/core/auth/services/AuthorizationService.js';
-import { UserAuthorizationError } from '../../../../../../src/core/user/errors/UserErrors.js';
+} from "@/core/infra/http/middleware/resourceAuth.js";
+import AuthorizationService from "@/core/auth/services/AuthorizationService.js";
+import { UserAuthorizationError } from "@/core/user/errors/UserErrors.js";
 
 describe('Resource Authorization Middleware', () => {
   // Create stubs and mocks

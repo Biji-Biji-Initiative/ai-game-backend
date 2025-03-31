@@ -1,8 +1,8 @@
 import { expect } from "chai";
 import sinon from "sinon";
-import { EvaluationRepository } from "../../../../src/core/evaluation/repositories/evaluationRepository.js";
-import Evaluation from "../../../../src/core/evaluation/models/Evaluation.js";
-import evaluationSchema from "../../../../src/core/evaluation/schemas/EvaluationSchema.js";
+import { EvaluationRepository } from "@/core/evaluation/repositories/evaluationRepository.js";
+import Evaluation from "@/core/evaluation/models/Evaluation.js";
+import evaluationSchema from "@/core/evaluation/schemas/EvaluationSchema.js";
 
 // Isolated test suite for unit testing the Evaluation Repository with Zod validation
 describe('Evaluation Repository with Zod Validation', () => {

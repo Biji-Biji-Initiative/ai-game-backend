@@ -1,5 +1,5 @@
 import BaseCoordinator from "@/application/BaseCoordinator.js";
-import { FocusAreaError as _FocusAreaError } from "../../core/focusArea/errors/focusAreaErrors.js";
+import { FocusAreaError as _FocusAreaError } from "@/core/focusArea/errors/focusAreaErrors.js";
 import FocusAreaGenerationCoordinator from "@/application/focusArea/FocusAreaGenerationCoordinator.js";
 import FocusAreaManagementCoordinator from "@/application/focusArea/FocusAreaManagementCoordinator.js";
 'use strict';
@@ -91,7 +91,8 @@ class FocusAreaCoordinatorFacade extends BaseCoordinator {
      *
      * @param {string} userId - User ID whose focus areas to retrieve.
      * @param {Object} [options={}] - Retrieval options for customizing the result.
-     * @param {boolean} [options.forceRefresh=false] - Force refresh from generation service.
+     * @param {boolean} [options.generateIfMissing=true] - Generate focus areas if none exist.
+     * @param {boolean} [options.forceRegeneration=false] - Force regeneration even if focus areas exist.
      * @param {boolean} [options.nameOnly=false] - Return only names instead of full objects.
      * @returns {Promise<Array>} List of focus areas or focus area names, depending on options.
      * @throws {FocusAreaError} If user not found or retrieval fails.
@@ -122,7 +123,8 @@ class FocusAreaCoordinatorFacade extends BaseCoordinator {
      *
      * @param {string} userEmail - Email of the user whose focus areas to retrieve.
      * @param {Object} [options={}] - Retrieval options for customizing the result.
-     * @param {boolean} [options.forceRefresh=false] - Force refresh from generation service.
+     * @param {boolean} [options.generateIfMissing=true] - Generate focus areas if none exist.
+     * @param {boolean} [options.forceRegeneration=false] - Force regeneration even if focus areas exist.
      * @param {boolean} [options.nameOnly=true] - Return only names instead of full objects (defaults to true).
      * @returns {Promise<Array>} List of focus area names or objects, depending on options.
      * @throws {FocusAreaError} If user not found or retrieval fails.

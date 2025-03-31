@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import AIClient from "../../../../src/core/ai/ports/AIClient.js";
+import AIClient from "@/core/ai/ports/AIClient.js";
 'use strict';
 /**
  * Unit Tests for AIClient Port Interface

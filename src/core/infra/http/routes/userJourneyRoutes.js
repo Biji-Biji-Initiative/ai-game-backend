@@ -1,6 +1,6 @@
 import express from 'express';
-import UserJourneyController from "../../../userJourney/controllers/UserJourneyController.js";
-import { authenticateUser } from "../../../infra/http/middleware/auth.js";
+import UserJourneyController from "@/core/userJourney/controllers/UserJourneyController.js";
+import { authenticateUser } from "@/core/infra/http/middleware/auth.js";
 'use strict';
 
 /**

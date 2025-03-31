@@ -2,8 +2,8 @@ import { expect } from "chai";
 import sinon from "sinon";
 import openai from "@/infra/openai";
 import types from "@/infra/openai/types";
-import FocusAreaGenerationService from "../../../src/core/focusArea/services/focusAreaGenerationService.js";
-import FocusArea from "../../../src/core/focusArea/models/FocusArea.js";
+import FocusAreaGenerationService from "@/core/focusArea/services/focusAreaGenerationService.js";
+import FocusArea from "@/core/focusArea/models/FocusArea.js";
 const { OpenAIClient } = openai;
 const { MessageRole } = types;
 // Set longer timeout for external API calls

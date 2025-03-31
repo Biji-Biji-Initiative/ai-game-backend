@@ -1,8 +1,8 @@
 import { expect } from "chai";
-import { FocusAreaGenerationService } from "../../../src/../../../src/core/focusArea/services/focusAreaGenerationService.js";
+import { FocusAreaGenerationService } from "@/../../../src/core/focusArea/services/focusAreaGenerationService.js";
 import sinon from "sinon";
 
-import FocusAreaId from "../../../src/core/common/valueObjects/FocusAreaId.js";
+import FocusAreaId from "@/core/common/valueObjects/FocusAreaId.js";
 
 /**
  * Focus Area Generation Service System Message Tests

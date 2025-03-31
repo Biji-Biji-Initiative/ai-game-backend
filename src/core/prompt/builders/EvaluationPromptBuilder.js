@@ -1,8 +1,8 @@
-import { logger } from "../../infra/logging/logger.js";
-import { appendApiStandards, getResponsesApiInstruction } from "../../prompt/common/apiStandards.js";
-import { validateEvaluationPromptParams } from "../../prompt/schemas/evaluationSchema.js";
-import { PromptConstructionError } from "../../prompt/common/errors.js";
-import messageFormatter from "../../infra/openai/messageFormatter.js";
+import { logger } from "@/core/infra/logging/logger.js";
+import { appendApiStandards, getResponsesApiInstruction } from "@/core/prompt/common/apiStandards.js";
+import { validateEvaluationPromptParams } from "@/core/prompt/schemas/evaluationSchema.js";
+import { PromptConstructionError } from "@/core/prompt/common/errors.js";
+import messageFormatter from "@/core/infra/openai/messageFormatter.js";
 'use strict';
 const { formatForResponsesApi } = messageFormatter;
 /**

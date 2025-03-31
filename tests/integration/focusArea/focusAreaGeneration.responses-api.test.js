@@ -1,9 +1,9 @@
 import { expect } from "chai";
 import openai from "@/infra/openai";
 import types from "@/infra/openai/types";
-import FocusAreaGenerationService from "../../../src/core/focusArea/services/focusAreaGenerationService.js";
-import FocusArea from "../../../src/core/focusArea/models/FocusArea.js";
-import promptBuilder from "../../../src/core/prompt/promptBuilder.js";
+import FocusAreaGenerationService from "@/core/focusArea/services/focusAreaGenerationService.js";
+import FocusArea from "@/core/focusArea/models/FocusArea.js";
+import promptBuilder from "@/core/prompt/promptBuilder.js";
 import testEnv from "../../loadEnv.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 const { OpenAIClient } = openai;

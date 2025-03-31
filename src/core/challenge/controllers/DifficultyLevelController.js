@@ -1,7 +1,7 @@
-import { container } from "../../../config/container.js";
-import { DifficultyLevelDTOMapper } from "../../challenge/dtos/DifficultyLevelDTO.js";
-import { withControllerErrorHandling } from "../../infra/errors/errorStandardization.js";
-import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError } from "../../challenge/errors/ChallengeErrors.js";
+import { container } from "@/config/container.js";
+import { DifficultyLevelDTOMapper } from "@/core/challenge/dtos/DifficultyLevelDTO.js";
+import { withControllerErrorHandling } from "@/core/infra/errors/errorStandardization.js";
+import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError } from "@/core/challenge/errors/ChallengeErrors.js";
 'use strict';
 // Error mappings for controllers
 const errorMappings = [

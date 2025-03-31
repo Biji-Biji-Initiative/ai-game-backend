@@ -1,4 +1,4 @@
-import { FocusArea } from "../../common/valueObjects/index.js";
+import { FocusArea } from "@/core/common/valueObjects/index.js";
 'use strict';
 /**
  * Service for validating focus areas

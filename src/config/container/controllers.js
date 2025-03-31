@@ -1,13 +1,13 @@
-import UserController from "../../core/user/controllers/UserController.js";
-import PersonalityController from "../../core/personality/controllers/PersonalityController.js";
-import ProgressController from "../../core/progress/controllers/ProgressController.js";
-import AdaptiveController from "../../core/adaptive/controllers/AdaptiveController.js";
-import AuthController from "../../core/auth/controllers/AuthController.js";
-import ChallengeController from "../../core/challenge/controllers/ChallengeController.js";
-import EvaluationController from "../../core/evaluation/controllers/EvaluationController.js";
-import FocusAreaController from "../../core/focusArea/controllers/FocusAreaController.js";
-import UserJourneyController from "../../core/userJourney/controllers/UserJourneyController.js";
-import HealthCheckController from "../../core/infra/health/HealthCheckController.js";
+import UserController from "@/core/user/controllers/UserController.js";
+import PersonalityController from "@/core/personality/controllers/PersonalityController.js";
+import ProgressController from "@/core/progress/controllers/ProgressController.js";
+import AdaptiveController from "@/core/adaptive/controllers/AdaptiveController.js";
+import AuthController from "@/core/auth/controllers/AuthController.js";
+import ChallengeController from "@/core/challenge/controllers/ChallengeController.js";
+import EvaluationController from "@/core/evaluation/controllers/EvaluationController.js";
+import FocusAreaController from "@/core/focusArea/controllers/FocusAreaController.js";
+import UserJourneyController from "@/core/userJourney/controllers/UserJourneyController.js";
+import HealthCheckController from "@/core/infra/health/HealthCheckController.js";
 // Note: AiChatController and AiAnalysisController are not yet implemented
 // These imports will be added once the controllers are created
 // import AiChatController from "../../controllers/ai/AiChatController.js";
@@ -37,7 +37,7 @@ function registerControllerComponents(container) {
             userRepository: c.get('userRepository'),
             focusAreaCoordinator: c.get('focusAreaCoordinator'),
             userPreferencesManager: c.get('userPreferencesManager'),
-            logger: c.get('logger'),
+            logger: c.get('userLogger'),
         });
     }, true // Singleton: YES - stateless controller
     );
@@ -47,7 +47,7 @@ function registerControllerComponents(container) {
         return new AuthController({
             userRepository: c.get('userRepository'),
             supabase: c.get('supabase'),
-            logger: c.get('logger'),
+            logger: c.get('userLogger'), // Auth is related to user management
         });
     }, true // Singleton: YES - stateless controller
     );
@@ -55,7 +55,7 @@ function registerControllerComponents(container) {
     container.register('personalityController', c => {
         return new PersonalityController({
             personalityService: c.get('personalityService'),
-            logger: c.get('logger'),
+            logger: c.get('personalityLogger'),
         });
     }, true // Singleton: YES - stateless controller
     );
@@ -64,7 +64,7 @@ function registerControllerComponents(container) {
     container.register('progressController', c => {
         return new ProgressController({
             progressService: c.get('progressService'),
-            logger: c.get('logger'),
+            logger: c.get('progressLogger'),
         });
     }, true // Singleton: YES - stateless controller
     );
@@ -72,14 +72,14 @@ function registerControllerComponents(container) {
     container.register('adaptiveController', c => {
         return new AdaptiveController({
             adaptiveService: c.get('adaptiveService'),
-            logger: c.get('logger'),
+            logger: c.get('adaptiveLogger'),
         });
     }, true // Singleton: YES - stateless controller
     );
     container.register('focusAreaController', c => {
         return new FocusAreaController({
             focusAreaCoordinator: c.get('focusAreaCoordinator'),
-            logger: c.get('logger'),
+            logger: c.get('focusAreaLogger'),
         });
     }, true // Singleton: YES - stateless controller
     );
@@ -100,7 +100,7 @@ function registerControllerComponents(container) {
     container.register('userJourneyController', c => {
         return new UserJourneyController({
             userJourneyService: c.get('userJourneyService'),
-            logger: c.get('logger'),
+            logger: c.get('userJourneyLogger'),
         });
     }, true // Singleton: YES - stateless controller
     );
@@ -108,14 +108,14 @@ function registerControllerComponents(container) {
     // container.register('aiChatController', c => {
     //     return new AiChatController({
     //         aiChatService: c.get('aiChatService'),
-    //         logger: c.get('logger'),
+    //         logger: c.get('apiLogger'),
     //     });
     // }, true // Singleton: YES - stateless controller
     // );
     // container.register('aiAnalysisController', c => {
     //     return new AiAnalysisController({
     //         aiAnalysisService: c.get('aiAnalysisService'),
-    //         logger: c.get('logger'),
+    //         logger: c.get('apiLogger'),
     //     });
     // }, true // Singleton: YES - stateless controller
     // );
@@ -123,7 +123,7 @@ function registerControllerComponents(container) {
     container.register('healthCheckController', c => {
         return new HealthCheckController({
             healthCheckService: c.get('healthCheckService'),
-            logger: c.get('logger')
+            logger: c.get('infraLogger')
         });
     }, true // Singleton: YES - stateless controller
     );

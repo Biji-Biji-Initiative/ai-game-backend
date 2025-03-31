@@ -1,13 +1,13 @@
 import { v4 as uuidv4 } from "uuid";
-import UserJourneyEvent from "../../userJourney/models/UserJourneyEvent.js";
-import userJourneyEventMapper from "../../userJourney/mappers/UserJourneyEventMapper.js";
-import { UserJourneyEventCreateSchema, UserJourneyEventDatabaseSchema, UserJourneyEventQuerySchema } from "../../userJourney/schemas/UserJourneyEventSchema.js";
-import { supabaseClient } from "../../infra/db/supabaseClient.js";
-import { logger } from "../../infra/logging/logger.js";
-import domainEvents from "../../common/events/domainEvents.js";
-import { ValidationError, DatabaseError } from "../../infra/repositories/BaseRepository.js";
-import { UserJourneyNotFoundError, UserJourneyValidationError, UserJourneyError } from "../../userJourney/errors/userJourneyErrors.js";
-import { createErrorMapper, withRepositoryErrorHandling } from "../../infra/errors/errorStandardization.js";
+import UserJourneyEvent from "@/core/userJourney/models/UserJourneyEvent.js";
+import userJourneyEventMapper from "@/core/userJourney/mappers/UserJourneyEventMapper.js";
+import { UserJourneyEventCreateSchema, UserJourneyEventDatabaseSchema, UserJourneyEventQuerySchema } from "@/core/userJourney/schemas/UserJourneyEventSchema.js";
+import { supabaseClient } from "@/core/infra/db/supabaseClient.js";
+import { logger } from "@/core/infra/logging/logger.js";
+import domainEvents from "@/core/common/events/domainEvents.js";
+import { ValidationError, DatabaseError } from "@/core/infra/repositories/BaseRepository.js";
+import { UserJourneyNotFoundError, UserJourneyValidationError, UserJourneyError } from "@/core/userJourney/errors/userJourneyErrors.js";
+import { createErrorMapper, withRepositoryErrorHandling } from "@/core/infra/errors/errorStandardization.js";
 'use strict';
 const {
   eventBus

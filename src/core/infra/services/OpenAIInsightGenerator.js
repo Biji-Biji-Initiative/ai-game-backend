@@ -1,5 +1,5 @@
-import { personalityLogger } from "../../infra/logging/domainLogger.js";
-import InsightGenerator from "../../personality/ports/InsightGenerator.js";
+import { personalityLogger } from "@/core/infra/logging/domainLogger.js";
+import InsightGenerator from "@/core/personality/ports/InsightGenerator.js";
 'use strict';
 /**
  * OpenAI Insight Generator

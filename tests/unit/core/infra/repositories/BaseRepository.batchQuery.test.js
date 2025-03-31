@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 import sinon from 'sinon';
-import { BaseRepository } from '../../../../../src/core/infra/repositories/BaseRepository.js';
+import { BaseRepository } from "@/core/infra/repositories/BaseRepository.js";
 
 describe('BaseRepository Batch Query Tests', () => {
   let mockDb;

@@ -1,12 +1,12 @@
 import { expect } from "chai";
 import sinon from "sinon";
 import { v4 as _uuidv4 } from "uuid";
-import valueObjects from "../../../src/core/common/valueObjects/index.js";
+import valueObjects from "@/core/common/valueObjects/index.js";
 import PersonalityCoordinator from "@/application/PersonalityCoordinator.js";
 import { 
     PersonalityGenerationError, 
     PersonalityNotFoundError 
-} from "../../../src/core/personality/errors/PersonalityErrors.js";
+} from "@/core/personality/errors/PersonalityErrors.js";
 'use strict';
 
 // Mock the domain logger

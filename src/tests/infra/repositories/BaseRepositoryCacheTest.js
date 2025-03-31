@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import sinon from 'sinon';
-import { BaseRepository } from '../../../core/infra/repositories/BaseRepository.js';
-import { CacheInvalidationManager } from '../../../core/infra/cache/CacheInvalidationManager.js';
+import { BaseRepository } from "@/core/infra/repositories/BaseRepository.js";
+import { CacheInvalidationManager } from "@/core/infra/cache/CacheInvalidationManager.js";
 
 describe('BaseRepository Cache Invalidation', () => {
   let repository;

@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { v4 as uuidv4 } from "uuid";
-import Challenge from "../../../src/core/challenge/models/Challenge.js";
-import { ChallengeValidationError } from "../../../src/core/challenge/errors/ChallengeErrors.js";
+import Challenge from "@/core/challenge/models/Challenge.js";
+import { ChallengeValidationError } from "@/core/challenge/errors/ChallengeErrors.js";
 
 describe('Challenge Domain Model', function () {
     describe('Challenge Creation', function () {

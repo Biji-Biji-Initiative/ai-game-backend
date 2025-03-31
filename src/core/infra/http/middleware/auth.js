@@ -1,8 +1,8 @@
-import { supabaseClient } from "../../../infra/db/supabaseClient.js";
-import { logger } from "../../../infra/logging/logger.js";
-import { UserNotFoundError } from "../../../user/errors/UserErrors.js";
+import { supabaseClient } from "@/core/infra/db/supabaseClient.js";
+import { logger } from "@/core/infra/logging/logger.js";
+import { UserNotFoundError } from "@/core/user/errors/UserErrors.js";
 import { v4 as uuidv4 } from "uuid";
-import { createErrorMapper, withControllerErrorHandling } from "../../../infra/errors/errorStandardization.js";
+import { createErrorMapper, withControllerErrorHandling } from "@/core/infra/errors/errorStandardization.js";
 'use strict';
 /**
  * Authentication Middleware

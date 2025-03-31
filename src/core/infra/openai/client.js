@@ -1,9 +1,9 @@
-import domainLogger from "../../infra/logging/domainLogger.js";
+import domainLogger from "@/core/infra/logging/domainLogger.js";
 // eslint-disable-next-line no-unused-vars
-import { ResponseFormat, StreamEventType, TruncationStrategy, ToolChoice } from "../../infra/openai/types.js";
-import errors from "../../infra/openai/errors.js";
-import { formatForResponsesApi } from "../../infra/openai/messageFormatter.js";
-import { createStreamController } from "../../infra/openai/streamProcessor.js";
+import { ResponseFormat, StreamEventType, TruncationStrategy, ToolChoice } from "@/core/infra/openai/types.js";
+import errors from "@/core/infra/openai/errors.js";
+import { formatForResponsesApi } from "@/core/infra/openai/messageFormatter.js";
+import { createStreamController } from "@/core/infra/openai/streamProcessor.js";
 import { OpenAI } from "openai";
 'use strict';
 /**

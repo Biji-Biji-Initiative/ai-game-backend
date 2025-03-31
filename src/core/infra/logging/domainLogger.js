@@ -1,4 +1,4 @@
-import { Logger } from "../../infra/logging/logger.js";
+import { Logger } from "@/core/infra/logging/logger.js";
 'use strict';
 // Create domain-specific loggers
 const userLogger = new Logger('domain:user');

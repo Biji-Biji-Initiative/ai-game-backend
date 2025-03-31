@@ -1,6 +1,6 @@
-import { logger } from "../../infra/logging/logger.js";
-import { FocusAreaError, FocusAreaNotFoundError, FocusAreaGenerationError, FocusAreaValidationError } from "../../focusArea/errors/focusAreaErrors.js";
-import { withControllerErrorHandling } from "../../infra/errors/errorStandardization.js";
+import { logger } from "@/core/infra/logging/logger.js";
+import { FocusAreaError, FocusAreaNotFoundError, FocusAreaGenerationError, FocusAreaValidationError } from "@/core/focusArea/errors/focusAreaErrors.js";
+import { withControllerErrorHandling } from "@/core/infra/errors/errorStandardization.js";
 'use strict';
 /**
  * Focus Area Controller

@@ -1,5 +1,5 @@
-import { UserAuthorizationError } from "../../user/errors/UserErrors.js";
-import { logger } from "../../infra/logging/logger.js";
+import { UserAuthorizationError } from "@/core/user/errors/UserErrors.js";
+import { logger } from "@/core/infra/logging/logger.js";
 
 /**
  * Authorization Service

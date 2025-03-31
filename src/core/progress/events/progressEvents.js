@@ -1,7 +1,9 @@
 import domainEvents from "../../common/events/domainEvents.js";
 import { logger } from "../../infra/logging/logger.js";
-'use strict';
-/**
+
+import { ProgressRepository } from '../repositories/progressRepository.js';'use strict';
+
+import { ProgressRepository } from '../repositories/progressRepository.js';/**
  * Progress Domain Events
  *
  * Events that occur within the Progress domain.
@@ -23,12 +25,48 @@ const {
  */
 async function publishProgressUpdated(userEmail, area, value, metadata = {}) {
   try {
+    
+  // Get entity to add domain event
+  const entity = await progressRepository.findById(progressId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.PROGRESS_UPDATED, {
+      userEmail,
+      area,
+      value,
+      metadata
+    });
+    
+    // Save entity which will publish the event
+    await progressRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${progressId} not found for event PROGRESS_UPDATED. Using direct event publishing.`);
+    
+  // Get entity to add domain event
+  const entity = await progressRepository.findById(progressId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.PROGRESS_UPDATED, {
+      userEmail,
+      area,
+      value,
+      metadata
+    });
+    
+    // Save entity which will publish the event
+    await progressRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${progressId} not found for event PROGRESS_UPDATED. Using direct event publishing.`);
     await eventBus.publishEvent(EventTypes.PROGRESS_UPDATED, {
       userEmail,
       area,
       value,
       metadata
     });
+  }
+  }
     logger.debug('Published progress updated event', {
       userEmail,
       area
@@ -51,6 +89,44 @@ async function publishProgressUpdated(userEmail, area, value, metadata = {}) {
  */
 async function publishAchievementUnlocked(userEmail, achievementId, achievementName, description) {
   try {
+    
+  // Get entity to add domain event
+  const entity = await progressRepository.findById(progressId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.ACHIEVEMENT_UNLOCKED, {
+      userEmail,
+      achievement: {
+        id: achievementId,
+        name: achievementName,
+        description
+      }
+    });
+    
+    // Save entity which will publish the event
+    await progressRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${progressId} not found for event ACHIEVEMENT_UNLOCKED. Using direct event publishing.`);
+    
+  // Get entity to add domain event
+  const entity = await progressRepository.findById(progressId);
+  if (entity) {
+    // Add domain event to entity
+    entity.addDomainEvent(EventTypes.ACHIEVEMENT_UNLOCKED, {
+      userEmail,
+      achievement: {
+        id: achievementId,
+        name: achievementName,
+        description
+      }
+    });
+    
+    // Save entity which will publish the event
+    await progressRepository.save(entity);
+  } else {
+    // Fallback to direct event publishing if entity not found
+    console.warn(`Entity with ID ${progressId} not found for event ACHIEVEMENT_UNLOCKED. Using direct event publishing.`);
     await eventBus.publishEvent(EventTypes.ACHIEVEMENT_UNLOCKED, {
       userEmail,
       achievement: {
@@ -59,6 +135,8 @@ async function publishAchievementUnlocked(userEmail, achievementId, achievementN
         description
       }
     });
+  }
+  }
     logger.debug('Published achievement unlocked event', {
       userEmail,
       achievementId

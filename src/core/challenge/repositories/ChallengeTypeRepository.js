@@ -1,7 +1,7 @@
 'use strict';
 
-import appError from "../../common/errors/AppError.js";
-import { logger } from "../../infra/logging/logger.js";
+import appError from "@/core/common/errors/AppError.js";
+import { logger } from "@/core/infra/logging/logger.js";
 
 /**
  * Challenge Type Repository

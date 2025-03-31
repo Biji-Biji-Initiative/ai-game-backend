@@ -1,12 +1,12 @@
 import { expect } from "chai";
 import sinon from "sinon";
 import { v4 as uuidv4 } from "uuid";
-import UserService from "../../../src/core/user/services/UserService.js";
-import User from "../../../src/core/user/models/User.js";
+import UserService from "@/core/user/services/UserService.js";
+import User from "@/core/user/models/User.js";
 import InMemoryUserRepository from "@/test/repositories/InMemoryUserRepository";
-import domainEvents from "../../../src/core/common/events/domainEvents.js";
-import { UserError, UserNotFoundError, UserUpdateError, UserValidationError, UserInvalidStateError, UserAuthenticationError, UserAuthorizationError } from "../../../src/core/user/errors/UserErrors.js";
-import UserId from "../../../src/core/common/valueObjects/UserId.js";
+import domainEvents from "@/core/common/events/domainEvents.js";
+import { UserError, UserNotFoundError, UserUpdateError, UserValidationError, UserInvalidStateError, UserAuthenticationError, UserAuthorizationError } from "@/core/user/errors/UserErrors.js";
+import UserId from "@/core/common/valueObjects/UserId.js";
 const { EventTypes } = domainEvents;
 // Create a proper mock for the event bus
 const eventBusMock = {

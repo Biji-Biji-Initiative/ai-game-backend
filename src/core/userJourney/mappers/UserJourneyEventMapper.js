@@ -1,4 +1,4 @@
-import UserJourneyEvent from "../../userJourney/models/UserJourneyEvent.js";
+import UserJourneyEvent from "@/core/userJourney/models/UserJourneyEvent.js";
 'use strict';
 /**
  * UserJourneyEventMapper class

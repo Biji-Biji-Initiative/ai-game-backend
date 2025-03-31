@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import sinon from "sinon";
-import OpenAIClientAdapter from "../../../../src/core/ai/adapters/OpenAIClientAdapter.js";
-import AIClient from "../../../../src/core/ai/ports/AIClient.js";
+import OpenAIClientAdapter from "@/core/ai/adapters/OpenAIClientAdapter.js";
+import AIClient from "@/core/ai/ports/AIClient.js";
 'use strict';
 /**
  * Unit Tests for OpenAIClientAdapter

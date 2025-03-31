@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 import sinon from 'sinon';
-import { deadLetterQueueService } from '../../../../../src/core/common/events/DeadLetterQueueService.js';
+import { deadLetterQueueService } from "@/core/common/events/DeadLetterQueueService.js";
 
 describe('DeadLetterQueueService', () => {
   let mockDb;

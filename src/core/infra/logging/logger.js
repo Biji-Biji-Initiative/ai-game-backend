@@ -8,16 +8,35 @@ const defaultConfig = {
         fileLevel: 'info'
     }
 };
+
 // Try to import config, fallback to default if not found
 let config;
-try {
+
+// Using an async IIFE to handle the dynamic import
+(async () => {
+  try {
     // Dynamic import to handle potential missing module
+    const configModule = await import("../../../config/config.js");
+    config = configModule.default;
+    
+    // If we got a config but it doesn't have logging settings, apply defaults
+    if (!config || !config.logging) {
+      console.warn('Config loaded but missing logging section, using defaults');
+      config = {
+        ...config,
+        logging: defaultConfig.logging
+      };
+    }
+  }
+  catch (error) {
+    console.warn(`Could not load config.js, using default logging config: ${error.message}`);
     config = defaultConfig;
-}
-catch (error) {
-    console.warn('Could not load config.js, using default logging config');
-    config = defaultConfig;
-}
+  }
+})().catch(err => {
+  console.error("Error initializing logger config:", err);
+  config = defaultConfig;
+});
+
 // Create a storage for correlation IDs
 const correlationIdStorage = new AsyncLocalStorage();
 // Define log levels and colors
@@ -78,6 +97,47 @@ function getCorrelationId(explicitCorrelationId) {
     const store = correlationIdStorage.getStore();
     return store?.correlationId;
 }
+/**
+ * Filter sensitive data from headers before logging
+ * @param {Object} headers - Request headers
+ * @returns {Object} Filtered headers
+ */
+const filterSensitiveHeaders = (headers) => {
+  if (!headers) return {};
+  
+  // Create a copy of headers
+  const filteredHeaders = { ...headers };
+  
+  // List of sensitive headers to mask
+  const sensitiveHeaders = [
+    'authorization',
+    'cookie',
+    'x-auth-token',
+    'x-api-key',
+    'api-key',
+    'password',
+    'token',
+    'refresh-token',
+    'secret',
+    'private-key'
+  ];
+  
+  // Mask sensitive headers
+  sensitiveHeaders.forEach(header => {
+    const headerLower = header.toLowerCase();
+    if (filteredHeaders[headerLower]) {
+      filteredHeaders[headerLower] = '[REDACTED]';
+    }
+    // Also check for header with different casing
+    Object.keys(filteredHeaders).forEach(key => {
+      if (key.toLowerCase() === headerLower) {
+        filteredHeaders[key] = '[REDACTED]';
+      }
+    });
+  });
+  
+  return filteredHeaders;
+};
 /**
  * Base logger class
  */
@@ -224,14 +284,20 @@ const correlationIdMiddleware = (req, res, next) => {
  */
 const requestLogger = (req, res, next) => {
     const startTime = Date.now();
-    // Log request
-    logger.info(`Incoming ${req.method} ${req.url}`, {
+    
+    // Extract essential request info
+    const requestInfo = {
         method: req.method,
         url: req.url,
         query: req.query,
-        headers: req.headers,
         ip: req.ip,
-    });
+        // Filter sensitive data from headers
+        headers: filterSensitiveHeaders(req.headers)
+    };
+    
+    // Log request
+    logger.info(`Incoming ${req.method} ${req.url}`, requestInfo);
+    
     // Log response
     res.on('finish', () => {
         const duration = Date.now() - startTime;
@@ -242,6 +308,7 @@ const requestLogger = (req, res, next) => {
             duration,
         });
     });
+    
     next();
 };
 /**

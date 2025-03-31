@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { OpenAIResponseHandlingError } from "../../infra/openai/errors.js";
-import { apiLogger } from "../../infra/logging/domainLogger.js";
+import { OpenAIResponseHandlingError } from "@/core/infra/openai/errors.js";
+import { apiLogger } from "@/core/infra/logging/domainLogger.js";
 'use strict';
 /**
  * Schema for validating Responses API response structure

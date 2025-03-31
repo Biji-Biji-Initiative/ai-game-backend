@@ -6,7 +6,7 @@ import {
     DETAIL_LEVEL,
     COMMUNICATION_STYLE,
     RESPONSE_FORMAT
-} from "../core/personality/config/attitudeMappingConfig.js";
+} from "@/core/personality/config/attitudeMappingConfig.js";
 'use strict';
 /**
  * Class representing Personality Coordinator

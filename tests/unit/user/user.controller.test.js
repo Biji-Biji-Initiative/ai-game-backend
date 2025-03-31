@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import sinon from "sinon";
-import UserController from "../../../src/core/user/controllers/UserController.js";
-import userErrors from "../../../src/core/user/errors/UserErrors.js";
+import UserController from "@/core/user/controllers/UserController.js";
+import userErrors from "@/core/user/errors/UserErrors.js";
 const { UserNotFoundError, FocusAreaError } = userErrors;
 describe('User Controller', () => {
     let userController;

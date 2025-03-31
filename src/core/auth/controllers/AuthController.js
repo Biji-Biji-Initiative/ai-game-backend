@@ -1,5 +1,6 @@
-import { withControllerErrorHandling } from "../../infra/errors/errorStandardization.js";
-import { AuthError, AuthNotFoundError, AuthValidationError, AuthProcessingError } from "../../auth/errors/AuthErrors.js";
+import { withControllerErrorHandling } from "@/core/infra/errors/errorStandardization.js";
+import { AuthError, AuthNotFoundError, AuthValidationError, AuthProcessingError } from "@/core/auth/errors/AuthErrors.js";
+import ConfigurationError from "@/core/infra/errors/ConfigurationError.js";
 'use strict';
 // Error mappings for controllers
 const authControllerErrorMappings = [
@@ -28,12 +29,31 @@ class AuthController {
      * Method constructor
      */
     constructor({ userRepository, supabase, logger }) {
+        // In production, fail fast if required dependencies are missing
+        const isProd = process.env.NODE_ENV === 'production';
+        
         if (!userRepository) {
-            throw new Error('userRepository is required for AuthController');
+            if (isProd) {
+                throw new ConfigurationError('userRepository is required for AuthController in production mode', {
+                    service: 'AuthController',
+                    dependency: 'userRepository'
+                });
+            } else {
+                throw new Error('userRepository is required for AuthController');
+            }
         }
+        
         if (!supabase) {
-            throw new Error('supabase client is required for AuthController');
+            if (isProd) {
+                throw new ConfigurationError('supabase client is required for AuthController in production mode', {
+                    service: 'AuthController',
+                    dependency: 'supabase'
+                });
+            } else {
+                throw new Error('supabase client is required for AuthController');
+            }
         }
+        
         this.userRepository = userRepository;
         this.supabase = supabase;
         this.logger = logger;

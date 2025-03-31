@@ -3,10 +3,10 @@ import {
   validatePreferenceCategory, 
   getDefaultPreferences,
   isValidPreferenceCategory 
-} from '../schemas/preferencesSchema.js';
-import { UserNotFoundError, UserValidationError } from '../errors/UserErrors.js';
-import { withServiceErrorHandling, createErrorMapper } from '../../infra/errors/errorStandardization.js';
-import { logger as appLogger } from '../../infra/logging/logger.js';
+} from "@/core/user/schemas/preferencesSchema.js";
+import { UserNotFoundError, UserValidationError } from "@/core/user/errors/UserErrors.js";
+import { withServiceErrorHandling, createErrorMapper } from "@/core/infra/errors/errorStandardization.js";
+import { logger as appLogger } from "@/core/infra/logging/logger.js";
 
 // Create an error mapper for the preferences manager
 const preferenceErrorMapper = createErrorMapper({

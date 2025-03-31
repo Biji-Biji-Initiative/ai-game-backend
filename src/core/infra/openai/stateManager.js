@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import errors from "../../infra/openai/errors.js";
+import errors from "@/core/infra/openai/errors.js";
 'use strict';
 const { OpenAIStateManagementError } = errors;
 /**

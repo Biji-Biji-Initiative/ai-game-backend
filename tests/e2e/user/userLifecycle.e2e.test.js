@@ -1,10 +1,9 @@
 import axios from "axios";
 import { expect } from "chai";
 import { setupTestUser, cleanupTestUser, getAuthToken } from "../../helpers/apiTestHelper.js";
-import { UserDTO } from "../../../src/core/user/dtos/UserDTO.js";
-import { createUserId, UserId } from "../../../src/core/common/valueObjects/index.js";
-import UserDTOMapper from "../../../src/application/user/mappers/UserDTOMapper.js";
-import UserProfileDTOMapper from "../../../src/application/user/mappers/UserProfileDTOMapper.js";
+import { UserDTO, UserDTOMapper } from "@/core/user/dtos/UserDTO.js";
+import { createUserId, UserId } from "@/core/common/valueObjects/index.js";
+import UserProfileDTOMapper from "@/application/user/mappers/UserProfileDTOMapper.js";
 
 // Base URL for API requests
 const API_URL = process.env.API_URL || 'http://localhost:3000/api';

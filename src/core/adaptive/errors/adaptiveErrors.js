@@ -1,4 +1,4 @@
-import AppError from "../../infra/errors/AppError.js";
+import AppError from "@/core/infra/errors/AppError.js";
 'use strict';
 /**
  * Base class for Adaptive domain errors

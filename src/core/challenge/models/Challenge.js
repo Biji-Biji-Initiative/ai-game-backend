@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
-import { ChallengeValidationError } from "../../challenge/errors/ChallengeErrors.js";
-import { ChallengeSchema } from "../../challenge/schemas/ChallengeSchema.js";
-import { Email, ChallengeId, FocusArea, DifficultyLevel, createEmail, createChallengeId, createFocusArea, createDifficultyLevel } from "../../common/valueObjects/index.js";
+import { ChallengeValidationError } from "@/core/challenge/errors/ChallengeErrors.js";
+import { ChallengeSchema } from "@/core/challenge/schemas/ChallengeSchema.js";
+import { Email, ChallengeId, FocusArea, DifficultyLevel, createEmail, createChallengeId, createFocusArea, createDifficultyLevel } from "@/core/common/valueObjects/index.js";
 'use strict';
 /**
  * @swagger

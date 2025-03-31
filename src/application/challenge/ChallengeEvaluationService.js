@@ -14,13 +14,13 @@
 
 'use strict';
 
-import { createErrorMapper, withServiceErrorHandling } from "../../core/infra/errors/errorStandardization.js";
-import { ChallengeError } from "../../core/challenge/errors/ChallengeErrors.js";
-import promptBuilder from "../../core/prompt/promptBuilder.js";
-import { PROMPT_TYPES } from "../../core/prompt/promptTypes.js";
-import messageFormatter from "../../core/infra/openai/messageFormatter.js";
-import { MissingParameterError } from "../../core/infra/errors/MissingParameterError.js";
-import { challengeLogger } from "../../core/infra/logging/domainLogger.js";
+import { createErrorMapper, withServiceErrorHandling } from "@/core/infra/errors/errorStandardization.js";
+import { ChallengeError } from "@/core/challenge/errors/ChallengeErrors.js";
+import promptBuilder from "@/core/prompt/promptBuilder.js";
+import { PROMPT_TYPES } from "@/core/prompt/promptTypes.js";
+import messageFormatter from "@/core/infra/openai/messageFormatter.js";
+import { MissingParameterError } from "@/core/infra/errors/MissingParameterError.js";
+import { challengeLogger } from "@/core/infra/logging/domainLogger.js";
 
 /**
  * Application service for handling challenge response evaluations
@@ -92,9 +92,13 @@ class ChallengeEvaluationService {
       throw new Error('Responses are required for evaluation');
     }
     
-    const threadId = options.threadId || options.stateId;
+    const threadId = options.threadId;
     if (!threadId) {
-      throw new Error('Thread ID or State ID is required for evaluation');
+      throw new Error('Thread ID is required for evaluation');
+    }
+    
+    if (!challenge.userId) {
+      throw new Error('Challenge must have a valid userId');
     }
     
     // Get or create a conversation state for this evaluation using aiStateManager
@@ -109,7 +113,7 @@ class ChallengeEvaluationService {
     
     this.logger.debug('Retrieved previous response ID for stateful conversation', {
       challengeId: challenge.id,
-      stateId: conversationState.id,
+      threadId: conversationState.id,
       hasLastResponseId: !!previousResponseId
     });
     
@@ -162,7 +166,7 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`
     // Call the AI service for evaluation using aiClient
     this.logger.debug('Calling AI service for evaluation', { 
       challengeId: challenge.id, 
-      stateId: conversationState.id,
+      threadId: conversationState.id,
       hasLastResponseId: !!previousResponseId
     });
     
@@ -178,7 +182,7 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`
     
     this.logger.debug('Updated conversation state with new response ID', {
       challengeId: challenge.id,
-      stateId: conversationState.id,
+      threadId: conversationState.id,
       responseId: response.responseId
     });
     
@@ -228,9 +232,13 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`
       throw new Error('onChunk callback is required for streaming evaluations');
     }
     
-    const threadId = options.threadId || options.stateId;
+    const threadId = options.threadId;
     if (!threadId) {
-      throw new Error('Thread ID or State ID is required for evaluation');
+      throw new Error('Thread ID is required for evaluation');
+    }
+    
+    if (!challenge.userId) {
+      throw new Error('Challenge must have a valid userId');
     }
     
     // Get or create a conversation state for this evaluation using aiStateManager
@@ -245,7 +253,7 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`
     
     this.logger.debug('Retrieved previous response ID for stateful conversation', {
       challengeId: challenge.id,
-      stateId: conversationState.id,
+      threadId: conversationState.id,
       hasLastResponseId: !!previousResponseId
     });
     

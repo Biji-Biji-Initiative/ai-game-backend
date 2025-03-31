@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 import sinon from 'sinon';
-import { CacheInvalidationManager, CacheKeyPrefixes } from '../../../../../src/core/infra/cache/CacheInvalidationManager.js';
+import { CacheInvalidationManager, CacheKeyPrefixes } from "@/core/infra/cache/CacheInvalidationManager.js";
 
 describe('CacheInvalidationManager', () => {
   let cacheService;

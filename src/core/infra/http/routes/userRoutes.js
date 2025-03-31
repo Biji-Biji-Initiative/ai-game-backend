@@ -1,8 +1,8 @@
 import express from 'express';
-import userApiSchemas from "../../../user/schemas/userApiSchemas.js";
-import { authenticateUser, requireAdmin } from "../middleware/auth.js";
-import { authorizeUserSpecificResource } from "../middleware/resourceAuth.js";
-import { createValidationMiddleware } from "../middleware/validationFactory.js";
+import userApiSchemas from "@/core/user/schemas/userApiSchemas.js";
+import { authenticateUser, requireAdmin } from "@/core/infra/http/middleware/auth.js";
+import { authorizeUserSpecificResource } from "@/core/infra/http/middleware/resourceAuth.js";
+import { createValidationMiddleware } from "@/core/infra/http/middleware/validationFactory.js";
 'use strict';
 
 /**

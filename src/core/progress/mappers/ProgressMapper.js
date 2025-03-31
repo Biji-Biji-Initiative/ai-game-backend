@@ -1,4 +1,4 @@
-import Progress from "../../progress/models/Progress.js";
+import Progress from "@/core/progress/models/Progress.js";
 'use strict';
 /**
  * ProgressMapper class

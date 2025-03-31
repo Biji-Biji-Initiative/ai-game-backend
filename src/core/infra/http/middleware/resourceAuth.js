@@ -1,6 +1,6 @@
-import AuthorizationService from "../../../auth/services/AuthorizationService.js";
-import { logger } from "../../../infra/logging/logger.js";
-import { UserAuthorizationError } from "../../../user/errors/UserErrors.js";
+import AuthorizationService from "@/core/auth/services/AuthorizationService.js";
+import { logger } from "@/core/infra/logging/logger.js";
+import { UserAuthorizationError } from "@/core/user/errors/UserErrors.js";
 
 // Create a singleton instance of the authorization service
 const authService = new AuthorizationService();

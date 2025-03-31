@@ -1,7 +1,7 @@
 'use strict';
 
 import express from 'express';
-import { logger } from "../../../infra/logging/logger.js";
+import { logger } from "@/core/infra/logging/logger.js";
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -60,7 +60,10 @@ export default function createApiTesterRoutes() {
         path.join(process.cwd(), 'combined.log'),
         path.join(process.cwd(), 'logs', 'app.log'),
         path.join(process.cwd(), 'app.log'),
-        path.join(process.cwd(), '..', 'logs', 'combined.log')
+        path.join(process.cwd(), '..', 'logs', 'combined.log'),
+        path.join(process.cwd(), 'server.log'),
+        path.join(process.cwd(), 'logs', 'output.log'),
+        path.join(process.cwd(), 'src', 'logs', 'combined.log')
       ];
       
       let logFilePath = null;
@@ -79,6 +82,8 @@ export default function createApiTesterRoutes() {
         });
       }
       
+      logger.info(`Reading logs from ${logFilePath}`);
+      
       // Create a stream to read the log file
       const fileStream = fs.createReadStream(logFilePath);
       const rl = readline.createInterface({
@@ -88,46 +93,72 @@ export default function createApiTesterRoutes() {
       
       // Read logs into an array
       const logs = [];
-      for await (const line of rl) {
-        // Skip empty lines
-        if (!line.trim()) {
-          continue;
-        }
-        
-        // Parse the log entry (assuming JSON format)
-        let logEntry;
-        try {
-          logEntry = JSON.parse(line);
-        } catch (err) {
-          // Skip non-JSON lines (could be stack traces, etc.)
-          continue;
-        }
-        
-        // Apply correlation ID filter if provided
-        if (correlationId && 
-            (!logEntry.meta?.correlationId || 
-             !logEntry.meta.correlationId.includes(correlationId))) {
-          continue;
-        }
-        
-        // Apply level filter if provided
-        if (level && logEntry.level !== level.toUpperCase()) {
-          continue;
-        }
-        
-        // Apply text search if provided
-        if (search) {
-          const logText = JSON.stringify(logEntry).toLowerCase();
-          if (!logText.includes(search.toLowerCase())) {
+      let lineCount = 0;
+      let parsedCount = 0;
+      
+      try {
+        for await (const line of rl) {
+          lineCount++;
+          
+          // Skip empty lines
+          if (!line.trim()) {
             continue;
           }
+          
+          // Parse the log entry (assuming JSON format)
+          let logEntry;
+          try {
+            logEntry = JSON.parse(line);
+            parsedCount++;
+          } catch (err) {
+            // For non-JSON lines, create a simple object
+            logEntry = {
+              level: "INFO",
+              message: line,
+              timestamp: new Date().toISOString(),
+              meta: { rawLog: true }
+            };
+          }
+          
+          // Apply correlation ID filter if provided
+          if (correlationId && 
+              (!logEntry.meta?.correlationId || 
+               !logEntry.meta.correlationId.includes(correlationId))) {
+            continue;
+          }
+          
+          // Apply level filter if provided
+          if (level && logEntry.level !== level.toUpperCase()) {
+            continue;
+          }
+          
+          // Apply text search if provided
+          if (search) {
+            const logText = JSON.stringify(logEntry).toLowerCase();
+            if (!logText.includes(search.toLowerCase())) {
+              continue;
+            }
+          }
+          
+          logs.push(logEntry);
         }
-        
-        logs.push(logEntry);
+      } catch (readError) {
+        logger.error('Error reading log file', { error: readError });
+        // Continue with partial results instead of failing completely
       }
       
       // Sort logs by timestamp (newest first) and limit the results
-      logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      try {
+        logs.sort((a, b) => {
+          const dateA = a.timestamp ? new Date(a.timestamp) : new Date(0);
+          const dateB = b.timestamp ? new Date(b.timestamp) : new Date(0);
+          return dateB - dateA;
+        });
+      } catch (sortError) {
+        logger.error('Error sorting logs', { error: sortError });
+        // Continue with unsorted logs
+      }
+      
       const limitedLogs = logs.slice(0, Math.min(parseInt(limit), 500)); // Cap at 500 max
       
       // Return the logs
@@ -136,7 +167,12 @@ export default function createApiTesterRoutes() {
         data: {
           logs: limitedLogs,
           count: limitedLogs.length,
-          logFile: logFilePath
+          logFile: logFilePath,
+          stats: {
+            totalLinesRead: lineCount,
+            parsedJsonLines: parsedCount,
+            filteredLogCount: logs.length
+          }
         }
       });
     } catch (error) {

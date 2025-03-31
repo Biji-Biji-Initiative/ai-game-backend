@@ -1,6 +1,6 @@
 import express from 'express';
-import FocusAreaController from "../../../focusArea/controllers/FocusAreaController.js";
-import { authenticateUser } from "../../../infra/http/middleware/auth.js";
+import FocusAreaController from "@/core/focusArea/controllers/FocusAreaController.js";
+import { authenticateUser } from "@/core/infra/http/middleware/auth.js";
 'use strict';
 
 /**

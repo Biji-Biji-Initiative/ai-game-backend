@@ -1,6 +1,6 @@
-import { challengeLogger } from "../../infra/logging/domainLogger.js";
-import Challenge from "../../challenge/models/Challenge.js";
-import challengeErrors from "../../challenge/errors/ChallengeErrors.js";
+import { challengeLogger } from "@/core/infra/logging/domainLogger.js";
+import Challenge from "@/core/challenge/models/Challenge.js";
+import challengeErrors from "@/core/challenge/errors/ChallengeErrors.js";
 'use strict';
 const {
   ChallengeGenerationError

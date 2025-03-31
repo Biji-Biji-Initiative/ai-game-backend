@@ -13,11 +13,11 @@
  * 3. Handles the application-level workflow for challenge generation
  */
 
-import promptBuilder from "../../core/prompt/promptBuilder.js";
-import { formatForResponsesApi } from "../../core/infra/openai/messageFormatter.js";
-import { ChallengeGenerationError } from "../../core/challenge/errors/ChallengeErrors.js";
-import Challenge from "../../core/challenge/models/Challenge.js";
-import { challengeLogger } from "../../core/infra/logging/domainLogger.js";
+import promptBuilder from "@/core/prompt/promptBuilder.js";
+import { formatForResponsesApi } from "@/core/infra/openai/messageFormatter.js";
+import { ChallengeGenerationError } from "@/core/challenge/errors/ChallengeErrors.js";
+import Challenge from "@/core/challenge/models/Challenge.js";
+import { challengeLogger } from "@/core/infra/logging/domainLogger.js";
 
 /**
  * Service for generating challenges
@@ -65,15 +65,19 @@ class ChallengeGenerationService {
         throw new ChallengeGenerationError('User data is required for challenge generation');
       }
       
+      if (!user.id) {
+        throw new ChallengeGenerationError('User ID is required for challenge generation');
+      }
+      
       if (!challengeParams) {
         throw new ChallengeGenerationError('Challenge parameters are required for generation');
       }
       
       // Get or create conversation state using aiStateManager
-      const userId = user.id || user.email;
+      const userId = user.id;
       const conversationState = await this.aiStateManager.findOrCreateConversationState(
         userId, 
-        options.conversationContext || `challenge_gen_${userId}`,
+        options.threadId || `challenge_gen_${userId}`,
         { createdAt: new Date().toISOString() }
       );
       
@@ -81,7 +85,7 @@ class ChallengeGenerationService {
       const previousResponseId = await this.aiStateManager.getLastResponseId(conversationState.id);
       
       this.logger.debug('Retrieved conversation state for challenge generation', { 
-        stateId: conversationState.id,
+        threadId: conversationState.id,
         userId,
         hasLastResponseId: !!previousResponseId,
         service: 'ChallengeGenerationService'
@@ -129,7 +133,7 @@ class ChallengeGenerationService {
       // Call the AI service for challenge generation
       this.logger.debug('Calling AI service for challenge generation', { 
         userId, 
-        stateId: conversationState.id,
+        threadId: conversationState.id,
         service: 'ChallengeGenerationService'
       });
       
@@ -147,7 +151,7 @@ class ChallengeGenerationService {
       const result = {
         ...response.data,
         responseId: response.responseId,
-        stateId: conversationState.id,
+        threadId: conversationState.id,
         title: response.data.title || `New ${focusArea} Challenge`
       };
       
@@ -163,7 +167,7 @@ class ChallengeGenerationService {
       this.logger.error('Error generating challenge', { 
         error: error.message, 
         stack: error.stack,
-        userId: user?.id || user?.email,
+        userId: user?.id,
         service: 'ChallengeGenerationService'
       });
       
@@ -189,6 +193,10 @@ class ChallengeGenerationService {
         throw new ChallengeGenerationError('User data is required for variation generation');
       }
       
+      if (!user.id) {
+        throw new ChallengeGenerationError('User ID is required for variation generation');
+      }
+      
       const threadId = options.threadId;
       if (!threadId) {
         throw new ChallengeGenerationError('Thread ID is required for variation generation');
@@ -196,7 +204,7 @@ class ChallengeGenerationService {
       
       // Get or create a conversation state for this variation thread
       const conversationState = await this.aiStateManager.findOrCreateConversationState(
-        user.id || user.email, 
+        user.id, 
         `variation_${threadId}`,
         { createdAt: new Date().toISOString() }
       );
@@ -217,7 +225,7 @@ class ChallengeGenerationService {
       
       this.logger.debug('Generated variation prompt using promptBuilder', { 
         promptLength: prompt.length, 
-        user: user.id || user.email,
+        userId: user.id,
         originalChallengeId: challenge.id,
         service: 'ChallengeGenerationService'
       });
@@ -242,8 +250,8 @@ ${systemMessage || ''}`
       
       // Call the AI service for variation generation
       this.logger.debug('Calling AI service for challenge variation', { 
-        user: user.id || user.email, 
-        stateId: conversationState.id,
+        userId: user.id, 
+        threadId: conversationState.id,
         originalChallengeId: challenge.id,
         service: 'ChallengeGenerationService'
       });
@@ -272,7 +280,7 @@ ${systemMessage || ''}`
         formatType: challenge.formatType,
         difficulty: variationData.difficulty || challenge.difficulty,
         focusArea: focusArea,
-        userId: user.id || user.email,
+        userId: user.id,
         metadata: {
           generationPromptLength: prompt.length,
           responseId: response.responseId,
@@ -285,7 +293,7 @@ ${systemMessage || ''}`
       
       this.logger.info('Successfully generated challenge variation', { 
         variationId: variation.id,
-        userId: user.id || user.email,
+        userId: user.id,
         originalChallengeId: challenge.id,
         variationType: options.variationType,
         service: 'ChallengeGenerationService'
@@ -296,7 +304,7 @@ ${systemMessage || ''}`
       this.logger.error('Error generating challenge variation', { 
         error: error.message,
         stack: error.stack,
-        userId: user?.id || user?.email,
+        userId: user?.id,
         originalChallengeId: challenge?.id,
         variationType: options?.variationType,
         service: 'ChallengeGenerationService'

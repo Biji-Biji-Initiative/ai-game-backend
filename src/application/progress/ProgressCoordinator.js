@@ -1,10 +1,10 @@
 import BaseCoordinator from "@/application/BaseCoordinator.js";
-import appError from "../../core/infra/errors/AppError.js";
+import appError from "@/core/infra/errors/AppError.js";
 import { 
     Email, ChallengeId, FocusArea,
     createEmail, createChallengeId, createFocusArea,
     ensureVO
-} from "../../core/common/valueObjects/index.js";
+} from "@/core/common/valueObjects/index.js";
 'use strict';
 const { AppError } = appError;
 /**
@@ -97,17 +97,27 @@ class ProgressCoordinator extends BaseCoordinator {
             const focusAreaValue = focusAreaVO ? focusAreaVO.value : focusArea;
             // Update progress using domain service
             const updatedProgress = await this.progressService.updateProgress(user.id, focusAreaValue, challengeIdVO.value, metrics);
-            // Publish domain event if event bus is available
+            
+            // Use entity-based event collection instead of direct event publishing
             if (this.eventBus && this.EventTypes) {
-                await this.eventBus.publishEvent(this.EventTypes.USER_PROGRESS_UPDATED, {
-                    userId: user.id,
-                    userEmail: emailVO.value,
-                    focusArea: focusAreaValue,
-                    challengeId: challengeIdVO.value,
-                    metrics,
-                    timestamp: new Date().toISOString(),
-                });
+                // Get user entity to add domain event
+                const userEntity = await this.userService.getUserEntity(user.id);
+                if (userEntity) {
+                    // Add domain event to entity
+                    userEntity.addDomainEvent(this.EventTypes.USER_PROGRESS_UPDATED, {
+                        userId: user.id,
+                        userEmail: emailVO.value,
+                        focusArea: focusAreaValue,
+                        challengeId: challengeIdVO.value,
+                        metrics,
+                        timestamp: new Date().toISOString(),
+                    });
+                    
+                    // Save entity which will publish the event
+                    await this.userService.saveUser(userEntity);
+                }
             }
+            
             return updatedProgress;
         }, 'updateProgressAfterChallenge', {
             userEmail: typeof userEmail === 'string' ? userEmail : userEmail?.value,

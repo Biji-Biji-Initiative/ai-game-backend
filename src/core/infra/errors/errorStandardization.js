@@ -4,9 +4,9 @@
  * Provides standardized patterns for error handling across all domains
  * following Domain-Driven Design principles.
  */
-import { logger } from "../../infra/logging/logger.js";
-import AppError from "../../infra/errors/AppError.js";
-import { StandardErrorCodes } from "../../infra/errors/ErrorHandler.js";
+import { logger } from "@/core/infra/logging/logger.js";
+import AppError from "@/core/infra/errors/AppError.js";
+import { StandardErrorCodes } from "@/core/infra/errors/ErrorHandler.js";
 'use strict';
 /**
  * Creates an error mapper function that maps generic errors to domain-specific ones
