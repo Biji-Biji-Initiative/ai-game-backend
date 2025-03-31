@@ -4,10 +4,6 @@
   "description": "A stateful web app that challenges users with dynamic, AI-generated cognitive challenges to highlight their unique Human Edge",
   "main": "index.js",
   "type": "module",
-  "imports": {
-    "#/*": "./src/*",
-    "@/*": "./src/*"
-  },
   "engines": {
     "node": ">=22.11.0"
   },
@@ -15,10 +11,10 @@
     "responses-cli": "./cli.js"
   },
   "scripts": {
-    "start": "node ./start.sh",
-    "dev": "node ./start.sh development",
-    "prod": "node ./start.sh production",
-    "test": "jest",
+    "start": "node -r tsconfig-paths/register ./start.sh",
+    "dev": "node -r tsconfig-paths/register ./start.sh development",
+    "prod": "node -r tsconfig-paths/register ./start.sh production",
+    "test": "jest --config=jest.config.js",
     "pm2:status": "pm2 list",
     "pm2:logs": "pm2 logs ai-fight-club-api",
     "pm2:monitor": "pm2 monit",
@@ -43,16 +39,16 @@
     "imports:convert-tests": "node scripts/convert-test-imports.js",
     "imports:verify": "node scripts/verify-imports.js",
     "imports:fix-all": "npm run imports:backup && npm run imports:convert && npm run imports:convert-tests && npm run imports:verify",
-    "test:domain": "node scripts/run-tests.js domain",
+    "test:domain": "node -r tsconfig-paths/register scripts/run-tests.js domain",
     "test:unit": "jest --config=jest.unit.config.json",
     "test:integration": "jest --config=jest.integration.config.json",
-    "test:external": "node scripts/run-tests.js external",
-    "test:e2e": "node scripts/run-tests.js e2e",
-    "test:application": "node scripts/run-tests.js application",
-    "test:watch": "node scripts/run-tests.js --watch",
-    "test:skip-openai": "node scripts/run-tests.js --skip-openai",
-    "test:skip-supabase": "node scripts/run-tests.js --skip-supabase",
-    "test:focus": "node scripts/run-tests.js --focus",
+    "test:external": "node -r tsconfig-paths/register scripts/run-tests.js external",
+    "test:e2e": "node -r tsconfig-paths/register scripts/run-tests.js e2e",
+    "test:application": "node -r tsconfig-paths/register scripts/run-tests.js application",
+    "test:watch": "node -r tsconfig-paths/register scripts/run-tests.js --watch",
+    "test:skip-openai": "node -r tsconfig-paths/register scripts/run-tests.js --skip-openai",
+    "test:skip-supabase": "node -r tsconfig-paths/register scripts/run-tests.js --skip-supabase",
+    "test:focus": "node -r tsconfig-paths/register scripts/run-tests.js --focus",
     "test:verify": "node tools/verify-test-categories.js",
     "test:with-at": "node test-with-resolver.js",
     "test:jest-with-at": "node test-with-resolver.js --framework jest",
@@ -75,10 +71,10 @@
     "swagger:gen": "node -e \"import swaggerJSDoc from 'swagger-jsdoc'; import options from './src/config/swagger.js'; import fs from 'fs'; const spec = swaggerJSDoc(options); fs.writeFileSync('./openapi.json', JSON.stringify(spec, null, 2));\"",
     "swagger:bundle": "swagger-cli bundle openapi/index.yaml -o openapi-spec.json -t json",
     "swagger:bundle:yaml": "swagger-cli bundle openapi/index.yaml -o openapi-spec.yaml -t yaml",
-    "swagger:setup-validator": "node ./src/scripts/setup-openapi-validator.js",
+    "swagger:setup-validator": "node -r tsconfig-paths/register ./src/scripts/setup-openapi-validator.js",
     "swagger:setup": "npm run swagger:bundle && npm run swagger:setup-validator",
-    "swagger:remove-jsdoc": "node ./src/scripts/remove-swagger-jsdoc.js",
-    "swagger:migrate": "node ./scripts/openapi-migration.js",
+    "swagger:remove-jsdoc": "node -r tsconfig-paths/register ./src/scripts/remove-swagger-jsdoc.js",
+    "swagger:migrate": "node -r tsconfig-paths/register ./scripts/openapi-migration.js",
     "events:update-services": "node scripts/update-services.js",
     "events:update-services:dry": "node scripts/update-services.js --dry-run --verbose",
     "events:update-coordinators": "node scripts/update-coordinators.js",
@@ -173,7 +169,8 @@
     "sinon": "^20.0.0",
     "supabase": "^2.20.5",
     "supertest": "^7.1.0",
-    "swagger-cli": "^4.0.4"
+    "swagger-cli": "^4.0.4",
+    "tsconfig-paths": "^4.2.0"
   },
   "lint-staged": {
     "*.{js,jsx}": [
