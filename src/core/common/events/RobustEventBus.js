@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events';
 import { logger } from "../../infra/logging/logger.js";
+import { deadLetterQueueService } from "./DeadLetterQueueService.js";
 
 /**
  * RobustEventBus
@@ -12,6 +13,7 @@ import { logger } from "../../infra/logging/logger.js";
  * 3. Future extension points for distributed systems
  * 4. Event replay/history capabilities
  * 5. Configurable retry policies
+ * 6. Dead Letter Queue for failed events
  * 
  * This class uses Node's built-in EventEmitter as a foundation but extends
  * it with domain-specific functionality and error handling.
@@ -25,6 +27,8 @@ class RobustEventBus {
    * @param {number} options.maxListeners - Maximum number of listeners per event
    * @param {boolean} options.recordHistory - Whether to record event history
    * @param {number} options.historyLimit - Maximum number of events to keep in history
+   * @param {boolean} options.useDLQ - Whether to use the Dead Letter Queue for failed events
+   * @param {Object} options.dlqService - Dead Letter Queue service to use
    */
   constructor(options = {}) {
     this.logger = options.logger || logger.child({
@@ -59,6 +63,10 @@ class RobustEventBus {
       failedEvents: 0,
       processingTimes: {}
     };
+    
+    // Dead Letter Queue configuration
+    this.useDLQ = options.useDLQ !== false;
+    this.dlqService = options.dlqService || deadLetterQueueService;
   }
 
   /**
@@ -95,7 +103,7 @@ class RobustEventBus {
     }
     const handlerId = options.handlerId || `${eventName}-handler-${Date.now()}`;
 
-    // Wrap handler with error handling and logging
+    // Wrap handler with error handling, logging, and DLQ support
     const wrappedHandler = async eventData => {
       const startTime = Date.now();
       try {
@@ -123,6 +131,27 @@ class RobustEventBus {
           eventData,
           duration: Date.now() - startTime
         });
+
+        // Store failed event in dead letter queue if enabled
+        if (this.useDLQ && this.dlqService) {
+          try {
+            await this.dlqService.storeFailedEvent({
+              event: eventData,
+              handlerId,
+              error
+            });
+            
+            this.logger.info(`Event sent to Dead Letter Queue: ${eventName}`, {
+              eventId: eventData.id,
+              handlerId
+            });
+          } catch (dlqError) {
+            this.logger.error(`Failed to store event in Dead Letter Queue: ${dlqError.message}`, {
+              eventId: eventData.id,
+              originalError: error.message
+            });
+          }
+        }
 
         // Re-emit the error but don't crash
         this.emitter.emit('error', error);
@@ -291,6 +320,48 @@ class RobustEventBus {
   }
 
   /**
+   * Retry a failed event from the dead letter queue
+   * @param {string} dlqEntryId - ID of the DLQ entry to retry
+   * @returns {Promise<boolean>} True if retry was successful
+   */
+  async retryFromDLQ(dlqEntryId) {
+    if (!this.useDLQ || !this.dlqService) {
+      this.logger.warn('Dead letter queue is not enabled, cannot retry event');
+      return false;
+    }
+    
+    return this.dlqService.retryEvent(dlqEntryId, this);
+  }
+  
+  /**
+   * Retry all failed events matching criteria
+   * @param {Object} options - Filter options
+   * @returns {Promise<Object>} Results of the retry operation
+   */
+  async retryFailedEvents(options = {}) {
+    if (!this.useDLQ || !this.dlqService) {
+      this.logger.warn('Dead letter queue is not enabled, cannot retry events');
+      return { total: 0, successful: 0, failed: 0, details: [] };
+    }
+    
+    return this.dlqService.retryEvents(options, this);
+  }
+  
+  /**
+   * Get failed events from the dead letter queue
+   * @param {Object} options - Query options
+   * @returns {Promise<Array>} List of DLQ entries
+   */
+  async getFailedEvents(options = {}) {
+    if (!this.useDLQ || !this.dlqService) {
+      this.logger.warn('Dead letter queue is not enabled, cannot get failed events');
+      return [];
+    }
+    
+    return this.dlqService.getFailedEvents(options);
+  }
+
+  /**
    * Reset event history and metrics
    */
   reset() {
@@ -304,7 +375,11 @@ class RobustEventBus {
   }
 }
 
-// Create a singleton instance
-const robustEventBus = new RobustEventBus();
+// Create a singleton instance with DLQ enabled
+const robustEventBus = new RobustEventBus({
+  useDLQ: true,
+  recordHistory: true
+});
+
 export { robustEventBus };
 export default robustEventBus;

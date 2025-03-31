@@ -86,8 +86,32 @@ try {
       },
       from: (table) => ({
         select: () => ({
-          eq: () => Promise.resolve({ data: null, error: null }),
-          single: () => Promise.resolve({ data: null, error: null }),
+          eq: () => ({
+            data: null, 
+            error: null,
+            single: () => Promise.resolve({ data: { 
+              id: 'mock-id',
+              email: 'mock@example.com',
+              full_name: 'Mock User',
+              professional_title: 'Software Engineer',
+              location: 'Mock City',
+              country: 'Mockland',
+              focus_area: 'Testing',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }, error: null })
+          }),
+          single: () => Promise.resolve({ data: { 
+            id: 'mock-id',
+            email: 'mock@example.com',
+            full_name: 'Mock User',
+            professional_title: 'Software Engineer',
+            location: 'Mock City',
+            country: 'Mockland',
+            focus_area: 'Testing',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }, error: null }),
           then: (callback) => Promise.resolve({ data: [], error: null }).then(callback)
         }),
         insert: () => Promise.resolve({ data: { id: 'mock-id' }, error: null }),

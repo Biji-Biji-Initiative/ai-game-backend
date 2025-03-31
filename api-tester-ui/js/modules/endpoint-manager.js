@@ -20,6 +20,8 @@ export class EndpointManager {
             useLocalEndpoints: true, // Whether to fallback to bundled endpoints if fetch fails
             supportMultipleFormats: true, // Whether to support multiple endpoint formats
             endpointsFilePath: "data/endpoints.json", // Standardized path for endpoints
+            dynamicEndpointsPath: "/api/v1/api-tester/endpoints", // Dynamic endpoints from backend
+            useDynamicEndpoints: true, // Whether to use dynamic endpoints from backend
             ...options
         };
         
@@ -80,21 +82,42 @@ export class EndpointManager {
     }
     
     /**
-     * Loads endpoints from the standardized JSON file
+     * Loads endpoints from the standardized JSON file or dynamic backend endpoint
      * @returns {Promise<Array>} The loaded endpoints
      */
     async loadEndpoints() {
-        const endpointsFilePath = this.options.endpointsFilePath;
+        // Try to load dynamic endpoints first if enabled
+        if (this.options.useDynamicEndpoints) {
+            try {
+                return await this.loadDynamicEndpoints();
+            } catch (error) {
+                console.warn("Failed to load dynamic endpoints:", error);
+                console.log("Falling back to static endpoints");
+                // Fall back to static endpoints if dynamic loading fails
+                return await this.loadStaticEndpoints();
+            }
+        } else {
+            // Use static endpoints directly if dynamic loading is disabled
+            return await this.loadStaticEndpoints();
+        }
+    }
+    
+    /**
+     * Loads endpoints from the backend API
+     * @returns {Promise<Array>} The loaded endpoints
+     */
+    async loadDynamicEndpoints() {
+        const dynamicEndpointsPath = this.options.dynamicEndpointsPath;
         
         try {
             // Emit loading event
-            this.emit("endpoints:loading", { path: endpointsFilePath });
+            this.emit("endpoints:loading", { path: dynamicEndpointsPath, type: "dynamic" });
             
-            // Fetch endpoints
-            const response = await fetch(endpointsFilePath);
+            // Fetch endpoints from backend
+            const response = await fetch(dynamicEndpointsPath);
             
             if (!response.ok) {
-                throw new Error(`Failed to load endpoints: ${response.status} ${response.statusText}`);
+                throw new Error(`Failed to load dynamic endpoints: ${response.status} ${response.statusText}`);
             }
             
             const data = await response.json();
@@ -110,12 +133,61 @@ export class EndpointManager {
             this.emit("endpoints:loaded", {
                 endpoints: this.endpoints,
                 categories: Array.from(this.categories.entries()),
-                source: "remote"
+                source: "dynamic"
             });
             
             return this.endpoints;
         } catch (error) {
-            console.error("Error loading endpoints:", error);
+            console.error("Error loading dynamic endpoints:", error);
+            
+            // Emit error event
+            this.emit("endpoints:error", {
+                error,
+                message: `Failed to load dynamic endpoints: ${error.message}`,
+                source: "dynamic"
+            });
+            
+            throw error;
+        }
+    }
+    
+    /**
+     * Loads endpoints from the static JSON file
+     * @returns {Promise<Array>} The loaded endpoints
+     */
+    async loadStaticEndpoints() {
+        const endpointsFilePath = this.options.endpointsFilePath;
+        
+        try {
+            // Emit loading event
+            this.emit("endpoints:loading", { path: endpointsFilePath, type: "static" });
+            
+            // Fetch endpoints
+            const response = await fetch(endpointsFilePath);
+            
+            if (!response.ok) {
+                throw new Error(`Failed to load static endpoints: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            
+            // Process and store endpoints
+            this.processEndpoints(data);
+            
+            // Mark as loaded
+            this.loaded = true;
+            this.retryCount = 0;
+            
+            // Emit loaded event
+            this.emit("endpoints:loaded", {
+                endpoints: this.endpoints,
+                categories: Array.from(this.categories.entries()),
+                source: "static"
+            });
+            
+            return this.endpoints;
+        } catch (error) {
+            console.error("Error loading static endpoints:", error);
             
             // Try to retry the request
             if (this.retryCount < this.options.maxRetries) {
@@ -132,7 +204,7 @@ export class EndpointManager {
                 await new Promise(resolve => setTimeout(resolve, this.options.retryDelay));
                 
                 // Retry
-                return this.loadEndpoints();
+                return this.loadStaticEndpoints();
             }
             
             // If we've reached max retries and have bundled endpoints, use them
@@ -158,7 +230,8 @@ export class EndpointManager {
             // Emit error event
             this.emit("endpoints:error", {
                 error,
-                message: error.message
+                message: error.message,
+                source: "static"
             });
             
             throw error;
@@ -257,8 +330,12 @@ export class EndpointManager {
      * @param {Object} data - The endpoints object
      */
     processEndpointsObject(data) {
+        // Remove endpoints key which might contain an array that we already processed
+        const dataWithoutEndpoints = { ...data };
+        delete dataWithoutEndpoints.endpoints;
+        
         // Process each category
-        Object.entries(data).forEach(([category, endpoints]) => {
+        Object.entries(dataWithoutEndpoints).forEach(([category, endpoints]) => {
             if (!Array.isArray(endpoints)) {
                 console.warn(`Skipping invalid category ${category}: expected array but got`, typeof endpoints);
                 return;

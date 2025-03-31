@@ -1,0 +1,32 @@
+type: object
+description: Event in a user's journey
+required:
+  - id
+  - userId
+  - type
+  - createdAt
+properties:
+  id:
+    type: string
+    format: uuid
+    description: Unique identifier for the event
+  userId:
+    type: string
+    format: uuid
+    description: ID of the user the event belongs to
+  type:
+    type: string
+    enum: [login, challenge_started, challenge_completed, evaluation_received, badge_earned, level_up]
+    description: Type of event
+  data:
+    type: object
+    description: Additional data for the event
+    additionalProperties: true
+  createdAt:
+    type: string
+    format: date-time
+    description: When the event occurred
+  metadata:
+    type: object
+    description: Additional metadata
+    additionalProperties: true 

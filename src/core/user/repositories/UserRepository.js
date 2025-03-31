@@ -6,6 +6,7 @@ import { UserNotFoundError, UserValidationError, UserError } from "../../user/er
 import domainEvents from "../../common/events/domainEvents.js";
 import { BaseRepository, EntityNotFoundError, ValidationError, DatabaseError } from "../../infra/repositories/BaseRepository.js";
 import { withRepositoryErrorHandling, createErrorMapper, createErrorCollector } from "../../infra/errors/errorStandardization.js";
+import { EventTypes } from "../../common/events/domainEvents.js";
 'use strict';
 const { eventBus } = domainEvents;
 // Create an error mapper for the user domain
@@ -105,6 +106,53 @@ class UserRepository extends BaseRepository {
             const userData = UserMapper.fromDatabase(data);
             return new User(userData);
         }, 'findById', { id });
+    }
+    /**
+     * Find multiple users by their IDs
+     * 
+     * Efficiently retrieves multiple users in a single database query
+     * to prevent N+1 query performance issues when loading related entities.
+     * 
+     * @param {Array<string>} ids - Array of user IDs
+     * @returns {Promise<Array<User>>} Array of user objects
+     * @throws {UserError} If database operation fails
+     */
+    async findByIds(ids) {
+        try {
+            // Use the base repository implementation to get raw data
+            const records = await super.findByIds(ids);
+            
+            // Validate and convert each record to a domain object
+            const users = [];
+            
+            for (const record of records) {
+                // Validate the database data
+                const validationResult = userDatabaseSchema.safeParse(record);
+                if (!validationResult.success) {
+                    this._log('warn', 'Database data validation warning', {
+                        id: record.id,
+                        errors: validationResult.error.errors,
+                    });
+                }
+                
+                // Convert database model to domain model using the mapper
+                const userData = UserMapper.fromDatabase(record);
+                users.push(new User(userData));
+            }
+            
+            return users;
+        } catch (error) {
+            this._log('error', 'Error finding users by IDs', {
+                count: ids?.length || 0,
+                error: error.message,
+                stack: error.stack
+            });
+            
+            throw new UserError(`Failed to fetch users by IDs: ${error.message}`, {
+                cause: error,
+                metadata: { count: ids?.length || 0 }
+            });
+        }
     }
     /**
      * Find a user by email
@@ -247,20 +295,89 @@ class UserRepository extends BaseRepository {
                 result: savedUser,
                 domainEvents: domainEvents
             };
-        }, {
-            publishEvents: true,
-            eventBus: this.eventBus
+        }, {publishEvents: true,
+            eventBus: this.eventBus,
+            invalidateCache: true, // Enable cache invalidation
+            cacheInvalidator: this.cacheInvalidator // Use repository's invalidator
         });
     }
     /**
      * Delete a user by ID
-     * @param {string} _id - User ID to delete
+     * @param {string} id - ID of the user to delete
+     * @returns {Promise<Object>} Result of the deletion operation
      * @throws {UserNotFoundError} If user not found
      * @throws {UserError} If database operation fails
      */
-    delete(_id) {
-        // Delete method with standardized error handling is applied in constructor
-        // Implementation here...
+    delete(id) {
+        // Validate ID
+        this._validateId(id);
+        
+        this._log('debug', 'Deleting user', { userId: id });
+        
+        return this.withTransaction(async (transaction) => {
+            // First find the user to ensure it exists
+            const { data: userRecord, error: findError } = await transaction
+                .from(this.tableName)
+                .select('*')
+                .eq('id', id)
+                .maybeSingle();
+            
+            if (findError) {
+                throw new DatabaseError(`Failed to find user for deletion: ${findError.message}`, {
+                    cause: findError,
+                    entityType: this.domainName,
+                    operation: 'delete',
+                    metadata: { id }
+                });
+            }
+            
+            if (!userRecord) {
+                throw new EntityNotFoundError(`User with ID ${id} not found`, {
+                    entityId: id,
+                    entityType: this.domainName
+                });
+            }
+            
+            // Delete from the database
+            const { data: result, error: deleteError } = await transaction
+                .from(this.tableName)
+                .delete()
+                .eq('id', id)
+                .select('id')
+                .maybeSingle();
+            
+            if (deleteError) {
+                throw new DatabaseError(`Failed to delete user: ${deleteError.message}`, {
+                    cause: deleteError,
+                    entityType: this.domainName,
+                    operation: 'delete',
+                    metadata: { id }
+                });
+            }
+            
+            if (!result) {
+                throw new UserError(`Failed to delete user with ID ${id}`);
+            }
+            
+            // Prepare domain events
+            const domainEvents = [{
+                type: EventTypes.USER_UPDATED,
+                payload: { 
+                    userId: result.id,
+                    action: 'deleted'
+                }
+            }];
+            
+            return {
+                result: { deleted: true, id: result.id },
+                domainEvents
+            };
+        }, {
+            publishEvents: true,
+            eventBus: this.eventBus,
+            invalidateCache: true,
+            cacheInvalidator: this.cacheInvalidator
+        });
     }
     /**
      * Find all users matching criteria

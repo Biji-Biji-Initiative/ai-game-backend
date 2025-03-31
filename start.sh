@@ -10,7 +10,7 @@ BOLD='\033[1m'
 
 # Print header
 echo -e "${BOLD}${BLUE}=============================================${NC}"
-echo -e "${BOLD}${BLUE} AI Fight Club API - Startup Script ${NC}"
+echo -e "${BOLD}${BLUE} AI Fight Club API - PM2 Deployment Script ${NC}"
 echo -e "${BOLD}${BLUE}=============================================${NC}"
 
 # Default environment is development
@@ -58,33 +58,17 @@ case $ENVIRONMENT in
     ;;
 esac
 
-# Check if we have a .env file
+# Ensure .env file exists
 if [ ! -f ".env" ]; then
   echo -e "${YELLOW}No .env file found. Creating from .env.example...${NC}"
   if [ -f ".env.example" ]; then
     cp .env.example .env
-    echo -e "${YELLOW}Please update the .env file with your actual environment variables.${NC}"
+    echo -e "${YELLOW}Created .env file from template. Please update with actual values.${NC}"
   else
-    echo -e "${RED}No .env.example file found. Cannot create .env file.${NC}"
-    exit 1
+    echo -e "${RED}No .env.example file found. Creating empty .env file.${NC}"
+    touch .env
+    echo -e "${RED}WARNING: Missing environment variables. App may not function correctly.${NC}"
   fi
-fi
-
-# Verify required env variables
-echo -e "${BLUE}Checking environment variables...${NC}"
-required_vars=("SUPABASE_URL" "SUPABASE_KEY" "SUPABASE_SERVICE_ROLE_KEY")
-missing_vars=false
-
-for var in "${required_vars[@]}"; do
-  if ! grep -q "$var=" .env; then
-    echo -e "${RED}Missing required environment variable: $var${NC}"
-    missing_vars=true
-  fi
-done
-
-if [ "$missing_vars" = true ]; then
-  echo -e "${RED}Please add the missing environment variables to your .env file.${NC}"
-  exit 1
 fi
 
 # Check if PM2 is installed
@@ -104,7 +88,6 @@ if lsof -i :$PORT -sTCP:LISTEN &> /dev/null; then
   echo -e "${BLUE}Checking what's using port $PORT:${NC}"
   lsof -i :$PORT -sTCP:LISTEN
   
-  # Ask if we should kill the process
   read -p "Do you want to kill the process using port $PORT? (y/n) " -n 1 -r
   echo
   if [[ $REPLY =~ ^[Yy]$ ]]; then
@@ -118,51 +101,46 @@ if lsof -i :$PORT -sTCP:LISTEN &> /dev/null; then
   fi
 fi
 
-# Stop any existing instances
+# Check environment variables
+echo -e "${BLUE}Checking environment variables...${NC}"
+node --experimental-loader=./src/importResolver.js scripts/check-env.js
+
+# Exit if env check fails (only happens in production/testing)
+if [ $? -ne 0 ]; then
+  echo -e "${RED}Environment check failed. Please fix the issues above.${NC}"
+  exit 1
+fi
+
+# Stop any existing instances of our app
 echo -e "${BLUE}Stopping any existing instances...${NC}"
 pm2 stop ai-fight-club-api 2>/dev/null || true
 pm2 delete ai-fight-club-api 2>/dev/null || true
 
-# Set NODE_ENV environment variable
-export NODE_ENV=$ENVIRONMENT
-export PORT=$PORT
-
-# Test the database connection
-echo "Testing database connection..."
-node scripts/db-test.js
-
-# Check if database test was successful
-if [ $? -ne 0 ]; then
-  echo "Database connection failed. Please check your SUPABASE_URL and SUPABASE_KEY in .env"
-  exit 1
-fi
-
 # Start the application with PM2
-echo -e "${BLUE}Starting application in $ENVIRONMENT mode on port $PORT...${NC}"
+echo -e "${BLUE}Starting application with PM2 in $ENVIRONMENT mode...${NC}"
 pm2 start ecosystem.config.cjs --env $ENVIRONMENT
 
 # Check if application started successfully
 if pm2 list | grep "ai-fight-club-api" | grep -q "online"; then
   echo -e "${GREEN}Application started successfully!${NC}"
+  # Save PM2 process list to persist across reboots
+  pm2 save
+  
+  # Display running processes
+  pm2 list
+  
+  echo -e "${GREEN}Application is running in $ENVIRONMENT mode on port $PORT${NC}"
+  echo -e "${BLUE}View logs with: ${YELLOW}pm2 logs ai-fight-club-api${NC}"
+  echo -e "${BLUE}Monitor with: ${YELLOW}pm2 monit${NC}"
+  echo -e "${BLUE}Stop with: ${YELLOW}npm run stop${NC}"
+  echo -e "${BLUE}Restart with: ${YELLOW}npm run restart${NC}"
 else
-  echo -e "${RED}Failed to start application. Check logs for details.${NC}"
+  echo -e "${RED}Failed to start application. Checking logs...${NC}"
   pm2 logs ai-fight-club-api --lines 20
   exit 1
 fi
 
-# Save PM2 process list
-pm2 save
-
-# Display running processes
-pm2 list
-
-echo -e "${GREEN}Application started in $ENVIRONMENT mode on port $PORT${NC}"
-echo -e "${BLUE}View logs with: ${YELLOW}pm2 logs ai-fight-club-api${NC}"
-echo -e "${BLUE}Monitor with: ${YELLOW}pm2 monit${NC}"
-echo -e "${BLUE}Stop with: ${YELLOW}npm run stop${NC}"
-echo -e "${BLUE}Restart with: ${YELLOW}npm run restart${NC}"
-
-# Run verification if we're in production mode
+# Run verification in production mode
 if [ "$ENVIRONMENT" = "production" ]; then
   echo -e "${BLUE}Running production verification...${NC}"
   node scripts/verify-server.js --production

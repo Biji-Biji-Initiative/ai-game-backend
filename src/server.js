@@ -8,7 +8,7 @@
  */
 
 import { createServer } from 'http';
-import app from "@/app.js";
+import app from "./app.js";
 import { logger } from "./core/infra/logging/logger.js";
 import { initializeSupabase } from "./core/infra/db/databaseConnection.js";
 import config from "./config/config.js";
@@ -21,7 +21,13 @@ import config from "./config/config.js";
 export async function startServer(port) {
   // Use provided port, fallback to environment variable, then config, then default
   // For production, standardize on 9000
-  const PORT = port || (process.env.NODE_ENV === 'production' ? 9000 : (process.env.PORT || config.server.port || 3000));
+  let PORT = port || (process.env.NODE_ENV === 'production' ? 9000 : (process.env.PORT || config.server.port || 3000));
+  
+  // Dynamic port allocation for cluster mode
+  if (process.env.PORT_BASE && process.env.INSTANCE_ID) {
+    PORT = parseInt(process.env.PORT_BASE) + parseInt(process.env.INSTANCE_ID);
+    logger.info(`Running in cluster mode, using port ${PORT} for instance ${process.env.INSTANCE_ID}`);
+  }
   
   try {
     // Initialize database connection

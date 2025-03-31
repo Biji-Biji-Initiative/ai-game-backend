@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: AI Fight Club API
-  description: Complete API documentation for the AI Fight Club application
+  description: Complete API documentation for the AI Fight Club application - a platform for AI coding challenges and evaluation
   version: 1.0.0
   license:
     name: ISC
@@ -10,16 +10,125 @@ info:
     name: Support
     url: https://aifightclub.example.com
     email: support@aifightclub.example.com
+  termsOfService: https://aifightclub.example.com/terms
+  x-api-versioning:
+    strategy: uri-path
+    current: v1
+    deprecated: []
+    sunset: []
 servers:
   - url: /api/v1
-    description: API Server
+    description: Current server (relative path)
+tags:
+  - name: System
+    description: System-level endpoints for health checking and monitoring
+  - name: Users
+    description: User management operations
+  - name: Auth
+    description: Authentication and authorization endpoints
+  - name: Challenges
+    description: Challenge management and generation
+  - name: Evaluations
+    description: Evaluation of challenge responses
+  - name: UserJourney
+    description: User progress tracking and journey management
+  - name: Adaptive
+    description: Adaptive learning and personalization features
+  - name: FocusAreas
+    description: Focus areas for learning and skill development
+  - name: Progress
+    description: User progress tracking and reporting
+  - name: Personality
+    description: User personality assessment and insights
+  - name: Prompts
+    description: System prompts for AI interactions
 paths:
-  # Include paths from other files
+  /health:
+    $ref: './paths/system.yaml#/health'
+  # User paths
+  /users:
+    $ref: './paths/users.yaml#/users'
+  /users/{id}:
+    $ref: './paths/users.yaml#/users_id'
+  # Auth paths  
+  /auth/login:
+    $ref: './paths/auth.yaml#/login'
+  /auth/register:
+    $ref: './paths/auth.yaml#/register'
+  # Challenges paths
+  /challenges:
+    $ref: './paths/challenges.yaml#/challenges'
+  /challenges/{id}:
+    $ref: './paths/challenges.yaml#/challenges_id'
+  # Evaluations paths
+  /evaluations:
+    $ref: './paths/evaluations.yaml#/evaluations'
+  /evaluations/{id}:
+    $ref: './paths/evaluations.yaml#/evaluations_id'
+  # User Journey paths
+  /user-journey/events:
+    $ref: './paths/userJourney.yaml#/events'
+  /user-journey/timeline:
+    $ref: './paths/userJourney.yaml#/timeline'
+  /user-journey/progress:
+    $ref: './paths/userJourney.yaml#/progress'
+  # Adaptive learning paths
+  /adaptive/recommendations:
+    $ref: './paths/adaptive.yaml#/recommendations'
+  /adaptive/dynamic-challenge:
+    $ref: './paths/adaptive.yaml#/dynamic_challenge'
+  /adaptive/skill-profile:
+    $ref: './paths/adaptive.yaml#/skill_profile'
+  # Focus Areas paths
+  /focus-areas:
+    $ref: './paths/focusAreas.yaml#/focus_areas'
+  /focus-areas/{id}:
+    $ref: './paths/focusAreas.yaml#/focus_areas_id'
+  /users/{userId}/focus-areas:
+    $ref: './paths/focusAreas.yaml#/user_focus_areas'
+  /focus-areas/generate:
+    $ref: './paths/focusAreas.yaml#/focus_areas_generate'
+  # Progress paths
+  /progress:
+    $ref: './paths/progress.yaml#/progress'
+  /progress/all:
+    $ref: './paths/progress.yaml#/progress_all'
+  /progress/challenge/{challengeId}:
+    $ref: './paths/progress.yaml#/progress_challenge'
+  /progress/complete:
+    $ref: './paths/progress.yaml#/progress_complete'
+  /progress/skills:
+    $ref: './paths/progress.yaml#/progress_skills'
+  /progress/focus-area:
+    $ref: './paths/progress.yaml#/progress_focus_area'
+  # Personality paths
+  /personality/profile:
+    $ref: './paths/personality.yaml#/personality_profile'
+  /personality/traits:
+    $ref: './paths/personality.yaml#/personality_traits'
+  /personality/attitudes:
+    $ref: './paths/personality.yaml#/personality_attitudes'
+  /personality/insights/generate:
+    $ref: './paths/personality.yaml#/personality_insights_generate'
+  /personality/insights:
+    $ref: './paths/personality.yaml#/personality_insights'
+  /personality/compatibility:
+    $ref: './paths/personality.yaml#/personality_compatibility'
+  /personality/assessment:
+    $ref: './paths/personality.yaml#/personality_assessment'
+  # Prompt paths
+  /prompts:
+    $ref: './paths/prompt.yaml#/prompts'
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: JWT token authentication. Use the token from the login response. Tokens expire after 24 hours.
+  parameters:
+    $ref: './components/parameters/common.yaml'
+  responses:
+    $ref: './components/responses/common.yaml'
   schemas:
-    # Include schemas from other files 
+    $ref: './components/schemas/index.yaml' 

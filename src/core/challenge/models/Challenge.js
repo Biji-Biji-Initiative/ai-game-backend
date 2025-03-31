@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { ChallengeValidationError } from "../../challenge/errors/ChallengeErrors.js";
 import { ChallengeSchema } from "../../challenge/schemas/ChallengeSchema.js";
+import { Email, ChallengeId, FocusArea, DifficultyLevel, createEmail, createChallengeId, createFocusArea, createDifficultyLevel } from "../../common/valueObjects/index.js";
 'use strict';
 /**
  * @swagger
@@ -113,31 +114,64 @@ class Challenge {
      * @param {Object} data - Challenge data
      * @param {string} data.title - Title of the challenge
      * @param {Object|string} data.content - The challenge content/question
-     * @param {string} [data.userEmail] - Email of the user the challenge is for
+     * @param {string|Email} [data.userEmail] - Email of the user the challenge is for
      * @param {string} [data.userId] - ID of the user the challenge is for
-     * @param {string} [data.focusArea] - Focus area of the challenge
+     * @param {string|FocusArea} [data.focusArea] - Focus area of the challenge
      * @param {string} [data.challengeType] - Type of challenge
      * @param {string} [data.formatType] - Format type of the challenge
-     * @param {string} [data.difficulty] - Difficulty level of the challenge
+     * @param {string|DifficultyLevel} [data.difficulty] - Difficulty level of the challenge
      * @param {string} [data.status='pending'] - Status of the challenge
      * @param {Date|string} [data.createdAt] - When the challenge was created
      * @param {Date|string} [data.updatedAt] - When the challenge was last updated
      * @throws {ChallengeValidationError} When required fields are missing or validation fails
      */
     constructor({ id, content, userEmail, userId, focusArea, focusAreaId, challengeType, formatType, difficulty, status = 'pending', createdAt = new Date(), updatedAt = new Date(), responses = [], evaluation = null, score = 0, title = '', description = '', instructions = '', evaluationCriteria = [] }) {
+        // Convert id to ChallengeId value object if needed
+        this._idVO = id ? (id instanceof ChallengeId ? id : createChallengeId(id || uuidv4())) : createChallengeId(uuidv4());
+        if (!this._idVO) {
+            throw new ChallengeValidationError('Invalid challenge ID format');
+        }
+        
+        // Convert userEmail to Email value object if provided and not already a VO
+        this._emailVO = null;
+        if (userEmail) {
+            this._emailVO = userEmail instanceof Email ? userEmail : createEmail(userEmail);
+            if (!this._emailVO) {
+                throw new ChallengeValidationError('Invalid email format');
+            }
+        }
+        
+        // Convert focusArea to FocusArea value object if needed
+        this._focusAreaVO = null;
+        if (focusArea) {
+            this._focusAreaVO = focusArea instanceof FocusArea ? focusArea : createFocusArea(focusArea);
+            if (!this._focusAreaVO) {
+                throw new ChallengeValidationError('Invalid focus area format');
+            }
+        }
+        
+        // Convert difficulty to DifficultyLevel value object if needed
+        this._difficultyVO = null;
+        if (difficulty) {
+            this._difficultyVO = difficulty instanceof DifficultyLevel ? difficulty : createDifficultyLevel(difficulty);
+            if (!this._difficultyVO) {
+                throw new ChallengeValidationError('Invalid difficulty level');
+            }
+        }
+        
         // Create a data object to validate
         const challengeData = {
-            id: id || uuidv4(),
+            id: this._idVO.value,
             title,
             description,
             content: typeof content === 'string' ? { instructions: content } : content,
-            userEmail,
+            userEmail: this._emailVO ? this._emailVO.value : userEmail,
             userId,
-            focusArea,
+            focusArea: this._focusAreaVO ? this._focusAreaVO.value : focusArea,
             focusAreaId,
             challengeType,
             formatType,
-            difficulty,
+            difficulty: this._difficultyVO ? this._difficultyVO.value : difficulty,
             status,
             responses,
             evaluation,
@@ -183,6 +217,34 @@ class Challenge {
         
         // Domain events collection to track events raised by this entity
         this._domainEvents = [];
+    }
+    /**
+     * Get the challenge ID as a value object
+     * @returns {ChallengeId} Challenge ID value object
+     */
+    get challengeIdVO() {
+        return this._idVO;
+    }
+    /**
+     * Get the user email as a value object
+     * @returns {Email|null} Email value object or null if not set
+     */
+    get emailVO() {
+        return this._emailVO;
+    }
+    /**
+     * Get the focus area as a value object
+     * @returns {FocusArea|null} FocusArea value object or null if not set
+     */
+    get focusAreaVO() {
+        return this._focusAreaVO;
+    }
+    /**
+     * Get the difficulty level as a value object
+     * @returns {DifficultyLevel|null} DifficultyLevel value object or null if not set
+     */
+    get difficultyVO() {
+        return this._difficultyVO;
     }
     /**
      * Generate a new UUID for a challenge
@@ -319,6 +381,31 @@ class Challenge {
      * @throws {ChallengeValidationError} When validation fails
      */
     update(updateData) {
+        // Convert value objects in the update data if necessary
+        if (updateData.userEmail && !(updateData.userEmail instanceof Email)) {
+            const emailVO = createEmail(updateData.userEmail);
+            if (!emailVO) {
+                throw new ChallengeValidationError('Invalid email format in update data');
+            }
+            updateData.userEmail = emailVO.value;
+        }
+        
+        if (updateData.focusArea && !(updateData.focusArea instanceof FocusArea)) {
+            const focusAreaVO = createFocusArea(updateData.focusArea);
+            if (!focusAreaVO) {
+                throw new ChallengeValidationError('Invalid focus area in update data');
+            }
+            updateData.focusArea = focusAreaVO.value;
+        }
+        
+        if (updateData.difficulty && !(updateData.difficulty instanceof DifficultyLevel)) {
+            const difficultyVO = createDifficultyLevel(updateData.difficulty);
+            if (!difficultyVO) {
+                throw new ChallengeValidationError('Invalid difficulty level in update data');
+            }
+            updateData.difficulty = difficultyVO.value;
+        }
+        
         // Create a new instance with updated data
         const updated = {
             ...this.toJSON(),

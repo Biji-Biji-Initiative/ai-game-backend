@@ -1,0 +1,25 @@
+# Common schemas
+PaginationParams:
+  $ref: './common/PaginationParams.yaml'
+FilterParams:
+  $ref: './common/FilterParams.yaml'
+
+# Entity schemas
+User:
+  $ref: './User.yaml'
+Challenge:
+  $ref: './Challenge.yaml'
+Evaluation:
+  $ref: './Evaluation.yaml'
+UserJourneyEvent:
+  $ref: './UserJourneyEvent.yaml'
+AdaptiveRecommendation:
+  $ref: './AdaptiveRecommendation.yaml'
+FocusArea:
+  $ref: './FocusArea.yaml'
+Progress:
+  $ref: './Progress.yaml'
+Personality:
+  $ref: './Personality.yaml'
+Prompt:
+  $ref: './Prompt.yaml' 

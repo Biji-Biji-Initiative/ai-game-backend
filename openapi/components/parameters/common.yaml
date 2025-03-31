@@ -1,0 +1,33 @@
+limitParam:
+  name: limit
+  in: query
+  description: "Maximum number of items to return per page (default: 20, max: 100)"
+  schema:
+    type: integer
+    default: 20
+    minimum: 1
+    maximum: 100
+
+offsetParam:
+  name: offset
+  in: query
+  description: "Number of items to skip (for pagination)"
+  schema:
+    type: integer
+    default: 0
+    minimum: 0
+
+sortParam:
+  name: sort
+  in: query
+  description: "Field to sort by (prefix with - for descending order)"
+  schema:
+    type: string
+    example: "-createdAt"
+
+filterParam:
+  name: filter
+  in: query
+  description: "Filter criteria in format field:operator:value (e.g., difficulty:eq:advanced)"
+  schema:
+    type: string 

@@ -7,6 +7,12 @@ import { logger } from "../../infra/logging/logger.js";
  * Events that occur within the User domain.
  * Following DDD principles, these events are used to communicate changes
  * in the domain to other domains.
+ * 
+ * NOTE: This direct event publishing approach is deprecated.
+ * Prefer using the entity-based event collection pattern instead:
+ * - Use User.addDomainEvent() to collect events in the entity
+ * - Let repositories publish events after successful persistence
+ * See docs/event-handling-standard.md for details on the recommended approach.
  */
 const {
   EventTypes,
@@ -17,8 +23,10 @@ const {
  * @param {string} userId - ID of the user
  * @param {string} email - Email of the user
  * @returns {Promise<void>}
+ * @deprecated Use User entity's addDomainEvent method and let repository handle publishing
  */
 async function publishUserCreated(userId, email) {
+  logger.warn('DEPRECATED: Direct event publishing via publishUserCreated. Use entity-based event collection instead.');
   try {
     await eventBus.publishEvent(EventTypes.USER_CREATED, {
       userId,
@@ -41,8 +49,10 @@ async function publishUserCreated(userId, email) {
  * @param {string} userId - ID of the user
  * @param {Object} changes - Changes made to the user
  * @returns {Promise<void>}
+ * @deprecated Use User entity's addDomainEvent method and let repository handle publishing
  */
 async function publishUserUpdated(userId, changes) {
+  logger.warn('DEPRECATED: Direct event publishing via publishUserUpdated. Use entity-based event collection instead.');
   try {
     await eventBus.publishEvent(EventTypes.USER_UPDATED, {
       userId,
@@ -63,8 +73,10 @@ async function publishUserUpdated(userId, changes) {
  * @param {string} userId - ID of the user
  * @param {string} email - Email of the user
  * @returns {Promise<void>}
+ * @deprecated Use User entity's addDomainEvent method and let repository handle publishing
  */
 async function publishUserProfileCompleted(userId, email) {
+  logger.warn('DEPRECATED: Direct event publishing via publishUserProfileCompleted. Use entity-based event collection instead.');
   try {
     await eventBus.publishEvent(EventTypes.USER_PROFILE_COMPLETED, {
       userId,

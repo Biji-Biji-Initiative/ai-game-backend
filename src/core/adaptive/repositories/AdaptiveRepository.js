@@ -469,16 +469,8 @@ class AdaptiveRepository extends BaseRepository {
 }
 // Export class and a default instance
 const adaptiveRepository = new AdaptiveRepository();
-export { AdaptiveRepository };
-export { adaptiveRepository };
-export { AdaptiveNotFoundError };
-export { AdaptiveValidationError };
-export { AdaptiveRepositoryError };
-export default {
-    AdaptiveRepository,
-    adaptiveRepository,
-    AdaptiveNotFoundError,
-    AdaptiveValidationError,
-    AdaptiveRepositoryError
-};
+
+// Fix exports to ensure proper constructor import
+export { AdaptiveRepository, adaptiveRepository, AdaptiveRepositoryError };
+export default AdaptiveRepository;
 

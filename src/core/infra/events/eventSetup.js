@@ -8,6 +8,7 @@ import { registerUserJourneyEventHandlers } from "../../userJourney/events/userJ
 import { registerFocusAreaEventHandlers } from "../../focusArea/events/focusAreaEvents.js";
 import { registerChallengeEventHandlers } from "../../challenge/events/challengeEvents.js";
 import { registerUserEventHandlers } from "../../user/events/userEvents.js";
+import { registerCacheInvalidationEventHandlers } from "../../../application/events/CacheInvalidationEventHandlers.js";
 'use strict';
 const {
   eventBus,
@@ -34,6 +35,9 @@ function registerAllDomainEventHandlers() {
     registerAdaptiveEventHandlers();
     registerUserJourneyEventHandlers();
     registerFocusAreaEventHandlers();
+    
+    // Register cache invalidation event handlers
+    registerCacheInvalidationEventHandlers(eventBus);
     
     logger.info('Domain event handlers registered successfully');
   } catch (error) {

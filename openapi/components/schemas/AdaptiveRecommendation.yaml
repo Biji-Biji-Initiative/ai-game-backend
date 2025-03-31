@@ -1,0 +1,48 @@
+type: object
+description: Adaptive learning recommendation for a user
+required:
+  - id
+  - userId
+  - type
+  - createdAt
+properties:
+  id:
+    type: string
+    format: uuid
+    description: Unique identifier for the recommendation
+  userId:
+    type: string
+    format: uuid
+    description: ID of the user the recommendation is for
+  type:
+    type: string
+    enum: [challenge, resource, skill_focus, difficulty_adjustment]
+    description: Type of recommendation
+  contentId:
+    type: string
+    format: uuid
+    description: ID of the recommended content (challenge, resource, etc.)
+  reason:
+    type: string
+    description: Explanation for why this recommendation was made
+  priority:
+    type: integer
+    minimum: 1
+    maximum: 10
+    description: Priority of the recommendation (1-10)
+  status:
+    type: string
+    enum: [active, dismissed, completed]
+    description: Current status of the recommendation
+  metadata:
+    type: object
+    description: Additional metadata about the recommendation
+    additionalProperties: true
+  createdAt:
+    type: string
+    format: date-time
+    description: When the recommendation was created
+  updatedAt:
+    type: string
+    format: date-time
+    description: When the recommendation was last updated 

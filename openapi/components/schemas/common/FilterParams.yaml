@@ -1,0 +1,13 @@
+type: object
+description: Parameters for filtering results
+properties:
+  field:
+    type: string
+    description: Field name to filter on
+  operator:
+    type: string
+    enum: [eq, neq, gt, gte, lt, lte, in, nin, like]
+    description: Comparison operator
+  value:
+    type: string
+    description: Value to compare against 

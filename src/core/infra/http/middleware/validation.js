@@ -8,7 +8,11 @@
  * @module validation
  * @requires zod
  */
-// const AppError = require('../../core/infra/errors/AppError');
+import AppError, { AppError as NamedAppError } from "../../../infra/errors/AppError.js";
+import { logger } from "../../../infra/logging/logger.js";
+
+// Use either the named import or default import based on what's available
+const ErrorClass = NamedAppError || AppError;
 /**
  * Creates a middleware function that validates request body
  * against the provided Zod schema
@@ -25,14 +29,21 @@ const validateBody = schema => {
             next();
         }
         catch (error) {
+            logger.debug('Body validation failed', { 
+                path: req.path, 
+                method: req.method,
+                body: req.body,
+                errors: error.errors
+            });
+            
             // Format Zod validation errors
             if (error.errors) {
                 const formattedErrors = error.errors
                     .map(err => `${err.path.join('.')}: ${err.message}`)
                     .join('; ');
-                return next(new AppError(formattedErrors, 400));
+                return next(new ErrorClass(formattedErrors, 400));
             }
-            next(new AppError('Validation error', 400));
+            next(new ErrorClass('Validation error', 400));
         }
     };
 };
@@ -52,14 +63,21 @@ const validateQuery = schema => {
             next();
         }
         catch (error) {
+            logger.debug('Query validation failed', { 
+                path: req.path, 
+                method: req.method,
+                query: req.query,
+                errors: error.errors
+            });
+            
             // Format Zod validation errors
             if (error.errors) {
                 const formattedErrors = error.errors
                     .map(err => `Query parameter ${err.path.join('.')}: ${err.message}`)
                     .join('; ');
-                return next(new AppError(formattedErrors, 400));
+                return next(new ErrorClass(formattedErrors, 400));
             }
-            next(new AppError('Invalid query parameters', 400));
+            next(new ErrorClass('Invalid query parameters', 400));
         }
     };
 };
@@ -79,14 +97,21 @@ const validateParams = schema => {
             next();
         }
         catch (error) {
+            logger.debug('Params validation failed', { 
+                path: req.path, 
+                method: req.method,
+                params: req.params,
+                errors: error.errors
+            });
+            
             // Format Zod validation errors
             if (error.errors) {
                 const formattedErrors = error.errors
                     .map(err => `URL parameter ${err.path.join('.')}: ${err.message}`)
                     .join('; ');
-                return next(new AppError(formattedErrors, 400));
+                return next(new ErrorClass(formattedErrors, 400));
             }
-            next(new AppError('Invalid URL parameters', 400));
+            next(new ErrorClass('Invalid URL parameters', 400));
         }
     };
 };

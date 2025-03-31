@@ -12,6 +12,7 @@ import ProgressService from "../../core/progress/services/ProgressService.js";
 // import AiChatService from "../../services/ai/AiChatService.js";
 // import AiAnalysisService from "../../services/ai/AiAnalysisService.js";
 import UserService from "../../core/user/services/UserService.js";
+import UserPreferencesManager from "../../core/user/services/UserPreferencesManager.js";
 import UserJourneyService from "../../core/userJourney/services/UserJourneyService.js";
 import ChallengePersonalizationService from "../../core/challenge/services/ChallengePersonalizationService.js";
 import ChallengeConfigService from "../../core/challenge/services/ChallengeConfigService.js";
@@ -27,6 +28,7 @@ import FocusAreaGenerationService from "@/application/focusArea/FocusAreaGenerat
 import ChallengeGenerationService from "@/application/challenge/ChallengeGenerationService.js";
 import ChallengeEvaluationService from "@/application/challenge/ChallengeEvaluationService.js";
 import { UserContextService } from "@/application/evaluation/UserContextService.js";
+import AuthorizationService from "../../core/auth/services/AuthorizationService.js";
 'use strict';
 /**
  * Service Components Registration
@@ -51,6 +53,16 @@ function registerServiceComponents(container) {
         });
     }, false // Transient: user-specific operations should be isolated
     );
+    
+    // Register UserPreferencesManager
+    container.register('userPreferencesManager', c => {
+        return new UserPreferencesManager({
+            userService: c.get('userService'),
+            logger: c.get('logger')
+        });
+    }, false // Transient: handles user-specific preference operations
+    );
+    
     container.register('personalityService', c => {
         return new PersonalityService(c.get('personalityRepository'), c.get('traitsAnalysisService'), c.get('personalityInsightGenerator'));
     }, false // Transient: handles user-specific personality data
@@ -244,6 +256,11 @@ function registerServiceComponents(container) {
             logger: c.get('challengeLogger')
         });
     }, true); // Singleton: primarily creates entities based on configuration
+
+    // Auth-related services
+    container.register('authorizationService', () => {
+        return new AuthorizationService();
+    }, true); // Singleton: stateless service that handles authorization rules
 }
 export { registerServiceComponents };
 export default {

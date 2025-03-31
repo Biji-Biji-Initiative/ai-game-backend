@@ -64,6 +64,15 @@ class UserJourneyController {
         errorMappings: userJourneyControllerErrorMappings
       }
     );
+    this.getUserJourneyEvents = withControllerErrorHandling(
+      this.getUserJourneyEvents.bind(this),
+      {
+        methodName: 'getUserJourneyEvents',
+        domainName: 'userJourney',
+        logger: this.logger,
+        errorMappings: userJourneyControllerErrorMappings
+      }
+    );
     this.getUserActivitySummary = withControllerErrorHandling(
       this.getUserActivitySummary.bind(this),
       {
@@ -77,6 +86,43 @@ class UserJourneyController {
       this.getUserEngagementMetrics.bind(this),
       {
         methodName: 'getUserEngagementMetrics',
+        domainName: 'userJourney',
+        logger: this.logger,
+        errorMappings: userJourneyControllerErrorMappings
+      }
+    );
+    // Add the missing methods required by RouteFactory
+    this.getUserJourneyById = withControllerErrorHandling(
+      this.getUserJourneyById.bind(this),
+      {
+        methodName: 'getUserJourneyById',
+        domainName: 'userJourney',
+        logger: this.logger,
+        errorMappings: userJourneyControllerErrorMappings
+      }
+    );
+    this.getJourneyEvent = withControllerErrorHandling(
+      this.getJourneyEvent.bind(this),
+      {
+        methodName: 'getJourneyEvent',
+        domainName: 'userJourney',
+        logger: this.logger,
+        errorMappings: userJourneyControllerErrorMappings
+      }
+    );
+    this.getEventsByType = withControllerErrorHandling(
+      this.getEventsByType.bind(this),
+      {
+        methodName: 'getEventsByType',
+        domainName: 'userJourney',
+        logger: this.logger,
+        errorMappings: userJourneyControllerErrorMappings
+      }
+    );
+    this.getUserTimeline = withControllerErrorHandling(
+      this.getUserTimeline.bind(this),
+      {
+        methodName: 'getUserTimeline',
         domainName: 'userJourney',
         logger: this.logger,
         errorMappings: userJourneyControllerErrorMappings
@@ -214,6 +260,178 @@ class UserJourneyController {
       status: 'success',
       data: {
         metrics: metricsDto
+      }
+    });
+  }
+  /**
+   * Get journey events for the currently authenticated user
+   * @param {Request} req - Express request object
+   * @param {Response} res - Express response object
+   */
+  async getUserJourneyEvents(req, res) {
+    const userId = req.user.id;
+    
+    // Get the user email from the repository
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+    
+    // Get events for the current user
+    const events = await this.userJourneyCoordinator.getUserEvents(user.email, {
+      limit: 50 // Reasonable default limit
+    });
+    
+    // Convert to DTOs
+    const eventDtos = UserJourneyDTOMapper.toDTOCollection(events);
+    
+    return res.status(200).json({
+      status: 'success',
+      results: eventDtos.length,
+      data: {
+        events: eventDtos
+      }
+    });
+  }
+  /**
+   * Get user journey by ID
+   * @param {Request} req - Express request object
+   * @param {Response} res - Express response object
+   */
+  async getUserJourneyById(req, res) {
+    const journeyId = req.params.id;
+    const userId = req.user.id;
+    
+    if (!journeyId) {
+      throw new AppError('Journey ID is required', 400);
+    }
+    
+    // Check if user exists
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+    
+    // Get journey by ID
+    const journey = await this.userJourneyCoordinator.getJourneyById(journeyId, userId);
+    if (!journey) {
+      throw new AppError('Journey not found', 404);
+    }
+    
+    // Convert to DTO
+    const journeyDto = UserJourneyDTOMapper.toDTO(journey);
+    
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        journey: journeyDto
+      }
+    });
+  }
+  /**
+   * Get a specific journey event by ID
+   * @param {Request} req - Express request object
+   * @param {Response} res - Express response object
+   */
+  async getJourneyEvent(req, res) {
+    const eventId = req.params.eventId;
+    const userId = req.user.id;
+    
+    if (!eventId) {
+      throw new AppError('Event ID is required', 400);
+    }
+    
+    // Check if user exists
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+    
+    // Get event by ID
+    const event = await this.userJourneyCoordinator.getEventById(eventId, userId);
+    if (!event) {
+      throw new AppError('Event not found', 404);
+    }
+    
+    // Convert to DTO
+    const eventDto = UserJourneyDTOMapper.toDTO(event);
+    
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        event: eventDto
+      }
+    });
+  }
+  /**
+   * Get journey events filtered by type
+   * @param {Request} req - Express request object
+   * @param {Response} res - Express response object
+   */
+  async getEventsByType(req, res) {
+    const { type } = req.params;
+    const userId = req.user.id;
+    const { limit } = req.query;
+    
+    if (!type) {
+      throw new AppError('Event type is required', 400);
+    }
+    
+    // Check if user exists
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+    
+    // Get events by type
+    const events = await this.userJourneyCoordinator.getUserEvents(user.email, {
+      eventType: type,
+      limit: limit ? parseInt(limit) : 20
+    });
+    
+    // Convert to DTOs
+    const eventDtos = UserJourneyDTOMapper.toDTOCollection(events);
+    
+    return res.status(200).json({
+      status: 'success',
+      results: eventDtos.length,
+      data: {
+        events: eventDtos
+      }
+    });
+  }
+  /**
+   * Get user timeline showing journey events in chronological order
+   * @param {Request} req - Express request object
+   * @param {Response} res - Express response object
+   */
+  async getUserTimeline(req, res) {
+    const userId = req.user.id;
+    const { startDate, endDate, limit } = req.query;
+    
+    // Check if user exists
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+    
+    // Get all events for timeline, sorted by date
+    const events = await this.userJourneyCoordinator.getUserEvents(user.email, {
+      startDate,
+      endDate,
+      limit: limit ? parseInt(limit) : 50,
+      sortBy: 'timestamp',
+      sortOrder: 'asc'
+    });
+    
+    // Convert to DTOs
+    const timelineEvents = UserJourneyDTOMapper.toDTOCollection(events);
+    
+    return res.status(200).json({
+      status: 'success',
+      results: timelineEvents.length,
+      data: {
+        timeline: timelineEvents
       }
     });
   }

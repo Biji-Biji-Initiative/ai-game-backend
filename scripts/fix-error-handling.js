@@ -91,15 +91,18 @@ for (const file of testFiles) {
     (match, errorMessage) => {
       let errorType = `${primaryDomain.charAt(0).toUpperCase() + primaryDomain.slice(1)}Error`;
       
-      // Try to determine more specific error type based on message content
-      if (errorMessage.includes('not found') || errorMessage.includes('does not exist')) {
-        errorType = `${primaryDomain.charAt(0).toUpperCase() + primaryDomain.slice(1)}NotFoundError`;
-      } else if (errorMessage.includes('validation') || errorMessage.includes('invalid') || errorMessage.includes('missing')) {
-        errorType = `${primaryDomain.charAt(0).toUpperCase() + primaryDomain.slice(1)}ValidationError`;
-      } else if (errorMessage.includes('repository') || errorMessage.includes('database') || errorMessage.includes('save') || errorMessage.includes('update') || errorMessage.includes('delete')) {
-        errorType = `${primaryDomain.charAt(0).toUpperCase() + primaryDomain.slice(1)}RepositoryError`;
-      } else if (errorMessage.includes('process') || errorMessage.includes('operation') || errorMessage.includes('failed')) {
-        errorType = `${primaryDomain.charAt(0).toUpperCase() + primaryDomain.slice(1)}ProcessingError`;
+      // Make sure errorMessage is a string
+      if (errorMessage && typeof errorMessage === 'string') {
+        // Try to determine more specific error type based on message content
+        if (errorMessage.includes('not found') || errorMessage.includes('does not exist')) {
+          errorType = `${primaryDomain.charAt(0).toUpperCase() + primaryDomain.slice(1)}NotFoundError`;
+        } else if (errorMessage.includes('validation') || errorMessage.includes('invalid') || errorMessage.includes('missing')) {
+          errorType = `${primaryDomain.charAt(0).toUpperCase() + primaryDomain.slice(1)}ValidationError`;
+        } else if (errorMessage.includes('repository') || errorMessage.includes('database') || errorMessage.includes('save') || errorMessage.includes('update') || errorMessage.includes('delete')) {
+          errorType = `${primaryDomain.charAt(0).toUpperCase() + primaryDomain.slice(1)}RepositoryError`;
+        } else if (errorMessage.includes('process') || errorMessage.includes('operation') || errorMessage.includes('failed')) {
+          errorType = `${primaryDomain.charAt(0).toUpperCase() + primaryDomain.slice(1)}ProcessingError`;
+        }
       }
       
       // Make sure the error type exists in the domain

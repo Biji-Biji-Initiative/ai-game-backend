@@ -2,6 +2,14 @@
 
 import express from 'express';
 import { logger } from "../../../infra/logging/logger.js";
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import readline from 'readline';
+
+// Get the current directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Creates API tester routes for debugging
@@ -39,7 +47,227 @@ export default function createApiTesterRoutes() {
     });
   });
 
-  // Get all registered routes
+  // Get recent logs with optional correlation ID filtering
+  router.get('/logs', async (req, res) => {
+    logger.info('API tester logs endpoint called');
+
+    try {
+      const { correlationId, level, limit = 100, search } = req.query;
+      
+      // Find the log files directory - usually in the root or in a logs folder
+      const logsPaths = [
+        path.join(process.cwd(), 'logs', 'combined.log'),
+        path.join(process.cwd(), 'combined.log'),
+        path.join(process.cwd(), 'logs', 'app.log'),
+        path.join(process.cwd(), 'app.log'),
+        path.join(process.cwd(), '..', 'logs', 'combined.log')
+      ];
+      
+      let logFilePath = null;
+      for (const potentialPath of logsPaths) {
+        if (fs.existsSync(potentialPath)) {
+          logFilePath = potentialPath;
+          break;
+        }
+      }
+      
+      if (!logFilePath) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Log file not found',
+          searchedPaths: logsPaths
+        });
+      }
+      
+      // Create a stream to read the log file
+      const fileStream = fs.createReadStream(logFilePath);
+      const rl = readline.createInterface({
+        input: fileStream,
+        crlfDelay: Infinity
+      });
+      
+      // Read logs into an array
+      const logs = [];
+      for await (const line of rl) {
+        // Skip empty lines
+        if (!line.trim()) {
+          continue;
+        }
+        
+        // Parse the log entry (assuming JSON format)
+        let logEntry;
+        try {
+          logEntry = JSON.parse(line);
+        } catch (err) {
+          // Skip non-JSON lines (could be stack traces, etc.)
+          continue;
+        }
+        
+        // Apply correlation ID filter if provided
+        if (correlationId && 
+            (!logEntry.meta?.correlationId || 
+             !logEntry.meta.correlationId.includes(correlationId))) {
+          continue;
+        }
+        
+        // Apply level filter if provided
+        if (level && logEntry.level !== level.toUpperCase()) {
+          continue;
+        }
+        
+        // Apply text search if provided
+        if (search) {
+          const logText = JSON.stringify(logEntry).toLowerCase();
+          if (!logText.includes(search.toLowerCase())) {
+            continue;
+          }
+        }
+        
+        logs.push(logEntry);
+      }
+      
+      // Sort logs by timestamp (newest first) and limit the results
+      logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      const limitedLogs = logs.slice(0, Math.min(parseInt(limit), 500)); // Cap at 500 max
+      
+      // Return the logs
+      res.status(200).json({
+        status: 'success',
+        data: {
+          logs: limitedLogs,
+          count: limitedLogs.length,
+          logFile: logFilePath
+        }
+      });
+    } catch (error) {
+      logger.error('Error retrieving logs', { error });
+      
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to retrieve logs',
+        error: error.message
+      });
+    }
+  });
+
+  // Get all registered routes formatted for the API tester UI
+  router.get('/endpoints', (req, res) => {
+    logger.info('API tester endpoints provider called');
+    
+    try {
+      // Get the Express app instance
+      const app = req.app;
+      
+      // Extract routes
+      const extractedRoutes = [];
+      
+      function extractRoutes(layer, path = '') {
+        if (layer.route) {
+          // This is a route
+          const methods = Object.keys(layer.route.methods)
+            .filter(method => layer.route.methods[method])
+            .map(method => method.toUpperCase());
+          
+          methods.forEach(method => {
+            const routePath = path + layer.route.path;
+            
+            // Skip API tester routes itself to avoid cluttering the tester
+            if (routePath.includes('/api-tester')) {
+              return;
+            }
+            
+            // Extract path parameters for documentation
+            const paramNames = [];
+            const pathRegex = /:([A-Za-z0-9_]+)/g;
+            let match;
+            while (match = pathRegex.exec(routePath)) {
+              paramNames.push(match[1]);
+            }
+            
+            // Create parameters array for the tester
+            const parameters = paramNames.map(name => ({
+              name,
+              in: 'path',
+              required: true,
+              description: `Path parameter: ${name}`,
+              schema: { type: 'string' }
+            }));
+            
+            extractedRoutes.push({
+              id: `${method}-${routePath}`,
+              name: `${method} ${routePath}`,
+              method,
+              path: routePath,
+              description: `${method} request to ${routePath}`,
+              category: getCategoryFromPath(routePath),
+              parameters,
+              requiresAuth: routePath.includes('/auth') || 
+                           routePath.includes('/users') || 
+                           routePath.includes('/admin'),
+              tags: routePath.split('/').filter(Boolean)
+            });
+          });
+        } else if (layer.name === 'router' && layer.handle.stack) {
+          // This is a router
+          const routerPath = path + (layer.regexp.toString().includes('\\/?(?=\\/|$)') ? layer.regexp.toString().split('\\/?(?=\\/|$)')[0].replace(/^\^/, '').replace(/\\\\/, '/') : '');
+          
+          layer.handle.stack.forEach(stackItem => {
+            extractRoutes(stackItem, routerPath);
+          });
+        }
+      }
+      
+      // Get category from path
+      function getCategoryFromPath(path) {
+        const segments = path.split('/').filter(Boolean);
+        if (segments.length === 0) return 'Root';
+        
+        const prefixSegment = segments[0];
+        const nonVersionSegment = segments.find(seg => !seg.startsWith('v'));
+        
+        if (prefixSegment === 'api' && segments.length > 2) {
+          return segments[2].charAt(0).toUpperCase() + segments[2].slice(1);
+        } else if (nonVersionSegment) {
+          return nonVersionSegment.charAt(0).toUpperCase() + nonVersionSegment.slice(1);
+        }
+        
+        return segments[0].charAt(0).toUpperCase() + segments[0].slice(1);
+      }
+      
+      // Loop through all middleware to find routes
+      app._router.stack.forEach(layer => {
+        extractRoutes(layer);
+      });
+      
+      // Group by category for the tester's preferred format
+      const endpointsByCategory = {};
+      extractedRoutes.forEach(route => {
+        if (!endpointsByCategory[route.category]) {
+          endpointsByCategory[route.category] = [];
+        }
+        endpointsByCategory[route.category].push(route);
+      });
+      
+      // Return both formats to support multiple endpoint formats
+      res.status(200).json({
+        // Format 1: Plain endpoints array
+        endpoints: extractedRoutes,
+        
+        // Format 2: Category-grouped object for the original tester format
+        ...endpointsByCategory
+      });
+    } catch (error) {
+      logger.error('Error generating endpoints for API tester', { error });
+      
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to extract endpoints',
+        error: error.message
+      });
+    }
+  });
+
+  // Get all registered routes (original implementation)
   router.get('/routes', (req, res) => {
     logger.info('API tester routes endpoint called');
     

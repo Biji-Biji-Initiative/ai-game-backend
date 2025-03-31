@@ -1,6 +1,7 @@
 import express from 'express';
 import EvaluationController from "../../../evaluation/controllers/EvaluationController.js";
-import { authenticateUser } from "../../../infra/http/middleware/auth.js";
+import { authenticateUser, requireAdmin } from "../middleware/auth.js";
+import { authorizeResource, authorizeUserSpecificResource } from "../middleware/resourceAuth.js";
 'use strict';
 
 /**
@@ -15,20 +16,89 @@ const router = express.Router();
  * @returns {express.Router} Express router
  */
 export default function evaluationRoutes(evaluationController) {
-    // Submit a new evaluation
-    router.post('/', authenticateUser, (req, res) => evaluationController.createEvaluation(req, res));
+  // Function to get the owner of an evaluation for authorization
+  const getEvaluationOwner = async (evaluationId, req) => {
+    const container = req.app.get('container');
+    if (!container) {
+      throw new Error('Container not available in request');
+    }
     
-    // Stream an evaluation
-    router.post('/stream', authenticateUser, (req, res) => evaluationController.streamEvaluation(req, res));
+    const evaluationRepository = container.get('evaluationRepository');
+    const evaluation = await evaluationRepository.findById(evaluationId);
+    return evaluation ? evaluation.userId : null;
+  };
+  
+  // Function to get the owner of a challenge for authorization
+  const getChallengeOwner = async (challengeId, req) => {
+    const container = req.app.get('container');
+    if (!container) {
+      throw new Error('Container not available in request');
+    }
     
-    // Get evaluations for a challenge - specific route before parameterized routes
-    router.get('/challenge/:challengeId', authenticateUser, (req, res) => evaluationController.getEvaluationsForChallenge(req, res));
-    
-    // Get evaluations for current user - specific route before parameterized routes
-    router.get('/user/me', authenticateUser, (req, res) => evaluationController.getEvaluationsForUser(req, res));
-    
-    // Get an evaluation by ID - parameterized route last to avoid conflicts
-    router.get('/:id', authenticateUser, (req, res) => evaluationController.getEvaluationById(req, res));
-    
-    return router;
+    const challengeRepository = container.get('challengeRepository');
+    const challenge = await challengeRepository.findById(challengeId);
+    return challenge ? challenge.userId : null;
+  };
+
+  // Submit a new evaluation
+  router.post('/', 
+    authenticateUser, 
+    (req, res) => evaluationController.createEvaluation(req, res)
+  );
+  
+  // Stream an evaluation
+  router.post('/stream', 
+    authenticateUser, 
+    (req, res) => evaluationController.streamEvaluation(req, res)
+  );
+  
+  // Get evaluations for a challenge (must be owner of the challenge or admin)
+  router.get('/challenge/:challengeId', 
+    authenticateUser,
+    authorizeResource({
+      resourceType: 'challenge',
+      paramName: 'challengeId',
+      action: 'read',
+      getResourceOwner: getChallengeOwner
+    }),
+    (req, res) => evaluationController.getEvaluationsForChallenge(req, res)
+  );
+  
+  // Get evaluations for current user (personal data)
+  router.get('/user/me', 
+    authenticateUser,
+    (req, res) => {
+      // Set userId param to current user's ID
+      req.params.userId = req.user.id;
+      return evaluationController.getEvaluationsForUser(req, res);
+    }
+  );
+  
+  // Get evaluations for a specific user (must be same user or admin)
+  router.get('/user/:userId', 
+    authenticateUser,
+    authorizeUserSpecificResource('userId'),
+    (req, res) => evaluationController.getEvaluationsForUser(req, res)
+  );
+  
+  // Get an evaluation by ID (must be owner or admin)
+  router.get('/:id', 
+    authenticateUser,
+    authorizeResource({
+      resourceType: 'evaluation',
+      paramName: 'id',
+      action: 'read',
+      getResourceOwner: getEvaluationOwner
+    }),
+    (req, res) => evaluationController.getEvaluationById(req, res)
+  );
+  
+  // Delete an evaluation (admin only)
+  router.delete('/:id',
+    authenticateUser,
+    requireAdmin,
+    (req, res) => evaluationController.deleteEvaluation(req, res)
+  );
+  
+  return router;
 }

@@ -6,6 +6,7 @@ import focusAreaRoutes from "../../core/infra/http/routes/focusAreaRoutes.js";
 import challengeRoutes from "../../core/infra/http/routes/challengeRoutes.js";
 import evaluationRoutes from "../../core/infra/http/routes/evaluationRoutes.js";
 import userJourneyRoutes from "../../core/infra/http/routes/userJourneyRoutes.js";
+import systemRoutes from "../../core/infra/http/routes/systemRoutes.js";
 // AI routes - temporarily disabled
 // import aiChatRoutes from "../../routes/ai/aiChatRoutes.js";
 // import aiAnalysisRoutes from "../../routes/ai/aiAnalysisRoutes.js";
@@ -46,6 +47,9 @@ function registerRouteComponents(container) {
     container.register('userJourneyRoutes', c => {
         return userJourneyRoutes(c.get('userJourneyController'));
     }, true);
+    container.register('systemRoutes', () => {
+        return systemRoutes();
+    }, true);
     // AI-related routes
     // container.register('aiChatRoutes', c => {
     //     return aiChatRoutes(c.get('aiChatController'));
@@ -65,6 +69,7 @@ function registerRouteComponents(container) {
         router.use('/challenges', c.get('challengeRoutes'));
         router.use('/evaluations', c.get('evaluationRoutes'));
         router.use('/user-journey', c.get('userJourneyRoutes'));
+        router.use('/system', c.get('systemRoutes'));
         // Mount AI-related routes
         // router.use('/ai/chat', c.get('aiChatRoutes'));
         // router.use('/ai/analysis', c.get('aiAnalysisRoutes'));

@@ -76,10 +76,49 @@ function registerInfrastructureComponents(container) {
         .registerInstance('apiLogger', apiLogger);
     // Register event system
     // Event bus should be a singleton to ensure all subscribers receive events
-    const { eventTypes, eventBus } = domainEvents;
-    container
-        .registerInstance('eventTypes', eventTypes)
-        .registerInstance('eventBus', eventBus);
+    
+    try {
+        // Use structured logging with the infrastructure logger
+        const infraLogger = container.get('infraLogger');
+        
+        // Log event bus diagnostics with proper structure
+        infraLogger.debug('Initializing event bus registration', {
+            component: 'event-bus',
+            domainEventsType: typeof domainEvents,
+            domainEventsKeys: Object.keys(domainEvents),
+            hasEventTypes: !!domainEvents.EventTypes
+        });
+        
+        // Use direct property access instead of destructuring since it's more reliable
+        const eventBus = domainEvents.eventBus;
+        const eventTypes = domainEvents.EventTypes;
+        
+        // More detailed diagnostics using structured logging
+        infraLogger.debug('Event bus properties', {
+            component: 'event-bus',
+            hasEventBus: !!eventBus,
+            hasEventTypes: !!eventTypes,
+            hasSubscribeMethod: eventBus && typeof eventBus.subscribe === 'function',
+            hasRegisterMethod: eventBus && typeof eventBus.register === 'function',
+            hasPublishMethod: eventBus && typeof eventBus.publish === 'function',
+            eventBusMethods: eventBus ? Object.getOwnPropertyNames(Object.getPrototypeOf(eventBus)) : []
+        });
+        
+        // Register event bus with the container
+        container
+            .registerInstance('eventTypes', eventTypes)
+            .registerInstance('eventBus', eventBus);
+            
+        infraLogger.info('Event bus registered successfully', { component: 'event-bus' });
+    } catch (error) {
+        // Log errors with the structured logger
+        container.get('infraLogger').error('Failed to register event bus', { 
+            component: 'event-bus',
+            error: error.message, 
+            stack: error.stack
+        });
+    }
+    
     // Register OpenAI services
     container
         .register('openAIConfig', _c => {

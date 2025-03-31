@@ -4,6 +4,12 @@
  * Application service that handles the evaluation of challenge responses.
  * Orchestrates between challenge domain, evaluation criteria, and AI services.
  * Provides functionality to evaluate responses and stream evaluation results.
+ * 
+ * As an application service, it:
+ * 1. Coordinates between challenge and evaluation domains
+ * 2. Manages external AI infrastructure for evaluation
+ * 3. Handles conversation state and streaming capabilities
+ * 4. Implements the application-level workflow for evaluations
  */
 
 'use strict';

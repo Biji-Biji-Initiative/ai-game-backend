@@ -10,109 +10,7 @@ const evaluationControllerErrorMappings = [
     { errorClass: EvaluationError, statusCode: 500 },
 ];
 
-/**
- * @swagger
- * components:
- *   schemas:
- *     EvaluationRequest:
- *       type: object
- *       required:
- *         - challengeId
- *         - response
- *       properties:
- *         challengeId:
- *           type: string
- *           format: uuid
- *           description: ID of the challenge to evaluate
- *         response:
- *           type: string
- *           description: User's response to the challenge
- *       example:
- *         challengeId: "550e8400-e29b-41d4-a716-446655440000"
- *         response: "My solution to the challenge is..."
- *     
- *     Evaluation:
- *       type: object
- *       properties:
- *         id:
- *           type: string
- *           format: uuid
- *           description: Unique identifier for the evaluation
- *         challengeId:
- *           type: string
- *           format: uuid
- *           description: ID of the challenge that was evaluated
- *         responseId:
- *           type: string
- *           description: ID of the response that was evaluated
- *         userEmail:
- *           type: string
- *           format: email
- *           description: Email of the user
- *         score:
- *           type: number
- *           description: Numerical score (0-100)
- *         scorePercentage:
- *           type: number
- *           description: Score as a percentage (0-100)
- *         feedback:
- *           type: string
- *           description: Detailed feedback on the response
- *         strengths:
- *           type: array
- *           items:
- *             type: string
- *           description: List of strengths identified in the response
- *         areas_for_improvement:
- *           type: array
- *           items:
- *             type: string
- *           description: List of areas that could be improved
- *         criteria:
- *           type: object
- *           description: Criteria-specific evaluation details
- *         createdAt:
- *           type: string
- *           format: date-time
- *           description: When the evaluation was created
- *         hasFeedback:
- *           type: boolean
- *           description: Whether the evaluation includes detailed feedback
- *       example:
- *         id: "550e8400-e29b-41d4-a716-446655440000"
- *         challengeId: "550e8400-e29b-41d4-a716-446655440001"
- *         score: 85
- *         scorePercentage: 85
- *         feedback: "Good work overall. Your solution is efficient and well-structured."
- *         strengths: ["Efficient algorithm", "Clean code structure"]
- *         areas_for_improvement: ["Could improve error handling"]
- *         createdAt: "2023-06-15T14:35:42Z"
- *         hasFeedback: true
- *     
- *     StreamEvent:
- *       type: object
- *       properties:
- *         type:
- *           type: string
- *           enum: [chunk, complete, error]
- *           description: Type of stream event
- *         content:
- *           type: string
- *           description: Content chunk for chunk events
- *         evaluationId:
- *           type: string
- *           format: uuid
- *           description: ID of the completed evaluation (for complete events)
- *         score:
- *           type: number
- *           description: Score of the completed evaluation (for complete events)
- *         message:
- *           type: string
- *           description: Error message (for error events)
- *       example:
- *         type: "chunk"
- *         content: "Your solution demonstrates a good understanding of..."
- */
+
 
 /**
  * Controller for handling evaluation-related HTTP requests
@@ -186,7 +84,6 @@ class EvaluationController {
     }
 
     /**
-     * @swagger
      * /evaluations:
      *   post:
      *     summary: Create an evaluation for a challenge response
@@ -262,56 +159,7 @@ class EvaluationController {
         });
     }
 
-    /**
-     * @swagger
-     * /evaluations/{id}:
-     *   get:
-     *     summary: Get an evaluation by ID
-     *     description: Retrieves a specific evaluation by its unique ID
-     *     operationId: getEvaluationById
-     *     tags: [Evaluations]
-     *     security:
-     *       - bearerAuth: []
-     *     parameters:
-     *       - name: id
-     *         in: path
-     *         required: true
-     *         description: ID of the evaluation to retrieve
-     *         schema:
-     *           type: string
-     *           format: uuid
-     *     responses:
-     *       200:
-     *         description: Evaluation retrieved successfully
-     *         content:
-     *           application/json:
-     *             schema:
-     *               type: object
-     *               properties:
-     *                 status:
-     *                   type: string
-     *                   example: success
-     *                 data:
-     *                   $ref: '#/components/schemas/Evaluation'
-     *       404:
-     *         description: Evaluation not found
-     *         $ref: '#/components/responses/NotFoundError'
-     *       403:
-     *         description: Not authorized to access this evaluation
-     *         content:
-     *           application/json:
-     *             schema:
-     *               type: object
-     *               properties:
-     *                 status:
-     *                   type: string
-     *                   example: error
-     *                 message:
-     *                   type: string
-     *                   example: Not authorized to access this evaluation
-     *       401:
-     *         $ref: '#/components/responses/UnauthorizedError'
-     */
+    
     async getEvaluationById(req, res) {
         const { id } = req.params;
         const userId = req.user.id;
@@ -338,55 +186,7 @@ class EvaluationController {
         });
     }
 
-    /**
-     * @swagger
-     * /users/{userId}/evaluations:
-     *   get:
-     *     summary: Get all evaluations for a user
-     *     description: Retrieves all evaluations associated with a specific user
-     *     operationId: getEvaluationsForUser
-     *     tags: [Evaluations, Users]
-     *     security:
-     *       - bearerAuth: []
-     *     parameters:
-     *       - name: userId
-     *         in: path
-     *         required: true
-     *         description: ID of the user to get evaluations for
-     *         schema:
-     *           type: string
-     *           format: uuid
-     *     responses:
-     *       200:
-     *         description: Evaluations retrieved successfully
-     *         content:
-     *           application/json:
-     *             schema:
-     *               type: object
-     *               properties:
-     *                 status:
-     *                   type: string
-     *                   example: success
-     *                 data:
-     *                   type: array
-     *                   items:
-     *                     $ref: '#/components/schemas/Evaluation'
-     *       403:
-     *         description: Not authorized to access these evaluations
-     *         content:
-     *           application/json:
-     *             schema:
-     *               type: object
-     *               properties:
-     *                 status:
-     *                   type: string
-     *                   example: error
-     *                 message:
-     *                   type: string
-     *                   example: Not authorized to access these evaluations
-     *       401:
-     *         $ref: '#/components/responses/UnauthorizedError'
-     */
+    
     async getEvaluationsForUser(req, res) {
         const { userId } = req.params;
         // Check if the user is authorized to access these evaluations
@@ -406,42 +206,7 @@ class EvaluationController {
         });
     }
 
-    /**
-     * @swagger
-     * /challenges/{challengeId}/evaluations:
-     *   get:
-     *     summary: Get evaluations for a specific challenge
-     *     description: Retrieves all evaluations associated with a specific challenge for the current user
-     *     operationId: getEvaluationsForChallenge
-     *     tags: [Evaluations, Challenges]
-     *     security:
-     *       - bearerAuth: []
-     *     parameters:
-     *       - name: challengeId
-     *         in: path
-     *         required: true
-     *         description: ID of the challenge to get evaluations for
-     *         schema:
-     *           type: string
-     *           format: uuid
-     *     responses:
-     *       200:
-     *         description: Evaluations retrieved successfully
-     *         content:
-     *           application/json:
-     *             schema:
-     *               type: object
-     *               properties:
-     *                 status:
-     *                   type: string
-     *                   example: success
-     *                 data:
-     *                   type: array
-     *                   items:
-     *                     $ref: '#/components/schemas/Evaluation'
-     *       401:
-     *         $ref: '#/components/responses/UnauthorizedError'
-     */
+    
     async getEvaluationsForChallenge(req, res) {
         const { challengeId } = req.params;
         const userId = req.user.id;
@@ -455,44 +220,7 @@ class EvaluationController {
         });
     }
 
-    /**
-     * @swagger
-     * /evaluations/stream:
-     *   post:
-     *     summary: Stream an evaluation response in real-time
-     *     description: Streams the evaluation of a challenge response as server-sent events
-     *     operationId: streamEvaluation
-     *     tags: [Evaluations]
-     *     security:
-     *       - bearerAuth: []
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             $ref: '#/components/schemas/EvaluationRequest'
-     *     responses:
-     *       200:
-     *         description: Server-sent event stream started
-     *         content:
-     *           text/event-stream:
-     *             schema:
-     *               type: object
-     *               properties:
-     *                 type:
-     *                   type: string
-     *                   enum: [chunk, complete, error]
-     *                 content:
-     *                   type: string
-     *       400:
-     *         description: Invalid request parameters
-     *         $ref: '#/components/responses/ValidationError'
-     *       404:
-     *         description: Challenge not found
-     *         $ref: '#/components/responses/NotFoundError'
-     *       401:
-     *         $ref: '#/components/responses/UnauthorizedError'
-     */
+    
     async streamEvaluation(req, res) {
         // Convert request to domain parameters
         const params = EvaluationDTOMapper.fromRequest(req.body);

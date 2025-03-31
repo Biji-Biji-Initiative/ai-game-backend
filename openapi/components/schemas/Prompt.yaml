@@ -1,0 +1,36 @@
+type: object
+description: System prompt for AI interactions
+required:
+  - id
+  - type
+  - content
+properties:
+  id:
+    type: string
+    format: uuid
+    description: Unique identifier for the prompt
+  type:
+    type: string
+    description: Type of prompt (evaluation, challenge, etc.)
+    example: "evaluation"
+  content:
+    type: string
+    description: The actual prompt content
+  systemInstructions:
+    type: string
+    description: System instructions to accompany the prompt
+  parameters:
+    type: object
+    description: Parameters used to build the prompt
+    additionalProperties: true
+  version:
+    type: string
+    description: Version of the prompt template
+  createdAt:
+    type: string
+    format: date-time
+    description: When the prompt was created
+  updatedAt:
+    type: string
+    format: date-time
+    description: When the prompt was last updated 

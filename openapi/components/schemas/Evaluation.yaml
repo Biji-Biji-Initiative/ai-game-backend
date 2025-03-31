@@ -1,0 +1,67 @@
+type: object
+description: Evaluation of a challenge response
+required:
+  - id
+  - challengeId
+  - userId
+  - status
+  - createdAt
+properties:
+  id:
+    type: string
+    format: uuid
+    description: Unique identifier for the evaluation
+  challengeId:
+    type: string
+    format: uuid
+    description: ID of the challenge being evaluated
+  userId:
+    type: string
+    format: uuid
+    description: ID of the user who submitted the response
+  response:
+    type: string
+    description: User's response to the challenge
+  feedback:
+    type: string
+    description: Feedback on the user's response
+  score:
+    type: number
+    format: float
+    minimum: 0
+    maximum: 100
+    description: Score for the response (0-100)
+  status:
+    type: string
+    enum: [pending, in_progress, completed, failed]
+    description: Current status of the evaluation
+  metrics:
+    type: object
+    description: Various metrics from the evaluation
+    properties:
+      accuracy:
+        type: number
+        format: float
+        minimum: 0
+        maximum: 100
+        description: Accuracy score
+      creativity:
+        type: number
+        format: float
+        minimum: 0
+        maximum: 100
+        description: Creativity score
+      reasoning:
+        type: number
+        format: float
+        minimum: 0
+        maximum: 100
+        description: Reasoning score
+  createdAt:
+    type: string
+    format: date-time
+    description: When the evaluation was created
+  completedAt:
+    type: string
+    format: date-time
+    description: When the evaluation was completed 

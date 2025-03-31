@@ -17,7 +17,17 @@ const TIME_ALLOCATIONS = {
 // Challenge types that need more reflection time
 const REFLECTION_TYPES = ['critical-thinking', 'ethical-dilemma', 'human-ai-boundary'];
 /**
- * Service responsible for personalizing challenges based on user attributes
+ * Challenge Personalization Service
+ * 
+ * Domain service responsible for personalizing challenges based on user attributes.
+ * This service encapsulates core business logic for determining challenge types and
+ * difficulty levels based on user traits and performance.
+ * 
+ * As a domain service, it:
+ * 1. Implements domain rules for challenge personalization
+ * 2. Contains core business logic related to difficulty calculation
+ * 3. Is focused on the challenge domain without cross-domain orchestration
+ * 4. Takes inputs and produces outputs based on domain rules
  */
 class ChallengePersonalizationService {
     /**
@@ -114,82 +124,27 @@ class ChallengePersonalizationService {
         // Find the selected type from the repository
         const selectedType = challengeTypes.find(type => type.code === selectedTypeCode);
         if (!selectedType) {
-            throw new Error(`Challenge type with code ${selectedTypeCode} not found`);
+            throw new Error(`Could not find challenge type with code ${selectedTypeCode}`);
         }
-        this.logger.debug('Selected challenge type', {
-            typeCode: selectedTypeCode,
-            typeName: selectedType.name
-        });
-        return {
-            code: selectedTypeCode,
-            id: selectedType.id,
-            name: selectedType.name,
-            metadata: {
-                description: selectedType.description
-            }
-        };
+        return selectedType;
     }
     /**
-     * Determine challenge difficulty based on user performance
-     * @param {Object} userPerformance - User's performance metrics
-     * @param {string} challengeType - Type of challenge
-     * @returns {Object} Difficulty parameters including level, complexity, depth, and time allocation
+     * Determine the difficulty level of a challenge based on user performance
+     * @param {Number} score - User's score for the challenge
+     * @returns {String} Difficulty level
      */
-    determineDifficulty(userPerformance, challengeType) {
-        // Validate inputs
-        if (!userPerformance) {
-            throw new Error('User performance object is required');
+    determineDifficulty(score) {
+        if (score <= DIFFICULTY_THRESHOLDS.BEGINNER_SCORE) {
+            return 'beginner';
         }
-        if (!challengeType) {
-            throw new Error('Challenge type is required for difficulty determination');
-        }
-        const { averageScore = 0, completedChallenges = 0 } = userPerformance;
-        this.logger.debug('Determining difficulty', {
-            averageScore,
-            completedChallenges,
-            challengeType
-        });
-        // Base difficulty on average score and number of completed challenges
-        let level, complexity, depth, timeAllocation;
-        if (completedChallenges < DIFFICULTY_THRESHOLDS.NEW_USER_THRESHOLD) {
-            // New users start with beginner challenges
-            level = 'beginner';
-            complexity = 0.3;
-            depth = 0.3;
-            timeAllocation = TIME_ALLOCATIONS.BEGINNER;
-        }
-        else if (averageScore < DIFFICULTY_THRESHOLDS.BEGINNER_SCORE) {
-            // Struggling users get easier challenges
-            level = 'beginner';
-            complexity = 0.4;
-            depth = 0.4;
-            timeAllocation = TIME_ALLOCATIONS.STRUGGLING;
-        }
-        else if (averageScore < DIFFICULTY_THRESHOLDS.INTERMEDIATE_SCORE) {
-            // Average users get moderate challenges
-            level = 'intermediate';
-            complexity = 0.6;
-            depth = 0.6;
-            timeAllocation = TIME_ALLOCATIONS.INTERMEDIATE;
+        else if (score <= DIFFICULTY_THRESHOLDS.INTERMEDIATE_SCORE) {
+            return 'intermediate';
         }
         else {
-            // High-performing users get difficult challenges
-            level = 'advanced';
-            complexity = 0.8;
-            depth = 0.8;
-            timeAllocation = TIME_ALLOCATIONS.ADVANCED;
+            return 'advanced';
         }
-        // Reflection-based challenge types need more time
-        if (REFLECTION_TYPES.includes(challengeType)) {
-            // These types need more time for reflection
-            timeAllocation += TIME_ALLOCATIONS.REFLECTION_BONUS;
-        }
-        return {
-            level,
-            complexity,
-            depth,
-            timeAllocation
-        };
     }
 }
+
+// Export the class
 export default ChallengePersonalizationService;

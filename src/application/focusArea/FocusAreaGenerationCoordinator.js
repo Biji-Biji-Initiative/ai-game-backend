@@ -19,8 +19,8 @@ class FocusAreaGenerationCoordinator extends BaseCoordinator {
      * @param {Object} dependencies.focusAreaService - Service for focus area operations.
      * @param {Object} dependencies.focusAreaThreadService - Service for managing conversation threads for focus area generation.
      * @param {Object} dependencies.focusAreaGenerationService - Core domain service that handles the actual generation logic.
-     * @param {Object} dependencies.eventBus - Event bus for publishing domain events after generation.
-     * @param {Object} dependencies.eventTypes - Constants for event types used in publishing events.
+     * @param {Object} dependencies.eventBus - Event bus for communication between services.
+     * @param {Object} dependencies.eventTypes - Event types for communication between services.
      * @param {Object} [dependencies.logger] - Optional logger instance for diagnostic information.
      * @throws {Error} If any required dependencies are missing.
      */
@@ -41,6 +41,7 @@ class FocusAreaGenerationCoordinator extends BaseCoordinator {
             'eventTypes',
         ];
         this.validateDependencies(dependencies, requiredDependencies);
+        
         // Initialize services and repositories
         this.userService = dependencies.userService;
         this.challengeService = dependencies.challengeService;

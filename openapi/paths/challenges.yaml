@@ -1,0 +1,222 @@
+challenges:
+  get:
+    summary: Get all challenges
+    description: Retrieves a list of all challenges with pagination
+    operationId: getAllChallenges
+    tags:
+      - Challenges
+    security:
+      - bearerAuth: []
+    parameters:
+      - $ref: '../components/parameters/common.yaml#/limitParam'
+      - $ref: '../components/parameters/common.yaml#/offsetParam'
+      - $ref: '../components/parameters/common.yaml#/sortParam'
+      - $ref: '../components/parameters/common.yaml#/filterParam'
+    responses:
+      '200':
+        description: Challenges retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  type: array
+                  items:
+                    $ref: '../components/schemas/Challenge.yaml'
+                pagination:
+                  $ref: '../components/schemas/common/PaginationParams.yaml'
+      '401':
+        $ref: '../components/responses/common.yaml#/UnauthorizedError'
+
+  post:
+    summary: Create a new challenge
+    description: Creates a new challenge in the system
+    operationId: createChallenge
+    tags:
+      - Challenges
+    security:
+      - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - content
+              - userEmail
+            properties:
+              content:
+                type: string
+                description: Challenge content/question
+              userEmail:
+                type: string
+                format: email
+                description: Email of the user the challenge is for
+              focusArea:
+                type: string
+                description: Focus area for the challenge
+              challengeType:
+                type: string
+                description: Type of challenge
+              formatType:
+                type: string
+                description: Format of the challenge
+              difficulty:
+                type: string
+                enum: [beginner, intermediate, advanced, expert]
+                description: Difficulty level
+    responses:
+      '201':
+        description: Challenge created successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  $ref: '../components/schemas/Challenge.yaml'
+      '400':
+        $ref: '../components/responses/common.yaml#/ValidationError'
+      '401':
+        $ref: '../components/responses/common.yaml#/UnauthorizedError'
+
+challenges_id:
+  get:
+    summary: Get challenge by ID
+    description: Retrieves a challenge by its unique identifier
+    operationId: getChallengeById
+    tags:
+      - Challenges
+    security:
+      - bearerAuth: []
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID of the challenge to retrieve
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '200':
+        description: Challenge found
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  $ref: '../components/schemas/Challenge.yaml'
+      '401':
+        $ref: '../components/responses/common.yaml#/UnauthorizedError'
+      '404':
+        $ref: '../components/responses/common.yaml#/NotFoundError'
+  
+  put:
+    summary: Update a challenge
+    description: Updates an existing challenge
+    operationId: updateChallenge
+    tags:
+      - Challenges
+    security:
+      - bearerAuth: []
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID of the challenge to update
+        schema:
+          type: string
+          format: uuid
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              content:
+                type: string
+                description: Challenge content/question
+              focusArea:
+                type: string
+                description: Focus area for the challenge
+              challengeType:
+                type: string
+                description: Type of challenge
+              formatType:
+                type: string
+                description: Format of the challenge
+              difficulty:
+                type: string
+                enum: [beginner, intermediate, advanced, expert]
+                description: Difficulty level
+              status:
+                type: string
+                enum: [pending, submitted, evaluated]
+                description: Current status of the challenge
+    responses:
+      '200':
+        description: Challenge updated successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  $ref: '../components/schemas/Challenge.yaml'
+      '400':
+        $ref: '../components/responses/common.yaml#/ValidationError'
+      '401':
+        $ref: '../components/responses/common.yaml#/UnauthorizedError'
+      '404':
+        $ref: '../components/responses/common.yaml#/NotFoundError'
+
+  delete:
+    summary: Delete a challenge
+    description: Deletes an existing challenge
+    operationId: deleteChallenge
+    tags:
+      - Challenges
+    security:
+      - bearerAuth: []
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID of the challenge to delete
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '200':
+        description: Challenge deleted successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: Challenge deleted successfully
+      '401':
+        $ref: '../components/responses/common.yaml#/UnauthorizedError'
+      '404':
+        $ref: '../components/responses/common.yaml#/NotFoundError' 

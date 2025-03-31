@@ -5,8 +5,10 @@ import bodyParser from 'body-parser';
 import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { initializeSwagger } from "./config/swaggerSetup.js";
+import OpenApiValidator from 'express-openapi-validator';
 
 // Import container for dependency injection
 import { container } from "./config/container.js";
@@ -100,6 +102,26 @@ app.use(requestLogger);
 // Initialize Swagger UI
 initializeSwagger(app, logger);
 
+// Setup OpenAPI validation middleware
+const apiSpecPath = path.join(__dirname, '../openapi-spec.json');
+if (fs.existsSync(apiSpecPath)) {
+  logger.info('Setting up OpenAPI validation middleware');
+  app.use(
+    OpenApiValidator.middleware({
+      apiSpec: apiSpecPath,
+      validateRequests: true,
+      validateResponses: config.isDevelopment, // Validate responses in development only
+      ignoreUndocumented: true, // Don't validate paths not in the spec
+      formats: {
+        // Add custom formats if needed
+        'uuid': /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+      }
+    })
+  );
+} else {
+  logger.warn('OpenAPI spec not found. Validation middleware not enabled.');
+}
+
 // Ensure the API Tester UI static files
 const testerUiPath = path.join(__dirname, '../api-tester-ui');
 app.use(config.api.testerPath, express.static(testerUiPath));
@@ -168,6 +190,24 @@ async function mountRoutesAndFinalize() {
   
   // Global error logging and handling
   app.use(errorLogger);
+  
+  // OpenAPI Validation error handling - must be before the main error handler
+  app.use((err, req, res, next) => {
+    // Check if this is an OpenAPI validation error
+    if (err.status === 400 && err.errors) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        errors: err.errors.map(e => ({
+          field: e.path || 'unknown',
+          message: e.message
+        }))
+      });
+    }
+    // For other errors, pass to the main error handler
+    next(err);
+  });
+  
   app.use(errorHandler);
   
   logger.info('Application initialized successfully');

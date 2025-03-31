@@ -1,5 +1,8 @@
 import express from 'express';
 import userApiSchemas from "../../../user/schemas/userApiSchemas.js";
+import { authenticateUser, requireAdmin } from "../middleware/auth.js";
+import { authorizeUserSpecificResource } from "../middleware/resourceAuth.js";
+import { createValidationMiddleware } from "../middleware/validationFactory.js";
 'use strict';
 
 /**
@@ -9,20 +12,23 @@ import userApiSchemas from "../../../user/schemas/userApiSchemas.js";
  * Following the dependency injection pattern, this module exports a function
  * that accepts pre-resolved dependencies rather than creating them internally.
  * 
- * @param {Object} deps - Dependencies required by these routes
- * @param {Object} deps.userController - Resolved user controller instance
- * @param {Function} deps.authenticateUser - Authentication middleware
- * @param {Function} deps.requireAdmin - Admin role verification middleware
- * @param {Object} deps.validation - Validation middleware
+ * @param {Object} options - Dependencies and options
+ * @param {Object} options.userController - User controller instance
  * @returns {Object} Express router with user routes
  */
-function createUserRoutes({ userController, authenticateUser, requireAdmin, validation }) {
+export default function userRoutes(options) {
   const router = express.Router();
-  const { validateBody, validateParams } = validation;
-  const { updateUserSchema, updateFocusAreaSchema, userIdSchema } = userApiSchemas;
+  
+  // Extract userController from options - handles both direct controller and object param
+  const userController = options.userController ? options.userController : options;
+  
+  // Check if we have a valid controller
+  if (!userController || typeof userController.createUser !== 'function') {
+    console.error('Invalid userController provided to userRoutes');
+    return router;
+  }
 
   /**
-   * @swagger
    * /users:
    *   post:
    *     summary: Create a new user
@@ -58,279 +64,144 @@ function createUserRoutes({ userController, authenticateUser, requireAdmin, vali
    *       409:
    *         description: Email already in use
    */
-  // Simple user creation
-  router.post('/', userController.createUser.bind(userController));
+  // Create user (public endpoint for signup)
+  router.post('/', 
+    ...createValidationMiddleware({ body: userApiSchemas.createUserSchema }),
+    userController.createUser.bind(userController)
+  );
   
-  /**
-   * @swagger
-   * /users/email/{email}:
-   *   get:
-   *     summary: Get user by email
-   *     description: Retrieves a user by their email address
-   *     tags: [Users]
-   *     parameters:
-   *       - in: path
-   *         name: email
-   *         required: true
-   *         schema:
-   *           type: string
-   *           format: email
-   *         description: Email address of the user to retrieve
-   *     responses:
-   *       200:
-   *         description: User retrieved successfully
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 success:
-   *                   type: boolean
-   *                   example: true
-   *                 data:
-   *                   type: object
-   *                   properties:
-   *                     id:
-   *                       type: string
-   *                     email:
-   *                       type: string
-   *                     fullName:
-   *                       type: string
-   *       404:
-   *         $ref: '#/components/responses/NotFoundError'
-   */
-  // Get user by email
-  router.get('/email/:email', userController.getUserByEmail.bind(userController));
-  
-  /**
-   * @swagger
-   * /users/me:
-   *   get:
-   *     summary: Get current user profile
-   *     description: Retrieves the profile of the currently authenticated user
-   *     tags: [Users]
-   *     security:
-   *       - bearerAuth: []
-   *     responses:
-   *       200:
-   *         description: User profile retrieved successfully
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 success:
-   *                   type: boolean
-   *                   example: true
-   *                 data:
-   *                   type: object
-   *                   properties:
-   *                     id:
-   *                       type: string
-   *                     email:
-   *                       type: string
-   *                     fullName:
-   *                       type: string
-   *                     focusAreas:
-   *                       type: array
-   *                       items:
-   *                         type: string
-   *                     createdAt:
-   *                       type: string
-   *                       format: date-time
-   *       401:
-   *         $ref: '#/components/responses/UnauthorizedError'
-   */
-  // User profile endpoints
-  router.get('/me', authenticateUser, userController.getCurrentUser.bind(userController));
-  
-  /**
-   * @swagger
-   * /users/me:
-   *   put:
-   *     summary: Update current user profile
-   *     description: Updates the profile of the currently authenticated user
-   *     tags: [Users]
-   *     security:
-   *       - bearerAuth: []
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             properties:
-   *               fullName:
-   *                 type: string
-   *               password:
-   *                 type: string
-   *                 format: password
-   *     responses:
-   *       200:
-   *         description: User profile updated successfully
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 success:
-   *                   type: boolean
-   *                   example: true
-   *                 data:
-   *                   type: object
-   *                   properties:
-   *                     id:
-   *                       type: string
-   *                     email:
-   *                       type: string
-   *                     fullName:
-   *                       type: string
-   *                     updatedAt:
-   *                       type: string
-   *                       format: date-time
-   *       400:
-   *         $ref: '#/components/responses/ValidationError'
-   *       401:
-   *         $ref: '#/components/responses/UnauthorizedError'
-   */
-  router.put('/me', 
+  // Get user by email (admin only)
+  router.get('/email/:email', 
     authenticateUser, 
-    validateBody(updateUserSchema), 
+    requireAdmin,
+    ...createValidationMiddleware({ params: userApiSchemas.emailParamSchema }),
+    userController.getUserByEmail.bind(userController)
+  );
+  
+  // Current user profile endpoints
+  router.get('/me', 
+    authenticateUser, 
+    userController.getCurrentUser.bind(userController)
+  );
+  
+  // Get user profile
+  router.get('/profile', 
+    authenticateUser,
+    userController.getUserProfile.bind(userController)
+  );
+  
+  // Update current user profile
+  router.put('/me', 
+    authenticateUser,
+    ...createValidationMiddleware({ body: userApiSchemas.updateUserSchema }),
     userController.updateCurrentUser.bind(userController)
   );
   
-  /**
-   * @swagger
-   * /users/me/focus-area:
-   *   put:
-   *     summary: Update focus area
-   *     description: Updates the focus area for the currently authenticated user
-   *     tags: [Users]
-   *     security:
-   *       - bearerAuth: []
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             required:
-   *               - focusAreas
-   *             properties:
-   *               focusAreas:
-   *                 type: array
-   *                 items:
-   *                   type: string
-   *                 description: List of focus areas for the user
-   *     responses:
-   *       200:
-   *         description: Focus area updated successfully
-   *       400:
-   *         $ref: '#/components/responses/ValidationError'
-   *       401:
-   *         $ref: '#/components/responses/UnauthorizedError'
-   */
+  // Update current user focus area
   router.put('/me/focus-area', 
-    authenticateUser, 
-    validateBody(updateFocusAreaSchema), 
+    authenticateUser,
+    ...createValidationMiddleware({ body: userApiSchemas.updateFocusAreaSchema }),
     userController.setFocusArea.bind(userController)
   );
   
+  // User preferences routes
   /**
-   * @swagger
-   * /users/{id}:
-   *   get:
-   *     summary: Get user by ID
-   *     description: Retrieves a user by their ID (admin only)
-   *     tags: [Users]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema:
-   *           type: string
-   *           format: uuid
-   *         description: ID of the user to retrieve
-   *     responses:
-   *       200:
-   *         description: User retrieved successfully
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 success:
-   *                   type: boolean
-   *                   example: true
-   *                 data:
-   *                   type: object
-   *                   properties:
-   *                     id:
-   *                       type: string
-   *                     email:
-   *                       type: string
-   *                     fullName:
-   *                       type: string
-   *       401:
-   *         $ref: '#/components/responses/UnauthorizedError'
-   *       403:
-   *         description: Forbidden - Admin access required
-   *       404:
-   *         $ref: '#/components/responses/NotFoundError'
+   * Get all preferences for the current user
    */
-  // Admin user management endpoints
+  router.get('/me/preferences',
+    authenticateUser,
+    userController.getUserPreferences.bind(userController)
+  );
+
+  /**
+   * Get preferences for a specific category for the current user
+   */
+  router.get('/me/preferences/:category',
+    authenticateUser,
+    ...createValidationMiddleware({ params: userApiSchemas.preferencesCategoryParamSchema }),
+    userController.getUserPreferencesByCategory.bind(userController)
+  );
+
+  /**
+   * Update all preferences for the current user
+   */
+  router.put('/me/preferences',
+    authenticateUser,
+    ...createValidationMiddleware({ body: userApiSchemas.preferencesUpdateSchema }),
+    userController.updateUserPreferences.bind(userController)
+  );
+
+  /**
+   * Update preferences for a specific category for the current user
+   */
+  router.put('/me/preferences/:category',
+    authenticateUser,
+    ...createValidationMiddleware({ 
+      params: userApiSchemas.preferencesCategoryParamSchema,
+      body: userApiSchemas.preferencesCategoryUpdateSchema 
+    }),
+    userController.updateUserPreferencesByCategory.bind(userController)
+  );
+
+  /**
+   * Update a single preference for the current user
+   */
+  router.patch('/me/preferences/:key',
+    authenticateUser,
+    ...createValidationMiddleware({ 
+      params: userApiSchemas.preferencesKeyParamSchema,
+      body: userApiSchemas.preferenceValueSchema 
+    }),
+    userController.updateSinglePreference.bind(userController)
+  );
+
+  /**
+   * Reset a preference to its default value for the current user
+   */
+  router.delete('/me/preferences/:key',
+    authenticateUser,
+    ...createValidationMiddleware({ params: userApiSchemas.preferencesKeyParamSchema }),
+    userController.resetPreference.bind(userController)
+  );
+  
+  // Get a specific user by ID (only if admin or same user)
   router.get('/:id', 
-    authenticateUser, 
-    requireAdmin, 
-    validateParams(userIdSchema), 
+    authenticateUser,
+    authorizeUserSpecificResource('id'),
+    ...createValidationMiddleware({ params: userApiSchemas.userIdSchema }),
     userController.getUserById.bind(userController)
   );
   
-  /**
-   * @swagger
-   * /users:
-   *   get:
-   *     summary: List all users
-   *     description: Retrieves a list of all users (admin only)
-   *     tags: [Users]
-   *     security:
-   *       - bearerAuth: []
-   *     responses:
-   *       200:
-   *         description: Users retrieved successfully
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 success:
-   *                   type: boolean
-   *                   example: true
-   *                 data:
-   *                   type: array
-   *                   items:
-   *                     type: object
-   *                     properties:
-   *                       id:
-   *                         type: string
-   *                       email:
-   *                         type: string
-   *                       fullName:
-   *                         type: string
-   *       401:
-   *         $ref: '#/components/responses/UnauthorizedError'
-   *       403:
-   *         description: Forbidden - Admin access required
-   */
+  // Update a specific user (only if admin or same user)
+  if (typeof userController.updateUser === 'function') {
+    router.put('/:id', 
+      authenticateUser,
+      authorizeUserSpecificResource('id'),
+      ...createValidationMiddleware({ 
+        params: userApiSchemas.userIdSchema,
+        body: userApiSchemas.updateUserSchema
+      }),
+      userController.updateUser.bind(userController)
+    );
+  }
+  
+  // List all users (admin only)
   router.get('/', 
     authenticateUser, 
     requireAdmin, 
+    ...createValidationMiddleware({ query: userApiSchemas.listUsersQuerySchema }),
     userController.listUsers.bind(userController)
   );
+  
+  // Delete a user (admin only)
+  if (typeof userController.deleteUser === 'function') {
+    router.delete('/:id',
+      authenticateUser,
+      requireAdmin,
+      ...createValidationMiddleware({ params: userApiSchemas.userIdSchema }),
+      userController.deleteUser.bind(userController)
+    );
+  }
 
   return router;
 }
-
-export default createUserRoutes;

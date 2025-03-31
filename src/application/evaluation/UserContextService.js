@@ -165,9 +165,22 @@ class UserContextService {
             },
         };
 
-        // Get user profile from repository
         try {
-            const userProfile = await this.userRepository.getUserById(userId);
+            // Execute all queries in parallel using Promise.all
+            // This prevents the N+1 query issue by fetching all data at once
+            const [userProfile, userChallenges, recentEvaluations] = await Promise.all([
+                this.userRepository.getUserById(userId),
+                this.challengeRepository.getChallengesByUserId(userId, {
+                    limit: COLLECTION_LIMITS.CHALLENGES,
+                    sort: 'completedAt:desc',
+                }),
+                this.evaluationRepository.getEvaluationsByUserId(userId, {
+                    limit: COLLECTION_LIMITS.EVALUATIONS,
+                    sort: 'createdAt:desc',
+                })
+            ]);
+            
+            // Process user profile data
             if (userProfile) {
                 context.profile = {
                     name: userProfile.name || userProfile.displayName,
@@ -181,20 +194,8 @@ class UserContextService {
                 // Add focus areas to learning journey
                 context.learningJourney.focusAreas = userProfile.focusAreas || [];
             }
-        } catch (profileError) {
-            this.logger.warn('Error fetching user profile for context', {
-                userId,
-                error: profileError.message,
-            });
-        }
-
-        // Get challenge history
-        try {
-            const userChallenges = await this.challengeRepository.getChallengesByUserId(userId, {
-                limit: COLLECTION_LIMITS.CHALLENGES,
-                sort: 'completedAt:desc',
-            });
             
+            // Process challenge history
             if (userChallenges && userChallenges.length > 0) {
                 context.learningJourney.completedChallenges = userChallenges.length;
                 
@@ -232,21 +233,31 @@ class UserContextService {
                     });
                 }
             }
-        } catch (challengeError) {
-            this.logger.warn('Error fetching challenge history for context', {
-                userId,
-                error: challengeError.message,
-            });
-        }
-
-        // Get evaluation history
-        try {
-            const recentEvaluations = await this.evaluationRepository.getEvaluationsByUserId(userId, {
-                limit: COLLECTION_LIMITS.EVALUATIONS,
-                sort: 'createdAt:desc',
-            });
             
+            // Process evaluation history
             if (recentEvaluations && recentEvaluations.length > 0) {
+                // Batch load challenges for evaluations, if needed
+                let evaluationChallenges = {};
+                const challengeIds = recentEvaluations
+                    .map(evaluation => evaluation.challengeId)
+                    .filter(id => id && !userChallenges.some(c => c.id === id));
+                    
+                // Only load challenges that weren't already loaded
+                if (challengeIds.length > 0) {
+                    try {
+                        const challenges = await this.challengeRepository.findByIds(challengeIds);
+                        evaluationChallenges = challenges.reduce((map, challenge) => {
+                            map[challenge.id] = challenge;
+                            return map;
+                        }, {});
+                    } catch (error) {
+                        this.logger.warn('Error loading challenges for evaluations', {
+                            error: error.message,
+                            challengeIds
+                        });
+                    }
+                }
+                
                 // Process evaluation metrics
                 let totalScore = 0;
                 const categoryCounts = {};
@@ -289,6 +300,7 @@ class UserContextService {
                     context.learningJourney.evaluationHistory.push({
                         evaluationId: evaluation.id,
                         challengeId: evaluation.challengeId,
+                        challengeTitle: evaluationChallenges[evaluation.challengeId]?.title,
                         score: evaluation.score,
                         strengths: evaluation.strengths || [],
                         areasForImprovement: evaluation.areasForImprovement || [],
@@ -324,10 +336,11 @@ class UserContextService {
                     context.learningJourney.averageScore = Math.round(totalScore / recentEvaluations.length);
                 }
             }
-        } catch (evaluationError) {
-            this.logger.warn('Error fetching evaluation history for context', {
+        } catch (error) {
+            this.logger.warn('Error gathering user context', {
                 userId,
-                error: evaluationError.message,
+                error: error.message,
+                stack: error.stack
             });
         }
 

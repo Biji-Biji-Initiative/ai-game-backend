@@ -84,6 +84,16 @@ class DomainEventsCompatibility {
     this.handlers[eventName].push(handler);
     return this;
   }
+  
+  /**
+   * Subscribe to an event (alias for register)
+   * @param {string} eventName - Name of the event to listen for
+   * @param {Function} handler - Event handler function
+   */
+  subscribe(eventName, handler) {
+    this.logger.debug(`Subscribing to event: ${eventName} (via compatibility layer)`);
+    return this.register(eventName, handler);
+  }
 
   /**
    * Dispatch an event to all registered handlers (compatibility method)
@@ -135,9 +145,17 @@ class DomainEventsCompatibility {
 // Create the compatibility singleton
 const domainEvents = new DomainEventsCompatibility();
 
+// Add both direct exports and as properties for internal consistency
+// This ensures it works both with direct access and destructuring
+domainEvents.eventBus = domainEvents; // The compatibility layer itself is the event bus
+domainEvents.EventTypes = EventTypes;
+// Also add the event types to the eventBus property for full compatibility
+domainEvents.eventBus.EventTypes = EventTypes;
+
 // Export for backward compatibility
 export default domainEvents;
 
 // Named exports for better import syntax
+// Export the domainEvents object itself as eventBus to maintain the same reference
 export const eventBus = domainEvents;
 export { EventTypes };

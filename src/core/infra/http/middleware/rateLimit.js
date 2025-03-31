@@ -15,14 +15,25 @@ import { logger } from '../../logging/logger.js';
  */
 const createRateLimiter = (options) => {
   return rateLimit({
-    // Add request logging
-    onLimitReached: (req, res) => {
+    // Modern approach using handler instead of onLimitReached (which is deprecated)
+    handler: (req, res, next, options) => {
       logger.warn('Rate limit reached', {
         path: req.path,
         method: req.method,
-        ip: req.ip
+        ip: req.ip,
+        limit: options.max,
+        windowMs: options.windowMs
+      });
+      
+      res.status(429).json({
+        status: 'error',
+        message: 'Too many requests, please try again later.',
+        retryAfter: Math.ceil(options.windowMs / 1000)
       });
     },
+    // Standard headers
+    standardHeaders: true,
+    legacyHeaders: false,
     // Use default config or override with options
     ...options
   });

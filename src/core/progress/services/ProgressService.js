@@ -171,5 +171,115 @@ class ProgressService {
         this.cache.delete(cacheKey);
         this.logger.debug('Invalidated progress cache', { userId });
     }
+    /**
+     * Get progress records for multiple users at once
+     * Uses batch loading to prevent N+1 query issues
+     * 
+     * @param {Array<string>} userIds - Array of user IDs
+     * @param {Object} options - Query options
+     * @param {Array<string>} [options.include] - Related entities to include (e.g., ['challenge', 'user'])
+     * @returns {Promise<Object>} Map of user IDs to progress records
+     */
+    async getProgressForUsers(userIds, options = {}) {
+        if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+            return {};
+        }
+        
+        this.logger.debug('Getting progress for multiple users', { 
+            count: userIds.length, 
+            userIds: userIds.length <= 5 ? userIds : `${userIds.length} users`
+        });
+        
+        // Check cache first if available
+        const result = {};
+        const uncachedIds = [];
+        
+        if (this.cache) {
+            // Try to get progress from cache for each user
+            for (const userId of userIds) {
+                const cacheKey = `progress:${userId}`;
+                const cachedProgress = await this.cache.get(cacheKey);
+                
+                if (cachedProgress) {
+                    result[userId] = cachedProgress;
+                } else {
+                    uncachedIds.push(userId);
+                }
+            }
+        } else {
+            // No cache, all IDs need to be fetched
+            uncachedIds.push(...userIds);
+        }
+        
+        // If all results were found in cache, return immediately
+        if (uncachedIds.length === 0) {
+            return result;
+        }
+        
+        // Fetch all progress records for uncached users in a single query
+        try {
+            const progressRecords = [];
+            
+            // First try to find existing progress records
+            const existingProgress = await this.progressRepository.findByUserIds(uncachedIds, options);
+            progressRecords.push(...existingProgress);
+            
+            // Map results by user ID for easy lookup
+            for (const progress of progressRecords) {
+                result[progress.userId] = progress;
+                
+                // Cache if available
+                if (this.cache) {
+                    const cacheKey = `progress:${progress.userId}`;
+                    await this.cache.set(cacheKey, progress, 300); // Cache for 5 minutes
+                }
+            }
+            
+            return result;
+        } catch (error) {
+            this.logger.error('Error fetching progress for multiple users', {
+                error: error.message,
+                stack: error.stack,
+                userCount: uncachedIds.length
+            });
+            throw error;
+        }
+    }
+    
+    /**
+     * Get user progress with related challenge data
+     * Uses eager loading to prevent N+1 query issues
+     * 
+     * @param {string} userId - User ID
+     * @returns {Promise<Object>} User progress data with related challenges
+     */
+    async getProgressWithChallenges(userId) {
+        if (!userId) {
+            throw new Error('User ID is required to get progress with challenges');
+        }
+        
+        // Check cache first if available
+        if (this.cache) {
+            const cacheKey = `progress:withChallenges:${userId}`;
+            const cachedResult = await this.cache.get(cacheKey);
+            if (cachedResult) {
+                this.logger.debug('Retrieved progress with challenges from cache', { userId });
+                return cachedResult;
+            }
+        }
+        
+        // Get progress with eager loading of challenges
+        const progress = await this.progressRepository.findByUserId(userId, {
+            include: ['challenge'] // Use eager loading option to prevent N+1 query
+        });
+        
+        // Cache result if cache service is available
+        if (progress && this.cache) {
+            const cacheKey = `progress:withChallenges:${userId}`;
+            await this.cache.set(cacheKey, progress, 300); // Cache for 5 minutes
+        }
+        
+        return progress;
+    }
 }
 export default ProgressService;

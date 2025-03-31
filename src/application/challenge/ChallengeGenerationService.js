@@ -6,6 +6,11 @@
  * Application service that handles the generation of challenges using AI.
  * This service orchestrates between user data, challenge parameters, and AI services.
  * Uses the AIClient and AIStateManager ports to follow clean architecture principles.
+ * 
+ * As an application service, it:
+ * 1. Coordinates between multiple domains (user, challenge)
+ * 2. Manages external infrastructure concerns (AI client, state management)
+ * 3. Handles the application-level workflow for challenge generation
  */
 
 import promptBuilder from "../../core/prompt/promptBuilder.js";
@@ -16,6 +21,8 @@ import { challengeLogger } from "../../core/infra/logging/domainLogger.js";
 
 /**
  * Service for generating challenges
+ * @class
+ * @classdesc Application service that orchestrates the challenge generation process
  */
 class ChallengeGenerationService {
   /**

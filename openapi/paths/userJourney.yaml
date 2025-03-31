@@ -1,0 +1,169 @@
+events:
+  get:
+    summary: Get user journey events
+    description: Retrieves all events in the current user's journey
+    operationId: getUserJourneyEvents
+    tags:
+      - UserJourney
+    security:
+      - bearerAuth: []
+    parameters:
+      - $ref: '../components/parameters/common.yaml#/limitParam'
+      - $ref: '../components/parameters/common.yaml#/offsetParam'
+      - name: type
+        in: query
+        description: Filter by event type
+        schema:
+          type: string
+          enum: [login, challenge_started, challenge_completed, evaluation_received, badge_earned, level_up]
+      - name: fromDate
+        in: query
+        description: Filter events from this date (inclusive)
+        schema:
+          type: string
+          format: date
+      - name: toDate
+        in: query
+        description: Filter events to this date (inclusive)
+        schema:
+          type: string
+          format: date
+    responses:
+      '200':
+        description: User journey events retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  type: array
+                  items:
+                    $ref: '../components/schemas/UserJourneyEvent.yaml'
+                pagination:
+                  $ref: '../components/schemas/common/PaginationParams.yaml'
+      '401':
+        $ref: '../components/responses/common.yaml#/UnauthorizedError'
+
+timeline:
+  get:
+    summary: Get user timeline
+    description: Retrieves a chronological timeline of the user's journey
+    operationId: getUserTimeline
+    tags:
+      - UserJourney
+    security:
+      - bearerAuth: []
+    parameters:
+      - $ref: '../components/parameters/common.yaml#/limitParam'
+      - $ref: '../components/parameters/common.yaml#/offsetParam'
+      - name: includeDetails
+        in: query
+        description: Include detailed information about each event
+        schema:
+          type: boolean
+          default: false
+    responses:
+      '200':
+        description: User timeline retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      date:
+                        type: string
+                        format: date
+                        description: Date of the events
+                      events:
+                        type: array
+                        items:
+                          $ref: '../components/schemas/UserJourneyEvent.yaml'
+                pagination:
+                  $ref: '../components/schemas/common/PaginationParams.yaml'
+      '401':
+        $ref: '../components/responses/common.yaml#/UnauthorizedError'
+
+progress:
+  get:
+    summary: Get user progress
+    description: Retrieves the user's overall progress in their learning journey
+    operationId: getUserProgress
+    tags:
+      - UserJourney
+    security:
+      - bearerAuth: []
+    responses:
+      '200':
+        description: User progress retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  type: object
+                  properties:
+                    userId:
+                      type: string
+                      format: uuid
+                      description: ID of the user
+                    totalChallenges:
+                      type: integer
+                      description: Total number of challenges completed
+                    totalPoints:
+                      type: integer
+                      description: Total points earned
+                    rank:
+                      type: string
+                      description: User's current rank
+                    level:
+                      type: integer
+                      description: User's current level
+                    badges:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                            description: Badge ID
+                          name:
+                            type: string
+                            description: Badge name
+                          description:
+                            type: string
+                            description: Badge description
+                          earnedAt:
+                            type: string
+                            format: date-time
+                            description: When the badge was earned
+                    nextMilestone:
+                      type: object
+                      properties:
+                        description:
+                          type: string
+                          description: Description of the next milestone
+                        progress:
+                          type: number
+                          format: float
+                          minimum: 0
+                          maximum: 100
+                          description: Progress towards next milestone (0-100)
+      '401':
+        $ref: '../components/responses/common.yaml#/UnauthorizedError' 

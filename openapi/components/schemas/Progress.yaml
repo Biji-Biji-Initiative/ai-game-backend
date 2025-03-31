@@ -1,0 +1,60 @@
+type: object
+description: User progress tracking information
+required:
+  - id
+  - userId
+  - createdAt
+properties:
+  id:
+    type: string
+    format: uuid
+    description: Unique identifier for the progress record
+  userId:
+    type: string
+    format: uuid
+    description: ID of the user this progress belongs to
+  challengeId:
+    type: string
+    format: uuid
+    description: ID of the challenge this progress is related to (if applicable)
+  focusArea:
+    type: string
+    description: Focus area for this progress
+  averageScore:
+    type: number
+    format: float
+    minimum: 0
+    maximum: 100
+    description: Average score (0-100)
+  completionTime:
+    type: integer
+    description: Time to complete in seconds
+  skillLevels:
+    type: object
+    description: Map of skill names to level values (0-100)
+    additionalProperties:
+      type: number
+      minimum: 0
+      maximum: 100
+  strengths:
+    type: array
+    items:
+      type: string
+    description: Areas of strength for the user
+  weaknesses:
+    type: array
+    items:
+      type: string
+    description: Areas needing improvement
+  level:
+    type: integer
+    minimum: 1
+    description: Current user level
+  createdAt:
+    type: string
+    format: date-time
+    description: When the progress record was created
+  updatedAt:
+    type: string
+    format: date-time
+    description: When the progress record was last updated 

@@ -18,7 +18,6 @@ function createAuthRoutes({ authController, validation }) {
   const { validateBody } = validation || {};
   
   /**
-   * @swagger
    * /auth/login:
    *   post:
    *     summary: User login
@@ -111,208 +110,20 @@ function createAuthRoutes({ authController, validation }) {
     authController.login.bind(authController)
   );
   
-  /**
-   * @swagger
-   * /auth/signup:
-   *   post:
-   *     summary: User registration
-   *     description: Creates a new user account and returns a JWT token for immediate authentication.
-   *     tags: [Auth]
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             required:
-   *               - email
-   *               - password
-   *               - fullName
-   *             properties:
-   *               email:
-   *                 type: string
-   *                 format: email
-   *                 description: User's email address (must be unique)
-   *               password:
-   *                 type: string
-   *                 format: password
-   *                 description: User's password (minimum 8 characters, requires letters and numbers)
-   *               fullName:
-   *                 type: string
-   *                 description: User's full name
-   *           examples:
-   *             signupExample:
-   *               summary: Example signup request
-   *               value:
-   *                 email: "newuser@example.com"
-   *                 password: "securePassword123"
-   *                 fullName: "Jane Smith"
-   *     responses:
-   *       201:
-   *         description: User created successfully
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 success:
-   *                   type: boolean
-   *                   example: true
-   *                 data:
-   *                   type: object
-   *                   properties:
-   *                     token:
-   *                       type: string
-   *                       description: JWT authentication token
-   *                     user:
-   *                       type: object
-   *                       properties:
-   *                         id:
-   *                           type: string
-   *                         email:
-   *                           type: string
-   *                         fullName:
-   *                           type: string
-   *             examples:
-   *               signupSuccess:
-   *                 summary: Successful signup response
-   *                 value:
-   *                   success: true
-   *                   data:
-   *                     token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkphbmUgU21pdGgiLCJpYXQiOjE1MTYyMzkwMjJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
-   *                     user:
-   *                       id: "6729a051-f5da-42e1-9626-142157770000"
-   *                       email: "newuser@example.com"
-   *                       fullName: "Jane Smith"
-   *                       role: "user"
-   *                       createdAt: "2023-05-22T14:56:38.000Z"
-   *       400:
-   *         $ref: '#/components/responses/ValidationError'
-   *       409:
-   *         description: Email already in use
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 success:
-   *                   type: boolean
-   *                   example: false
-   *                 message:
-   *                   type: string
-   *                   example: "Email address is already registered"
-   *       429:
-   *         $ref: '#/components/responses/RateLimitError'
-   */
+  
   // Signup route
   router.post('/signup',
     validateBody ? validateBody({ email: 'string', password: 'string', fullName: 'string' }) : [],
     authController.signup.bind(authController)
   );
 
-  /**
-   * @swagger
-   * /auth/refresh:
-   *   post:
-   *     summary: Refresh authentication token
-   *     description: Generates a new JWT token using a valid refresh token
-   *     tags: [Auth]
-   *     security:
-   *       - bearerAuth: []
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             required:
-   *               - refreshToken
-   *             properties:
-   *               refreshToken:
-   *                 type: string
-   *                 description: Refresh token received during login
-   *           examples:
-   *             refreshTokenExample:
-   *               summary: Example refresh token request
-   *               value:
-   *                 refreshToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
-   *     responses:
-   *       200:
-   *         description: Token refreshed successfully
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 success:
-   *                   type: boolean
-   *                   example: true
-   *                 data:
-   *                   type: object
-   *                   properties:
-   *                     token:
-   *                       type: string
-   *                       description: New JWT authentication token
-   *                     refreshToken:
-   *                       type: string
-   *                       description: New refresh token
-   *             examples:
-   *               refreshSuccess:
-   *                 summary: Successful token refresh
-   *                 value:
-   *                   success: true
-   *                   data:
-   *                     token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
-   *                     refreshToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
-   *       400:
-   *         $ref: '#/components/responses/ValidationError'
-   *       401:
-   *         description: Invalid or expired refresh token
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 success:
-   *                   type: boolean
-   *                   example: false
-   *                 message:
-   *                   type: string
-   *                   example: "Invalid or expired refresh token"
-   *       429:
-   *         $ref: '#/components/responses/RateLimitError'
-   */
+  
   router.post('/refresh',
     validateBody ? validateBody({ refreshToken: 'string' }) : [],
     authController.refreshToken.bind(authController)
   );
   
-  /**
-   * @swagger
-   * /auth/logout:
-   *   post:
-   *     summary: Logout user
-   *     description: Invalidates the current user's tokens
-   *     tags: [Auth]
-   *     security:
-   *       - bearerAuth: []
-   *     responses:
-   *       200:
-   *         description: Logout successful
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 success:
-   *                   type: boolean
-   *                   example: true
-   *                 message:
-   *                   type: string
-   *                   example: "Successfully logged out"
-   *       401:
-   *         $ref: '#/components/responses/UnauthorizedError'
-   */
+  
   router.post('/logout', authController.logout.bind(authController));
 
   // Password reset endpoints

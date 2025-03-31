@@ -1,0 +1,336 @@
+progress:
+  get:
+    summary: Get current user's progress
+    description: Retrieves the overall progress for the current user
+    operationId: getUserProgress
+    tags:
+      - Progress
+    security:
+      - bearerAuth: []
+    responses:
+      '200':
+        description: User progress retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  type: object
+                  properties:
+                    progress:
+                      type: object
+                      properties:
+                        overall:
+                          type: number
+                          format: float
+                          minimum: 0
+                          maximum: 100
+                          description: Overall progress percentage
+                        level:
+                          type: integer
+                          description: User's current level
+                        skillLevels:
+                          type: object
+                          additionalProperties:
+                            type: number
+                          description: Map of skill names to level values
+                        challengesCompleted:
+                          type: integer
+                          description: Number of challenges completed
+                        lastActive:
+                          type: string
+                          format: date-time
+                          description: When the user was last active
+      '401':
+        $ref: '../components/responses/common.yaml#/UnauthorizedError'
+
+progress_all:
+  get:
+    summary: Get all progress records
+    description: Retrieves all progress records for the current user
+    operationId: getAllUserProgress
+    tags:
+      - Progress
+    security:
+      - bearerAuth: []
+    parameters:
+      - $ref: '../components/parameters/common.yaml#/limitParam'
+      - $ref: '../components/parameters/common.yaml#/offsetParam'
+      - $ref: '../components/parameters/common.yaml#/sortParam'
+    responses:
+      '200':
+        description: Progress records retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  type: object
+                  properties:
+                    progressRecords:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                            description: Progress record ID
+                          challengeId:
+                            type: string
+                            format: uuid
+                            description: Related challenge ID
+                          focusArea:
+                            type: string
+                            description: Focus area
+                          averageScore:
+                            type: number
+                            format: float
+                            description: Average score
+                          completedAt:
+                            type: string
+                            format: date-time
+                            description: Completion timestamp
+                    count:
+                      type: integer
+                      description: Total number of records
+                    pagination:
+                      $ref: '../components/schemas/common/PaginationParams.yaml'
+      '401':
+        $ref: '../components/responses/common.yaml#/UnauthorizedError'
+
+progress_challenge:
+  get:
+    summary: Get progress for a challenge
+    description: Retrieves the user's progress for a specific challenge
+    operationId: getChallengeProgress
+    tags:
+      - Progress
+      - Challenges
+    security:
+      - bearerAuth: []
+    parameters:
+      - name: challengeId
+        in: path
+        required: true
+        description: ID of the challenge
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '200':
+        description: Challenge progress retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  type: object
+                  properties:
+                    challengeId:
+                      type: string
+                      format: uuid
+                      description: Challenge ID
+                    score:
+                      type: number
+                      format: float
+                      description: Average score
+                    completionTime:
+                      type: integer
+                      description: Time to complete in seconds
+                    skillLevels:
+                      type: object
+                      additionalProperties:
+                        type: number
+                      description: Map of skill names to level values
+                    strengths:
+                      type: array
+                      items:
+                        type: string
+                      description: Areas of strength
+                    weaknesses:
+                      type: array
+                      items:
+                        type: string
+                      description: Areas needing improvement
+                    completedAt:
+                      type: string
+                      format: date-time
+                      description: Completion timestamp
+      '400':
+        $ref: '../components/responses/common.yaml#/ValidationError'
+      '401':
+        $ref: '../components/responses/common.yaml#/UnauthorizedError'
+      '404':
+        $ref: '../components/responses/common.yaml#/NotFoundError'
+
+progress_complete:
+  post:
+    summary: Record challenge completion
+    description: Records the completion of a challenge for the current user
+    operationId: recordChallengeCompletion
+    tags:
+      - Progress
+      - Challenges
+    security:
+      - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - challengeId
+              - score
+            properties:
+              challengeId:
+                type: string
+                format: uuid
+                description: ID of the completed challenge
+              score:
+                type: number
+                format: float
+                minimum: 0
+                maximum: 100
+                description: Score achieved (0-100)
+              completionTime:
+                type: integer
+                description: Time to complete in seconds
+              skillLevels:
+                type: object
+                additionalProperties:
+                  type: number
+                  minimum: 0
+                  maximum: 100
+                description: Skill levels achieved
+    responses:
+      '200':
+        description: Challenge completion recorded successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  $ref: '../components/schemas/Progress.yaml'
+      '400':
+        $ref: '../components/responses/common.yaml#/ValidationError'
+      '401':
+        $ref: '../components/responses/common.yaml#/UnauthorizedError'
+
+progress_skills:
+  put:
+    summary: Update skill levels
+    description: Updates the user's skill levels
+    operationId: updateSkillLevels
+    tags:
+      - Progress
+    security:
+      - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - skillLevels
+            properties:
+              skillLevels:
+                type: object
+                additionalProperties:
+                  type: number
+                  minimum: 0
+                  maximum: 100
+                description: Map of skill names to level values (0-100)
+    responses:
+      '200':
+        description: Skill levels updated successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  type: object
+                  properties:
+                    skillLevels:
+                      type: object
+                      additionalProperties:
+                        type: number
+                      description: Updated skill levels
+                    updatedAt:
+                      type: string
+                      format: date-time
+                      description: Update timestamp
+      '400':
+        $ref: '../components/responses/common.yaml#/ValidationError'
+      '401':
+        $ref: '../components/responses/common.yaml#/UnauthorizedError'
+
+progress_focus_area:
+  put:
+    summary: Set focus area
+    description: Sets the user's current focus area
+    operationId: setFocusArea
+    tags:
+      - Progress
+      - FocusAreas
+    security:
+      - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - focusArea
+            properties:
+              focusArea:
+                type: string
+                description: Focus area to set
+    responses:
+      '200':
+        description: Focus area updated successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  type: object
+                  properties:
+                    focusArea:
+                      type: string
+                      description: Updated focus area
+                    updatedAt:
+                      type: string
+                      format: date-time
+                      description: Update timestamp
+      '400':
+        $ref: '../components/responses/common.yaml#/ValidationError'
+      '401':
+        $ref: '../components/responses/common.yaml#/UnauthorizedError' 

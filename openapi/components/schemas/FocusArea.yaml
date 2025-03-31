@@ -1,0 +1,33 @@
+type: object
+description: Focus area for learning and challenges
+required:
+  - id
+  - name
+  - description
+properties:
+  id:
+    type: string
+    format: uuid
+    description: Unique identifier for the focus area
+  name:
+    type: string
+    description: Name of the focus area
+  description:
+    type: string
+    description: Detailed description of the focus area
+  category:
+    type: string
+    description: Category of the focus area
+    example: "general"
+  difficulty:
+    type: string
+    enum: [beginner, intermediate, advanced, expert]
+    description: Recommended difficulty level for this focus area
+  createdAt:
+    type: string
+    format: date-time
+    description: When the focus area was created
+  updatedAt:
+    type: string
+    format: date-time
+    description: When the focus area was last updated 

@@ -52,7 +52,47 @@ class CacheInvalidationManager {
     this.logger = logger.child({
       component: 'cache-invalidation-manager'
     });
+    
+    // Initialize metrics
+    this.metrics = {
+      invalidationsByEntityType: {},
+      patternInvalidations: 0,
+      keyInvalidations: 0,
+      failedInvalidations: 0,
+      lastInvalidation: null
+    };
+    
+    // Initialize timestamp for monitoring
+    this.startTime = Date.now();
   }
+  
+  /**
+   * Get metrics about cache invalidation operations
+   * 
+   * @returns {Object} Cache invalidation metrics
+   */
+  getMetrics() {
+    return {
+      ...this.metrics,
+      uptime: Date.now() - this.startTime,
+      totalInvalidations: this.metrics.patternInvalidations + this.metrics.keyInvalidations
+    };
+  }
+  
+  /**
+   * Reset metrics counters
+   */
+  resetMetrics() {
+    this.metrics = {
+      invalidationsByEntityType: {},
+      patternInvalidations: 0,
+      keyInvalidations: 0,
+      failedInvalidations: 0,
+      lastInvalidation: this.metrics.lastInvalidation
+    };
+    this.logger.info('Cache invalidation metrics have been reset');
+  }
+  
   /**
    * Invalidate a specific cache key
    *
@@ -64,9 +104,21 @@ class CacheInvalidationManager {
   async invalidateKey(key) {
     try {
       await this.cache.del(key);
+      
+      // Update metrics
+      this.metrics.keyInvalidations++;
+      this.metrics.lastInvalidation = {
+        type: 'key',
+        key,
+        timestamp: new Date().toISOString()
+      };
+      
       this.logger.debug(`Invalidated cache key: ${key}`);
       return true;
     } catch (error) {
+      // Update failed metrics
+      this.metrics.failedInvalidations++;
+      
       this.logger.error(`Error invalidating cache key: ${key}`, {
         error: error.message,
         stack: error.stack
@@ -86,9 +138,21 @@ class CacheInvalidationManager {
   async invalidatePattern(pattern) {
     try {
       await this.cache.delPattern(pattern);
+      
+      // Update metrics
+      this.metrics.patternInvalidations++;
+      this.metrics.lastInvalidation = {
+        type: 'pattern',
+        pattern,
+        timestamp: new Date().toISOString()
+      };
+      
       this.logger.debug(`Invalidated cache keys matching pattern: ${pattern}`);
       return true;
     } catch (error) {
+      // Update failed metrics
+      this.metrics.failedInvalidations++;
+      
       this.logger.error(`Error invalidating cache pattern: ${pattern}`, {
         error: error.message,
         stack: error.stack
@@ -121,9 +185,19 @@ class CacheInvalidationManager {
       // Invalidate any pattern that might include this entity
       await this.invalidatePattern(`${entityType}:*:${entityId}:*`);
       await this.invalidatePattern(`${entityType}:*:*:${entityId}`);
+      
+      // Update entity-specific metrics
+      if (!this.metrics.invalidationsByEntityType[entityType]) {
+        this.metrics.invalidationsByEntityType[entityType] = 0;
+      }
+      this.metrics.invalidationsByEntityType[entityType]++;
+      
       this.logger.debug(`Invalidated ${entityType} entity with ID: ${entityId}`);
       return true;
     } catch (error) {
+      // Update failed metrics
+      this.metrics.failedInvalidations++;
+      
       this.logger.error(`Error invalidating ${entityType} entity: ${entityId}`, {
         error: error.message,
         stack: error.stack

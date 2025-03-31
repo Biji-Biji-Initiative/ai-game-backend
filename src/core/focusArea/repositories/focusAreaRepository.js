@@ -159,6 +159,109 @@ class FocusAreaRepository extends BaseRepository {
     }
 
     /**
+     * Find multiple focus areas by their IDs
+     * 
+     * Efficiently retrieves multiple focus areas in a single database query
+     * to prevent N+1 query performance issues when loading related entities.
+     * 
+     * @param {Array<string>} ids - Array of focus area IDs
+     * @param {Object} options - Query options
+     * @param {Array<string>} [options.include] - Related entities to include
+     * @returns {Promise<Array<FocusArea>>} Array of focus areas
+     * @throws {FocusAreaPersistenceError} If database operation fails
+     */
+    async findByIds(ids, options = {}) {
+        try {
+            // Use the base repository implementation to get raw data
+            const records = await super.findByIds(ids);
+            
+            // Map database records to domain objects
+            const focusAreas = records.map(record => FocusArea.fromDatabase(record));
+            
+            // If include options are specified, handle eager loading
+            if (options.include && Array.isArray(options.include) && options.include.length > 0) {
+                await this._loadRelatedEntities(focusAreas, options.include);
+            }
+            
+            return focusAreas;
+        } catch (error) {
+            this._log('error', 'Error finding focus areas by IDs', {
+                count: ids?.length || 0,
+                error: error.message,
+                stack: error.stack
+            });
+            
+            throw new DatabaseError(`Failed to fetch focus areas by IDs: ${error.message}`, {
+                cause: error,
+                entityType: this.domainName,
+                operation: 'findByIds'
+            });
+        }
+    }
+    
+    /**
+     * Load related entities for a collection of focus areas
+     * Private helper method for implementing eager loading
+     * 
+     * @param {Array<FocusArea>} focusAreas - Array of focus area objects
+     * @param {Array<string>} include - Array of entity types to include
+     * @returns {Promise<void>}
+     * @private
+     */
+    async _loadRelatedEntities(focusAreas, include) {
+        // No-op if no focus areas
+        if (!focusAreas || focusAreas.length === 0) {
+            return;
+        }
+        
+        // Process each include option
+        for (const entityType of include) {
+            switch (entityType) {
+                case 'challenges':
+                    // Extract user IDs to get challenges by user
+                    const userIds = [...new Set(focusAreas.map(fa => fa.userId).filter(id => !!id))];
+                    
+                    if (userIds.length > 0) {
+                        // Get the repository from container or directly
+                        const challengeRepo = this.container ? 
+                            this.container.get('challengeRepository') : 
+                            require('../../challenge/repositories/challengeRepository').default;
+                        
+                        // Get all challenges for these focus areas (will need to be filtered)
+                        const allChallenges = [];
+                        for (const userId of userIds) {
+                            const userChallenges = await challengeRepo.findByUserId(userId);
+                            allChallenges.push(...userChallenges);
+                        }
+                        
+                        // Group challenges by focus area
+                        const challengesByFocusArea = {};
+                        for (const challenge of allChallenges) {
+                            if (challenge.focusAreaId) {
+                                if (!challengesByFocusArea[challenge.focusAreaId]) {
+                                    challengesByFocusArea[challenge.focusAreaId] = [];
+                                }
+                                challengesByFocusArea[challenge.focusAreaId].push(challenge);
+                            }
+                        }
+                        
+                        // Attach challenges to each focus area
+                        focusAreas.forEach(focusArea => {
+                            if (focusArea.id && challengesByFocusArea[focusArea.id]) {
+                                focusArea.challenges = challengesByFocusArea[focusArea.id];
+                            } else {
+                                focusArea.challenges = [];
+                            }
+                        });
+                    }
+                    break;
+                    
+                // Add other entity types as needed
+            }
+        }
+    }
+
+    /**
      * Find focus areas by user ID
      * @param {string} userId - User ID
      * @param {Object} options - Query options

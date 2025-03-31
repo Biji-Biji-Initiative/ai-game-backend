@@ -9,12 +9,24 @@ const personalityServiceErrorMapper = createErrorMapper({
   PersonalityProcessingError: PersonalityProcessingError,
   Error: PersonalityError
 }, PersonalityError);
+
 /**
- *
+ * Traits Analysis Service
+ * 
+ * Domain service responsible for analyzing personality traits data.
+ * This service encapsulates core domain logic related to trait analysis
+ * without external dependencies or infrastructure concerns.
+ * 
+ * As a domain service, it:
+ * 1. Performs pure domain operations on trait data
+ * 2. Is stateless - each method produces output based only on its input
+ * 3. Contains no infrastructure dependencies (DB, external APIs)
+ * 4. Implements domain rules and business logic related to personality traits
  */
 class TraitsAnalysisService {
   /**
    * Constructor
+   * @param {Object} personalityRepository - Repository for personality data
    */
   constructor(personalityRepository) {
     this.personalityRepository = personalityRepository;

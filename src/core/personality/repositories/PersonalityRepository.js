@@ -274,9 +274,10 @@ class PersonalityRepository extends BaseRepository {
                 result: savedPersonality,
                 domainEvents: domainEvents
             };
-        }, {
-            publishEvents: true,
-            eventBus: this.eventBus
+        }, {publishEvents: true,
+            eventBus: this.eventBus,
+            invalidateCache: true, // Enable cache invalidation
+            cacheInvalidator: this.cacheInvalidator // Use repository's invalidator
         });
     }
     /**
@@ -327,9 +328,10 @@ class PersonalityRepository extends BaseRepository {
                 result: true,
                 domainEvents: domainEvents
             };
-        }, {
-            publishEvents: true,
-            eventBus: this.eventBus
+        }, {publishEvents: true,
+            eventBus: this.eventBus,
+            invalidateCache: true, // Enable cache invalidation
+            cacheInvalidator: this.cacheInvalidator // Use repository's invalidator
         });
     }
     /**
@@ -388,9 +390,10 @@ class PersonalityRepository extends BaseRepository {
                 result: true,
                 domainEvents: domainEvents
             };
-        }, {
-            publishEvents: true,
-            eventBus: this.eventBus
+        }, {publishEvents: true,
+            eventBus: this.eventBus,
+            invalidateCache: true, // Enable cache invalidation
+            cacheInvalidator: this.cacheInvalidator // Use repository's invalidator
         });
     }
 }

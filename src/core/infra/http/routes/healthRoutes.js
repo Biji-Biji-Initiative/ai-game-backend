@@ -14,7 +14,6 @@ function createHealthRoutes(container) {
     const router = express.Router();
     const healthCheckController = container.get('healthCheckController');
     /**
-     * @swagger
      * /health:
      *   get:
      *     summary: System health check

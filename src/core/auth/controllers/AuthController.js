@@ -65,6 +65,24 @@ class AuthController {
                 errorMappings: authControllerErrorMappings
             }
         );
+        this.forgotPassword = withControllerErrorHandling(
+            this.forgotPassword.bind(this), 
+            {
+                methodName: 'forgotPassword',
+                domainName: 'auth',
+                logger: this.logger,
+                errorMappings: authControllerErrorMappings
+            }
+        );
+        this.resetPassword = withControllerErrorHandling(
+            this.resetPassword.bind(this), 
+            {
+                methodName: 'resetPassword',
+                domainName: 'auth',
+                logger: this.logger,
+                errorMappings: authControllerErrorMappings
+            }
+        );
         this.requestPasswordReset = withControllerErrorHandling(
             this.requestPasswordReset.bind(this), 
             {
@@ -363,6 +381,104 @@ class AuthController {
             data: {
                 accessToken: data.session.access_token
             }
+        });
+    }
+    /**
+     * Handle forgot password request
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     * @param {Function} next - Express next function
+     */
+    async forgotPassword(req, res, next) {
+        const { email } = req.body;
+        
+        if (!email) {
+            this.logger.warn('Forgot password request with missing email');
+            return res.status(400).json({
+                status: 'error',
+                message: 'Email is required'
+            });
+        }
+        
+        this.logger.debug('Forgot password request', { email });
+        
+        // Use Supabase's built-in password reset functionality
+        const { error } = await this.supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password`
+        });
+        
+        if (error) {
+            this.logger.warn('Forgot password request failed', {
+                email,
+                error: error.message,
+                errorCode: error.code
+            });
+            
+            // Don't reveal if the email exists or not for security reasons
+            return res.status(200).json({
+                status: 'success',
+                message: 'If a user with that email exists, a password reset link has been sent'
+            });
+        }
+        
+        this.logger.info('Password reset email sent', { email });
+        
+        return res.status(200).json({
+            status: 'success',
+            message: 'Password reset instructions sent to your email'
+        });
+    }
+    
+    /**
+     * Reset password with token
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     * @param {Function} next - Express next function
+     */
+    async resetPassword(req, res, next) {
+        const { password } = req.body;
+        const { token } = req.query;
+        
+        if (!password) {
+            this.logger.warn('Reset password attempt with missing password');
+            return res.status(400).json({
+                status: 'error',
+                message: 'New password is required'
+            });
+        }
+        
+        if (!token) {
+            this.logger.warn('Reset password attempt with missing token');
+            return res.status(400).json({
+                status: 'error',
+                message: 'Reset token is required'
+            });
+        }
+        
+        this.logger.debug('Reset password attempt');
+        
+        // Update the user's password with Supabase
+        const { error } = await this.supabase.auth.updateUser({
+            password: password
+        });
+        
+        if (error) {
+            this.logger.error('Password reset failed', {
+                error: error.message,
+                errorCode: error.code
+            });
+            
+            return res.status(400).json({
+                status: 'error',
+                message: error.message || 'Failed to reset password'
+            });
+        }
+        
+        this.logger.info('Password reset successful');
+        
+        return res.status(200).json({
+            status: 'success',
+            message: 'Password has been reset successfully'
         });
     }
 }

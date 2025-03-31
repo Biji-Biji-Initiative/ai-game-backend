@@ -1,978 +1,1412 @@
 /**
- * Response Viewer Module
- * Handles displaying API responses in a tabbed format
+ * Response Viewer Component
+ * Provides enhanced formatting for API responses
  */
 
 /**
- *
+ * Creates a Response Viewer component
  */
 export class ResponseViewer {
     /**
-     * Creates a new ResponseViewer instance
+     * Creates a new ResponseViewer
      * @param {Object} options - Configuration options
      */
     constructor(options = {}) {
         this.options = {
             container: null,
-            tabManager: null,
-            config: null,
-            errorHandler: null,
-            syntaxHighlightLimit: 1000000, // 1MB approximate limit for syntax highlighting
-            defaultTab: "formatted",
-            enableCopyButtons: true,
-            autoFormatJSON: true,
-            maxRawLength: 5000000, // 5MB approximate display limit
-            ...options
+            previewSandboxed: true,
+            jsonMaxDepth: 10,
+            jsonMaxLines: 5000,
+            ...(options || {})
         };
         
         this.container = this.options.container;
-        this.tabManager = this.options.tabManager;
-        this.config = this.options.config;
-        this.errorHandler = this.options.errorHandler;
+        this.currentResponse = null;
+        this.activeTab = 'formatted';
+        this.searchMatches = [];
+        this.currentMatchIndex = -1;
         
-        this.response = null;
-        this.request = null;
-        this.defaultTabs = ["formatted", "raw", "headers", "preview"];
-        this.customTabs = [];
-        this.initialized = false;
-        this.worker = null;
-        this.workerCallbacks = new Map();
-        this.workerCallId = 0;
+        if (!this.container) {
+            throw new Error('Container element is required for ResponseViewer');
+        }
+        
+        this.init();
     }
     
     /**
-     * Initializes the response viewer
-     * @returns {boolean} Whether initialization succeeded
+     * Initializes the component
+     * @private
      */
-    initialize() {
-        try {
-            // Check if already initialized
-            if (this.initialized) {
-                return true;
+    init() {
+        // Create the base elements
+        this.container.innerHTML = `
+            <div class="response-viewer">
+                <div class="response-tabs">
+                    <button type="button" class="response-tab active" data-tab="formatted">Formatted</button>
+                    <button type="button" class="response-tab" data-tab="raw">Raw</button>
+                    <button type="button" class="response-tab" data-tab="headers">Headers</button>
+                    <button type="button" class="response-tab" data-tab="preview">Preview</button>
+                </div>
+                
+                <div class="response-search">
+                    <div class="search-input-group">
+                        <input type="text" id="response-search-input" placeholder="Search in response...">
+                        <button type="button" id="search-prev-btn" title="Previous match">▲</button>
+                        <button type="button" id="search-next-btn" title="Next match">▼</button>
+                        <button type="button" id="search-close-btn" title="Close search">×</button>
+                        <span class="search-results-count"></span>
+                    </div>
+                    <button type="button" id="show-search-btn" class="btn btn-sm">
+                        <span class="search-icon">🔍</span> Search
+                    </button>
+                </div>
+                
+                <div class="response-content-container">
+                    <div class="response-content active" id="formatted-content">
+                        <div class="empty-content">No response data</div>
+                    </div>
+                    <div class="response-content" id="raw-content">
+                        <div class="empty-content">No response data</div>
+                    </div>
+                    <div class="response-content" id="headers-content">
+                        <div class="empty-content">No headers available</div>
+                    </div>
+                    <div class="response-content" id="preview-content">
+                        <div class="empty-content">No preview available</div>
+                    </div>
+                </div>
+                
+                <div class="response-tools">
+                    <div class="response-tools-left">
+                        <button type="button" class="btn btn-sm" id="expand-all-btn">Expand All</button>
+                        <button type="button" class="btn btn-sm" id="collapse-all-btn">Collapse All</button>
+                    </div>
+                    <div class="response-tools-right">
+                        <button type="button" class="btn btn-sm" id="copy-response-btn">Copy Response</button>
+                        <button type="button" class="btn btn-sm" id="download-response-btn">Download</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Get elements
+        this.tabButtons = this.container.querySelectorAll('.response-tab');
+        this.contentPanels = {
+            formatted: this.container.querySelector('#formatted-content'),
+            raw: this.container.querySelector('#raw-content'),
+            headers: this.container.querySelector('#headers-content'),
+            preview: this.container.querySelector('#preview-content')
+        };
+        
+        this.copyButton = this.container.querySelector('#copy-response-btn');
+        this.downloadButton = this.container.querySelector('#download-response-btn');
+        this.expandAllButton = this.container.querySelector('#expand-all-btn');
+        this.collapseAllButton = this.container.querySelector('#collapse-all-btn');
+        
+        // Search elements
+        this.searchInput = this.container.querySelector('#response-search-input');
+        this.searchPrevButton = this.container.querySelector('#search-prev-btn');
+        this.searchNextButton = this.container.querySelector('#search-next-btn');
+        this.searchCloseButton = this.container.querySelector('#search-close-btn');
+        this.showSearchButton = this.container.querySelector('#show-search-btn');
+        this.searchResultsCount = this.container.querySelector('.search-results-count');
+        this.searchContainer = this.container.querySelector('.response-search');
+        
+        // Set initial state of search - hidden by default
+        this.searchContainer.classList.add('search-collapsed');
+        
+        // Add event listeners
+        this.tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                this.setActiveTab(button.dataset.tab);
+            });
+        });
+        
+        this.copyButton.addEventListener('click', () => this.copyResponseToClipboard());
+        this.downloadButton.addEventListener('click', () => this.downloadResponse());
+        this.expandAllButton.addEventListener('click', () => this.expandAll());
+        this.collapseAllButton.addEventListener('click', () => this.collapseAll());
+        
+        // Search event listeners
+        this.showSearchButton.addEventListener('click', () => this.toggleSearch());
+        this.searchCloseButton.addEventListener('click', () => this.toggleSearch(false));
+        this.searchInput.addEventListener('input', () => this.performSearch());
+        this.searchPrevButton.addEventListener('click', () => this.navigateSearch('prev'));
+        this.searchNextButton.addEventListener('click', () => this.navigateSearch('next'));
+        
+        // Add keyboard shortcut for search
+        this.container.addEventListener('keydown', (e) => {
+            // Ctrl+F / Cmd+F to open search
+            if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                e.preventDefault();
+                this.toggleSearch(true);
             }
             
-            // Validate options
-            if (!this.container) {
-                throw new Error("Response Viewer: No container specified");
+            // Escape to close search
+            if (e.key === 'Escape') {
+                this.toggleSearch(false);
             }
             
-            if (!this.tabManager) {
-                throw new Error("Response Viewer: No tab manager specified");
+            // Enter to navigate to next match
+            if (e.key === 'Enter') {
+                if (e.shiftKey) {
+                    this.navigateSearch('prev');
+                } else {
+                    this.navigateSearch('next');
+                }
             }
+        });
+    }
+    
+    /**
+     * Sets the active tab
+     * @param {string} tabName - The tab name to activate
+     */
+    setActiveTab(tabName) {
+        if (!this.contentPanels[tabName]) return;
+        
+        // Update active tab
+        this.activeTab = tabName;
+        
+        // Update tab buttons
+        this.tabButtons.forEach(button => {
+            button.classList.toggle('active', button.dataset.tab === tabName);
+        });
+        
+        // Update content panels
+        Object.entries(this.contentPanels).forEach(([name, panel]) => {
+            panel.classList.toggle('active', name === tabName);
+        });
+        
+        // Special handling for preview tab
+        if (tabName === 'preview' && this.currentResponse) {
+            this.renderPreview();
+        }
+        
+        // Reset search when changing tabs
+        this.clearSearch();
+        
+        // Toggle expand/collapse buttons visibility based on active tab
+        const isJsonOrXml = tabName === 'formatted' && 
+            this.currentResponse && 
+            (typeof this.currentResponse.data === 'object' || 
+            (typeof this.currentResponse.data === 'string' && 
+            (this.currentResponse.data.trim().startsWith('{') || 
+             this.currentResponse.data.trim().startsWith('<'))));
+             
+        this.expandAllButton.style.display = isJsonOrXml ? 'inline-block' : 'none';
+        this.collapseAllButton.style.display = isJsonOrXml ? 'inline-block' : 'none';
+    }
+    
+    /**
+     * Toggles the search UI
+     * @param {boolean} show - Whether to show or hide the search
+     */
+    toggleSearch(show) {
+        const isCurrentlyShown = !this.searchContainer.classList.contains('search-collapsed');
+        
+        // Toggle based on parameter or current state
+        const shouldShow = show !== undefined ? show : !isCurrentlyShown;
+        
+        if (shouldShow) {
+            this.searchContainer.classList.remove('search-collapsed');
+            this.searchInput.focus();
             
-            // Create base structure if it doesn't exist
-            this._createBaseStructure();
-            
-            // Initialize tabs
-            this._initializeTabs();
-            
-            // Initialize web worker for parsing large JSON (if browser supports it)
-            this._initializeWorker();
-            
-            // Mark as initialized
-            this.initialized = true;
-            
-            return true;
-        } catch (error) {
-            console.error("Error initializing Response Viewer:", error);
-            
-            if (this.errorHandler) {
-                this.errorHandler.handleError(error);
+            // If there's text in the input, perform search
+            if (this.searchInput.value.trim()) {
+                this.performSearch();
             }
-            
-            return false;
+        } else {
+            this.searchContainer.classList.add('search-collapsed');
+            this.clearSearch();
         }
     }
     
     /**
-     * Creates the base structure for the response viewer
-     * @private
+     * Performs a search in the current response content
      */
-    _createBaseStructure() {
-        // Check if structure already exists
-        if (this.container.querySelector(".response-content")) {
+    performSearch() {
+        // Clear previous search
+        this.clearSearchHighlights();
+        
+        const searchTerm = this.searchInput.value.trim();
+        if (!searchTerm) {
+            this.searchResultsCount.textContent = '';
+            this.searchMatches = [];
+            this.currentMatchIndex = -1;
             return;
         }
         
-        // Create container for response tabs if it doesn't exist
-        if (!this.container.querySelector("#response-tabs")) {
-            const tabsContainer = document.createElement("div");
-            tabsContainer.id = "response-tabs";
-            tabsContainer.className = "tabs-container";
-            this.container.appendChild(tabsContainer);
+        // Get the active content panel
+        const contentPanel = this.contentPanels[this.activeTab];
+        if (!contentPanel) return;
+        
+        // For formatted JSON/XML with collapsibles, we need to expand all to search properly
+        if (this.activeTab === 'formatted') {
+            this.expandAll(false); // Expand without scrolling
         }
         
-        // Create container for response content if it doesn't exist
-        if (!this.container.querySelector("#response-contents")) {
-            const contentsContainer = document.createElement("div");
-            contentsContainer.id = "response-contents";
-            contentsContainer.className = "tab-contents-container";
-            this.container.appendChild(contentsContainer);
-        }
-    }
-    
-    /**
-     * Initializes the response tabs
-     * @private
-     */
-    _initializeTabs() {
-        // Make sure tab manager is initialized first
-        if (!this.tabManager.isInitialized()) {
-            this.tabManager.initialize();
-        }
+        // Highlight matches in the content panel
+        this.searchMatches = [];
         
-        // Clear any existing tabs
-        const existingTabs = this.tabManager.getTabs();
-        existingTabs.forEach(tab => {
-            this.tabManager.removeTab(tab.id);
-        });
-        
-        // Add default tabs
-        this.tabManager.addTab({
-            id: "tab-formatted",
-            title: "Formatted",
-            content: "<div class=\"response-formatted\"></div>",
-            active: this.options.defaultTab === "formatted"
-        });
-        
-        this.tabManager.addTab({
-            id: "tab-raw",
-            title: "Raw",
-            content: "<div class=\"response-raw\"></div>",
-            active: this.options.defaultTab === "raw"
-        });
-        
-        this.tabManager.addTab({
-            id: "tab-headers",
-            title: "Headers",
-            content: "<div class=\"response-headers\"></div>",
-            active: this.options.defaultTab === "headers"
-        });
-        
-        this.tabManager.addTab({
-            id: "tab-preview",
-            title: "Preview",
-            content: "<div class=\"response-preview\"></div>",
-            active: this.options.defaultTab === "preview"
-        });
-        
-        // Add event listeners for tab changes
-        this.tabManager.addEventListener("tabs:activated", event => {
-            // You could perform actions when tabs are switched
-            console.log("Tab activated:", event.tabId);
-        });
-    }
-    
-    /**
-     * Initializes the web worker for JSON parsing
-     * @private
-     */
-    _initializeWorker() {
-        try {
-            // Check if browser supports web workers
-            if (window.Worker) {
-                // Create blob with worker code
-                const workerCode = `
-                    self.onmessage = function(e) {
-                        const { id, action, data } = e.data;
-                        
-                        try {
-                            let result;
-                            
-                            if (action === 'parseJSON') {
-                                result = JSON.parse(data);
-                            } else if (action === 'formatJSON') {
-                                const obj = typeof data === 'string' ? JSON.parse(data) : data;
-                                result = JSON.stringify(obj, null, 2);
-                            } else if (action === 'highlightJSON') {
-                                const obj = typeof data === 'string' ? JSON.parse(data) : data;
-                                result = self.highlightJSON(obj);
-                            }
-                            
-                            self.postMessage({ id, result, error: null });
-                        } catch (error) {
-                            self.postMessage({ id, result: null, error: error.message });
-                        }
-                    };
-                    
-                    // Simple JSON highlighter function
-                    self.highlightJSON = function(json) {
-                        const jsonStr = JSON.stringify(json, null, 2);
-                        return jsonStr.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\\s*:)?|\\b(true|false|null)\\b|-?\\d+(?:\\.\\d*)?(?:[eE][+\\-]?\\d+)?)/g, function (match) {
-                            let cls = 'json-number';
-                            if (/^"/.test(match)) {
-                                if (/:$/.test(match)) {
-                                    cls = 'json-key';
-                                } else {
-                                    cls = 'json-string';
-                                }
-                            } else if (/true|false/.test(match)) {
-                                cls = 'json-boolean';
-                            } else if (/null/.test(match)) {
-                                cls = 'json-null';
-                            }
-                            return '<span class="' + cls + '">' + match + '</span>';
-                        });
-                    };
-                `;
-                
-                const blob = new Blob([workerCode], { type: "application/javascript" });
-                const url = URL.createObjectURL(blob);
-                
-                // Create worker
-                this.worker = new Worker(url);
-                
-                // Add message handler
-                this.worker.onmessage = e => {
-                    const { id, result, error } = e.data;
-                    
-                    // Get callback for this call
-                    if (this.workerCallbacks.has(id)) {
-                        const callback = this.workerCallbacks.get(id);
-                        
-                        // Remove callback
-                        this.workerCallbacks.delete(id);
-                        
-                        // Call callback
-                        if (error) {
-                            callback.reject(new Error(error));
-                        } else {
-                            callback.resolve(result);
-                        }
+        // Function to highlight text in an element
+        const highlightInElement = (element) => {
+            if (!element) return;
+            
+            // Skip if it's a script, style, or input element
+            if (['SCRIPT', 'STYLE', 'INPUT', 'TEXTAREA'].includes(element.tagName)) return;
+            
+            // Process text nodes
+            const walker = document.createTreeWalker(
+                element,
+                NodeFilter.SHOW_TEXT,
+                {
+                    acceptNode: (node) => {
+                        return node.nodeValue.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
                     }
-                };
-                
-                // Add error handler
-                this.worker.onerror = error => {
-                    console.error("Worker error:", error);
-                };
-                
-                console.log("Worker initialized for JSON processing");
+                }
+            );
+            
+            const textNodes = [];
+            let node;
+            
+            // Collect all text nodes first
+            while (node = walker.nextNode()) {
+                textNodes.push(node);
             }
-        } catch (error) {
-            console.error("Failed to initialize worker:", error);
-            // Continue without worker - we'll use main thread for JSON processing
-        }
-    }
-    
-    /**
-     * Calls a method in the worker
-     * @param {string} action - The action to perform
-     * @param {*} data - The data to send
-     * @returns {Promise<*>} The result
-     * @private
-     */
-    _callWorker(action, data) {
-        return new Promise((resolve, reject) => {
-            // If worker is not available, process on main thread
-            if (!this.worker) {
-                try {
-                    let result;
-                    
-                    if (action === "parseJSON") {
-                        result = JSON.parse(data);
-                    } else if (action === "formatJSON") {
-                        const obj = typeof data === "string" ? JSON.parse(data) : data;
-                        result = JSON.stringify(obj, null, 2);
-                    } else if (action === "highlightJSON") {
-                        const obj = typeof data === "string" ? JSON.parse(data) : data;
-                        result = this._highlightJSON(obj);
-                    }
-                    
-                    resolve(result);
-                } catch (error) {
-                    reject(error);
+            
+            // Now process them
+            textNodes.forEach(textNode => {
+                const parent = textNode.parentNode;
+                const text = textNode.nodeValue;
+                const searchRegex = new RegExp(this.escapeRegExp(searchTerm), 'gi');
+                
+                let match;
+                let lastIndex = 0;
+                const matches = [];
+                
+                // Find all matches in the text
+                while ((match = searchRegex.exec(text)) !== null) {
+                    matches.push({
+                        index: match.index,
+                        length: match[0].length
+                    });
                 }
                 
+                // If there are matches in this text node
+                if (matches.length > 0) {
+                    const fragment = document.createDocumentFragment();
+                    
+                    // Process each match
+                    matches.forEach((match, i) => {
+                        // Add text before the match
+                        if (match.index > lastIndex) {
+                            fragment.appendChild(document.createTextNode(
+                                text.substring(lastIndex, match.index)
+                            ));
+                        }
+                        
+                        // Create a highlighted span for the match
+                        const matchText = text.substr(match.index, match.length);
+                        const highlightSpan = document.createElement('span');
+                        highlightSpan.className = 'search-match';
+                        highlightSpan.textContent = matchText;
+                        
+                        // Store reference to the match element
+                        this.searchMatches.push(highlightSpan);
+                        
+                        fragment.appendChild(highlightSpan);
+                        lastIndex = match.index + match.length;
+                    });
+                    
+                    // Add any remaining text
+                    if (lastIndex < text.length) {
+                        fragment.appendChild(document.createTextNode(
+                            text.substring(lastIndex)
+                        ));
+                    }
+                    
+                    // Replace the original text node with the fragment
+                    parent.replaceChild(fragment, textNode);
+                }
+            });
+        };
+        
+        // Highlight in the active content panel
+        highlightInElement(contentPanel);
+        
+        // Update search results count
+        this.updateSearchResultsCount();
+        
+        // Navigate to first match if there are matches
+        if (this.searchMatches.length > 0) {
+            this.navigateSearch('next');
+        }
+    }
+    
+    /**
+     * Navigates between search matches
+     * @param {string} direction - Direction to navigate ('next' or 'prev')
+     */
+    navigateSearch(direction) {
+        if (this.searchMatches.length === 0) return;
+        
+        // Remove active class from current match
+        if (this.currentMatchIndex >= 0 && this.currentMatchIndex < this.searchMatches.length) {
+            this.searchMatches[this.currentMatchIndex].classList.remove('search-match-active');
+        }
+        
+        // Update index based on direction
+        if (direction === 'next') {
+            this.currentMatchIndex = (this.currentMatchIndex + 1) % this.searchMatches.length;
+        } else {
+            this.currentMatchIndex = this.currentMatchIndex <= 0 
+                ? this.searchMatches.length - 1 
+                : this.currentMatchIndex - 1;
+        }
+        
+        // Add active class to new current match
+        const activeMatch = this.searchMatches[this.currentMatchIndex];
+        activeMatch.classList.add('search-match-active');
+        
+        // Scroll to the match
+        activeMatch.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+        });
+        
+        // Update search results count
+        this.updateSearchResultsCount();
+    }
+    
+    /**
+     * Updates the search results count display
+     */
+    updateSearchResultsCount() {
+        if (this.searchMatches.length === 0) {
+            this.searchResultsCount.textContent = 'No matches';
+            return;
+        }
+        
+        this.searchResultsCount.textContent = `${this.currentMatchIndex + 1} of ${this.searchMatches.length}`;
+    }
+    
+    /**
+     * Clears search highlights
+     */
+    clearSearchHighlights() {
+        // Remove all search highlight spans
+        this.container.querySelectorAll('.search-match').forEach(span => {
+            const parent = span.parentNode;
+            parent.replaceChild(document.createTextNode(span.textContent), span);
+            parent.normalize(); // Merge adjacent text nodes
+        });
+        
+        this.searchMatches = [];
+        this.currentMatchIndex = -1;
+    }
+    
+    /**
+     * Completely clears the search state
+     */
+    clearSearch() {
+        this.clearSearchHighlights();
+        this.searchResultsCount.textContent = '';
+        // Don't clear the search input text to allow for searching in different tabs
+    }
+    
+    /**
+     * Expands all collapsible sections in the response
+     * @param {boolean} scroll - Whether to scroll to the top after expanding
+     */
+    expandAll(scroll = true) {
+        // For JSON formatter
+        const jsonfContent = this.contentPanels.formatted.querySelector('.json-formatter-root');
+        if (jsonfContent) {
+            // Use JSONFormatter's API if available
+            if (typeof JSONFormatter === 'function' && jsonfContent.__jsonFormatter) {
+                jsonfContent.__jsonFormatter.openAtDepth(Infinity);
+            } else {
+                // Manual expansion for custom implementation
+                this.contentPanels.formatted.querySelectorAll('.json-formatter-closed').forEach(el => {
+                    el.classList.remove('json-formatter-closed');
+                    el.classList.add('json-formatter-open');
+                });
+            }
+        }
+        
+        // For XML content
+        this.contentPanels.formatted.querySelectorAll('.xml-collapsible.collapsed').forEach(el => {
+            el.classList.remove('collapsed');
+        });
+        
+        // Scroll back to top if requested
+        if (scroll) {
+            this.contentPanels[this.activeTab].scrollTop = 0;
+        }
+    }
+    
+    /**
+     * Collapses all expandable sections in the response
+     */
+    collapseAll() {
+        // For JSON formatter
+        const jsonfContent = this.contentPanels.formatted.querySelector('.json-formatter-root');
+        if (jsonfContent) {
+            // Use JSONFormatter's API if available
+            if (typeof JSONFormatter === 'function' && jsonfContent.__jsonFormatter) {
+                jsonfContent.__jsonFormatter.openAtDepth(1);
+            } else {
+                // Manual collapse for custom implementation
+                this.contentPanels.formatted.querySelectorAll('.json-formatter-open').forEach(el => {
+                    // Only collapse top level
+                    if (el.parentNode.classList.contains('json-formatter-root')) {
+                        el.classList.remove('json-formatter-open');
+                        el.classList.add('json-formatter-closed');
+                    }
+                });
+            }
+        }
+        
+        // For XML content
+        this.contentPanels.formatted.querySelectorAll('.xml-collapsible:not(.collapsed)').forEach(el => {
+            el.classList.add('collapsed');
+        });
+        
+        // Scroll back to top
+        this.contentPanels[this.activeTab].scrollTop = 0;
+    }
+    
+    /**
+     * Updates the response data and renders it
+     * @param {Object} response - The response object
+     */
+    setResponse(response) {
+        this.currentResponse = response;
+        
+        if (!response) {
+            this.clearContent();
+            return;
+        }
+        
+        // Render each tab content
+        this.renderFormattedContent();
+        this.renderRawContent();
+        this.renderHeadersContent();
+        
+        // Only pre-render preview if it's the active tab
+        if (this.activeTab === 'preview') {
+            this.renderPreview();
+        }
+        
+        // Update expand/collapse buttons visibility
+        const isJsonOrXml = 
+            typeof response.data === 'object' || 
+            (typeof response.data === 'string' && 
+            (response.data.trim().startsWith('{') || 
+             response.data.startsWith('<')));
+             
+        this.expandAllButton.style.display = isJsonOrXml ? 'inline-block' : 'none';
+        this.collapseAllButton.style.display = isJsonOrXml ? 'inline-block' : 'none';
+    }
+    
+    /**
+     * Clears all content
+     */
+    clearContent() {
+        Object.values(this.contentPanels).forEach(panel => {
+            panel.innerHTML = '<div class="empty-content">No response data</div>';
+        });
+    }
+    
+    /**
+     * Renders the formatted content tab
+     */
+    renderFormattedContent() {
+        const panel = this.contentPanels.formatted;
+        
+        if (!this.currentResponse || !this.currentResponse.data) {
+            panel.innerHTML = '<div class="empty-content">No response data</div>';
+            return;
+        }
+        
+        const data = this.currentResponse.data;
+        
+        // Handle different content types
+        if (typeof data === 'string') {
+            try {
+                // Try to parse as JSON
+                const jsonData = JSON.parse(data);
+                this.renderJsonContent(panel, jsonData);
+            } catch (error) {
+                // Check if it's XML
+                if (data.trim().startsWith('<') && data.includes('</')) {
+                    this.renderXmlContent(panel, data);
+                } else {
+                    // Treat as plain text
+                    this.renderTextContent(panel, data);
+                }
+            }
+        } else if (typeof data === 'object') {
+            this.renderJsonContent(panel, data);
+        } else {
+            this.renderTextContent(panel, String(data));
+        }
+    }
+    
+    /**
+     * Renders JSON content with virtualization for very large objects
+     * @param {Element} container - The container to render into
+     * @param {Object} data - The JSON data
+     */
+    renderJsonContent(container, data) {
+        try {
+            const theme = document.body.classList.contains('dark-mode') ? 'dark' : 'light';
+            
+            // Estimate size of the JSON data
+            const jsonSize = JSON.stringify(data).length;
+            const isVeryLarge = jsonSize > 500000;
+            
+            if (isVeryLarge) {
+                // For very large responses, use a simplified renderer with virtualization
+                this.renderLargeJsonContent(container, data);
                 return;
             }
             
-            // Generate call ID
-            const id = this.workerCallId++;
+            // Check if JSONFormatter is available
+            if (typeof JSONFormatter === 'function') {
+                // Standard JSONFormatter for regular-sized JSON
+                const formatter = new JSONFormatter(data, this.options.jsonMaxDepth, {
+                    animateOpen: true,
+                    animateClose: true,
+                    theme,
+                    hoverPreviewEnabled: true
+                });
+                
+                container.innerHTML = '';
+                const formatterEl = formatter.render();
+                
+                // Store reference to formatter instance for expand/collapse all
+                formatterEl.__jsonFormatter = formatter;
+                
+                container.appendChild(formatterEl);
+            } else {
+                // Fallback to syntax-highlighted pre
+                const jsonString = JSON.stringify(data, null, 2);
+                container.innerHTML = `
+                    <pre class="json-content">${this.syntaxHighlightJson(jsonString)}</pre>
+                `;
+            }
+        } catch (error) {
+            console.error('Error rendering JSON content:', error);
             
-            // Add callback
-            this.workerCallbacks.set(id, { resolve, reject });
-            
-            // Send message to worker
-            this.worker.postMessage({ id, action, data });
-        });
+            // Ultimate fallback with no formatting
+            container.innerHTML = `
+                <div class="rendering-error">Error formatting JSON: ${error.message}</div>
+                <pre class="fallback-content">${escapeHtml(JSON.stringify(data, null, 2))}</pre>
+            `;
+        }
     }
     
     /**
-     * Simple JSON highlighter function for main thread
-     * @param {Object} json - The JSON object
-     * @returns {string} The highlighted JSON HTML
-     * @private
+     * Renders a very large JSON object using virtualization
+     * @param {Element} container - The container to render into
+     * @param {Object} data - The JSON data
      */
-    _highlightJSON(json) {
-        const jsonStr = JSON.stringify(json, null, 2);
-        return jsonStr.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g, function (match) {
-            let cls = "json-number";
+    renderLargeJsonContent(container, data) {
+        // Convert to string with proper indentation
+        const jsonString = JSON.stringify(data, null, 2);
+        const lines = jsonString.split('\n');
+        
+        // Create virtualized container
+        container.innerHTML = '<div class="virtualized-content" id="virtualized-json"></div>';
+        
+        const virtualContainer = container.querySelector('#virtualized-json');
+        const lineHeight = 20; // Estimated line height in pixels
+        const totalHeight = lines.length * lineHeight;
+        const viewportHeight = virtualContainer.clientHeight;
+        const bufferSize = 100; // Number of lines to render above/below viewport
+        
+        // Create the inner container for absolute positioning
+        const innerContainer = document.createElement('div');
+        innerContainer.className = 'virtualized-content-inner';
+        innerContainer.style.height = `${totalHeight}px`;
+        virtualContainer.appendChild(innerContainer);
+        
+        // Function to render visible lines with syntax highlighting
+        const renderVisibleLines = () => {
+            // Clear current content
+            innerContainer.innerHTML = '';
+            
+            // Calculate visible range
+            const scrollTop = virtualContainer.scrollTop;
+            const startLine = Math.max(0, Math.floor(scrollTop / lineHeight) - bufferSize);
+            const endLine = Math.min(
+                lines.length - 1, 
+                Math.ceil((scrollTop + viewportHeight) / lineHeight) + bufferSize
+            );
+            
+            // Get visible slice
+            const visibleLines = lines.slice(startLine, endLine + 1);
+            const visibleText = visibleLines.join('\n');
+            
+            // Highlight the visible portion
+            const highlightedHtml = this.syntaxHighlightJson(visibleText);
+            
+            // Create the highlighted block
+            const highlightedBlock = document.createElement('div');
+            highlightedBlock.className = 'virtualized-item';
+            highlightedBlock.style.top = `${startLine * lineHeight}px`;
+            highlightedBlock.innerHTML = `<pre class="json-content">${highlightedHtml}</pre>`;
+            
+            innerContainer.appendChild(highlightedBlock);
+            
+            // Update notice
+            if (!virtualContainer.querySelector('.virtualization-notice')) {
+                const notice = document.createElement('div');
+                notice.className = 'virtualization-notice';
+                notice.textContent = 'Large response - using simplified view for better performance';
+                virtualContainer.appendChild(notice);
+            }
+        };
+        
+        // Initial render
+        renderVisibleLines();
+        
+        // Add scroll listener with debounce
+        let scrollTimeout;
+        const scrollHandler = () => {
+            if (scrollTimeout) {
+                clearTimeout(scrollTimeout);
+            }
+            
+            scrollTimeout = setTimeout(() => {
+                window.requestAnimationFrame(renderVisibleLines);
+            }, 100); // Debounce to improve performance
+        };
+        
+        virtualContainer.addEventListener('scroll', scrollHandler);
+        
+        // Store a reference to the handler for cleanup
+        virtualContainer._scrollHandler = scrollHandler;
+    }
+    
+    /**
+     * Simple JSON syntax highlighting
+     * @param {string} json - The JSON string
+     * @returns {string} HTML with syntax highlighting
+     */
+    syntaxHighlightJson(json) {
+        if (!json) return '';
+        
+        // Limit the number of lines to prevent browser hanging
+        const lines = json.split('\n');
+        if (lines.length > this.options.jsonMaxLines) {
+            json = lines.slice(0, this.options.jsonMaxLines).join('\n') + 
+                `\n\n/* Response truncated. ${lines.length - this.options.jsonMaxLines} more lines... */`;
+        }
+        
+        json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        
+        return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, match => {
+            let cls = 'json-number';
             if (/^"/.test(match)) {
                 if (/:$/.test(match)) {
-                    cls = "json-key";
+                    cls = 'json-key';
                 } else {
-                    cls = "json-string";
+                    cls = 'json-string';
                 }
             } else if (/true|false/.test(match)) {
-                cls = "json-boolean";
+                cls = 'json-boolean';
             } else if (/null/.test(match)) {
-                cls = "json-null";
+                cls = 'json-null';
             }
-            return "<span class=\"" + cls + "\">" + match + "</span>";
+            return `<span class="${cls}">${match}</span>`;
         });
     }
     
     /**
-     * Displays an API response
-     * @param {Object} response - The response object
-     * @param {Object} request - The request object
+     * Renders XML content
+     * @param {Element} container - The container to render into
+     * @param {string} data - The XML data
      */
-    async displayResponse(response, request) {
+    renderXmlContent(container, data) {
         try {
-            // Store response and request
-            this.response = response;
-            this.request = request;
+            // Format the XML with proper indentation
+            const formattedXml = this.formatXml(data);
             
-            // Clear previous response
-            this._clearResponse();
+            // Add collapsible behavior to XML
+            const collapsibleXml = this.makeXmlCollapsible(formattedXml);
             
-            // Show response status
-            this._showResponseStatus();
-            
-            // Show response in each tab
-            await this._displayFormattedResponse();
-            this._displayRawResponse();
-            this._displayHeadersResponse();
-            this._displayPreviewResponse();
-            
-            // Show response time
-            this._showResponseTime();
-            
-            // Add copy buttons if enabled
-            if (this.options.enableCopyButtons) {
-                this._addCopyButtons();
-            }
-        } catch (error) {
-            console.error("Error displaying response:", error);
-            
-            if (this.errorHandler) {
-                this.errorHandler.handleError(error);
-            }
-        }
-    }
-    
-    /**
-     * Displays an error
-     * @param {Error} error - The error object
-     * @param {Object} request - The request object
-     */
-    displayError(error, request) {
-        try {
-            // Store error and request
-            this.error = error;
-            this.request = request;
-            
-            // Clear previous response
-            this._clearResponse();
-            
-            // Create error message
-            const errorMessage = document.createElement("div");
-            errorMessage.className = "response-error";
-            errorMessage.innerHTML = `
-                <h3>Error</h3>
-                <p>${error.message}</p>
-                ${error.code ? `<p>Code: ${error.code}</p>` : ""}
-                ${error.stack ? `<pre>${error.stack}</pre>` : ""}
+            container.innerHTML = `
+                <pre class="xml-content">${collapsibleXml}</pre>
             `;
             
-            // Add to formatted response
-            const formattedContainer = this.container.querySelector(".response-formatted");
-            if (formattedContainer) {
-                formattedContainer.appendChild(errorMessage.cloneNode(true));
-            }
-            
-            // Add to raw response
-            const rawContainer = this.container.querySelector(".response-raw");
-            if (rawContainer) {
-                rawContainer.appendChild(errorMessage.cloneNode(true));
-            }
-            
-            // Set preview tab to show error
-            const previewContainer = this.container.querySelector(".response-preview");
-            if (previewContainer) {
-                previewContainer.innerHTML = "<div class=\"response-error-preview\">Request failed: " + error.message + "</div>";
-            }
-        } catch (displayError) {
-            console.error("Error displaying error:", displayError);
-            
-            if (this.errorHandler) {
-                this.errorHandler.handleError(displayError);
-            }
-        }
-    }
-    
-    /**
-     * Clears the response display
-     * @private
-     */
-    _clearResponse() {
-        // Clear formatted response
-        const formattedContainer = this.container.querySelector(".response-formatted");
-        if (formattedContainer) {
-            formattedContainer.innerHTML = "";
-        }
-        
-        // Clear raw response
-        const rawContainer = this.container.querySelector(".response-raw");
-        if (rawContainer) {
-            rawContainer.innerHTML = "";
-        }
-        
-        // Clear headers response
-        const headersContainer = this.container.querySelector(".response-headers");
-        if (headersContainer) {
-            headersContainer.innerHTML = "";
-        }
-        
-        // Clear preview response
-        const previewContainer = this.container.querySelector(".response-preview");
-        if (previewContainer) {
-            previewContainer.innerHTML = "";
-        }
-    }
-    
-    /**
-     * Shows the response status
-     * @private
-     */
-    _showResponseStatus() {
-        if (!this.response) {
-            return;
-        }
-        
-        // Create status element
-        const statusElement = document.createElement("div");
-        statusElement.className = "response-status";
-        
-        // Add status color based on code
-        const statusClass = this._getStatusClass(this.response.status);
-        statusElement.classList.add(statusClass);
-        
-        // Add status text
-        statusElement.innerHTML = `
-            <span class="status-code">${this.response.status}</span>
-            <span class="status-text">${this.response.statusText}</span>
-        `;
-        
-        // Add to container
-        this.container.querySelector(".response-formatted").appendChild(statusElement);
-    }
-    
-    /**
-     * Gets the CSS class for a status code
-     * @param {number} statusCode - The status code
-     * @returns {string} The CSS class
-     * @private
-     */
-    _getStatusClass(statusCode) {
-        if (statusCode >= 200 && statusCode < 300) {
-            return "status-success";
-        } else if (statusCode >= 300 && statusCode < 400) {
-            return "status-redirect";
-        } else if (statusCode >= 400 && statusCode < 500) {
-            return "status-client-error";
-        } else if (statusCode >= 500) {
-            return "status-server-error";
-        } else {
-            return "status-unknown";
-        }
-    }
-    
-    /**
-     * Shows the response time
-     * @private
-     */
-    _showResponseTime() {
-        if (!this.response || !this.response.time) {
-            return;
-        }
-        
-        // Create time element
-        const timeElement = document.createElement("div");
-        timeElement.className = "response-time";
-        timeElement.innerHTML = `
-            <span class="time-label">Time:</span>
-            <span class="time-value">${this.response.time}ms</span>
-        `;
-        
-        // Add to container
-        this.container.querySelector(".response-formatted").appendChild(timeElement);
-    }
-    
-    /**
-     * Displays the formatted response
-     * @private
-     */
-    async _displayFormattedResponse() {
-        if (!this.response || !this.response.data) {
-            return;
-        }
-        
-        const formattedContainer = this.container.querySelector(".response-formatted");
-        
-        try {
-            // Check content type
-            const contentType = this.response.headers["content-type"] || "";
-            
-            // Format based on content type
-            if (contentType.includes("application/json") || this._looksLikeJson(this.response.data)) {
-                // Get the container for JSON response
-                const jsonContainer = document.createElement("div");
-                jsonContainer.className = "json-container";
-                
-                // Try to parse and format JSON
-                try {
-                    // Check if the data is already an object (parsed JSON)
-                    let data = this.response.data;
-                    if (typeof data === "string") {
-                        // Parse JSON string
-                        data = await this._callWorker("parseJSON", data);
+            // Add event listeners for collapse/expand
+            container.querySelectorAll('.xml-toggle').forEach(toggle => {
+                toggle.addEventListener('click', (e) => {
+                    const collapsible = e.target.closest('.xml-collapsible');
+                    if (collapsible) {
+                        collapsible.classList.toggle('collapsed');
+                        e.stopPropagation(); // Prevent parent toggles from being triggered
                     }
-                    
-                    // Check if data size is too large for syntax highlighting
-                    const dataSize = JSON.stringify(data).length;
-                    
-                    if (dataSize > this.options.syntaxHighlightLimit) {
-                        // For large data, just format without highlighting
-                        const formattedData = await this._callWorker("formatJSON", data);
-                        
-                        // Create pre element for formatted data
-                        const preElement = document.createElement("pre");
-                        preElement.className = "json large-json";
-                        preElement.textContent = formattedData;
-                        
-                        // Add large data warning
-                        const warningElement = document.createElement("div");
-                        warningElement.className = "large-data-warning";
-                        warningElement.textContent = `Large JSON response (${this._formatBytes(dataSize)}). Syntax highlighting disabled for performance.`;
-                        
-                        // Add to container
-                        jsonContainer.appendChild(warningElement);
-                        jsonContainer.appendChild(preElement);
-                    } else {
-                        // For smaller data, apply syntax highlighting
-                        const highlightedData = await this._callWorker("highlightJSON", data);
-                        
-                        // Create pre element for highlighted data
-                        const preElement = document.createElement("pre");
-                        preElement.className = "json json-highlighted";
-                        preElement.innerHTML = highlightedData;
-                        
-                        // Add to container
-                        jsonContainer.appendChild(preElement);
-                    }
-                } catch (error) {
-                    // If JSON parsing fails, show as text
-                    console.error("JSON parsing error:", error);
-                    
-                    // Create pre element for raw data
-                    const preElement = document.createElement("pre");
-                    preElement.className = "json-error";
-                    preElement.textContent = this.response.data;
-                    
-                    // Add error message
-                    const errorElement = document.createElement("div");
-                    errorElement.className = "json-error-message";
-                    errorElement.textContent = `Invalid JSON: ${error.message}`;
-                    
-                    // Add to container
-                    jsonContainer.appendChild(errorElement);
-                    jsonContainer.appendChild(preElement);
-                }
-                
-                // Add to formatted container
-                formattedContainer.appendChild(jsonContainer);
-            } else if (contentType.includes("text/html")) {
-                // For HTML, create a container with HTML preview
-                const htmlContainer = document.createElement("div");
-                htmlContainer.className = "html-container";
-                
-                // Create pre element for HTML source
-                const preElement = document.createElement("pre");
-                preElement.className = "html-source";
-                preElement.textContent = this.response.data;
-                
-                // Add to container
-                htmlContainer.appendChild(preElement);
-                
-                // Add to formatted container
-                formattedContainer.appendChild(htmlContainer);
-            } else if (contentType.includes("text/xml") || contentType.includes("application/xml")) {
-                // For XML, create a container with formatted XML
-                const xmlContainer = document.createElement("div");
-                xmlContainer.className = "xml-container";
-                
-                // Create pre element for XML
-                const preElement = document.createElement("pre");
-                preElement.className = "xml-source";
-                preElement.textContent = this.response.data;
-                
-                // Add to container
-                xmlContainer.appendChild(preElement);
-                
-                // Add to formatted container
-                formattedContainer.appendChild(xmlContainer);
-            } else if (contentType.includes("image/")) {
-                // For images, create an image preview
-                const imageContainer = document.createElement("div");
-                imageContainer.className = "image-container";
-                
-                // Create image element
-                const imgElement = document.createElement("img");
-                imgElement.className = "image-preview";
-                
-                // Set image source based on response data
-                if (typeof this.response.data === "string" && this.response.data.startsWith("data:")) {
-                    // Data URL
-                    imgElement.src = this.response.data;
-                } else if (this.response.url) {
-                    // Set image URL
-                    imgElement.src = this.response.url;
-                } else {
-                    // Try to create blob URL
-                    const blob = new Blob([this.response.data], { type: contentType });
-                    imgElement.src = URL.createObjectURL(blob);
-                }
-                
-                // Add to container
-                imageContainer.appendChild(imgElement);
-                
-                // Add to formatted container
-                formattedContainer.appendChild(imageContainer);
-            } else {
-                // For other types, show as text
-                const textContainer = document.createElement("div");
-                textContainer.className = "text-container";
-                
-                // Create pre element for text
-                const preElement = document.createElement("pre");
-                preElement.className = "text-source";
-                preElement.textContent = this.response.data;
-                
-                // Add to container
-                textContainer.appendChild(preElement);
-                
-                // Add to formatted container
-                formattedContainer.appendChild(textContainer);
-            }
+                });
+            });
         } catch (error) {
-            console.error("Error formatting response:", error);
+            console.error('Error rendering XML content:', error);
             
-            // Show error message
-            const errorElement = document.createElement("div");
-            errorElement.className = "format-error";
-            errorElement.textContent = `Error formatting response: ${error.message}`;
-            
-            // Add to formatted container
-            formattedContainer.appendChild(errorElement);
+            container.innerHTML = `
+                <div class="rendering-error">Error formatting XML: ${error.message}</div>
+                <pre class="fallback-content">${escapeHtml(data)}</pre>
+            `;
         }
     }
     
     /**
-     * Displays the raw response
-     * @private
+     * Simple XML formatting
+     * @param {string} xml - The XML string
+     * @returns {string} Formatted XML
      */
-    _displayRawResponse() {
-        if (!this.response || !this.response.data) {
-            return;
-        }
+    formatXml(xml) {
+        let formatted = '';
+        let indent = '';
+        const tab = '  '; // 2 spaces
         
-        const rawContainer = this.container.querySelector(".response-raw");
-        
-        try {
-            // Convert data to string if needed
-            let rawData = this.response.data;
-            
-            if (typeof rawData !== "string") {
-                try {
-                    rawData = JSON.stringify(rawData, null, 2);
-                } catch (error) {
-                    rawData = String(rawData);
-                }
+        xml.split(/>\s*</).forEach(node => {
+            if (node.match(/^\/\w/)) {
+                // Closing tag
+                indent = indent.substring(tab.length);
             }
             
-            // Check if data is too large
-            if (rawData.length > this.options.maxRawLength) {
-                // For very large data, truncate and show warning
-                const truncatedData = rawData.substring(0, this.options.maxRawLength);
-                
-                // Create warning element
-                const warningElement = document.createElement("div");
-                warningElement.className = "large-data-warning";
-                warningElement.textContent = `Large response (${this._formatBytes(rawData.length)}). Showing first ${this._formatBytes(this.options.maxRawLength)}.`;
-                
-                // Create pre element for truncated data
-                const preElement = document.createElement("pre");
-                preElement.className = "raw-data truncated";
-                preElement.textContent = truncatedData;
-                
-                // Add to container
-                rawContainer.appendChild(warningElement);
-                rawContainer.appendChild(preElement);
-            } else {
-                // For normal-sized data, show everything
-                const preElement = document.createElement("pre");
-                preElement.className = "raw-data";
-                preElement.textContent = rawData;
-                
-                // Add to container
-                rawContainer.appendChild(preElement);
+            formatted += indent + '<' + node + '>\n';
+            
+            if (node.match(/^<?\w[^>]*[^\/]$/) && !node.startsWith('?')) {
+                // Opening tag
+                indent += tab;
             }
-        } catch (error) {
-            console.error("Error displaying raw response:", error);
-            
-            // Show error message
-            const errorElement = document.createElement("div");
-            errorElement.className = "raw-error";
-            errorElement.textContent = `Error displaying raw response: ${error.message}`;
-            
-            // Add to raw container
-            rawContainer.appendChild(errorElement);
-        }
+        });
+        
+        return formatted.substring(1, formatted.length - 2);
     }
     
     /**
-     * Displays the headers response
-     * @private
+     * Simple XML syntax highlighting
+     * @param {string} xml - The XML string
+     * @returns {string} HTML with syntax highlighting
      */
-    _displayHeadersResponse() {
-        if (!this.response || !this.response.headers) {
+    syntaxHighlightXml(xml) {
+        if (!xml) return '';
+        
+        const lines = xml.split('\n');
+        if (lines.length > this.options.jsonMaxLines) {
+            xml = lines.slice(0, this.options.jsonMaxLines).join('\n') + 
+                `\n\n<!-- Response truncated. ${lines.length - this.options.jsonMaxLines} more lines... -->`;
+        }
+        
+        // Escape HTML characters
+        xml = xml.replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        
+        // Replace XML tokens with spans
+        return xml
+            // Tag name
+            .replace(/&lt;\/?([\w:-]+)(\s.*?)?\/?\s*&gt;/g, (match, p1, p2) => {
+                let attribs = p2 ? p2 : '';
+                // Highlight attributes
+                attribs = attribs.replace(/([\w:-]+)="([^"]*)"/g, '<span class="xml-attr">$1</span>=<span class="xml-string">"$2"</span>');
+                return `&lt;<span class="xml-tag">${p1}</span>${attribs}&gt;`;
+            })
+            // Comments
+            .replace(/&lt;!--(.*)--&gt;/g, '&lt;!--<span class="xml-comment">$1</span>--&gt;')
+            // CDATA
+            .replace(/&lt;!\[CDATA\[(.*?)\]\]&gt;/g, '&lt;![CDATA[<span class="xml-cdata">$1</span>]]&gt;');
+    }
+    
+    /**
+     * Renders plain text content
+     * @param {Element} container - The container to render into
+     * @param {string} data - The text data
+     */
+    renderTextContent(container, data) {
+        // Limit the size to prevent browser hanging
+        const maxLength = 100000;
+        let displayData = data;
+        
+        if (data.length > maxLength) {
+            displayData = data.substring(0, maxLength) + 
+                `\n\n/* Response truncated. ${data.length - maxLength} more characters... */`;
+        }
+        
+        container.innerHTML = `
+            <pre class="text-content">${escapeHtml(displayData)}</pre>
+        `;
+    }
+    
+    /**
+     * Renders the raw content tab with virtualization for large responses
+     */
+    renderRawContent() {
+        const panel = this.contentPanels.raw;
+        
+        if (!this.currentResponse || !this.currentResponse.rawText) {
+            panel.innerHTML = '<div class="empty-content">No raw response data</div>';
             return;
         }
         
-        const headersContainer = this.container.querySelector(".response-headers");
+        const rawText = this.currentResponse.rawText;
         
-        try {
-            // Create table for headers
-            const tableElement = document.createElement("table");
-            tableElement.className = "headers-table";
+        // Check if response is too large for standard rendering
+        const isLarge = rawText.length > 100000 || rawText.split('\n').length > 2000;
+        
+        if (!isLarge) {
+            // Standard rendering for smaller responses
+            panel.innerHTML = `<pre class="raw-content">${escapeHtml(rawText)}</pre>`;
+            return;
+        }
+        
+        // Virtualized rendering for large responses
+        panel.innerHTML = '<div class="virtualized-content" id="virtualized-raw"></div>';
+        
+        const virtualContainer = panel.querySelector('#virtualized-raw');
+        const lines = rawText.split('\n');
+        const lineHeight = 20; // Estimated line height in pixels
+        const totalHeight = lines.length * lineHeight;
+        const viewportHeight = virtualContainer.clientHeight;
+        const bufferSize = 50; // Number of lines to render above/below viewport
+        
+        // Create the inner container for absolute positioning
+        const innerContainer = document.createElement('div');
+        innerContainer.className = 'virtualized-content-inner';
+        innerContainer.style.height = `${totalHeight}px`;
+        virtualContainer.appendChild(innerContainer);
+        
+        // Function to render visible lines
+        const renderVisibleLines = () => {
+            // Clear current content
+            innerContainer.innerHTML = '';
             
-            // Create table header
-            const theadElement = document.createElement("thead");
-            theadElement.innerHTML = `
-                <tr>
-                    <th>Name</th>
-                    <th>Value</th>
+            // Calculate visible range
+            const scrollTop = virtualContainer.scrollTop;
+            const startLine = Math.max(0, Math.floor(scrollTop / lineHeight) - bufferSize);
+            const endLine = Math.min(
+                lines.length - 1, 
+                Math.ceil((scrollTop + viewportHeight) / lineHeight) + bufferSize
+            );
+            
+            // Create fragment for batch DOM update
+            const fragment = document.createDocumentFragment();
+            
+            // Add visible lines
+            for (let i = startLine; i <= endLine; i++) {
+                const lineEl = document.createElement('div');
+                lineEl.className = 'virtualized-item';
+                lineEl.style.top = `${i * lineHeight}px`;
+                lineEl.style.height = `${lineHeight}px`;
+                lineEl.textContent = lines[i] || '';
+                fragment.appendChild(lineEl);
+            }
+            
+            innerContainer.appendChild(fragment);
+        };
+        
+        // Initial render
+        renderVisibleLines();
+        
+        // Add scroll listener
+        const scrollHandler = () => {
+            window.requestAnimationFrame(renderVisibleLines);
+        };
+        
+        virtualContainer.addEventListener('scroll', scrollHandler);
+        
+        // Store a reference to the handler for cleanup
+        virtualContainer._scrollHandler = scrollHandler;
+    }
+    
+    /**
+     * Renders the headers content tab
+     */
+    renderHeadersContent() {
+        const panel = this.contentPanels.headers;
+        
+        if (!this.currentResponse || !this.currentResponse.headers || 
+            Object.keys(this.currentResponse.headers).length === 0) {
+            panel.innerHTML = '<div class="empty-content">No headers available</div>';
+            return;
+        }
+        
+        const headers = this.currentResponse.headers;
+        
+        let headersList = '<table class="headers-table">';
+        
+        // Add status code row if available
+        if (this.currentResponse.status) {
+            const statusText = this.getStatusText(this.currentResponse.status);
+            headersList += `
+                <tr class="status-row">
+                    <th>Status</th>
+                    <td><strong>${this.currentResponse.status} ${statusText}</strong></td>
                 </tr>
             `;
-            
-            // Create table body
-            const tbodyElement = document.createElement("tbody");
-            
-            // Add headers to table
-            for (const [name, value] of Object.entries(this.response.headers)) {
-                const trElement = document.createElement("tr");
-                trElement.innerHTML = `
-                    <td>${name}</td>
-                    <td>${value}</td>
-                `;
-                
-                tbodyElement.appendChild(trElement);
-            }
-            
-            // Add table header and body to table
-            tableElement.appendChild(theadElement);
-            tableElement.appendChild(tbodyElement);
-            
-            // Add to headers container
-            headersContainer.appendChild(tableElement);
-        } catch (error) {
-            console.error("Error displaying headers:", error);
-            
-            // Show error message
-            const errorElement = document.createElement("div");
-            errorElement.className = "headers-error";
-            errorElement.textContent = `Error displaying headers: ${error.message}`;
-            
-            // Add to headers container
-            headersContainer.appendChild(errorElement);
         }
+        
+        // Sort headers alphabetically
+        const sortedHeaders = Object.keys(headers).sort().map(key => ({
+            key,
+            value: headers[key]
+        }));
+        
+        // Add header rows
+        sortedHeaders.forEach(({ key, value }) => {
+            headersList += `
+                <tr>
+                    <th>${escapeHtml(key)}</th>
+                    <td>${escapeHtml(value)}</td>
+                </tr>
+            `;
+        });
+        
+        headersList += '</table>';
+        
+        panel.innerHTML = headersList;
     }
     
     /**
-     * Displays the preview response
-     * @private
+     * Renders the preview content tab
      */
-    _displayPreviewResponse() {
-        if (!this.response || !this.response.data) {
+    renderPreview() {
+        const panel = this.contentPanels.preview;
+        
+        if (!this.currentResponse || !this.currentResponse.data) {
+            panel.innerHTML = '<div class="empty-content">No content to preview</div>';
             return;
         }
         
-        const previewContainer = this.container.querySelector(".response-preview");
+        const data = this.currentResponse.data;
+        const contentType = this.getContentType();
         
-        try {
-            // Check content type
-            const contentType = this.response.headers["content-type"] || "";
-            
-            // Preview based on content type
-            if (contentType.includes("text/html")) {
-                // For HTML, create iframe preview
-                const iframeElement = document.createElement("iframe");
-                iframeElement.className = "html-preview";
-                iframeElement.srcdoc = this.response.data;
-                iframeElement.sandbox = "allow-same-origin";
-                
-                // Add to preview container
-                previewContainer.appendChild(iframeElement);
-            } else if (contentType.includes("image/")) {
-                // For images, create image preview
-                const imgElement = document.createElement("img");
-                imgElement.className = "image-preview";
-                
-                // Set image source based on response data
-                if (typeof this.response.data === "string" && this.response.data.startsWith("data:")) {
-                    // Data URL
-                    imgElement.src = this.response.data;
-                } else if (this.response.url) {
-                    // Set image URL
-                    imgElement.src = this.response.url;
-                } else {
-                    // Try to create blob URL
-                    const blob = new Blob([this.response.data], { type: contentType });
-                    imgElement.src = URL.createObjectURL(blob);
-                }
-                
-                // Add to preview container
-                previewContainer.appendChild(imgElement);
-            } else if (contentType.includes("application/pdf")) {
-                // For PDFs, create object or iframe preview
-                const objectElement = document.createElement("object");
-                objectElement.className = "pdf-preview";
-                objectElement.type = "application/pdf";
-                
-                // Try to set data
-                if (this.response.url) {
-                    objectElement.data = this.response.url;
-                } else {
-                    // Show message that preview is not available
-                    const messageElement = document.createElement("div");
-                    messageElement.className = "preview-message";
-                    messageElement.textContent = "PDF preview not available for binary response.";
-                    
-                    // Add to preview container
-                    previewContainer.appendChild(messageElement);
-                    return;
-                }
-                
-                // Add to preview container
-                previewContainer.appendChild(objectElement);
-            } else {
-                // For other types, show message that preview is not available
-                const messageElement = document.createElement("div");
-                messageElement.className = "preview-message";
-                messageElement.textContent = `Preview not available for ${contentType}.`;
-                
-                // Add to preview container
-                previewContainer.appendChild(messageElement);
-            }
-        } catch (error) {
-            console.error("Error displaying preview:", error);
-            
-            // Show error message
-            const errorElement = document.createElement("div");
-            errorElement.className = "preview-error";
-            errorElement.textContent = `Error displaying preview: ${error.message}`;
-            
-            // Add to preview container
-            previewContainer.appendChild(errorElement);
+        // Handle different content types
+        if (contentType.includes('image/')) {
+            this.renderImagePreview(panel, data, contentType);
+        } else if (contentType.includes('text/html') || (typeof data === 'string' && data.trim().startsWith('<html'))) {
+            this.renderHtmlPreview(panel, data);
+        } else if (contentType.includes('application/pdf')) {
+            this.renderPdfPreview(panel, data);
+        } else {
+            panel.innerHTML = '<div class="empty-content">No preview available for this content type</div>';
         }
     }
     
     /**
-     * Adds copy buttons to copyable elements
-     * @private
+     * Renders an image preview
+     * @param {Element} container - The container to render into
+     * @param {*} data - The image data
+     * @param {string} contentType - The content type
      */
-    _addCopyButtons() {
-        // Find all pre elements
-        const preElements = this.container.querySelectorAll("pre");
+    renderImagePreview(container, data, contentType) {
+        // Try to extract image URL or data URL
+        let imageUrl = '';
         
-        // Add copy button to each pre element
-        preElements.forEach(preElement => {
-            // Create button
-            const buttonElement = document.createElement("button");
-            buttonElement.className = "copy-button";
-            buttonElement.textContent = "Copy";
-            
-            // Add click event
-            buttonElement.addEventListener("click", () => {
-                // Get text to copy
-                const textToCopy = preElement.textContent;
+        if (typeof data === 'string' && (data.startsWith('http') || data.startsWith('data:'))) {
+            // Direct URL or data URL
+            imageUrl = data;
+        } else if (this.currentResponse.url) {
+            // Use the response URL
+            imageUrl = this.currentResponse.url;
+        } else if (typeof data === 'object' && data.url) {
+            // Object with URL property
+            imageUrl = data.url;
+        }
+        
+        if (imageUrl) {
+            container.innerHTML = `
+                <div class="image-preview">
+                    <img src="${imageUrl}" alt="Image Preview" />
+                </div>
+            `;
+        } else {
+            container.innerHTML = '<div class="empty-content">Unable to render image preview</div>';
+        }
+    }
+    
+    /**
+     * Renders an HTML preview
+     * @param {Element} container - The container to render into
+     * @param {string} data - The HTML data
+     */
+    renderHtmlPreview(container, data) {
+        if (typeof data !== 'string') {
+            container.innerHTML = '<div class="empty-content">Invalid HTML content</div>';
+            return;
+        }
+        
+        // Use sandboxed iframe for security
+        const useSandbox = this.options.previewSandboxed;
+        const sandboxAttributes = useSandbox ? 
+            'sandbox="allow-same-origin allow-scripts allow-forms"' : '';
+        
+        container.innerHTML = `
+            <div class="html-preview">
+                <iframe ${sandboxAttributes} class="preview-iframe"></iframe>
+            </div>
+        `;
+        
+        const iframe = container.querySelector('iframe');
+        const doc = iframe.contentDocument || iframe.contentWindow.document;
+        
+        doc.open();
+        doc.write(data);
+        doc.close();
+    }
+    
+    /**
+     * Renders a PDF preview
+     * @param {Element} container - The container to render into
+     * @param {*} data - The PDF data
+     */
+    renderPdfPreview(container, data) {
+        // Try to extract PDF URL
+        let pdfUrl = '';
+        
+        if (typeof data === 'string' && (data.startsWith('http') || data.startsWith('data:'))) {
+            // Direct URL or data URL
+            pdfUrl = data;
+        } else if (this.currentResponse.url) {
+            // Use the response URL
+            pdfUrl = this.currentResponse.url;
+        } else if (typeof data === 'object' && data.url) {
+            // Object with URL property
+            pdfUrl = data.url;
+        }
+        
+        if (pdfUrl) {
+            container.innerHTML = `
+                <div class="pdf-preview">
+                    <iframe src="${pdfUrl}" class="preview-iframe"></iframe>
+                </div>
+            `;
+        } else {
+            container.innerHTML = '<div class="empty-content">Unable to render PDF preview</div>';
+        }
+    }
+    
+    /**
+     * Gets the content type from the response
+     * @returns {string} The content type
+     */
+    getContentType() {
+        if (!this.currentResponse || !this.currentResponse.headers) {
+            return '';
+        }
+        
+        // Look for content-type header (case insensitive)
+        const headers = this.currentResponse.headers;
+        const contentTypeKey = Object.keys(headers).find(
+            key => key.toLowerCase() === 'content-type'
+        );
+        
+        return contentTypeKey ? headers[contentTypeKey] : '';
+    }
+    
+    /**
+     * Get HTTP status text
+     * @param {number} status - The HTTP status code
+     * @returns {string} The status text
+     */
+    getStatusText(status) {
+        const statusTexts = {
+            100: 'Continue',
+            101: 'Switching Protocols',
+            200: 'OK',
+            201: 'Created',
+            202: 'Accepted',
+            203: 'Non-Authoritative Information',
+            204: 'No Content',
+            205: 'Reset Content',
+            206: 'Partial Content',
+            300: 'Multiple Choices',
+            301: 'Moved Permanently',
+            302: 'Found',
+            303: 'See Other',
+            304: 'Not Modified',
+            305: 'Use Proxy',
+            307: 'Temporary Redirect',
+            400: 'Bad Request',
+            401: 'Unauthorized',
+            402: 'Payment Required',
+            403: 'Forbidden',
+            404: 'Not Found',
+            405: 'Method Not Allowed',
+            406: 'Not Acceptable',
+            407: 'Proxy Authentication Required',
+            408: 'Request Timeout',
+            409: 'Conflict',
+            410: 'Gone',
+            411: 'Length Required',
+            412: 'Precondition Failed',
+            413: 'Payload Too Large',
+            414: 'URI Too Long',
+            415: 'Unsupported Media Type',
+            416: 'Range Not Satisfiable',
+            417: 'Expectation Failed',
+            422: 'Unprocessable Entity',
+            429: 'Too Many Requests',
+            500: 'Internal Server Error',
+            501: 'Not Implemented',
+            502: 'Bad Gateway',
+            503: 'Service Unavailable',
+            504: 'Gateway Timeout',
+            505: 'HTTP Version Not Supported'
+        };
+        
+        return statusTexts[status] || 'Unknown Status';
+    }
+    
+    /**
+     * Copies the response to clipboard
+     */
+    copyResponseToClipboard() {
+        if (!this.currentResponse) {
+            return;
+        }
+        
+        let content = '';
+        
+        // Get content based on active tab
+        switch (this.activeTab) {
+            case 'formatted':
+            case 'raw':
+                if (typeof this.currentResponse.data === 'object') {
+                    content = JSON.stringify(this.currentResponse.data, null, 2);
+                } else {
+                    content = String(this.currentResponse.data || '');
+                }
+                break;
                 
-                // Copy to clipboard
-                navigator.clipboard.writeText(textToCopy)
-                    .then(() => {
-                        // Show copied message
-                        buttonElement.textContent = "Copied!";
-                        buttonElement.classList.add("copied");
-                        
-                        // Reset after a delay
-                        setTimeout(() => {
-                            buttonElement.textContent = "Copy";
-                            buttonElement.classList.remove("copied");
-                        }, 2000);
-                    })
-                    .catch(error => {
-                        console.error("Copy failed:", error);
-                        
-                        // Show error message
-                        buttonElement.textContent = "Failed!";
-                        buttonElement.classList.add("copy-error");
-                        
-                        // Reset after a delay
-                        setTimeout(() => {
-                            buttonElement.textContent = "Copy";
-                            buttonElement.classList.remove("copy-error");
-                        }, 2000);
-                    });
+            case 'headers':
+                content = Object.entries(this.currentResponse.headers || {})
+                    .map(([key, value]) => `${key}: ${value}`)
+                    .join('\n');
+                break;
+                
+            default:
+                if (typeof this.currentResponse.data === 'object') {
+                    content = JSON.stringify(this.currentResponse.data, null, 2);
+                } else {
+                    content = String(this.currentResponse.data || '');
+                }
+        }
+        
+        // Copy to clipboard
+        navigator.clipboard.writeText(content)
+            .then(() => {
+                this.showNotification('Copied to clipboard');
+            })
+            .catch(error => {
+                console.error('Failed to copy to clipboard:', error);
+                this.showNotification('Failed to copy to clipboard', 'error');
             });
-            
-            // Add button to pre element container
-            const container = preElement.parentElement;
-            container.classList.add("copyable");
-            container.appendChild(buttonElement);
-        });
     }
     
     /**
-     * Checks if a string looks like JSON
-     * @param {string} str - The string to check
-     * @returns {boolean} Whether the string looks like JSON
-     * @private
+     * Downloads the response
      */
-    _looksLikeJson(str) {
-        if (typeof str !== "string") {
-            return false;
+    downloadResponse() {
+        if (!this.currentResponse) {
+            return;
         }
         
-        str = str.trim();
-        return (str.startsWith("{") && str.endsWith("}")) || 
-               (str.startsWith("[") && str.endsWith("]"));
+        let content = '';
+        let fileName = 'response';
+        let mimeType = 'text/plain';
+        
+        // Determine content and file type based on response
+        if (typeof this.currentResponse.data === 'object') {
+            content = JSON.stringify(this.currentResponse.data, null, 2);
+            fileName = 'response.json';
+            mimeType = 'application/json';
+        } else if (typeof this.currentResponse.data === 'string') {
+            content = this.currentResponse.data;
+            
+            // Try to determine file type from content
+            if (content.trim().startsWith('{') || content.trim().startsWith('[')) {
+                fileName = 'response.json';
+                mimeType = 'application/json';
+            } else if (content.trim().startsWith('<')) {
+                if (content.includes('<!DOCTYPE html') || content.includes('<html')) {
+                    fileName = 'response.html';
+                    mimeType = 'text/html';
+                } else {
+                    fileName = 'response.xml';
+                    mimeType = 'application/xml';
+                }
+            } else {
+                fileName = 'response.txt';
+            }
+        } else {
+            content = String(this.currentResponse.data || '');
+            fileName = 'response.txt';
+        }
+        
+        // Create and trigger download
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        
+        a.href = url;
+        a.download = fileName;
+        a.style.display = 'none';
+        
+        document.body.appendChild(a);
+        a.click();
+        
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 100);
     }
     
     /**
-     * Formats a byte size into a human-readable string
-     * @param {number} bytes - The byte size
-     * @returns {string} The formatted size
-     * @private
+     * Shows a notification
+     * @param {string} message - The notification message
+     * @param {string} type - The notification type
      */
-    _formatBytes(bytes) {
-        if (bytes === 0) return "0 Bytes";
+    showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.textContent = message;
         
-        const k = 1024;
-        const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        document.body.appendChild(notification);
         
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
     }
+    
+    /**
+     * Escapes special characters in a string for use in a RegExp
+     * @param {string} string - The string to escape
+     * @returns {string} The escaped string
+     */
+    escapeRegExp(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+    
+    /**
+     * Makes XML collapsible by adding toggle controls to elements
+     * @param {string} xml - The formatted XML string
+     * @returns {string} HTML with collapsible elements
+     */
+    makeXmlCollapsible(xml) {
+        if (!xml) return '';
+        
+        // Use a regex to match XML tags and their content
+        const tagRegex = /<(\w+)(?:\s+[^>]*)?>([\s\S]*?)<\/\1>/g;
+        
+        // Check if the XML has at least one element with children
+        let hasNestedElements = false;
+        let testXml = xml;
+        let match;
+        
+        while ((match = tagRegex.exec(testXml)) !== null) {
+            const [, , content] = match;
+            if (content.trim() && content.includes('<')) {
+                hasNestedElements = true;
+                break;
+            }
+        }
+        
+        // If there are no nested elements, just syntax highlight without collapsing
+        if (!hasNestedElements) {
+            return this.syntaxHighlightXml(xml);
+        }
+        
+        // Process the XML to add collapsible sections
+        let processedXml = this.syntaxHighlightXml(xml);
+        
+        // Wrap tags with nested content in collapsible divs
+        // This is a simplified approach - for real XML with complex nesting, a proper parser would be better
+        let depth = 0;
+        const lines = processedXml.split('\n');
+        const outputLines = [];
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const indentMatch = line.match(/^(\s+)</);
+            const indent = indentMatch ? indentMatch[1].length : 0;
+            
+            // Detect opening tag
+            if (line.match(/<\w+[^>]*>/) && !line.includes('</') && !line.endsWith('/>')) {
+                // Check if next lines contain a closing tag (not immediate self-closing)
+                let hasChildren = false;
+                let j = i + 1;
+                
+                while (j < lines.length) {
+                    if (lines[j].match(/<\w+[^>]*>/) && !lines[j].includes('</') && indent < lines[j].match(/^(\s+)</)?.[1].length) {
+                        hasChildren = true;
+                        break;
+                    }
+                    if (lines[j].includes('</' + line.match(/<(\w+)[^>]*>/)[1] + '>')) {
+                        break;
+                    }
+                    j++;
+                }
+                
+                if (hasChildren) {
+                    // This is a parent tag with children, make it collapsible
+                    const toggleButton = `<span class="xml-toggle" title="Toggle">▼</span>`;
+                    const processedLine = line.replace(/^(\s*)(<)/, `$1<span class="xml-collapsible">${toggleButton}$2`);
+                    outputLines.push(processedLine);
+                    depth++;
+                } else {
+                    // Regular tag, no children
+                    outputLines.push(line);
+                }
+            } 
+            // Detect closing tag that matches a collapsible opening tag
+            else if (line.match(/<\/\w+>/) && depth > 0) {
+                const closingIndent = line.match(/^(\s+)</)?.[1].length || 0;
+                
+                // Check if this is closing a collapsible section
+                let isClosingCollapsible = false;
+                for (let j = outputLines.length - 1; j >= 0; j--) {
+                    const prevLine = outputLines[j];
+                    if (prevLine.includes('xml-collapsible') && 
+                        prevLine.match(/^(\s+)</)?.[1].length === closingIndent) {
+                        isClosingCollapsible = true;
+                        break;
+                    }
+                }
+                
+                if (isClosingCollapsible) {
+                    outputLines.push(line + '</span>');
+                    depth--;
+                } else {
+                    outputLines.push(line);
+                }
+            } 
+            else {
+                outputLines.push(line);
+            }
+        }
+        
+        return outputLines.join('\n');
+    }
+}
+
+/**
+ * Helper function to escape HTML
+ * @param {string} unsafe - The unsafe string
+ * @returns {string} HTML-escaped string
+ */
+function escapeHtml(unsafe) {
+    return unsafe
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 } 

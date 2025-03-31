@@ -20,18 +20,32 @@ class FocusAreaController {
    * Create a new FocusAreaController
    * @param {Object} dependencies - Dependencies for the controller
    * @param {Object} dependencies.focusAreaCoordinator - Focus area coordinator service
+   * @param {Object} dependencies.focusAreaService - Focus area service
+   * @param {Object} dependencies.focusAreaGenerationService - Focus area generation service
+   * @param {Object} dependencies.eventBus - Event bus for publishing events
+   * @param {Object} dependencies.eventTypes - Event type constants
    * @param {Object} [dependencies.logger] - Logger instance
    */
   constructor({
     focusAreaCoordinator,
+    focusAreaService,
+    focusAreaGenerationService,
+    eventBus,
+    eventTypes,
     logger
   }) {
     // Check required dependencies
     if (!focusAreaCoordinator) {
       throw new Error('focusAreaCoordinator is required for FocusAreaController');
     }
+    
     this.focusAreaCoordinator = focusAreaCoordinator;
+    this.focusAreaService = focusAreaService;
+    this.focusAreaGenerationService = focusAreaGenerationService;
+    this.eventBus = eventBus;
+    this.eventTypes = eventTypes;
     this.logger = logger || focusAreaLogger;
+    
     // Define error mappings for controller methods
     this.errorMappings = [{
       errorClass: FocusAreaNotFoundError,
@@ -87,10 +101,12 @@ class FocusAreaController {
   async getAllFocusAreas(req, res, _next) {
     const focusAreas = await this.focusAreaCoordinator.getAllFocusAreas();
     return res.status(200).json({
-      status: 'success',
-      results: focusAreas.length,
-      data: {
-        focusAreas
+      success: true,
+      data: focusAreas,
+      pagination: {
+        total: focusAreas.length,
+        offset: 0,
+        limit: focusAreas.length
       }
     });
   }
@@ -107,10 +123,12 @@ class FocusAreaController {
     // Email validation is handled by middleware
     const focusAreas = await this.focusAreaCoordinator.getFocusAreasForUser(email);
     return res.status(200).json({
-      status: 'success',
-      results: focusAreas.length,
-      data: {
-        focusAreas
+      success: true,
+      data: focusAreas,
+      pagination: {
+        total: focusAreas.length,
+        offset: 0,
+        limit: focusAreas.length
       }
     });
   }
@@ -130,7 +148,7 @@ class FocusAreaController {
     // Email and focusAreas validation handled by middleware
     await this.focusAreaCoordinator.setFocusAreasForUser(email, focusAreas);
     return res.status(200).json({
-      status: 'success',
+      success: true,
       message: 'Focus areas updated successfully'
     });
   }
@@ -151,10 +169,12 @@ class FocusAreaController {
     const limitValue = limit ? parseInt(limit) : 3;
     const recommendations = await this.focusAreaCoordinator.getRecommendedFocusAreas(email, limitValue);
     return res.status(200).json({
-      status: 'success',
-      results: recommendations.length,
-      data: {
-        recommendations
+      success: true,
+      data: recommendations,
+      pagination: {
+        total: recommendations.length,
+        offset: 0,
+        limit: limitValue
       }
     });
   }
@@ -179,10 +199,8 @@ class FocusAreaController {
       difficulty: difficulty || 'intermediate'
     });
     return res.status(201).json({
-      status: 'success',
-      data: {
-        focusArea
-      }
+      success: true,
+      data: focusArea
     });
   }
 }

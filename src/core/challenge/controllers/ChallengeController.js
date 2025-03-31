@@ -65,7 +65,6 @@ class ChallengeController {
    * @param {Request} req - Express request object containing user details and challenge parameters
    * @param {Response} res - Express response object used to return the generated challenge
    *
-   * @swagger
    * components:
    *   schemas:
    *     ChallengeRequest:
@@ -193,7 +192,6 @@ class ChallengeController {
    * @param {Request} req - Express request object containing the challenge ID and user's response
    * @param {Response} res - Express response object used to return the submission result
    *
-   * @swagger
    * components:
    *   schemas:
    *     ChallengeRequest:
@@ -339,7 +337,6 @@ class ChallengeController {
    * @param {Request} req - Express request object containing the challenge ID parameter
    * @param {Response} res - Express response object used to return the challenge data
    *
-   * @swagger
    * components:
    *   schemas:
    *     ChallengeRequest:
@@ -449,7 +446,6 @@ class ChallengeController {
    * @param {Request} req - Express request object containing the user email parameter
    * @param {Response} res - Express response object used to return the challenge history
    *
-   * @swagger
    * /challenges/user/{userEmail}/history:
    *   get:
    *     summary: Get challenge history for a user

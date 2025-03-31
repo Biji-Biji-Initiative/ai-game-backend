@@ -146,62 +146,119 @@ async function getBuilder(type) {
  * @public
  */
 async function buildPrompt(type, params) {
+  const correlationId = params.correlationId || params.options?.correlationId || `prompt_${Date.now()}`;
+  
   try {
-    const builder = getBuilder(type);
+    const builder = await getBuilder(type);
+    
     log('debug', `Building prompt using builder for type '${type}'`, {
+      correlationId,
       paramKeys: Object.keys(params)
     });
+    
     // Call the builder function with the parameters
     const result = await builder(params);
+    
     // If result is already in Responses API format, return it directly
     if (result && typeof result === 'object' && result.input !== undefined) {
       // Validate required properties
       if (typeof result.input !== 'string' && !Array.isArray(result.input)) {
         throw new PromptConstructionError(`Builder for '${type}' returned invalid input type: ${typeof result.input}. Must be string or array.`);
       }
+      
       if (result.instructions !== undefined && result.instructions !== null && typeof result.instructions !== 'string') {
         throw new PromptConstructionError(`Builder for '${type}' returned invalid instructions type: ${typeof result.instructions}. Must be string or null.`);
       }
-      log('debug', 'Builder returned valid Responses API format', {
+      
+      // Log the full prompt and system message content at DEBUG level
+      log('debug', `Prompt successfully built for type: '${type}'`, {
+        correlationId,
+        promptType: type,
         inputType: typeof result.input,
-        hasInstructions: !!result.instructions
+        inputLength: typeof result.input === 'string' ? result.input.length : result.input.length,
+        hasInstructions: !!result.instructions,
+        instructionsLength: result.instructions ? result.instructions.length : 0
       });
+      
+      // Log full content at TRACE level for detailed debugging
+      log('debug', `Full prompt content for type: '${type}'`, {
+        correlationId,
+        promptType: type,
+        input: typeof result.input === 'string' ? result.input : JSON.stringify(result.input),
+        instructions: result.instructions
+      });
+      
       return result;
     }
+    
     // Handle legacy string return (input only)
     if (typeof result === 'string') {
-      log('warn', `Builder for '${type}' returned legacy string format. Should return Responses API format.`);
-      return formatForResponsesApi(result, null);
+      log('warn', `Builder for '${type}' returned legacy string format. Should return Responses API format.`, {
+        correlationId
+      });
+      
+      const formattedResult = formatForResponsesApi(result, null);
+      
+      // Log at debug level for debugging
+      log('debug', `Full prompt content for type: '${type}' (converted from legacy format)`, {
+        correlationId,
+        promptType: type,
+        input: result,
+        instructions: null
+      });
+      
+      return formattedResult;
     }
+    
     // Handle legacy object formats 
     if (typeof result === 'object' && result !== null) {
-      log('warn', `Builder for '${type}' returned legacy object format. Should return Responses API format.`);
+      log('warn', `Builder for '${type}' returned legacy object format. Should return Responses API format.`, {
+        correlationId
+      });
+      
       // Handle object with prompt/content and systemMessage/system
       if (result.prompt || result.content) {
         const input = result.prompt || result.content;
         const instructions = result.systemMessage || result.system || null;
+        
         if (!input || typeof input !== 'string') {
           throw new PromptConstructionError('Prompt content must be a non-empty string');
         }
-        return formatForResponsesApi(input, instructions);
+        
+        const formattedResult = formatForResponsesApi(input, instructions);
+        
+        // Log at debug level for debugging
+        log('debug', `Full prompt content for type: '${type}' (converted from legacy format)`, {
+          correlationId,
+          promptType: type,
+          input: input,
+          instructions: instructions
+        });
+        
+        return formattedResult;
       }
+      
       // Unrecognized format
       throw new PromptConstructionError(`Builder for '${type}' returned unrecognized format that cannot be converted to Responses API format`, {
         result
       });
     }
+    
     // Result isn't a recognized type
     throw new PromptConstructionError(`Invalid prompt result format from builder '${type}': ${typeof result}`, {
       result
     });
   } catch (error) {
     log('error', `Error building prompt for type '${type}'`, {
+      correlationId,
       error: error.message,
       stack: error.stack
     });
+    
     if (error.name === 'PromptBuilderNotFoundError' || error.name === 'PromptConstructionError') {
       throw error;
     }
+    
     throw new PromptConstructionError(`Failed to build prompt for type '${type}': ${error.message}`, {
       originalError: error
     });

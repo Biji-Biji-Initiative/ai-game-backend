@@ -130,13 +130,136 @@ class ProgressRepository extends BaseRepository {
             return progressMapper.toDomain(data);
         }, 'findById', { id });
     }
+
+    /**
+     * Find multiple progress records by their IDs
+     * 
+     * Efficiently retrieves multiple progress records in a single database query
+     * to prevent N+1 query performance issues when loading related entities.
+     * 
+     * @param {Array<string>} ids - Array of progress IDs
+     * @param {Object} options - Query options
+     * @param {Array<string>} [options.include] - Related entities to include
+     * @returns {Promise<Array<Progress>>} Array of progress objects
+     * @throws {ProgressProcessingError} If database operation fails
+     */
+    async findByIds(ids, options = {}) {
+        try {
+            // Use the base repository implementation to get raw data
+            const records = await super.findByIds(ids);
+            
+            // Map database records to domain objects
+            const progressRecords = records.map(record => progressMapper.toDomain(record));
+            
+            // If include options are specified, handle eager loading
+            if (options.include && Array.isArray(options.include) && options.include.length > 0) {
+                await this._loadRelatedEntities(progressRecords, options.include);
+            }
+            
+            return progressRecords;
+        } catch (error) {
+            this._log('error', 'Error finding progress records by IDs', {
+                count: ids?.length || 0,
+                error: error.message,
+                stack: error.stack
+            });
+            
+            throw new ProgressProcessingError(`Failed to fetch progress records by IDs: ${error.message}`, {
+                cause: error,
+                metadata: { count: ids?.length || 0 }
+            });
+        }
+    }
+    
+    /**
+     * Load related entities for a collection of progress records
+     * Private helper method for implementing eager loading
+     * 
+     * @param {Array<Progress>} progressRecords - Array of progress objects
+     * @param {Array<string>} include - Array of entity types to include
+     * @returns {Promise<void>}
+     * @private
+     */
+    async _loadRelatedEntities(progressRecords, include) {
+        // No-op if no progress records
+        if (!progressRecords || progressRecords.length === 0) {
+            return;
+        }
+        
+        // Process each include option
+        for (const entityType of include) {
+            switch (entityType) {
+                case 'challenge':
+                    // Extract challenge IDs
+                    const challengeIds = progressRecords
+                        .map(progress => progress.challengeId)
+                        .filter(id => !!id);
+                        
+                    if (challengeIds.length > 0) {
+                        // Get the repository from container or directly
+                        const challengeRepo = this.container ? 
+                            this.container.get('challengeRepository') : 
+                            require('../../challenge/repositories/challengeRepository').default;
+                            
+                        // Batch load all challenges
+                        const challenges = await challengeRepo.findByIds(challengeIds);
+                        
+                        // Create lookup map
+                        const challengeMap = challenges.reduce((map, challenge) => {
+                            map[challenge.id] = challenge;
+                            return map;
+                        }, {});
+                        
+                        // Attach challenges to progress records
+                        progressRecords.forEach(progress => {
+                            if (progress.challengeId) {
+                                progress.challenge = challengeMap[progress.challengeId] || null;
+                            }
+                        });
+                    }
+                    break;
+                    
+                case 'user':
+                    // Extract user IDs
+                    const userIds = progressRecords
+                        .map(progress => progress.userId)
+                        .filter(id => !!id);
+                        
+                    if (userIds.length > 0) {
+                        // Get the repository from container or directly
+                        const userRepo = this.container ? 
+                            this.container.get('userRepository') : 
+                            require('../../user/repositories/UserRepository').default;
+                            
+                        // Batch load all users
+                        const users = await userRepo.findByIds(userIds);
+                        
+                        // Create lookup map
+                        const userMap = users.reduce((map, user) => {
+                            map[user.id] = user;
+                            return map;
+                        }, {});
+                        
+                        // Attach users to progress records
+                        progressRecords.forEach(progress => {
+                            if (progress.userId) {
+                                progress.user = userMap[progress.userId] || null;
+                            }
+                        });
+                    }
+                    break;
+            }
+        }
+    }
     /**
      * Find a user's progress
      * @param {string} userId - User ID
+     * @param {Object} [options={}] - Query options
+     * @param {Array<string>} [options.include] - Related entities to include (e.g., ['challenge', 'user'])
      * @returns {Promise<Progress|null>} Progress object or null if not found
      * @throws {ProgressProcessingError} If database operation fails
      */
-    async findByUserId(userId) {
+    async findByUserId(userId, options = {}) {
         this._validateRequiredParams({ userId }, ['userId']);
         return await this._withRetry(async () => {
             this._log('debug', 'Finding progress by user ID', { userId });
@@ -157,8 +280,17 @@ class ProgressRepository extends BaseRepository {
                 this._log('debug', 'Progress not found for user', { userId });
                 return null;
             }
+            
             // Use mapper to convert database record to domain entity
-            return progressMapper.toDomain(data);
+            const progress = progressMapper.toDomain(data);
+            
+            // Handle eager loading if specified in options
+            if (options.include && Array.isArray(options.include) && options.include.length > 0
+                && progress) {
+                await this._loadRelatedEntities([progress], options.include);
+            }
+            
+            return progress;
         }, 'findByUserId', { userId });
     }
     /**
@@ -279,15 +411,16 @@ class ProgressRepository extends BaseRepository {
                 result: savedProgress,
                 domainEvents: domainEvents
             };
-        }, {
-            publishEvents: true,
-            eventBus: this.eventBus
+        }, {publishEvents: true,
+            eventBus: this.eventBus,
+            invalidateCache: true, // Enable cache invalidation
+            cacheInvalidator: this.cacheInvalidator // Use repository's invalidator
         });
     }
     /**
      * Find all progress records for a user
      * @param {string} userId - User ID
-     * @returns {Promise<Array<Progress>>} Array of Progress objects
+     * @returns {Promise<Array<Progress>>} Array of progress records
      * @throws {ProgressProcessingError} If database operation fails
      */
     async findAllByUserId(userId) {
@@ -299,22 +432,72 @@ class ProgressRepository extends BaseRepository {
                 .select('*')
                 .eq('user_id', userId);
             if (error) {
-                throw new DatabaseError(`Failed to fetch all progress for user: ${error.message}`, {
+                throw new DatabaseError(`Failed to fetch progress records: ${error.message}`, {
                     cause: error,
                     entityType: this.domainName,
                     operation: 'findAllByUserId',
                     metadata: { userId },
                 });
             }
-            this._log('debug', `Found ${data?.length || 0} progress records for user`, { userId });
-            // Convert database records to domain entities using mapper
             return progressMapper.toDomainCollection(data || []);
         }, 'findAllByUserId', { userId });
     }
+
+    /**
+     * Find progress records for multiple users
+     * Efficiently retrieves progress records for multiple users in a single query
+     * to prevent N+1 query performance issues.
+     * 
+     * @param {Array<string>} userIds - Array of user IDs
+     * @param {Object} options - Query options
+     * @param {Array<string>} [options.include] - Related entities to include
+     * @returns {Promise<Array<Progress>>} Array of progress records
+     * @throws {ProgressProcessingError} If database operation fails
+     */
+    async findByUserIds(userIds, options = {}) {
+        if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+            return [];
+        }
+        
+        // Remove duplicates for efficiency
+        const uniqueUserIds = [...new Set(userIds)];
+        
+        return this._withRetry(async () => {
+            this._log('debug', 'Finding progress records for multiple users', { 
+                count: uniqueUserIds.length 
+            });
+            
+            // Query all progress records for the specified users
+            const { data, error } = await this.db
+                .from(this.tableName)
+                .select('*')
+                .in('user_id', uniqueUserIds);
+                
+            if (error) {
+                throw new DatabaseError(`Failed to fetch progress records for users: ${error.message}`, {
+                    cause: error,
+                    entityType: this.domainName,
+                    operation: 'findByUserIds',
+                    metadata: { count: uniqueUserIds.length }
+                });
+            }
+            
+            // Map database records to domain objects
+            const progressRecords = progressMapper.toDomainCollection(data || []);
+            
+            // If include options are specified, handle eager loading
+            if (options.include && Array.isArray(options.include) && options.include.length > 0) {
+                await this._loadRelatedEntities(progressRecords, options.include);
+            }
+            
+            return progressRecords;
+        }, 'findByUserIds', { count: uniqueUserIds.length });
+    }
+
     /**
      * Delete a progress record
      * @param {string} id - Progress ID
-     * @returns {Promise<boolean>} True if successful
+     * @returns {Promise<boolean>} True if deleted, false if not found
      * @throws {ProgressProcessingError} If database operation fails
      */
     async delete(id) {
@@ -384,9 +567,10 @@ class ProgressRepository extends BaseRepository {
                 result: true,
                 domainEvents: domainEvents
             };
-        }, {
-            publishEvents: true,
-            eventBus: this.eventBus
+        }, {publishEvents: true,
+            eventBus: this.eventBus,
+            invalidateCache: true, // Enable cache invalidation
+            cacheInvalidator: this.cacheInvalidator // Use repository's invalidator
         });
     }
 }

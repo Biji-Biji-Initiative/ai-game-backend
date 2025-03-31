@@ -1,0 +1,121 @@
+type: object
+description: User personality profile information
+required:
+  - id
+  - userId
+  - createdAt
+properties:
+  id:
+    type: string
+    format: uuid
+    description: Unique identifier for the personality profile
+  userId:
+    type: string
+    format: uuid
+    description: ID of the user this profile belongs to
+  traits:
+    type: object
+    description: Personality traits with scores (0-100)
+    properties:
+      creativity:
+        type: number
+        format: float
+        minimum: 0
+        maximum: 100
+        description: Creativity trait score
+      analyticalThinking:
+        type: number
+        format: float
+        minimum: 0
+        maximum: 100
+        description: Analytical thinking trait score
+      empathy:
+        type: number
+        format: float
+        minimum: 0
+        maximum: 100
+        description: Empathy trait score
+      assertiveness:
+        type: number
+        format: float
+        minimum: 0
+        maximum: 100
+        description: Assertiveness trait score
+      adaptability:
+        type: number
+        format: float
+        minimum: 0
+        maximum: 100
+        description: Adaptability trait score
+    additionalProperties:
+      type: number
+      format: float
+      minimum: 0
+      maximum: 100
+  attitudes:
+    type: object
+    description: AI attitudes with scores (0-100)
+    properties:
+      trust:
+        type: number
+        format: float
+        minimum: 0
+        maximum: 100
+        description: Trust in AI score
+      jobConcerns:
+        type: number
+        format: float
+        minimum: 0
+        maximum: 100
+        description: Job displacement concerns score
+      impact:
+        type: number
+        format: float
+        minimum: 0
+        maximum: 100
+        description: Perceived positive impact score
+      interest:
+        type: number
+        format: float
+        minimum: 0
+        maximum: 100
+        description: Interest in AI score
+      interaction:
+        type: number
+        format: float
+        minimum: 0
+        maximum: 100
+        description: AI interaction frequency score
+    additionalProperties:
+      type: number
+      format: float
+      minimum: 0
+      maximum: 100
+  insights:
+    type: object
+    description: Generated insights about the personality profile
+    properties:
+      strengths:
+        type: array
+        items:
+          type: string
+        description: Identified strengths based on profile
+      learningStyle:
+        type: string
+        description: Identified learning style
+      challengeRecommendations:
+        type: array
+        items:
+          type: string
+        description: Recommended challenge types
+      summary:
+        type: string
+        description: Summary of the personality profile
+  createdAt:
+    type: string
+    format: date-time
+    description: When the personality profile was created
+  updatedAt:
+    type: string
+    format: date-time
+    description: When the personality profile was last updated 

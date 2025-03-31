@@ -74,10 +74,22 @@ class User {
         if (!this._domainEvents) {
             this._domainEvents = [];
         }
-        this._domainEvents.push({
-            eventType,
-            eventData,
-        });
+        
+        // Create a standardized event structure
+        const event = {
+            type: eventType,
+            data: {
+                ...eventData,
+                entityId: this.id,
+                entityType: 'User',
+            },
+            metadata: {
+                timestamp: new Date().toISOString(),
+                correlationId: `user-${this.id}-${Date.now()}`
+            }
+        };
+        
+        this._domainEvents.push(event);
     }
     /**
      * Get all collected domain events

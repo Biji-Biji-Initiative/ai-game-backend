@@ -1,48 +1,36 @@
 const express = require('express');
-const { createProxyMiddleware } = require('http-proxy-middleware');
 const path = require('path');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
-const PORT = 3002;
+const port = process.env.PORT || 8080;
 
-// Set proper MIME types
-app.use((req, res, next) => {
-  const ext = path.extname(req.path);
-  switch (ext) {
-    case '.js':
-      res.setHeader('Content-Type', 'application/javascript');
-      break;
-    case '.css':
-      res.setHeader('Content-Type', 'text/css');
-      break;
-    case '.json':
-      res.setHeader('Content-Type', 'application/json');
-      break;
-  }
-  next();
-});
+// Static files
+app.use(express.static(path.join(__dirname)));
+
+// Add JSONFormatter library for enhanced JSON viewing
+app.use('/js/lib', express.static(path.join(__dirname, 'node_modules/json-formatter-js/dist')));
 
 // Proxy API requests to the backend
 app.use('/api', createProxyMiddleware({
   target: 'http://localhost:3000',
   changeOrigin: true,
   pathRewrite: {
-    '^/api': '/api', // No rewrite needed in this case
+    '^/api': '/api' // No rewrite needed as paths already match
   },
   onProxyReq: (proxyReq, req, res) => {
-    console.log(`Proxying ${req.method} ${req.url} to http://localhost:3000${req.url}`);
+    // Add X-Api-Tester header to identify requests from the tester
+    proxyReq.setHeader('X-Api-Tester', 'true');
   },
+  logLevel: 'warn'
 }));
 
-// Serve static files from the current directory
-app.use(express.static(__dirname));
-
-// Always return index.html for any other route (for SPA routing)
+// Handle SPA routing (fallback to index.html)
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // Start the server
-app.listen(PORT, () => {
-  console.log(`API Tester UI server is running at http://localhost:${PORT}`);
+app.listen(port, () => {
+  console.log(`API Tester UI running at http://localhost:${port}`);
 }); 

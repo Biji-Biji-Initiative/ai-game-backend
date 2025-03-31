@@ -36,6 +36,14 @@ class FocusAreaCoordinatorFacade extends BaseCoordinator {
             name: 'FocusAreaCoordinatorFacade',
             logger: dependencies?.logger,
         });
+        
+        // Validate that eventBus exists in dependencies
+        if (!dependencies.eventBus) {
+            const errorMessage = 'eventBus is required for FocusAreaGenerationCoordinator';
+            console.error(`Error: ${errorMessage}`);
+            throw new Error(errorMessage);
+        }
+        
         // Create specialized coordinators with their required dependencies
         this.generationCoordinator = new FocusAreaGenerationCoordinator(dependencies);
         this.managementCoordinator = new FocusAreaManagementCoordinator({

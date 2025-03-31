@@ -1,0 +1,27 @@
+health:
+  get:
+    summary: Health check endpoint
+    description: Returns the health status of the API
+    tags: [System]
+    parameters:
+      - name: format
+        in: query
+        description: Response format (json or text)
+        schema:
+          type: string
+          enum: [json, text]
+          default: json
+    responses:
+      '200':
+        description: API is healthy
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: ok
+                mode:
+                  type: string
+                  example: development 

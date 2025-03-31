@@ -36,3 +36,6 @@ export default class AppError extends Error {
         Error.captureStackTrace(this, this.constructor);
     }
 }
+
+// Add named export for compatibility with imports that use { AppError }
+export { AppError as AppError };

@@ -1,6 +1,7 @@
 import express from 'express';
 import ChallengeController from "../../../challenge/controllers/ChallengeController.js";
-import { authenticateUser } from "../../../infra/http/middleware/auth.js";
+import { authenticateUser, requireAdmin } from "../middleware/auth.js";
+import { authorizeResource } from "../middleware/resourceAuth.js";
 'use strict';
 
 /**
@@ -15,23 +16,85 @@ const router = express.Router();
  * @returns {express.Router} Express router
  */
 export default function challengeRoutes(challengeController) {
-    // Get all challenges
-    router.get('/', authenticateUser, (req, res) => challengeController.getAllChallenges(req, res));
+  // Function to get the owner of a challenge for authorization
+  const getChallengeOwner = async (challengeId, req) => {
+    const container = req.app.get('container');
+    if (!container) {
+      throw new Error('Container not available in request');
+    }
     
-    // Get a specific challenge
-    router.get('/:id', authenticateUser, (req, res) => challengeController.getChallenge(req, res));
-    
-    // Create a new challenge
-    router.post('/', authenticateUser, (req, res) => challengeController.createChallenge(req, res));
-    
-    // Submit challenge response
-    router.post('/:id/responses', authenticateUser, (req, res) => challengeController.submitChallengeResponse(req, res));
-    
-    // Get challenge types
-    router.get('/types', authenticateUser, (req, res) => challengeController.getChallengeTypes(req, res));
-    
-    // Generate a personalized challenge
-    router.post('/generate', authenticateUser, (req, res) => challengeController.generateChallenge(req, res));
-    
-    return router;
+    const challengeRepository = container.get('challengeRepository');
+    const challenge = await challengeRepository.findById(challengeId);
+    return challenge ? challenge.userId : null;
+  };
+
+  // Get all challenges (no special auth needed - filtering based on user is handled in controller)
+  router.get('/', 
+    authenticateUser, 
+    (req, res) => challengeController.getAllChallenges(req, res)
+  );
+  
+  // Get a specific challenge (must be owner or admin)
+  router.get('/:id', 
+    authenticateUser,
+    authorizeResource({
+      resourceType: 'challenge',
+      paramName: 'id',
+      action: 'read',
+      getResourceOwner: getChallengeOwner
+    }),
+    (req, res) => challengeController.getChallenge(req, res)
+  );
+  
+  // Create a new challenge
+  router.post('/', 
+    authenticateUser, 
+    (req, res) => challengeController.createChallenge(req, res)
+  );
+  
+  // Submit challenge response (must be owner or admin)
+  router.post('/:id/responses', 
+    authenticateUser,
+    authorizeResource({
+      resourceType: 'challenge',
+      paramName: 'id',
+      action: 'update',
+      getResourceOwner: getChallengeOwner
+    }),
+    (req, res) => challengeController.submitChallengeResponse(req, res)
+  );
+  
+  // Get challenge types (available to all authenticated users)
+  router.get('/types', 
+    authenticateUser, 
+    (req, res) => challengeController.getChallengeTypes(req, res)
+  );
+  
+  // Generate a personalized challenge
+  router.post('/generate', 
+    authenticateUser, 
+    (req, res) => challengeController.generateChallenge(req, res)
+  );
+  
+  // Challenge history for a specific user (must be same user or admin)
+  router.get('/user/:userId/history', 
+    authenticateUser,
+    authorizeResource({
+      resourceType: 'user',
+      paramName: 'userId',
+      action: 'read'
+    }),
+    (req, res) => challengeController.getChallengeHistoryByUserId(req, res)
+  );
+  
+  // Admin operations
+  
+  // Delete a challenge (admin only)
+  router.delete('/:id',
+    authenticateUser,
+    requireAdmin,
+    (req, res) => challengeController.deleteChallenge(req, res)
+  );
+  
+  return router;
 }

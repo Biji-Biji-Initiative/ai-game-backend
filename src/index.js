@@ -5,7 +5,10 @@
  * It imports and starts the server module.
  */
 
-import 'dotenv/config';
+// Load environment variables first thing
+import * as dotenv from 'dotenv';
+dotenv.config();
+
 import { logger } from "./core/infra/logging/logger.js";
 import { startServer } from "@/server.js";
 
@@ -29,15 +32,22 @@ logger.info(`Server will listen on port ${PORT}`);
 logger.info(`API tester UI will be available at http://localhost:${PORT}/tester`);
 logger.info(`API Documentation will be available at http://localhost:${PORT}/api-docs`);
 
-// In development mode, show informational message and start the server
-if (process.env.NODE_ENV === 'development') {
-  logger.info('Development mode detected');
-  logger.info('Madge has successfully analyzed the codebase');
-  logger.info('Issues have been identified and fixed in the ES module imports/exports');
-} 
+// Check for relevant environment variables
+logger.info('Environment variables loaded:', {
+  NODE_ENV: process.env.NODE_ENV || 'development',
+  SUPABASE_URL: process.env.SUPABASE_URL ? 'set' : 'missing',
+  SUPABASE_KEY: process.env.SUPABASE_KEY ? 'set' : 'missing',
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY ? 'set' : 'missing'
+});
 
 // Start the server
-startServer(PORT);
+const server = await startServer(PORT);
+
+// Signal to PM2 that the app is ready (if running under PM2)
+if (process.send) {
+  process.send('ready');
+  logger.info('Sent ready signal to PM2');
+}
 
 // Handle graceful shutdown
 process.on('SIGTERM', () => {

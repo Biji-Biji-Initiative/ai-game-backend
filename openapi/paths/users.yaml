@@ -1,0 +1,68 @@
+users:
+  get:
+    summary: Get all users
+    description: Retrieves a list of all users with pagination
+    operationId: getAllUsers
+    tags:
+      - Users
+    security:
+      - bearerAuth: []
+    parameters:
+      - $ref: '../components/parameters/common.yaml#/limitParam'
+      - $ref: '../components/parameters/common.yaml#/offsetParam'
+      - $ref: '../components/parameters/common.yaml#/sortParam'
+      - $ref: '../components/parameters/common.yaml#/filterParam'
+    responses:
+      '200':
+        description: Users retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  type: array
+                  items:
+                    $ref: '../components/schemas/User.yaml'
+                pagination:
+                  $ref: '../components/schemas/common/PaginationParams.yaml'
+      '401':
+        $ref: '../components/responses/common.yaml#/UnauthorizedError'
+
+users_id:
+  get:
+    summary: Get user by ID
+    description: Retrieves a user by their unique identifier
+    operationId: getUserById
+    tags:
+      - Users
+    security:
+      - bearerAuth: []
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID of the user to retrieve
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '200':
+        description: User found
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  $ref: '../components/schemas/User.yaml'
+      '401':
+        $ref: '../components/responses/common.yaml#/UnauthorizedError'
+      '404':
+        $ref: '../components/responses/common.yaml#/NotFoundError' 

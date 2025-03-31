@@ -3,7 +3,7 @@ import { getCacheService, getCacheInvalidationManager } from "../../infra/cache/
 import { withServiceErrorHandling, createErrorMapper } from "../../infra/errors/errorStandardization.js";
 import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError } from "../../challenge/errors/ChallengeErrors.js";
 import challengeErrors from "../../challenge/errors/ChallengeErrors.js";
-import { Email, ChallengeId, FocusArea, createEmail, createChallengeId, createFocusArea } from "../../common/valueObjects/index.js";
+import { Email, UserId, ChallengeId, FocusArea, createEmail, createUserId, createChallengeId, createFocusArea } from "../../common/valueObjects/index.js";
 'use strict';
 
 const { ValidationError } = challengeErrors;
@@ -25,7 +25,9 @@ const CACHE_KEYS = {
     RECENT_CHALLENGES: 'challenge:recent:',
     CHALLENGES_BY_FOCUS_AREA: 'challenge:byFocusArea:',
     CHALLENGE_SEARCH: 'challenge:search:',
-    CHALLENGE_LIST: 'challenge:list:'
+    CHALLENGE_LIST: 'challenge:list:',
+    CHALLENGES_BY_USER_ID: 'challenge:byUserId:',
+    RECENT_CHALLENGES_BY_USER_ID: 'challenge:recentByUserId:'
 };
 /**
  * Challenge Service class
@@ -36,20 +38,25 @@ class ChallengeService {
      * Create a new ChallengeService
      * @param {Object} dependencies - Service dependencies
      * @param {Object} dependencies.challengeRepository - Challenge repository instance
+     * @param {Object} dependencies.userService - User service instance (needed for user lookups)
      * @param {Object} dependencies.logger - Logger instance
      */
     constructor(dependencies = {}) {
-        const { challengeRepository, logger } = dependencies;
+        const { challengeRepository, userService, logger } = dependencies;
         
         // In any environment, try to use provided dependencies but fall back to mocks if needed
         this.repository = challengeRepository || {
             findById: () => Promise.resolve(null),
             findByUserEmail: () => Promise.resolve([]),
+            findByUserId: () => Promise.resolve([]),
             findAll: () => Promise.resolve([]),
             save: (challenge) => Promise.resolve(challenge),
             update: (challenge) => Promise.resolve(challenge),
             delete: () => Promise.resolve(true)
         };
+        
+        // Store userService reference for resolving user IDs
+        this.userService = userService;
         
         this.logger = logger || console;
         
@@ -89,6 +96,26 @@ class ChallengeService {
             this.getRecentChallengesForUserOrVO.bind(this),
             {
                 methodName: 'getRecentChallengesForUserOrVO',
+                domainName: 'challenge',
+                logger: this.logger,
+                errorMapper: challengeServiceErrorMapper
+            }
+        );
+        
+        this.getChallengesByUserIdOrVO = withServiceErrorHandling(
+            this.getChallengesByUserIdOrVO.bind(this),
+            {
+                methodName: 'getChallengesByUserIdOrVO',
+                domainName: 'challenge',
+                logger: this.logger,
+                errorMapper: challengeServiceErrorMapper
+            }
+        );
+        
+        this.getRecentChallengesByUserIdOrVO = withServiceErrorHandling(
+            this.getRecentChallengesByUserIdOrVO.bind(this),
+            {
+                methodName: 'getRecentChallengesByUserIdOrVO',
                 domainName: 'challenge',
                 logger: this.logger,
                 errorMapper: challengeServiceErrorMapper
@@ -176,6 +203,8 @@ class ChallengeService {
         this.findById = this.getChallengeByIdOrVO;
         this.findRecentByUserEmail = this.getRecentChallengesForUserOrVO;
         this.findByUserEmail = this.getChallengesForUserOrVO;
+        this.getChallengesByUserId = this.getChallengesByUserIdOrVO;
+        this.getRecentChallengesByUserId = this.getRecentChallengesByUserIdOrVO;
     }
     /**
      * Get a challenge by ID
@@ -428,6 +457,59 @@ class ChallengeService {
                 challengeId: challenge.id
             });
         }
+    }
+    /**
+     * Get challenges by user ID
+     * @param {string|UserId} userIdOrUserIdVO - User ID or UserId value object
+     * @param {Object} options - Query options
+     * @returns {Promise<Array<Challenge>>} List of challenges
+     */
+    async getChallengesByUserIdOrVO(userIdOrUserIdVO, options = {}) {
+        // Convert to value object if needed using the standardized pattern
+        const userIdVO = userIdOrUserIdVO instanceof UserId 
+            ? userIdOrUserIdVO 
+            : createUserId(userIdOrUserIdVO);
+            
+        // Validate and throw domain-specific error
+        if (!userIdVO) {
+            throw new ChallengeValidationError(`Invalid user ID: ${userIdOrUserIdVO}`);
+        }
+        
+        const { limit = 10, offset = 0, status, sortBy = 'createdAt', sortDir = 'desc' } = options;
+        
+        // Create a cache key that includes all query parameters
+        const cacheKey = `${CACHE_KEYS.CHALLENGES_BY_USER_ID}${userIdVO.value}:${limit}:${offset}:${status || 'all'}:${sortBy}:${sortDir}`;
+        
+        return cache.getOrSet(cacheKey, () => {
+            this.logger.debug(`Getting challenges for user ID: ${userIdVO.value}`, { options });
+            // Pass the value object directly to the repository
+            return this.repository.findByUserId(userIdVO, { limit, offset, status, sortBy, sortDir });
+        });
+    }
+    /**
+     * Get recent challenges by user ID
+     * @param {string|UserId} userIdOrUserIdVO - User ID or UserId value object
+     * @param {number} limit - Maximum number of challenges to return
+     * @returns {Promise<Array<Challenge>>} List of recent challenges
+     */
+    async getRecentChallengesByUserIdOrVO(userIdOrUserIdVO, limit = 5) {
+        // Convert to value object if needed using the standardized pattern
+        const userIdVO = userIdOrUserIdVO instanceof UserId 
+            ? userIdOrUserIdVO 
+            : createUserId(userIdOrUserIdVO);
+            
+        // Validate and throw domain-specific error
+        if (!userIdVO) {
+            throw new ChallengeValidationError(`Invalid user ID: ${userIdOrUserIdVO}`);
+        }
+        
+        const cacheKey = `${CACHE_KEYS.RECENT_CHALLENGES_BY_USER_ID}${userIdVO.value}:${limit}`;
+        
+        return cache.getOrSet(cacheKey, () => {
+            this.logger.debug(`Getting recent challenges for user ID: ${userIdVO.value}`, { limit });
+            // Pass the value object directly to the repository
+            return this.repository.findRecentByUserId(userIdVO, limit);
+        });
     }
 }
 // Create instance with repository and export it

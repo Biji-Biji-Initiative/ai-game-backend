@@ -34,6 +34,9 @@ function registerControllerComponents(container) {
     container.register('userController', c => {
         return new UserController({
             userService: c.get('userService'),
+            userRepository: c.get('userRepository'),
+            focusAreaCoordinator: c.get('focusAreaCoordinator'),
+            userPreferencesManager: c.get('userPreferencesManager'),
             logger: c.get('logger'),
         });
     }, true // Singleton: YES - stateless controller

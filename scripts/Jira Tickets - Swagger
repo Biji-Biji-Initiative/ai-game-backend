@@ -1,0 +1,83 @@
+
+Given the current state (existing setup for swagger-jsdoc, some scattered YAML files, DTOs defined in code), here's a plan to migrate fully to a schema-first YAML definition, consolidating existing work and establishing a clean, scalable documentation system.
+
+Migration Strategy:
+
+Establish the Core Structure: Create a dedicated openapi directory (you already have one, we'll refine it) at the root or src level to hold all OpenAPI definition files.
+Define the Root Document: Create/refine openapi/index.yaml as the main entry point, containing openapi, info, servers, base tags, securitySchemes, and $ref links to paths and components. Convert relevant parts of config/swagger.js into this YAML file.
+Consolidate and Define Components:
+Create openapi/components/schemas/ directory.
+Define all reusable schemas (DTOs, request bodies, common entities like User, Challenge) in separate YAML files within this directory (e.g., openapi/components/schemas/UserDTO.yaml). Use your existing DTO files (src/core/.../dtos/*.js) and the existing openapi/schemas.yaml, challenge-api.yaml, evaluation-api.yaml as the source of truth for the structure.
+Define common responses (like NotFoundError, ValidationError) in openapi/components/responses/.
+Define common parameters (like pagination) in openapi/components/parameters/.
+Define Paths:
+Create openapi/paths/ directory.
+For each domain or major resource (users, challenges, auth, etc.), create a separate YAML file (e.g., openapi/paths/users.yaml).
+Define all endpoints (/users, /users/{id}, etc.) within these path files, including methods, summaries, descriptions, operationId, tags, parameters, requestBody, and responses.
+Use $ref extensively to link to schemas and responses defined in the components directory.
+Use your RouteFactory.js, routes/*.js, and controller methods as the reference for what endpoints exist and what they do.
+Merge relevant path definitions from openapi/challenge-api.yaml and openapi/evaluation-api.yaml into this new structure.
+Bundle the Specification: Use swagger-cli bundle (or a similar tool) to combine the root openapi/index.yaml and all referenced component/path files into a single, fully resolved openapi-spec.json (or .yaml) file. Integrate this bundling step into your build process or a dedicated script.
+Update Swagger UI: Modify src/config/swaggerSetup.js to load the bundled openapi-spec.json file directly, instead of using swagger-jsdoc. The swaggerOptions in src/config/swagger.js becomes largely redundant for spec generation but might still hold UI configuration.
+Remove Old Tooling: Delete swagger-jsdoc dependency, remove the apis array configuration, and remove all @swagger JSDoc comments from the codebase. Remove the now-redundant parts of src/config/swagger.js. Delete the original openapi/challenge-api.yaml, evaluation-api.yaml, schemas.yaml after merging their content.
+Implement Runtime Validation: Integrate express-openapi-validator middleware in src/app.js, configured to use the bundled openapi-spec.json, to validate requests and responses against the specification at runtime.
+Actionable JIRA Tickets (Schema-First YAML Approach):
+
+(These tickets outline the complete migration, replacing previous suggestions)
+
+Ticket: OAPI-SF-1: Establish OpenAPI YAML Structure and Root Document
+Type: Setup / Refactor
+Priority: Highest
+Description: Create/refine the openapi/ directory structure (components/schemas, components/responses, components/parameters, paths). Convert the base definition from src/config/swagger.js (info, servers, securitySchemes, base tags) into the root openapi/index.yaml file. Reference placeholder component and path files.
+Affected Files: openapi/index.yaml, config/swagger.js (to be simplified later).
+Acceptance Criteria: A root openapi/index.yaml file exists with core API information. Directory structure for components and paths is created.
+Ticket: OAPI-SF-2: Define All Component Schemas in YAML
+Type: Task / Documentation
+Priority: High
+Description: Define all DTOs, request body structures, and core domain entities used in the API as reusable schemas in separate YAML files under openapi/components/schemas/. Consolidate definitions from existing YAML files and use src/core/.../dtos/ files as reference. Define common parameters and responses in openapi/components/parameters/ and openapi/components/responses/.
+Dependencies: OAPI-SF-1
+Affected Files: New files under openapi/components/. Existing openapi/*.yaml files (content to be merged/moved).
+Acceptance Criteria: All API data structures are defined as reusable schemas in YAML format within the components directory. Common responses/parameters are defined.
+Ticket: OAPI-SF-3: Define All API Paths and Operations in YAML
+Type: Task / Documentation
+Priority: High
+Description: Define all API endpoints (paths, methods, operations) in separate YAML files under openapi/paths/, grouped logically (e.g., users.yaml, challenges.yaml). Use RouteFactory.js and routes/*.js as the source of truth for endpoints. Use $ref extensively to reference schemas, parameters, and responses defined in OAPI-SF-2. Merge paths from existing openapi/*.yaml files.
+Dependencies: OAPI-SF-2
+Affected Files: New files under openapi/paths/. Existing openapi/*.yaml files (content to be merged/moved).
+Acceptance Criteria: All API endpoints are fully defined in YAML files under openapi/paths/. $ref is used correctly for components.
+Ticket: OAPI-SF-4: Implement OpenAPI Bundling Script
+Type: Task / Build
+Priority: High
+Description: Add swagger-cli as a dev dependency. Create an npm script (e.g., npm run swagger:bundle) that uses swagger-cli bundle openapi/index.yaml -o openapi-spec.json -t json (or yaml) to combine all YAML definition files into a single, resolved specification file (openapi-spec.json). Integrate this into the build or pre-start process if necessary.
+Dependencies: OAPI-SF-1, OAPI-SF-2, OAPI-SF-3
+Affected Files: package.json, new bundled spec file (e.g., openapi-spec.json).
+Acceptance Criteria: Running the script successfully generates a single, valid OpenAPI specification file containing the entire API definition.
+Ticket: OAPI-SF-5: Update Swagger UI to Serve Bundled Specification
+Type: Task / Refactor
+Priority: High
+Description: Modify src/config/swaggerSetup.js to load the bundled openapi-spec.json (generated by OAPI-SF-4) using fs.readFileSync and JSON.parse. Pass this loaded object directly to swaggerUi.setup(). Remove the dependency on swagger-jsdoc.
+Dependencies: OAPI-SF-4
+Affected Files: src/config/swaggerSetup.js.
+Acceptance Criteria: The Swagger UI at /api-docs correctly displays the full API documentation loaded directly from the bundled specification file.
+Ticket: OAPI-SF-6: Remove JSDoc Annotations and Old Tooling
+Type: Cleanup / Refactor
+Priority: Medium
+Description: Remove the swagger-jsdoc dependency from package.json. Delete all @swagger JSDoc comments from controller and route files. Simplify or remove src/config/swagger.js as it's no longer the primary source for spec generation (keep UI options if needed). Delete the old openapi/*.yaml files that were consolidated.
+Dependencies: OAPI-SF-5
+Affected Files: All controllers/routes, package.json, config/swagger.js, old openapi/*.yaml files.
+Acceptance Criteria: Codebase is free of @swagger JSDoc comments. swagger-jsdoc dependency is removed. Old configuration/files are cleaned up.
+Ticket: OAPI-SF-7: Implement Runtime Request/Response Validation
+Type: Feature / Quality
+Priority: High
+Description: Add express-openapi-validator as a dependency. Configure and integrate its middleware into src/app.js after body parsing but before the main API routes. Point the validator to the bundled openapi-spec.json file. Ensure it validates incoming requests (body, params, query) and optionally outgoing responses.
+Dependencies: OAPI-SF-4
+Affected Files: src/app.js, package.json.
+Acceptance Criteria: Invalid API requests (based on the OpenAPI spec) are automatically rejected with 400 errors. Optional: Responses not matching the spec generate 500 errors. API contract is enforced at runtime.
+Ticket: OAPI-SF-8: Update Documentation and Development Process
+Type: Documentation / Process
+Priority: Medium
+Description: Update project README and any developer onboarding documentation to reflect the new schema-first OpenAPI workflow. Explain how to define schemas, paths, bundle the spec, and the role of runtime validation.
+Dependencies: OAPI-SF-7
+Affected Files: README.md, CONTRIBUTING.md (or similar).
+Acceptance Criteria: Developer documentation accurately describes the new OpenAPI definition process.
+This set of tickets provides a clear, phased path to a fully schema-first OpenAPI definition using YAML, leveraging best practices and tooling for a scalable and maintainable solution.

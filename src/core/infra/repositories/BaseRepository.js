@@ -1,6 +1,7 @@
 import { logger } from "../../infra/logging/logger.js";
 import AppError from "../../infra/errors/AppError.js";
 import { createErrorCollector } from "../../infra/errors/errorStandardization.js";
+import { getCacheInvalidationManager } from "../../infra/cache/cacheFactory.js";
 'use strict';
 /**
  * Base Repository
@@ -214,6 +215,7 @@ class BaseRepository {
    * @param {number} [options.retryDelay=500] - Delay between retries in milliseconds
    * @param {boolean} [options.validateUuids=false] - Whether to validate UUIDs
    * @param {Object} [options.eventBus=null] - Event bus to use for publishing events
+   * @param {Object} [options.cacheInvalidator=null] - Cache invalidation manager instance
    * @throws {Error} If database client or table name is not provided
    *
    * @example
@@ -237,11 +239,16 @@ class BaseRepository {
       logger: loggerInstance,
       maxRetries = 3,
       validateUuids = false,
-      eventBus = null
+      eventBus = null,
+      cacheInvalidator = null
     } = options;
 
     if (!db) {
       throw new Error('Database client is required');
+    }
+    
+    if (!tableName) {
+      throw new Error('Table name is required');
     }
     
     this.db = db;
@@ -252,7 +259,11 @@ class BaseRepository {
     this.validateUuids = validateUuids;
     this.eventBus = eventBus;
     
-    this._log('debug', `${this.constructor.name} initialized`, { tableName });
+    // Always ensure there's a cache invalidator available
+    // This centralized pattern ensures that all repositories handle cache invalidation consistently
+    this.cacheInvalidator = cacheInvalidator || getCacheInvalidationManager();
+    
+    this._log('debug', `${this.constructor.name} initialized`, { tableName, hasCacheInvalidator: !!this.cacheInvalidator });
   }
   /**
    * Log a message with repository context
@@ -425,22 +436,17 @@ class BaseRepository {
    * @param {Object} [options] - Options for transaction handling
    * @param {boolean} [options.publishEvents=true] - Whether to publish collected domain events after commit
    * @param {Object} [options.eventBus=null] - Event bus to use for publishing events
+   * @param {boolean} [options.invalidateCache=true] - Whether to invalidate related caches after commit
+   * @param {Object} [options.cacheInvalidator=null] - Cache invalidation manager to use
    * @returns {Promise<*>} Result of the function
-   * @example
-   * const result = await this.withTransaction(async transaction => {
-   *   // Collect entity domain events before DB operations
-   *   const domainEvents = entity.getDomainEvents();
-   *   entity.clearDomainEvents();
-   *   
-   *   // Perform DB operations within transaction
-   *   await transaction.from('users').insert(...);
-   *   
-   *   // Return both the result and collected events for publishing after commit
-   *   return { result: someResult, domainEvents };
-   * });
    */
   async withTransaction(fn, options = {}) {
-    const { publishEvents = true, eventBus = this.eventBus } = options;
+    const { 
+      publishEvents = true, 
+      eventBus = this.eventBus,
+      invalidateCache = true,
+      cacheInvalidator = this.cacheInvalidator
+    } = options;
     
     this._log('debug', 'Starting transaction');
     const transaction = await this.beginTransaction();
@@ -467,6 +473,11 @@ class BaseRepository {
       // Publish domain events after successful commit if enabled
       if (publishEvents && collectedEvents.length > 0 && eventBus) {
         await this._publishDomainEvents(collectedEvents, eventBus);
+      }
+      
+      // Invalidate related caches after successful commit if enabled
+      if (invalidateCache && cacheInvalidator && result) {
+        await this._invalidateRelatedCaches(result, cacheInvalidator);
       }
       
       return result;
@@ -532,6 +543,188 @@ class BaseRepository {
         errorCount: errorCollector.getErrors().length
       });
     }
+  }
+  /**
+   * Invalidate caches related to the entity or entities that were modified
+   * Centralized and comprehensive cache invalidation strategy that maintains 
+   * consistency across all repositories.
+   * 
+   * @param {Object|Array} result - Entity or entities that were modified
+   * @param {Object} cacheInvalidator - Cache invalidation manager instance
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _invalidateRelatedCaches(result, cacheInvalidator) {
+    if (!result || !cacheInvalidator) {
+      return;
+    }
+    
+    try {
+      // Handle single entity or collections
+      const entities = Array.isArray(result) ? result : [result];
+      
+      for (const entity of entities) {
+        if (!entity || !entity.id) continue;
+        
+        // Determine entity type from repository domain name
+        const entityType = this.domainName.toLowerCase();
+        
+        this._log('debug', `Invalidating caches for ${entityType}`, { 
+          id: entity.id,
+          entityType 
+        });
+        
+        // Step 1: Invalidate the entity by ID (direct cache)
+        await cacheInvalidator.invalidateEntity(entityType, entity.id);
+        
+        // Step 2: Handle domain-specific invalidation based on entity type
+        switch (entityType) {
+          case 'user':
+            // User updates affect many related entities
+            await cacheInvalidator.invalidateUserCaches(entity.id);
+            
+            // If specific user attributes changed, may need to invalidate related entities
+            if (entity.email) {
+              await cacheInvalidator.invalidatePattern(`${entityType}:byEmail:${entity.email}:*`);
+            }
+            break;
+            
+          case 'challenge':
+            // Challenge invalidation
+            await cacheInvalidator.invalidateChallengeCaches(entity.id);
+            
+            // Also invalidate user-specific challenge lists if userId is available
+            if (entity.userId) {
+              await cacheInvalidator.invalidatePattern(`challenge:byUser:${entity.userId}:*`);
+            }
+            
+            // If challenge has focus area, invalidate those relations too
+            if (entity.focusArea) {
+              await cacheInvalidator.invalidatePattern(`challenge:byFocusArea:${entity.focusArea}:*`);
+              await cacheInvalidator.invalidatePattern(`focusarea:withChallenges:${entity.focusArea}:*`);
+            }
+            
+            // If challenge status changed, invalidate status-based lists
+            if (entity.status) {
+              await cacheInvalidator.invalidatePattern(`challenge:byStatus:${entity.status}:*`);
+            }
+            break;
+            
+          case 'evaluation':
+            // Get related IDs from the entity
+            const userId = entity.userId || null;
+            const challengeId = entity.challengeId || null;
+            
+            // Comprehensive invalidation for evaluation and related entities
+            await cacheInvalidator.invalidateEvaluationCaches(entity.id, userId, challengeId);
+            
+            // If evaluation affects user stats, invalidate those too
+            if (userId) {
+              await cacheInvalidator.invalidatePattern(`user:stats:${userId}:*`);
+              await cacheInvalidator.invalidatePattern(`dashboard:user:${userId}:*`);
+            }
+            break;
+            
+          case 'personality':
+            // Invalidate personality profiles
+            await cacheInvalidator.invalidatePersonalityCaches(entity.id, entity.userId);
+            
+            // If traits changed, invalidate related recommendations
+            if (entity.traits) {
+              await cacheInvalidator.invalidatePattern(`recommendation:byTraits:*`);
+            }
+            break;
+            
+          case 'focusarea':
+            // Invalidate focus area and related caches
+            await cacheInvalidator.invalidateFocusAreaCaches(entity.id);
+            
+            // Invalidate any aggregate data that includes focus areas
+            await cacheInvalidator.invalidatePattern(`stats:byFocusArea:*`);
+            await cacheInvalidator.invalidatePattern(`dashboard:focusArea:*`);
+            break;
+            
+          case 'progress':
+            // Invalidate progress and related user caches
+            if (entity.userId) {
+              await cacheInvalidator.invalidatePattern(`progress:byUser:${entity.userId}:*`);
+              await cacheInvalidator.invalidatePattern(`user:progress:${entity.userId}:*`);
+              await cacheInvalidator.invalidatePattern(`dashboard:user:${entity.userId}:*`);
+            }
+            
+            // If challenge-specific progress, invalidate those relations too
+            if (entity.challengeId) {
+              await cacheInvalidator.invalidatePattern(`progress:byChallenge:${entity.challengeId}:*`);
+              await cacheInvalidator.invalidatePattern(`challenge:progress:${entity.challengeId}:*`);
+            }
+            break;
+            
+          // Add additional entity types as needed
+          default:
+            // For any other entity type, just invalidate the entity and list caches
+            await cacheInvalidator.invalidatePattern(`${entityType}:*:${entity.id}:*`);
+            break;
+        }
+        
+        // Step 3: Always invalidate list caches for this entity type
+        await cacheInvalidator.invalidateListCaches(entityType);
+      }
+    } catch (error) {
+      // Log error but don't fail the operation
+      this._log('error', 'Error invalidating caches', {
+        error: error.message,
+        stack: error.stack,
+        entityType: this.domainName
+      });
+    }
+  }
+  /**
+   * Find multiple entities by their IDs
+   * 
+   * Efficiently retrieves multiple entities in a single database query
+   * to prevent N+1 query performance issues when loading related entities.
+   * 
+   * @param {Array<string>} ids - Array of entity IDs to find
+   * @returns {Promise<Array>} Array of matching entities in the same order as requested
+   * @throws {DatabaseError} If the database operation fails
+   * 
+   * @example
+   * // Returns array of user objects for the given IDs
+   * const users = await userRepository.findByIds(['id1', 'id2', 'id3']);
+   */
+  async findByIds(ids) {
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return [];
+    }
+    
+    // Remove duplicates for efficiency
+    const uniqueIds = [...new Set(ids)];
+    
+    return this._withRetry(async () => {
+      this._log('debug', 'Finding entities by IDs', { count: uniqueIds.length });
+      
+      const { data, error } = await this.db
+        .from(this.tableName)
+        .select('*')
+        .in('id', uniqueIds);
+        
+      if (error) {
+        throw new DatabaseError(`Failed to fetch entities by IDs: ${error.message}`, {
+          cause: error,
+          entityType: this.domainName,
+          operation: 'findByIds',
+          metadata: { count: uniqueIds.length }
+        });
+      }
+      
+      this._log('debug', `Found ${data?.length || 0} entities by IDs`, { 
+        requestedCount: uniqueIds.length,
+        foundCount: data?.length || 0
+      });
+      
+      // Return raw data for child classes to transform
+      return data || [];
+    }, 'findByIds', { count: uniqueIds.length });
   }
   /**
    * Validate an ID parameter

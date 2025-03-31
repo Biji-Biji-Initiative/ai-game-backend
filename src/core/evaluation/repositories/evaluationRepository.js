@@ -766,6 +766,130 @@ class EvaluationRepository extends BaseRepository {
     findById(id) {
         return this.getEvaluationById(id);
     }
+
+    /**
+     * Find multiple evaluations by their IDs
+     * 
+     * Efficiently retrieves multiple evaluations in a single database query
+     * to prevent N+1 query performance issues when loading related entities.
+     * 
+     * @param {Array<string>} ids - Array of evaluation IDs
+     * @param {Object} options - Query options
+     * @param {Array<string>} [options.include] - Related entities to include
+     * @returns {Promise<Array<Evaluation>>} Array of evaluations
+     * @throws {EvaluationRepositoryError} If database operation fails
+     */
+    async findByIds(ids, options = {}) {
+        try {
+            // Use the base repository implementation to get raw data
+            const records = await super.findByIds(ids);
+            
+            // Map database records to domain objects
+            const evaluations = records.map(record => {
+                const evaluationData = this._snakeToCamel(record);
+                return Evaluation.fromDatabase(evaluationData);
+            });
+            
+            // If include options are specified, handle eager loading
+            if (options.include && Array.isArray(options.include) && options.include.length > 0) {
+                await this._loadRelatedEntities(evaluations, options.include);
+            }
+            
+            return evaluations;
+        } catch (error) {
+            this._log('error', 'Error finding evaluations by IDs', {
+                count: ids?.length || 0,
+                error: error.message,
+                stack: error.stack
+            });
+            
+            throw new EvaluationRepositoryError(`Failed to fetch evaluations by IDs: ${error.message}`, {
+                cause: error,
+                metadata: { count: ids?.length || 0 }
+            });
+        }
+    }
+    
+    /**
+     * Load related entities for a collection of evaluations
+     * Private helper method for implementing eager loading
+     * 
+     * @param {Array<Evaluation>} evaluations - Array of evaluation objects
+     * @param {Array<string>} include - Array of entity types to include
+     * @returns {Promise<void>}
+     * @private
+     */
+    async _loadRelatedEntities(evaluations, include) {
+        // No-op if no evaluations
+        if (!evaluations || evaluations.length === 0) {
+            return;
+        }
+        
+        // Process each include option
+        for (const entityType of include) {
+            switch (entityType) {
+                case 'challenge':
+                    // Extract challenge IDs
+                    const challengeIds = evaluations
+                        .map(e => e.challengeId)
+                        .filter(id => !!id);
+                        
+                    if (challengeIds.length > 0) {
+                        // Get the repository from container or directly
+                        const challengeRepo = this.container ? 
+                            this.container.get('challengeRepository') : 
+                            require('../../challenge/repositories/challengeRepository').default;
+                            
+                        // Batch load all challenges
+                        const challenges = await challengeRepo.findByIds(challengeIds);
+                        
+                        // Create lookup map
+                        const challengeMap = challenges.reduce((map, challenge) => {
+                            map[challenge.id] = challenge;
+                            return map;
+                        }, {});
+                        
+                        // Attach challenges to evaluations
+                        evaluations.forEach(evaluation => {
+                            if (evaluation.challengeId) {
+                                evaluation.challenge = challengeMap[evaluation.challengeId] || null;
+                            }
+                        });
+                    }
+                    break;
+                    
+                case 'user':
+                    // Extract user IDs
+                    const userIds = evaluations
+                        .map(e => e.userId)
+                        .filter(id => !!id);
+                        
+                    if (userIds.length > 0) {
+                        // Get the repository from container or directly
+                        const userRepo = this.container ? 
+                            this.container.get('userRepository') : 
+                            require('../../user/repositories/UserRepository').default;
+                            
+                        // Batch load all users
+                        const users = await userRepo.findByIds(userIds);
+                        
+                        // Create lookup map
+                        const userMap = users.reduce((map, user) => {
+                            map[user.id] = user;
+                            return map;
+                        }, {});
+                        
+                        // Attach users to evaluations
+                        evaluations.forEach(evaluation => {
+                            if (evaluation.userId) {
+                                evaluation.user = userMap[evaluation.userId] || null;
+                            }
+                        });
+                    }
+                    break;
+            }
+        }
+    }
     /**
      * Save an evaluation
      * @param {Evaluation} evaluation - Evaluation to save

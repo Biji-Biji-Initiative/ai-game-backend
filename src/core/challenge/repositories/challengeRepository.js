@@ -204,6 +204,105 @@ class ChallengeRepository extends BaseRepository {
         }, 'findById', { id });
     }
     /**
+     * Find multiple challenges by their IDs
+     * 
+     * Efficiently retrieves multiple challenges in a single database query
+     * to prevent N+1 query performance issues when loading related entities.
+     * 
+     * @param {Array<string>} ids - Array of challenge IDs
+     * @param {Object} options - Query options
+     * @param {Array<string>} [options.include] - Related entities to include
+     * @returns {Promise<Array<Challenge>>} Array of challenges
+     * @throws {ChallengeRepositoryError} If database operation fails
+     */
+    async findByIds(ids, options = {}) {
+        try {
+            // Use the base repository implementation to get raw data
+            const records = await super.findByIds(ids);
+            
+            // Map database records to domain objects
+            const challenges = records.map(record => {
+                const challengeData = this._snakeToCamel(record);
+                return challengeMapper.toDomain(challengeData);
+            });
+            
+            // If include options are specified, handle eager loading
+            if (options.include && Array.isArray(options.include) && options.include.length > 0) {
+                await this._loadRelatedEntities(challenges, options.include);
+            }
+            
+            return challenges;
+        } catch (error) {
+            this._log('error', 'Error finding challenges by IDs', {
+                count: ids?.length || 0,
+                error: error.message,
+                stack: error.stack
+            });
+            
+            throw new DatabaseError(`Failed to fetch challenges by IDs: ${error.message}`, {
+                cause: error,
+                entityType: this.domainName,
+                operation: 'findByIds'
+            });
+        }
+    }
+    
+    /**
+     * Load related entities for a collection of challenges
+     * Private helper method for implementing eager loading
+     * 
+     * @param {Array<Challenge>} challenges - Array of challenge objects
+     * @param {Array<string>} include - Array of entity types to include
+     * @returns {Promise<void>}
+     * @private
+     */
+    async _loadRelatedEntities(challenges, include) {
+        // No-op if no challenges
+        if (!challenges || challenges.length === 0) {
+            return;
+        }
+        
+        // Process each include option
+        for (const entityType of include) {
+            switch (entityType) {
+                case 'focusArea':
+                    // Extract focus area IDs
+                    const focusAreaIds = challenges
+                        .map(c => c.focusAreaId)
+                        .filter(id => !!id);
+                        
+                    if (focusAreaIds.length > 0) {
+                        // Get the repository from container or directly
+                        const focusAreaRepo = this.container ? 
+                            this.container.get('focusAreaRepository') : 
+                            require('../../focusArea/repositories/focusAreaRepository').default;
+                            
+                        // Batch load all focus areas
+                        const focusAreas = await focusAreaRepo.findByIds(focusAreaIds);
+                        
+                        // Create lookup map
+                        const focusAreaMap = focusAreas.reduce((map, fa) => {
+                            map[fa.id] = fa;
+                            return map;
+                        }, {});
+                        
+                        // Attach focus areas to challenges
+                        challenges.forEach(challenge => {
+                            if (challenge.focusAreaId) {
+                                challenge.focusArea = focusAreaMap[challenge.focusAreaId] || null;
+                            }
+                        });
+                    }
+                    break;
+                    
+                // Add other entity types as needed
+                // case 'user':
+                // case 'evaluations':
+                // etc.
+            }
+        }
+    }
+    /**
      * Find challenges by user ID
      * 
      * NOTE: This is a cross-aggregate query that pragmatically links Challenges to Users.
@@ -217,6 +316,7 @@ class ChallengeRepository extends BaseRepository {
      * @param {string} options.status - Filter by status
      * @param {string} options.sortBy - Field to sort by
      * @param {string} options.sortDir - Sort direction (asc/desc)
+     * @param {Array<string>} options.include - Related entities to include (e.g., ['focusArea', 'user'])
      * @returns {Promise<Array<Challenge>>} Array of challenges
      * @throws {ChallengeRepositoryError} If database operation fails
      */
@@ -248,10 +348,19 @@ class ChallengeRepository extends BaseRepository {
                     metadata: { userId, options }
                 });
             }
-            return (data || []).map(record => {
+            
+            // Map database records to domain objects
+            const challenges = (data || []).map(record => {
                 const challengeData = this._snakeToCamel(record);
                 return challengeMapper.toDomain(challengeData);
             });
+            
+            // Handle eager loading if specified in options
+            if (options.include && Array.isArray(options.include) && options.include.length > 0) {
+                await this._loadRelatedEntities(challenges, options.include);
+            }
+            
+            return challenges;
         }, 'findByUserId', { userId, options });
     }
     /**
@@ -283,12 +392,20 @@ class ChallengeRepository extends BaseRepository {
      * 
      * This method is maintained for backward compatibility and simple read scenarios.
      * 
+     * @deprecated Since v1.5.0. Use a two-step process with UserService.getUserByEmail and
+     * then ChallengeRepository.findByUserId for better DDD adherence and aggregate boundary respect.
      * @param {string|Email} emailOrEmailVO - User email or Email value object
      * @param {Object} options - Query options
      * @returns {Promise<Array<Challenge>>} Array of challenges
      * @throws {ChallengeRepositoryError} If database operation fails
      */
     async findByUserEmail(emailOrEmailVO, options = {}) {
+        // Log a warning to indicate usage of deprecated method
+        this._log('warn', 'Using deprecated findByUserEmail method that crosses aggregate boundaries', { 
+            method: 'findByUserEmail',
+            recommendation: 'Use UserService.getUserByEmail and then ChallengeRepository.findByUserId instead'
+        });
+        
         // Handle value object if provided
         const email = emailOrEmailVO instanceof Email ? emailOrEmailVO.value : emailOrEmailVO;
         
@@ -329,12 +446,20 @@ class ChallengeRepository extends BaseRepository {
      * It inherits the same concerns as findByUserEmail. For new code, consider a two-step
      * approach using findByEmail and findByUserId instead.
      * 
+     * @deprecated Since v1.5.0. Use a two-step process with UserService.getUserByEmail and 
+     * then ChallengeRepository.findRecentByUserId for better DDD adherence.
      * @param {string|Email} emailOrEmailVO - User email or Email value object
      * @param {number} limit - Maximum number of results to return
      * @returns {Promise<Array<Challenge>>} Array of challenges
      * @throws {ChallengeRepositoryError} If database operation fails
      */
     async findRecentByUserEmail(emailOrEmailVO, limit = 5) {
+        // Log a warning to indicate usage of deprecated method
+        this._log('warn', 'Using deprecated findRecentByUserEmail method that crosses aggregate boundaries', { 
+            method: 'findRecentByUserEmail',
+            recommendation: 'Use UserService.getUserByEmail and then ChallengeRepository.findRecentByUserId instead'
+        });
+        
         return this.findByUserEmail(emailOrEmailVO, { 
             limit, 
             sortBy: 'createdAt', 
@@ -366,6 +491,7 @@ class ChallengeRepository extends BaseRepository {
         }
         
         // Use withTransaction to ensure events are only published after successful commit
+        // and cache invalidation occurs appropriately
         return this.withTransaction(async (transaction) => {
             this._log('debug', 'Saving challenge', { 
                 id: challenge.id,
@@ -448,7 +574,9 @@ class ChallengeRepository extends BaseRepository {
             };
         }, {
             publishEvents: true,
-            eventBus: this.eventBus
+            eventBus: this.eventBus,
+            invalidateCache: true, // Explicitly enable cache invalidation
+            cacheInvalidator: this.cacheInvalidator // Use the repository's cache invalidator
         });
     }
     /**
@@ -510,6 +638,7 @@ class ChallengeRepository extends BaseRepository {
         const challenge = await this.findById(id, true);
         
         // Use withTransaction to ensure events are only published after successful commit
+        // and cache is properly invalidated
         return this.withTransaction(async (transaction) => {
             this._log('debug', 'Deleting challenge', { id });
             
@@ -546,7 +675,9 @@ class ChallengeRepository extends BaseRepository {
             };
         }, {
             publishEvents: true,
-            eventBus: this.eventBus
+            eventBus: this.eventBus,
+            invalidateCache: true, // Explicitly enable cache invalidation
+            cacheInvalidator: this.cacheInvalidator // Use the repository's cache invalidator
         });
     }
     /**
