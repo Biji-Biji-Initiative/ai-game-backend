@@ -69,7 +69,7 @@ export class BackendLogsManager {
     constructor(options: Partial<BackendLogsManagerOptions> = {}) {
         this.options = {
             apiClient: null,
-            logsEndpoint: "/api/v1/api-tester/logs",
+            logsEndpoint: "/api/v1/system/logs",
             maxLogsToFetch: 500,
             refreshInterval: null, // If set, auto-refresh logs at this interval (ms)
             autoRefresh: false,
