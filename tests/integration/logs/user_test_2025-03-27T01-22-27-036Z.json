@@ -1,9 +1,0 @@
-{
-  "timestamp": "2025-03-27T01:22:27.036Z",
-  "testId": "test_1743038546320",
-  "action": "TestError",
-  "data": {
-    "message": "Error saving user: Could not find the 'role' column of 'users' in the schema cache",
-    "stack": "Error: Error saving user: Could not find the 'role' column of 'users' in the schema cache\n    at UserRepository.save (/Users/gsplace/responses api 3/src/core/user/repositories/UserRepository.js:97:24)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async Context.<anonymous> (/Users/gsplace/responses api 3/tests/integration/user-flow.test.js:130:25)"
-  }
-}

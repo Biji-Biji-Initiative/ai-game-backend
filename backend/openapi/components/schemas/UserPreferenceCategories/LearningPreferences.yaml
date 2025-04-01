@@ -1,0 +1,30 @@
+type: object
+description: Learning preferences controlling the user's learning experience
+properties:
+  preferredChallengeTypes:
+    type: array
+    items:
+      type: string
+    default: []
+    description: The types of challenges the user prefers
+  preferredDifficulty:
+    type: string
+    enum: [beginner, intermediate, advanced, expert]
+    default: intermediate
+    description: The user's preferred difficulty level for challenges
+  topicsToAvoid:
+    type: array
+    items:
+      type: string
+    default: []
+    description: Topics the user prefers to avoid
+  learningStyle:
+    type: string
+    enum: [visual, auditory, reading, kinesthetic]
+    default: reading
+    description: The user's preferred learning style
+  preferredFeedbackStyle:
+    type: string
+    enum: [direct, gentle, detailed, minimal]
+    default: detailed
+    description: The user's preferred style of feedback 

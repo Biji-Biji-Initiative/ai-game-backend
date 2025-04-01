@@ -1,8 +1,0 @@
-{
-  "timestamp": "2025-03-27T00:43:30.091Z",
-  "testId": "test_1743036206750",
-  "action": "OpenAISuccess",
-  "data": {
-    "message": "Successfully generated challenge using OpenAI API"
-  }
-}

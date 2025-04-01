@@ -1,0 +1,469 @@
+/**
+ * Component Styles for Admin UI
+ */
+
+/* Status Manager / API Status Component */
+.status-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+}
+
+.status-ok {
+  background-color: #10b981; /* Green */
+}
+
+.status-degraded {
+  background-color: #f59e0b; /* Amber */
+}
+
+.status-error {
+  background-color: #ef4444; /* Red */
+}
+
+.status-unknown {
+  background-color: #9ca3af; /* Gray */
+}
+
+.api-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Domain State Viewer */
+.domain-state-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--bg-card);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.domain-state-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background-color: var(--bg-sidebar);
+}
+
+.state-info {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.toolbar-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background-color: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text);
+  transition: all 0.2s ease;
+}
+
+.toolbar-actions button:hover {
+  background-color: var(--primary-50);
+  color: var(--primary-700);
+  border-color: var(--primary-200);
+}
+
+.domain-state-content {
+  flex: 1;
+  padding: 12px;
+  overflow: auto;
+  background-color: var(--bg-card);
+}
+
+.state-diff-summary {
+  padding: 8px 12px;
+  background-color: var(--bg-alt);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.875rem;
+  display: flex;
+  justify-content: space-between;
+}
+
+.diff-title {
+  font-weight: 500;
+}
+
+.diff-counts {
+  display: flex;
+  gap: 12px;
+}
+
+.diff-added {
+  color: #10b981; /* Green */
+}
+
+.diff-updated {
+  color: #3b82f6; /* Blue */
+}
+
+.diff-removed {
+  color: #ef4444; /* Red */
+}
+
+/* JSON formatter style overrides */
+.json-formatter-row {
+  font-family: 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.json-formatter-row .json-formatter-key {
+  color: var(--primary-600);
+  margin-right: 4px;
+}
+
+.json-formatter-row .json-formatter-string {
+  color: #10b981; /* Green */
+}
+
+.json-formatter-row .json-formatter-number {
+  color: #3b82f6; /* Blue */
+}
+
+.json-formatter-row .json-formatter-boolean {
+  color: #8b5cf6; /* Purple */
+}
+
+.json-formatter-row .json-formatter-null {
+  color: #9ca3af; /* Gray */
+}
+
+.json-formatter-row .json-formatter-object-bracket {
+  color: var(--text);
+}
+
+.json-formatter-row .json-formatter-array-bracket {
+  color: var(--text);
+}
+
+.json-formatter-row.diff-added .json-formatter-key {
+  color: #059669; /* Green 700 */
+  font-weight: bold;
+}
+
+.json-formatter-row.diff-updated .json-formatter-key {
+  color: #2563eb; /* Blue 700 */
+  font-weight: bold;
+}
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Logger styles */
+.logs-container {
+  font-family: 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-y: auto;
+  padding: 8px;
+  height: 100%;
+  background-color: var(--bg-card);
+  border-radius: 4px;
+}
+
+.log-entry {
+  padding: 2px 4px;
+  margin-bottom: 2px;
+  border-radius: 2px;
+  display: flex;
+}
+
+.log-timestamp {
+  color: var(--text-muted);
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.log-level {
+  margin-right: 8px;
+  flex-shrink: 0;
+  font-weight: 500;
+  width: 60px;
+}
+
+.log-debug .log-level {
+  color: #9ca3af; /* Gray */
+}
+
+.log-info .log-level {
+  color: #3b82f6; /* Blue */
+}
+
+.log-warn .log-level {
+  color: #f59e0b; /* Amber */
+}
+
+.log-error .log-level {
+  color: #ef4444; /* Red */
+}
+
+.log-message {
+  word-break: break-word;
+}
+
+.log-debug {
+  background-color: rgba(156, 163, 175, 0.1);
+}
+
+.log-info {
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+.log-warn {
+  background-color: rgba(245, 158, 11, 0.1);
+}
+
+.log-error {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .domain-state-content {
+    padding: 8px;
+  }
+  
+  .json-formatter-row {
+    font-size: 12px;
+  }
+  
+  .toolbar-actions button {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .log-entry {
+    flex-direction: column;
+  }
+  
+  .log-timestamp, .log-level {
+    margin-right: 0;
+    margin-bottom: 2px;
+  }
+}
+
+/* LogsViewer styles */
+.logs-viewer {
+  font-family: 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.logs-viewer .log-entry {
+  padding: 8px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  position: relative;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.logs-viewer .log-entry:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+.logs-viewer .log-entry-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.logs-viewer .log-level {
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-weight: normal;
+  width: auto;
+  color: white;
+  text-transform: uppercase;
+  font-size: 9px;
+}
+
+.logs-viewer .log-message {
+  word-break: break-word;
+  color: var(--text);
+}
+
+.logs-viewer .log-correlation-id {
+  font-family: 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace;
+  font-size: 10px;
+  background-color: var(--bg-sidebar);
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.logs-viewer .log-service-badge,
+.logs-viewer .ai-log-badge,
+.logs-viewer .domain-event-badge {
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.logs-viewer .log-details {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+}
+
+.logs-viewer .log-details-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+
+.logs-viewer .log-tab {
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+}
+
+.logs-viewer .log-tab.active {
+  color: var(--primary-600);
+  border-bottom: 2px solid var(--primary-600);
+  font-weight: 500;
+}
+
+.logs-viewer .log-tab-content {
+  font-size: 11px;
+  padding: 4px;
+  background-color: var(--bg-code-block);
+  border-radius: 3px;
+}
+
+.logs-viewer .empty-logs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.logs-viewer .expand-icon {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-alt);
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 12px;
+  transition: background-color 0.2s ease;
+}
+
+.logs-viewer .expand-icon:hover {
+  background-color: var(--primary-100);
+  color: var(--primary-700);
+}
+
+/* Filters */
+.logs-viewer .logs-filters {
+  margin-bottom: 12px;
+}
+
+.logs-viewer .filter-group,
+.logs-viewer .search-group,
+.logs-viewer .correlation-group {
+  display: flex;
+  align-items: center;
+}
+
+.logs-viewer .form-checkbox {
+  cursor: pointer;
+}
+
+/* Tabs */
+.logs-viewer .logs-tabs {
+  margin-bottom: 16px;
+}
+
+.logs-viewer #frontend-logs-tab,
+.logs-viewer #backend-logs-tab {
+  padding: 8px 16px;
+  cursor: pointer;
+  border: none;
+  background: none;
+  transition: all 0.2s ease;
+}
+
+/* AI logs custom styling */
+.logs-viewer .ai-log {
+  border-left: 3px solid #10b981 !important;
+  background-color: rgba(16, 185, 129, 0.05);
+}
+
+.logs-viewer .domain-event-log {
+  border-left: 3px solid #3b82f6 !important;
+  background-color: rgba(59, 130, 246, 0.05);
+}
+
+.logs-viewer .ai-log-details {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.logs-viewer .prompt-section,
+.logs-viewer .completion-section,
+.logs-viewer .messages-section {
+  margin-bottom: 12px;
+}
+
+.logs-viewer .message-item {
+  margin-bottom: 8px;
+}
+
+/* Response media query adjustments */
+@media (max-width: 768px) {
+  /* ... existing media queries ... */
+
+  .logs-viewer .log-entry-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .logs-viewer .filter-group,
+  .logs-viewer .search-group,
+  .logs-viewer .correlation-group {
+    width: 100%;
+    margin-bottom: 8px;
+  }
+} 

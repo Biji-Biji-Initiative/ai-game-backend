@@ -1,51 +1,133 @@
+/**
+ * PM2 Ecosystem Configuration
+ * 
+ * This file follows clean architecture principles for process management.
+ * It provides proper environment configuration, error handling, and monitoring.
+ */
 module.exports = {
   apps: [
     {
-      name: "ai-fight-club-api",
-      script: "src/server.js",
-      node_args: "--experimental-loader=./src/importResolver.js --require dotenv/config",
+      // Application Identity
+      name: 'ai-fight-club-api',
+      script: 'backend/src/index.js',
       
-      wait_ready: true,
-      kill_timeout: 5000,
-      listen_timeout: 10000,
-      max_restarts: 10,
+      // Deployment Configuration
+      watch: false,
+      instances: 1,
+      exec_mode: 'fork',
+      
+      // Process Management
       autorestart: true,
-      log_date_format: "YYYY-MM-DD HH:mm:ss",
-      error_file: "logs/error.log",
-      out_file: "logs/output.log",
-      merge_logs: true,
-      restart_delay: 3000,
+      max_memory_restart: '500M',
       
-      env: {
-        NODE_ENV: "development",
+      // Environment Configuration - Development (default)
+      env_development: {
+        NODE_ENV: 'development',
         PORT: 3000,
-        BASE_URL: "http://localhost:3000",
-        SUPABASE_URL: "https://dvmfpddmnzaxjmxxpupk.supabase.co",
-        SUPABASE_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2bWZwZGRtbnpheGpteHhwdXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI2NDA3MTAsImV4cCI6MjA1ODIxNjcxMH0.99b38YXJbbNC8kjRpqQq96k0zaB5qwQ2vvcFdxHPH9Y",
-        instances: 1,
-        exec_mode: "fork",
-        watch: ["src"],
-        ignore_watch: ["node_modules", "logs", ".git", "*.log", "tests", "api-tester-ui"]
+        
+        // Node.js module resolution
+        NODE_PATH: 'backend',
+        
+        // Base URL configuration
+        BASE_URL: 'http://localhost:3000',
+        
+        // API configuration
+        API_PREFIX: '/api/v1',
+        API_DOCS_PATH: '/api-docs',
+        API_TESTER_PATH: '/tester',
+        
+        // Logging configuration
+        LOG_LEVEL: 'debug',
+        LOG_ERROR_PATH: 'backend/logs/error.log',
+        LOG_COMBINED_PATH: 'backend/logs/combined.log',
+        LOG_CONSOLE: 'true'
       },
       
+      // Environment Configuration - Production
       env_production: {
-        NODE_ENV: "production",
+        NODE_ENV: 'production',
         PORT: 9000,
-        BASE_URL: "https://api.aifightclub.example.com",
-        instances: "max",
-        exec_mode: "cluster",
-        max_memory_restart: "1G",
-        watch: false
+        BASE_URL: 'https://api.ai-fight-club.com',
+        LOG_LEVEL: 'info',
+        
+        // Node.js module resolution
+        NODE_PATH: 'backend'
       },
       
-      env_testing: {
-        NODE_ENV: "testing",
-        PORT: 3002,
-        BASE_URL: "http://localhost:3002",
-        instances: 1,
-        exec_mode: "fork",
-        watch: false
-      }
+      // Logging Configuration
+      error_file: 'backend/logs/pm2_error.log',
+      out_file: 'backend/logs/pm2_out.log',
+      log_file: 'backend/logs/pm2_combined.log',
+      combine_logs: true,
+      time: true,
+      
+      // Startup Configuration
+      min_uptime: 10000,
+      max_restarts: 10,
+      restart_delay: 5000,
+      
+      // Graceful Shutdown
+      kill_timeout: 5000,
+      wait_ready: true,
+      listen_timeout: 30000
+    },
+    {
+      // Admin Application
+      name: 'ai-fight-club-admin',
+      script: 'admin/server.js',
+      
+      // Deployment Configuration
+      watch: false,
+      instances: 1,
+      exec_mode: 'fork',
+      
+      // Process Management
+      autorestart: true,
+      max_memory_restart: '300M',
+      
+      // Environment Configuration - Development (default)
+      env_development: {
+        NODE_ENV: 'development',
+        PORT: 4000,
+        
+        // Node.js module resolution
+        NODE_PATH: 'admin',
+        
+        // Base URL configuration
+        BASE_URL: 'http://localhost:4000',
+        
+        // Logging configuration
+        LOG_LEVEL: 'debug',
+        LOG_CONSOLE: 'true'
+      },
+      
+      // Environment Configuration - Production
+      env_production: {
+        NODE_ENV: 'production',
+        PORT: 4000,
+        BASE_URL: 'https://admin.ai-fight-club.com',
+        LOG_LEVEL: 'info',
+        
+        // Node.js module resolution
+        NODE_PATH: 'admin'
+      },
+      
+      // Logging Configuration
+      error_file: 'admin/logs/pm2_error.log',
+      out_file: 'admin/logs/pm2_out.log',
+      log_file: 'admin/logs/pm2_combined.log',
+      combine_logs: true,
+      time: true,
+      
+      // Startup Configuration
+      min_uptime: 10000,
+      max_restarts: 10,
+      restart_delay: 5000,
+      
+      // Graceful Shutdown
+      kill_timeout: 5000,
+      wait_ready: true,
+      listen_timeout: 30000
     }
   ]
-}; 
+};

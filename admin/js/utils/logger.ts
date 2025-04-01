@@ -1,192 +1,229 @@
 /**
  * Logger Utility
- * Provides logging functionality with different severity levels
+ * Provides consistent logging throughout the application
  */
 
 /**
- *
+ * Log level type
  */
-export class Logger {
-  // Log levels
-  static LEVELS = {
-    DEBUG: 0,
-    INFO: 1,
-    WARN: 2,
-    ERROR: 3,
-    NONE: 4,
-  };
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-  // Level names for display
-  static LEVEL_NAMES = {
-    0: 'DEBUG',
-    1: 'INFO',
-    2: 'WARN',
-    3: 'ERROR',
-    4: 'NONE',
-  };
+/**
+ * Logger configuration interface
+ */
+export interface LoggerConfig {
+  level: LogLevel;
+  enableConsole: boolean;
+  maxEntries: number;
+  prefix: string;
+}
+
+/**
+ * Log entry interface
+ */
+export interface LogEntry {
+  level: LogLevel;
+  message: string;
+  timestamp: string;
+  data?: any;
+}
+
+/**
+ * Default logger configuration
+ */
+const DEFAULT_CONFIG: LoggerConfig = {
+  level: 'info',
+  enableConsole: true,
+  maxEntries: 1000,
+  prefix: '[Admin UI]'
+};
+
+/**
+ * Level priority map (higher number = higher priority)
+ */
+const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
+  debug: 0,
+  info: 1,
+  warn: 2,
+  error: 3
+};
+
+/**
+ * Logger class
+ */
+class Logger {
+  private config: LoggerConfig;
+  private entries: LogEntry[] = [];
+  private listeners: Set<(entry: LogEntry) => void> = new Set();
 
   /**
-   * Creates a new Logger instance
-   * @param {Object} options - Logger options
+   * Create a new Logger instance
+   * @param config Logger configuration
    */
-  constructor(options = {}) {
-    this.options = {
-      level: Logger.LEVELS.INFO, // Default to INFO level
-      enableTimestamps: true,
-      consoleOutput: true, // Output to console
-      fileOutput: false, // Output to file (not implemented in browser)
-      ...options,
-    };
+  constructor(config: Partial<LoggerConfig> = {}) {
+    this.config = { ...DEFAULT_CONFIG, ...config };
+  }
 
-    // Initialize log storage if needed
-    if (this.options.storeInMemory) {
-      this.logs = [];
+  /**
+   * Log a message at debug level
+   * @param message Log message
+   * @param data Optional data to log
+   */
+  public debug(message: string, data?: any): void {
+    this.log('debug', message, data);
+  }
+
+  /**
+   * Log a message at info level
+   * @param message Log message
+   * @param data Optional data to log
+   */
+  public info(message: string, data?: any): void {
+    this.log('info', message, data);
+  }
+
+  /**
+   * Log a message at warn level
+   * @param message Log message
+   * @param data Optional data to log
+   */
+  public warn(message: string, data?: any): void {
+    this.log('warn', message, data);
+  }
+
+  /**
+   * Log a message at error level
+   * @param message Log message
+   * @param data Optional data to log
+   */
+  public error(message: string, data?: any): void {
+    this.log('error', message, data);
+  }
+
+  /**
+   * Log a message at the specified level
+   * @param level Log level
+   * @param message Log message
+   * @param data Optional data to log
+   */
+  private log(level: LogLevel, message: string, data?: any): void {
+    // Check if this level should be logged
+    if (LOG_LEVEL_PRIORITY[level] < LOG_LEVEL_PRIORITY[this.config.level]) {
+      return;
     }
-  }
 
-  /**
-   * Sets the log level
-   * @param {string|number} level - The log level (can be string name or number)
-   */
-  setLevel(level) {
-    if (typeof level === 'string') {
-      const upperLevel = level.toUpperCase();
-      if (upperLevel in Logger.LEVELS) {
-        this.options.level = Logger.LEVELS[upperLevel];
-      } else {
-        console.warn(`Invalid log level: ${level}. Defaulting to INFO.`);
-        this.options.level = Logger.LEVELS.INFO;
-      }
-    } else if (typeof level === 'number' && level >= 0 && level <= 4) {
-      this.options.level = level;
-    } else {
-      console.warn(`Invalid log level: ${level}. Defaulting to INFO.`);
-      this.options.level = Logger.LEVELS.INFO;
-    }
-  }
-
-  /**
-   * Gets the current log level name
-   * @returns {string} The current log level name
-   */
-  getLevelName() {
-    return Logger.LEVEL_NAMES[this.options.level];
-  }
-
-  /**
-   * Formats a log message
-   * @param {string} level - The log level
-   * @param {string} message - The log message
-   * @param {Array} args - Additional arguments to log
-   * @returns {Object} The formatted log entry
-   */
-  formatLogEntry(level, message, args) {
-    const timestamp = this.options.enableTimestamps ? new Date() : null;
-
-    return {
+    // Create log entry
+    const entry: LogEntry = {
       level,
-      message,
-      timestamp,
-      args: args.length > 0 ? args : undefined,
+      message: `${this.config.prefix} ${message}`,
+      timestamp: new Date().toISOString(),
+      data
     };
+
+    // Add to entries
+    this.entries.push(entry);
+
+    // Trim entries if needed
+    if (this.entries.length > this.config.maxEntries) {
+      this.entries = this.entries.slice(-this.config.maxEntries);
+    }
+
+    // Console output if enabled
+    if (this.config.enableConsole) {
+      this.outputToConsole(entry);
+    }
+
+    // Notify listeners
+    this.notifyListeners(entry);
   }
 
   /**
-   * Logs a message if the level is sufficient
-   * @param {number} level - The numeric log level
-   * @param {string} levelName - The log level name
-   * @param {string} message - The message to log
-   * @param {...any} args - Additional arguments to log
+   * Output a log entry to the console
+   * @param entry Log entry to output
    */
-  log(level, levelName, message, ...args) {
-    // Only log if the level is sufficient
-    if (level >= this.options.level) {
-      const logEntry = this.formatLogEntry(levelName, message, args);
+  private outputToConsole(entry: LogEntry): void {
+    const timestamp = new Date(entry.timestamp).toLocaleTimeString();
+    const prefix = `[${timestamp}]${entry.message}`;
 
-      // Output to console if enabled
-      if (this.options.consoleOutput) {
-        const method =
-          level === Logger.LEVELS.DEBUG
-            ? 'debug'
-            : level === Logger.LEVELS.INFO
-              ? 'info'
-              : level === Logger.LEVELS.WARN
-                ? 'warn'
-                : 'error';
-
-        const prefix = this.options.enableTimestamps
-          ? `[${logEntry.timestamp.toISOString()}] [${levelName}]`
-          : `[${levelName}]`;
-
-        if (args.length > 0) {
-          console[method](prefix, message, ...args);
-        } else {
-          console[method](prefix, message);
-        }
-      }
-
-      // Store in memory if enabled
-      if (this.options.storeInMemory) {
-        this.logs.push(logEntry);
-
-        // Trim logs if maxLogsInMemory is set
-        if (this.options.maxLogsInMemory && this.logs.length > this.options.maxLogsInMemory) {
-          this.logs = this.logs.slice(-this.options.maxLogsInMemory);
-        }
-      }
+    switch (entry.level) {
+      case 'debug':
+        console.debug(prefix, entry.data || '');
+        break;
+      case 'info':
+        console.info(prefix, entry.data || '');
+        break;
+      case 'warn':
+        console.warn(prefix, entry.data || '');
+        break;
+      case 'error':
+        console.error(prefix, entry.data || '');
+        break;
     }
   }
 
   /**
-   * Logs a debug message
-   * @param {string} message - The message to log
-   * @param {...any} args - Additional arguments to log
+   * Get all log entries
+   * @returns Array of log entries
    */
-  debug(message, ...args) {
-    this.log(Logger.LEVELS.DEBUG, 'DEBUG', message, ...args);
+  public getEntries(): LogEntry[] {
+    return [...this.entries];
   }
 
   /**
-   * Logs an info message
-   * @param {string} message - The message to log
-   * @param {...any} args - Additional arguments to log
+   * Get log entries filtered by level
+   * @param level Minimum log level to include
+   * @returns Filtered log entries
    */
-  info(message, ...args) {
-    this.log(Logger.LEVELS.INFO, 'INFO', message, ...args);
+  public getEntriesByLevel(level: LogLevel): LogEntry[] {
+    const levelPriority = LOG_LEVEL_PRIORITY[level];
+    return this.entries.filter(entry => LOG_LEVEL_PRIORITY[entry.level] >= levelPriority);
   }
 
   /**
-   * Logs a warning message
-   * @param {string} message - The message to log
-   * @param {...any} args - Additional arguments to log
+   * Clear all log entries
    */
-  warn(message, ...args) {
-    this.log(Logger.LEVELS.WARN, 'WARN', message, ...args);
+  public clearEntries(): void {
+    this.entries = [];
   }
 
   /**
-   * Logs an error message
-   * @param {string} message - The message to log
-   * @param {...any} args - Additional arguments to log
+   * Update logger configuration
+   * @param config New configuration (partial)
    */
-  error(message, ...args) {
-    this.log(Logger.LEVELS.ERROR, 'ERROR', message, ...args);
+  public updateConfig(config: Partial<LoggerConfig>): void {
+    this.config = { ...this.config, ...config };
   }
 
   /**
-   * Returns all logs stored in memory
-   * @returns {Array} The logs stored in memory
+   * Add a log entry listener
+   * @param listener Function to call when a new log entry is added
    */
-  getLogs() {
-    return this.options.storeInMemory ? [...this.logs] : [];
+  public addListener(listener: (entry: LogEntry) => void): void {
+    this.listeners.add(listener);
   }
 
   /**
-   * Clears all logs stored in memory
+   * Remove a log entry listener
+   * @param listener Listener to remove
    */
-  clearLogs() {
-    if (this.options.storeInMemory) {
-      this.logs = [];
-    }
+  public removeListener(listener: (entry: LogEntry) => void): void {
+    this.listeners.delete(listener);
+  }
+
+  /**
+   * Notify all listeners of a new log entry
+   * @param entry Log entry to notify about
+   */
+  private notifyListeners(entry: LogEntry): void {
+    this.listeners.forEach(listener => {
+      try {
+        listener(entry);
+      } catch (error) {
+        console.error('Error in log listener:', error);
+      }
+    });
   }
 }
+
+// Export singleton logger instance
+export const logger = new Logger();

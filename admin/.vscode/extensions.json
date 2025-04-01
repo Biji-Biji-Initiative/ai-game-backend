@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    "bradlc.vscode-tailwindcss",
+    "stylelint.vscode-stylelint",
+    "csstools.postcss",
+    "mrmlnc.vscode-postcss-syntax"
+  ]
+} 

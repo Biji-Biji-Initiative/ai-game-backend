@@ -1,0 +1,23 @@
+type: object
+description: Notification preferences controlling how and when the user receives notifications
+properties:
+  emailNotifications:
+    type: boolean
+    default: true
+    description: Whether to send email notifications
+  pushNotifications:
+    type: boolean
+    default: true
+    description: Whether to send push notifications
+  challengeReminders:
+    type: boolean
+    default: true
+    description: Whether to send reminders about pending challenges
+  weeklyProgressReports:
+    type: boolean
+    default: true
+    description: Whether to send weekly progress reports
+  newFeaturesAnnouncements:
+    type: boolean
+    default: true
+    description: Whether to send announcements about new features 

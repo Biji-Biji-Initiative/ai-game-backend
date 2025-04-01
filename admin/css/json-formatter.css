@@ -1,0 +1,135 @@
+/**
+ * JSON Formatter Styles
+ */
+
+/* Container */
+.json-formatter {
+  font-family: monospace;
+  font-size: 14px;
+  line-height: 1.4;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+}
+
+/* Theme - Light */
+.json-formatter-light {
+  background-color: #f8f9fa;
+  color: #212529;
+}
+
+/* Theme - Dark */
+.json-formatter-dark {
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+}
+
+/* Header */
+.json-formatter-header {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Toggle */
+.json-formatter-toggle {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  line-height: 12px;
+  text-align: center;
+  margin-right: 3px;
+  cursor: pointer;
+  font-size: 10px;
+}
+
+/* Children container */
+.json-formatter-children {
+  margin-left: 1em;
+}
+
+/* Property */
+.json-formatter-property {
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Key */
+.json-formatter-key {
+  color: #7b61b3; /* Purple */
+  margin-right: 5px;
+}
+
+/* Key - Index */
+.json-formatter-index {
+  color: #5d93ca; /* Blue */
+}
+
+/* Colon */
+.json-formatter-colon {
+  color: #666;
+  margin-right: 5px;
+}
+
+/* Value types */
+.json-formatter-string {
+  color: #008000; /* Green */
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.json-formatter-number {
+  color: #0b75d1; /* Blue */
+}
+
+.json-formatter-boolean {
+  color: #c75725; /* Orange */
+}
+
+.json-formatter-null, .json-formatter-undefined {
+  color: #808080; /* Gray */
+}
+
+/* Preview */
+.json-formatter-preview {
+  opacity: 0.7;
+}
+
+/* Hidden */
+.json-formatter .hidden {
+  display: none;
+}
+
+/* Dark mode overrides */
+.json-formatter-dark .json-formatter-key {
+  color: #c792ea; /* Light purple */
+}
+
+.json-formatter-dark .json-formatter-index {
+  color: #89ddff; /* Light blue */
+}
+
+.json-formatter-dark .json-formatter-string {
+  color: #c3e88d; /* Light green */
+}
+
+.json-formatter-dark .json-formatter-number {
+  color: #f78c6c; /* Orange */
+}
+
+.json-formatter-dark .json-formatter-boolean {
+  color: #ff9800; /* Orange */
+}
+
+.json-formatter-dark .json-formatter-null,
+.json-formatter-dark .json-formatter-undefined {
+  color: #aaa; /* Light gray */
+}
+
+.json-formatter-dark .json-formatter-colon {
+  color: #ccc; /* Light gray */
+} 

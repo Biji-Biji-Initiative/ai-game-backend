@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 /**
  * Error Handler Module
  * Handles error processing and display for API errors

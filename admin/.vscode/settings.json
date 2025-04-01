@@ -1,0 +1,21 @@
+{
+  "css.validate": false,
+  "css.lint.unknownAtRules": "ignore",
+  "css.lint.unknownProperties": "warning",
+  "css.lint.validProperties": [
+    "composes"
+  ],
+  "less.validate": false,
+  "scss.validate": false,
+  "stylelint.validate": ["css", "postcss"],
+  "editor.codeActionsOnSave": {
+    "source.fixAll.stylelint": "explicit"
+  },
+  "editor.quickSuggestions": {
+    "strings": true
+  },
+  "stylelint.enable": true,
+  "files.associations": {
+    "*.css": "postcss"
+  }
+} 

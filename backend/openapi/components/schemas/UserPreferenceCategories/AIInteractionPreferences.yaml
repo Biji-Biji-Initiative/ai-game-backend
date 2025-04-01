@@ -1,0 +1,26 @@
+type: object
+description: AI interaction preferences controlling how AI features interact with the user
+properties:
+  detailLevel:
+    type: string
+    enum: [basic, detailed, comprehensive]
+    default: detailed
+    description: The level of detail in AI responses
+  communicationStyle:
+    type: string
+    enum: [formal, casual, technical]
+    default: casual
+    description: The communication style used in AI responses
+  responseFormat:
+    type: string
+    enum: [structured, conversational, mixed]
+    default: mixed
+    description: The format of AI responses
+  codeExamplesEnabled:
+    type: boolean
+    default: true
+    description: Whether to include code examples in AI responses
+  includeExplanations:
+    type: boolean
+    default: true
+    description: Whether to include explanations in AI responses 

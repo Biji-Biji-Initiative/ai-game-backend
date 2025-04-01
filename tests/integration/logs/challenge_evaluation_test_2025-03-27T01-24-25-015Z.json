@@ -1,8 +1,0 @@
-{
-  "timestamp": "2025-03-27T01:24:25.015Z",
-  "testId": "test_1743038665013",
-  "action": "ImportError",
-  "data": {
-    "message": "Cannot find module '../../src/core/challenge/services/challengeService'\nRequire stack:\n- /Users/gsplace/responses api 3/tests/integration/challenge-evaluation-flow.test.js"
-  }
-}

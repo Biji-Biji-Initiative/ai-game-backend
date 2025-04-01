@@ -1,0 +1,25 @@
+type: object
+description: UI preferences controlling the appearance and behavior of the user interface
+properties:
+  theme:
+    type: string
+    enum: [light, dark, system]
+    default: system
+    description: The theme preference for the user interface
+  fontSize:
+    type: string
+    enum: [small, medium, large]
+    default: medium
+    description: The font size preference for the user interface
+  compactView:
+    type: boolean
+    default: false
+    description: Whether to use a more compact view with less whitespace
+  highContrast:
+    type: boolean
+    default: false
+    description: Whether to use high contrast mode for accessibility
+  animationsEnabled:
+    type: boolean
+    default: true
+    description: Whether to show animations in the interface 

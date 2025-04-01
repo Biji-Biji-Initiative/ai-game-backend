@@ -1,0 +1,47 @@
+{
+  "env": {
+    "browser": true,
+    "es2021": true
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended"
+  ],
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "module"
+  },
+  "plugins": ["@typescript-eslint"],
+  "rules": {
+    "indent": ["error", 2],
+    "quotes": ["error", "single", { "avoidEscape": true }],
+    "semi": ["error", "always"],
+    "no-unused-vars": "off",
+    "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "no-console": "off",
+    "curly": ["error", "multi-line"],
+    "no-mixed-spaces-and-tabs": "error",
+    "camelcase": "warn",
+    "arrow-body-style": "off",
+    "space-before-function-paren": ["error", {
+      "anonymous": "always",
+      "named": "never",
+      "asyncArrow": "always"
+    }],
+    "comma-dangle": ["error", "always-multiline"],
+    "max-len": ["warn", { "code": 120 }],
+    "require-await": "warn",
+    "@typescript-eslint/no-explicit-any": "warn",
+    "no-useless-escape": "warn",
+    "no-undef": "off",
+    "@typescript-eslint/ban-ts-comment": "off",
+    "@typescript-eslint/no-non-null-assertion": "off",
+    "@typescript-eslint/explicit-module-boundary-types": "off",
+    "@typescript-eslint/no-empty-function": "warn"
+  },
+  "globals": {
+    "JSONEditor": "readonly"
+  },
+  "ignorePatterns": ["dist/*", "js/vendor/*", "js/lib/*"]
+} 

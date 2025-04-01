@@ -1,8 +1,0 @@
-{
-  "timestamp": "2025-03-27T01:14:16.660Z",
-  "testId": "test_1743038052544",
-  "action": "OpenAISuccess",
-  "data": {
-    "message": "Successfully generated prompt template using OpenAI API"
-  }
-}

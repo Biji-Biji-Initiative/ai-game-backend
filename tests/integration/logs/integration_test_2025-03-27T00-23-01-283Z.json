@@ -1,8 +1,0 @@
-{
-  "timestamp": "2025-03-27T00:23:01.283Z",
-  "testId": "test_1743034976227",
-  "action": "TableCheckError",
-  "data": {
-    "error": "relation \"public.pg_catalog.pg_tables\" does not exist"
-  }
-}

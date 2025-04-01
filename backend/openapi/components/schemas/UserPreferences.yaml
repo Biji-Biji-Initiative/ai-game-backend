@@ -1,0 +1,11 @@
+type: object
+description: User preferences grouped by category
+properties:
+  ui:
+    $ref: './UserPreferenceCategories/UIPreferences.yaml'
+  notifications:
+    $ref: './UserPreferenceCategories/NotificationPreferences.yaml'
+  aiInteraction:
+    $ref: './UserPreferenceCategories/AIInteractionPreferences.yaml'
+  learning:
+    $ref: './UserPreferenceCategories/LearningPreferences.yaml' 
