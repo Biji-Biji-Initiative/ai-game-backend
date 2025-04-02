@@ -30,213 +30,196 @@ import { OpenAIStateManager } from "#app/core/infra/openai/index.js";
 import { ErrorHandler } from "#app/core/infra/errors/errorHandler.js";
 import HealthCheckService from "#app/core/infra/health/HealthCheckService.js";
 import openAIConfig from "#app/core/infra/openai/config.js";
+import config from '#app/config/config.js';
 
 /**
  * Infrastructure Components Registration
  *
- * This module registers all infrastructure components in the DI container.
- * Uses method chaining and improved singleton management based on component type.
+ * This module registers core infrastructure components like the database client,
+ * event bus, logger, cache services, etc.
  */
+
 /**
  * Register infrastructure components in the container
  * @param {DIContainer} container - The DI container
+ * @param {Logger} logger - The logger instance passed down from container registration
  */
-function registerInfrastructureComponents(container) {
-    const _config = container.get('config');
+function registerInfrastructureComponents(container, logger) {
+    // Use passed-in logger or fallback
+    const infraLogger = logger || container.get('logger').child({ context: 'DI-Infra' });
+    infraLogger.info('Starting infrastructure registration...');
+
+    // --- Phase 1: Register & Resolve Core Primitives --- 
+    infraLogger.info('Registering & Resolving Core Primitives...');
+
+    // 1a. Config (already registered in index.js, just get it)
+    const appConfig = container.get('config');
+    if (!appConfig) {
+        infraLogger.error('CRITICAL: Could not resolve \'config\' from container!');
+        throw new Error('Configuration object not found in DI container.');
+    }
+    infraLogger.info('Resolved config.');
+
+    // 1b. Base Logger (already registered in index.js, just get it)
+    const registeredLogger = container.get('logger'); 
+    if (!registeredLogger || typeof registeredLogger.child !== 'function') {
+        infraLogger.error('CRITICAL: Base logger invalid or missing child method!');
+        throw new Error('Base application logger resolution failed.');
+    }
+    registeredLogger.info('[DI Infra] Logger registered and validated.');
     
-    // 1. Register Logger FIRST
-    if (!logger) throw new Error("Default logger instance is missing");
-    container.registerInstance('logger', logger);
-    logger.info('[DI Infra] Logger registered.');
+    // 1c. Register DB Factory (but don't resolve yet)
+    container.register('dbFactory', (c) => {
+         const conf = c.get('config'); // Get config inside factory
+         const log = c.get('logger');   // Get logger inside factory
+         if (!conf.supabase || !conf.supabase.url || !conf.supabase.key) {
+             log.error('Supabase URL or Key missing in configuration!', { hasUrl: !!conf.supabase?.url, hasKey: !!conf.supabase?.key });
+             throw new Error('Supabase URL or Key missing in configuration for dbFactory.');
+         }
+         return initializeSupabaseClient(conf, log);
+    }, true); // Singleton factory
+    registeredLogger.info('[DI Infra] dbFactory registered.');
 
-    // 1b. Register ALL specific loggers immediately after main logger
-    const loggers = {
-        userLogger, personalityLogger, challengeLogger, evaluationLogger, 
-        focusAreaLogger, progressLogger, traitsAnalysisLogger, dbLogger, 
-        infraLogger, apiLogger, eventsLogger, adaptiveLogger, userJourneyLogger
-    };
-    for (const [name, instance] of Object.entries(loggers)) {
-        if (instance) {
-            container.registerInstance(name, instance);
-            logger.debug(`[DI Infra] Registered specific logger: ${name}`);
-        } else {
-             logger.warn(`[DI Infrastructure] Logger instance for ${name} is missing.`);
-    }
-    }
-    // Ensure critical fallbacks exist if imports failed
-    if (!container.has('infraLogger')) container.registerInstance('infraLogger', logger.child({ context: 'infra' }));
-    if (!container.has('eventsLogger')) container.registerInstance('eventsLogger', logger.child({ context: 'events' }));
-    logger.info('[DI Infra] Specific loggers registered.');
-
-    // 2. Initialize and Register Database (Supabase)
+    // 1d. NOW, explicitly resolve the database instance to ensure it's created
+    let dbInstance;
     try {
-        const dbInstance = initializeSupabaseClient(_config, logger);
-        if (!dbInstance) throw new Error('initializeSupabaseClient failed');
+        dbInstance = container.get('dbFactory');
+        if (!dbInstance) {
+             throw new Error('dbFactory returned null or undefined');
+        }
+        // Also register the resolved instance under 'db' and 'supabase' for direct access
         container.registerInstance('db', dbInstance);
-        logger.info('[DI Infra] Database (Supabase) client registered successfully as \'db\'.');
-        if (container.has('db')) {
-            logger.info('[DI Infra] Confirmed: \'db\' is in container.');
-        } else {
-            logger.error('[DI Infra] CRITICAL FAILURE: \'db\' NOT in container immediately after registration.');
-        }
+        container.registerInstance('supabase', dbInstance);
+        registeredLogger.info('[DI Infra] Database client INSTANCE resolved and registered as \'db\'.');
     } catch (error) {
-        logger.error('[DI Infra] CRITICAL: Database registration failed', { error: error.message });
-        if (process.env.NODE_ENV === 'production') throw error;
-        if (!container.has('db')) { 
-             logger.warn('[DI Infra] Registering fallback MOCK Database client as \'db\'.');
-             const mockDb = {
-                from: () => ({
-                    select: () => ({
-                        eq: () => Promise.resolve({ data: [], error: null }),
-                        in: () => Promise.resolve({ data: [], error: null }),
-                        order: () => Promise.resolve({ data: [], error: null })
-                    }),
-                    insert: () => Promise.resolve({ data: [], error: null }),
-                    update: () => Promise.resolve({ data: [], error: null }),
-                    delete: () => Promise.resolve({ data: [], error: null })
-                })
-             };
-             container.registerInstance('db', mockDb); 
-        }
+        registeredLogger.error('[DI Infra] CRITICAL: Failed to resolve db instance from dbFactory!', { error: error.message, stack: error.stack });
+        throw new Error(`Failed to resolve Supabase instance: ${error.message}`);
     }
+    
+    // --- Phase 2: Register Components Dependent on Core Primitives --- 
+    infraLogger.info('Registering dependent infrastructure components...');
 
-    // 4. Register DeadLetterQueueService (needs db, logger)
-    container.register('deadLetterQueueService', c => new DeadLetterQueueService({
-        db: c.get('db'),
-        logger: c.get('logger')
-    }), true); 
+    // 2a. Specific Loggers (Can now safely use registeredLogger.child)
+    container.registerInstance('infraLogger', registeredLogger.child('infra'));
+    container.registerInstance('eventsLogger', registeredLogger.child('events'));
+    container.registerInstance('userLogger', registeredLogger.child('user'));
+    container.registerInstance('personalityLogger', registeredLogger.child('personality'));
+    container.registerInstance('progressLogger', registeredLogger.child('progress'));
+    container.registerInstance('adaptiveLogger', registeredLogger.child('adaptive'));
+    container.registerInstance('challengeLogger', registeredLogger.child('challenge'));
+    container.registerInstance('evaluationLogger', registeredLogger.child('evaluation'));
+    container.registerInstance('userJourneyLogger', registeredLogger.child('userJourney'));
+    container.registerInstance('focusAreaLogger', registeredLogger.child('focusArea'));
+    container.registerInstance('aiLogger', registeredLogger.child('ai'));
+    container.registerInstance('traitsAnalysisLogger', registeredLogger.child('traitsAnalysis'));
+    registeredLogger.info('[DI Infra] Specific loggers registered.');
 
-    // 5. Register RobustEventBus (needs logger, dlqService)
-    container.register('robustEventBus', c => new RobustEventBus({
-        logger: c.get('eventsLogger'),
-        dlqService: c.get('deadLetterQueueService'),
-        useDLQ: true,
-        recordHistory: _config?.events?.recordHistory ?? (process.env.NODE_ENV !== 'production')
-    }), true); 
-    logger.info('[DI Infra] RobustEventBus registered.');
-
-    // ---> Register standard event types AFTER robustEventBus is registered
-    try {
-        const robustEventBusInstance = container.get('robustEventBus');
-        if (robustEventBusInstance && EventTypes) {
-            Object.entries(EventTypes).forEach(([key, eventName]) => {
-                robustEventBusInstance.registerEventType(eventName, {
-                    description: `Standard event: ${eventName}`,
-                    category: eventName.split('.')[0]
-                });
-            });
-            logger.info('[DI Infra] Registered standard event types with RobustEventBus.');
-        } else {
-            logger.error('[DI Infra] Failed to register standard event types: RobustEventBus or EventTypes missing.');
-        }
-    } catch (error) {
-        logger.error('[DI Infra] Error registering standard event types', { error: error.message });
-    }
-    // ---> END ADDED
-
-    // 7. Register 'eventBus' alias to point directly to the RobustEventBus instance
-    // This ensures components getting 'eventBus' receive the actual bus with the .on method
-    container.register('eventBus', c => c.get('robustEventBus'), true);
-    logger.info('[DI Infra] \'eventBus\' alias registered directly to RobustEventBus instance.');
-
-    // Register 'eventTypes' alias (as before)
-    container.registerInstance('eventTypes', EventTypes);
-    logger.info('[DI Infra] \'eventTypes\' alias registered.');
-
-    // Register CacheInvalidationManager (depends on eventBus, cacheService)
-    container.register('cacheInvalidationManager', async c => {
-        // Use dynamic import instead of require for ES modules compatibility
-        const CacheInvalidationManagerModule = await import("#app/core/infra/cache/CacheInvalidationManager.js");
-        // Extract the actual class from the module's named exports
-        const { CacheInvalidationManager } = CacheInvalidationManagerModule;
+    // 2b. Event Bus 
+    const resolvedDbInstance = dbInstance; 
+    container.register('deadLetterQueueService', c => {
+        // Use the dbInstance from the outer scope
+        if (!resolvedDbInstance) throw new Error('DB instance (resolvedDbInstance) not found for DLQService');
+        return new DeadLetterQueueService({
+            db: resolvedDbInstance, 
+            logger: c.get('logger').child('dead-letter-queue')
+        });
+    }, true); // Singleton
+    
+    // Then register robustEventBus with async factory to await deadLetterQueueService
+    infraLogger.info('Registering robustEventBus...');
+    container.register('robustEventBus', async c => {
+        const busLogger = c.get('eventsLogger') || c.get('logger').child({ component: 'event-bus' });
         
+        // Await the DLQ service and handle errors gracefully
+        let dlqService = null;
+        try {
+            dlqService = await c.get('deadLetterQueueService');
+            busLogger.debug('[DI Infra] Successfully resolved deadLetterQueueService for robustEventBus');
+        } catch (error) {
+            busLogger.warn('[DI Infra] Failed to resolve deadLetterQueueService for robustEventBus', { 
+                error: error.message 
+            });
+        }
+        
+        const bus = new RobustEventBus({ 
+            logger: busLogger, 
+            dlqService: dlqService // Will be null if resolution failed
+        });
+        
+        try {
+            Object.values(EventTypes).forEach(eventType => {
+                if (eventType && typeof eventType === 'string') {
+                    bus.registerEventType(eventType);
+                } else if (eventType && typeof eventType === 'object' && eventType.key) {
+                    bus.registerEventType(eventType.key, eventType.options);
+                }
+            });
+            busLogger.info('[DI Infra] Registered standard event types with RobustEventBus.');
+        } catch(err) {
+            busLogger.error('[DI Infra] Failed to register standard event types', { error: err.message });
+        }
+        
+        return bus;
+    }, true); // Singleton
+    
+    // Register eventBus as an alias to robustEventBus, using async factory to properly await
+    infraLogger.info('Registering eventBus alias...');
+    container.register('eventBus', async c => {
+        const eventBus = await c.get('robustEventBus');
+        infraLogger.debug('[DI Infra] Successfully resolved robustEventBus for eventBus alias');
+        return eventBus;
+    }, true); // Singleton
+    
+    // Register EventTypes as a value
+    container.registerInstance('eventTypes', EventTypes);
+
+    // 2c. Cache Service
+    container.register('cacheService', c => {
+        const cacheLogger = c.get('infraLogger').child({ service: 'CacheService' });
+        return new CacheService({
+            provider: appConfig.cache?.provider || 'memory', 
+            options: appConfig.cache?.options || {},
+            logger: cacheLogger,
+            defaultTTL: appConfig.cache?.defaultTTL || 300 
+        });
+    }, true); // Singleton
+    container.register('configCache', c => c.get('cacheService'), true); // Alias config cache
+    registeredLogger.info('[DI Infra] CacheService registered.');
+
+    // 2d. Cache Invalidation Manager (Async factory, depends on cacheService & eventBus)
+    container.register('cacheInvalidationManager', async c => {
+        const CacheInvalidationManagerModule = await import("#app/core/infra/cache/CacheInvalidationManager.js");
+        const { CacheInvalidationManager } = CacheInvalidationManagerModule;
+        const cacheServiceInstance = c.get('cacheService');
+        const eventBusInstance = c.get('eventBus');
+        if (!cacheServiceInstance || !eventBusInstance) {
+             throw new Error('cacheService or eventBus missing for CacheInvalidationManager');
+        }
         return new CacheInvalidationManager({
-            eventBus: c.get('eventBus'),
-            cacheService: c.get('cacheService'),
+            cacheService: cacheServiceInstance,
+            eventBus: eventBusInstance,
             logger: c.get('infraLogger')
         });
     }, true); // Singleton
-    logger.info('[DI Infra] cacheInvalidationManager registered.');
+    registeredLogger.info('[DI Infra] cacheInvalidationManager registered (async factory).');
 
-    // 8. Register other infrastructure
-    container.registerInstance('AppError', AppError);
+    // 2e. Memory Monitor (Instance) - Temporary fix: memoryMonitor is not defined
+    // container.registerInstance('memoryMonitor', memoryMonitor);
+    registeredLogger.info('[DI Infra] Memory Monitor registration skipped (undefined).');
     
-    container.register('cacheService', c => {
-        const memoryCache = { 
-            get: async (key) => null,
-            set: async (key, value, ttl) => true,
-            delete: async (key) => true,
-            flush: async () => true,
+    // Register validation middleware
+    infraLogger.info('Registering validation middleware...');
+    container.register('validation', async () => {
+        // Use dynamic import() instead of require() for ESM compatibility
+        const validationModule = await import('#app/core/infra/http/middleware/validation.js');
+        return {
+            validateBody: validationModule.validateBody,
+            validateQuery: validationModule.validateQuery,
+            validateParams: validationModule.validateParams
         };
-        return new CacheService(memoryCache, {
-            defaultTTL: c.get('config').cache?.defaultTTL || 300,
-            logger: c.get('infraLogger')
-        });
-    }, true);
-    logger.info('[DI Infra] cacheService registered.');
-      
-    container.register('configCache', c => {
-        const memoryCache = { 
-            get: async (key) => null,
-            set: async (key, value, ttl) => true,
-            delete: async (key) => true,
-            flush: async () => true,
-        };
-        return new CacheService(memoryCache, {
-            defaultTTL: c.get('config').cache?.configTTL || 3600,
-            logger: c.get('infraLogger')
-        });
-    }, true);
-    logger.info('[DI Infra] configCache registered.');
-    if (container.has('configCache')) {
-        logger.info('[DI Infra] Confirmed: \'configCache\' is in container.');
-    } else {
-        logger.error('[DI Infra] CRITICAL FAILURE: \'configCache\' NOT in container immediately after registration.');
-    }
-    
-    container
-        .register('openAIConfig', _c => openAIConfig, true)
-        .register('openAIClient', c => new OpenAIClient({
-            config: c.get('openAIConfig'),
-            logger: c.get('apiLogger'),
-            apiKey: c.get('config').openai?.apiKey || process.env.OPENAI_API_KEY,
-        }), true)
-        .register('openAIResponseHandler', c => new OpenAIResponseHandler({ logger: c.get('logger') }), true);
-        
-    container
-        .register('conversationStateRepository', c => new ConversationStateRepository(c.get('db'), c.get('dbLogger')), true)
-        .register('openAIStateManager', c => new OpenAIStateManager({
-            openAIClient: c.get('openAIClient'),
-            logger: c.get('logger'),
-            redisCache: c.has('redisCache') ? c.get('redisCache') : null
-        }), true);
-        
-    container.register('errorHandler', _c => new ErrorHandler(), true);
-    
-    container.register('healthCheckService', c => {
-        const svcLogger = c.get('infraLogger'); 
-        const aiClient = c.get('openAIClient'); 
-        if (!svcLogger || !aiClient) throw new Error('Missing logger or AI client for HealthCheckService');
-        
-        const dbHealthFn = async () => {
-            const { runDatabaseHealthCheck } = await import("#app/core/infra/db/databaseConnection.js");
-            return await runDatabaseHealthCheck(c); 
-        };
-        const aiHealthFn = async (client) => {
-            const { checkOpenAIStatus } = await import("#app/core/infra/openai/healthCheck.js");
-            return await checkOpenAIStatus(client);
-        };
-        
-        return new HealthCheckService({
-            runDatabaseHealthCheck: dbHealthFn,
-            openAIClient: aiClient,
-            checkOpenAIStatus: aiHealthFn,
-            logger: svcLogger
-        });
-    }, true);
+    }, true); // Singleton
 
-    logger.info('[DI Infra] Infrastructure component registration complete.');
-    return container;
+    infraLogger.info('Infrastructure component registration complete.');
 }
 
 export { registerInfrastructureComponents };

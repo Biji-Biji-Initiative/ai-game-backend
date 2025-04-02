@@ -12,6 +12,11 @@ import ChallengeTypeRepository from "#app/core/challenge/repositories/config/Cha
 import FormatTypeRepository from "#app/core/challenge/repositories/config/FormatTypeRepository.js";
 import { FocusAreaConfigRepository } from "#app/core/challenge/repositories/config/FocusAreaConfigRepository.js";
 import DifficultyLevelRepository from "#app/core/challenge/repositories/config/DifficultyLevelRepository.js";
+
+// Import Mappers needed *only* for DI registration factory functions below
+// Remove static import of UserMapper
+// Add other mapper imports here if they are instantiated directly in registration
+
 'use strict';
 /**
  * Repository Components Registration
@@ -21,53 +26,61 @@ import DifficultyLevelRepository from "#app/core/challenge/repositories/config/D
 /**
  * Register repository components in the container
  * @param {DIContainer} container - The DI container
+ * @param {Logger} logger - The logger instance passed down from container registration
  */
-function registerRepositoryComponents(container) {
-    const repoLogger = container.get('logger').child({ context: 'DI-Repos' }); // Use a specific logger
-    repoLogger.info('[DI Repos] Starting repository registration...');
+function registerRepositoryComponents(container, logger) {
+    // Use the passed-in logger (which should have the module name, e.g., 'app:repositories')
+    const repoLogger = logger || container.get('logger').child({ context: 'DI-Repos' }); // Fallback if logger wasn't passed
+    repoLogger.info('Starting repository registration...');
 
     // Resolve core dependencies ONCE upfront
     let dbInstance;
     let eventBusInstance;
     let configCacheInstance;
     try {
-        repoLogger.info('[DI Repos] Attempting to resolve core dependencies upfront...');
+        repoLogger.info('Attempting to resolve core dependencies upfront...');
         dbInstance = container.get('db');
-        repoLogger.info(`[DI Repos] Resolved 'db': ${!!dbInstance}`);
+        repoLogger.info(`Resolved 'db': ${!!dbInstance}`);
         eventBusInstance = container.get('eventBus');
-        repoLogger.info(`[DI Repos] Resolved 'eventBus': ${!!eventBusInstance}`);
+        repoLogger.info(`Resolved 'eventBus': ${!!eventBusInstance}`);
         configCacheInstance = container.get('configCache');
-        repoLogger.info(`[DI Repos] Resolved 'configCache': ${!!configCacheInstance}`);
+        repoLogger.info(`Resolved 'configCache': ${!!configCacheInstance}`);
         
         // Extra check to ensure they are not undefined/null
         if (!dbInstance || !eventBusInstance || !configCacheInstance) {
             throw new Error('One or more core dependencies resolved to null/undefined.');
         }
-        repoLogger.info('[DI Repos] Successfully resolved core dependencies upfront.');
+        repoLogger.info('Successfully resolved core dependencies upfront.');
     } catch (error) {
-        repoLogger.error('[DI Repos] FATAL: Failed to resolve core dependencies upfront!', { error: error.message, stack: error.stack });
+        repoLogger.error('FATAL: Failed to resolve core dependencies upfront!', { error: error.message, stack: error.stack });
         // Optionally, log container state for debugging
-        // repoLogger.debug('[DI Repos] Container state during failure:', container.inspect()); 
+        // repoLogger.debug('Container state during failure:', container.inspect()); 
         throw new Error(`DI failed to resolve core dependencies: ${error.message}`);
     }
 
-    // Register domain repositories using the custom DIContainer format: container.register(name, factoryFunction, isSingleton);
+    repoLogger.info('Registering Repositories...'); 
 
-    repoLogger.info('[DI Repos] Registering UserRepository...');
-    container.register('userRepository', c => new UserRepository({
-        db: dbInstance, // Use pre-resolved instance
-        logger: c.get('userLogger'), // Get specific logger from container
-        eventBus: eventBusInstance // Use pre-resolved instance
-    }), true); // true for singleton
+    // Register domain repositories
 
-    repoLogger.info('[DI Repos] Registering PersonalityRepository...');
+    repoLogger.info('Registering UserRepository...');
+    // Revert UserRepository registration to not expect userMapper
+    container.register('userRepository', c => { 
+        return new UserRepository({
+            db: dbInstance, 
+            logger: c.get('userLogger'), 
+            eventBus: eventBusInstance
+            // userMapper removed from constructor args
+        });
+    }, true); // true for singleton
+
+    repoLogger.info('Registering PersonalityRepository...');
     container.register('personalityRepository', c => new PersonalityRepository({
         db: dbInstance, 
         logger: c.get('personalityLogger'), 
         eventBus: eventBusInstance
     }), true);
 
-    repoLogger.info('[DI Repos] Registering ProgressRepository...');
+    repoLogger.info('Registering ProgressRepository...');
     container.register('progressRepository', c => new ProgressRepository({
         db: dbInstance, 
         logger: c.get('progressLogger'),
@@ -75,75 +88,75 @@ function registerRepositoryComponents(container) {
         container: c // Pass container itself if needed by the repo
     }), true);
 
-    repoLogger.info('[DI Repos] Registering AdaptiveRepository...');
+    repoLogger.info('Registering AdaptiveRepository...');
     container.register('adaptiveRepository', c => new AdaptiveRepository({
         db: dbInstance,
         logger: c.get('adaptiveLogger')
     }), true);
     
-    repoLogger.info('[DI Repos] Registering ChallengeRepository...');
+    repoLogger.info('Registering ChallengeRepository...');
     container.register('challengeRepository', c => new ChallengeRepository({
         db: dbInstance,
         logger: c.get('challengeLogger'),
         eventBus: eventBusInstance
     }), true);
     
-    repoLogger.info('[DI Repos] Registering FocusAreaRepository...');
+    repoLogger.info('Registering FocusAreaRepository...');
     container.register('focusAreaRepository', c => new FocusAreaRepository({
         db: dbInstance,
         logger: c.get('focusAreaLogger'),
         eventBus: eventBusInstance,
     }), true);
 
-    repoLogger.info('[DI Repos] Registering EvaluationCategoryRepository...');
+    repoLogger.info('Registering EvaluationCategoryRepository...');
     container.register('evaluationCategoryRepository', c => new EvaluationCategoryRepository({
         supabase: dbInstance, // Note: Using 'db' as expected by this repo
         logger: c.get('evaluationLogger')
     }), true);
 
-    repoLogger.info('[DI Repos] Registering EvaluationRepository...');
+    repoLogger.info('Registering EvaluationRepository...');
     container.register('evaluationRepository', c => new EvaluationRepository({
         db: dbInstance,
         logger: c.get('evaluationLogger'),
         eventBus: eventBusInstance
     }), true);
 
-    repoLogger.info('[DI Repos] Registering UserJourneyRepository...');
+    repoLogger.info('Registering UserJourneyRepository...');
     container.register('userJourneyRepository', c => new UserJourneyRepository({
         db: dbInstance, 
         logger: c.get('userJourneyLogger')
     }), true);
 
     // Register challenge configuration repositories
-    repoLogger.info('[DI Repos] Registering ChallengeTypeRepository...');
+    repoLogger.info('Registering ChallengeTypeRepository...');
     container.register('challengeTypeRepository', c => new ChallengeTypeRepository({
         db: dbInstance,
         logger: c.get('challengeLogger'),
         cache: configCacheInstance // Use pre-resolved instance
     }), true);
 
-    repoLogger.info('[DI Repos] Registering FormatTypeRepository...');
+    repoLogger.info('Registering FormatTypeRepository...');
     container.register('formatTypeRepository', c => new FormatTypeRepository({
         db: dbInstance,
         logger: c.get('challengeLogger'),
         cache: configCacheInstance
     }), true);
 
-    repoLogger.info('[DI Repos] Registering FocusAreaConfigRepository...');
+    repoLogger.info('Registering FocusAreaConfigRepository...');
     container.register('focusAreaConfigRepository', c => new FocusAreaConfigRepository({
         db: dbInstance,
         logger: c.get('challengeLogger'),
         cache: configCacheInstance
     }), true);
 
-    repoLogger.info('[DI Repos] Registering DifficultyLevelRepository...');
+    repoLogger.info('Registering DifficultyLevelRepository...');
     container.register('difficultyLevelRepository', c => new DifficultyLevelRepository({
         db: dbInstance,
         logger: c.get('challengeLogger'),
         cache: configCacheInstance
     }), true);
     
-    repoLogger.info('[DI Repos] Repository registration complete.');
+    repoLogger.info('Repository registration complete.');
 }
 
 export { registerRepositoryComponents };
