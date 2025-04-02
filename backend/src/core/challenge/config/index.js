@@ -10,18 +10,25 @@ import seedData from "#app/core/challenge/config/seedData.js";
 'use strict';
 /**
  * Initialize challenge configuration tables in the database
- * @param {Object} supabase - Supabase client
+ * @param {Object} container - The DI container instance
  * @param {Object} logger - Logger instance
  * @param {boolean} shouldSeed - Whether to seed the database with initial data
  * @returns {Promise<Object>} Configuration repositories
  */
-async function initializeChallengeConfig(supabase, logger, shouldSeed = false) {
+async function initializeChallengeConfig(container, logger, shouldSeed = false) {
     try {
-        // Create repositories
-        const challengeTypeRepo = new ChallengeTypeRepository(supabase, logger);
-        const formatTypeRepo = new FormatTypeRepository(supabase, logger);
-        const focusAreaRepo = new FocusAreaConfigRepository(supabase, logger);
-        const difficultyLevelRepo = new DifficultyLevelRepository(supabase, logger);
+        // Get repositories from the DI container
+        const challengeTypeRepo = await container.getAsync('challengeTypeRepository');
+        const formatTypeRepo = await container.getAsync('formatTypeRepository');
+        const focusAreaRepo = await container.getAsync('focusAreaConfigRepository');
+        const difficultyLevelRepo = await container.getAsync('difficultyLevelRepository');
+
+        // Validate that repositories were retrieved
+        if (!challengeTypeRepo || !formatTypeRepo || !focusAreaRepo || !difficultyLevelRepo) {
+             logger.error('Failed to retrieve one or more challenge config repositories from DI container');
+             throw new Error('DI container failed to provide necessary config repositories');
+        }
+
         // Seed the database if requested
         if (shouldSeed) {
             // Check if tables are empty first to avoid duplicate data
