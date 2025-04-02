@@ -1,9 +1,9 @@
 import express from 'express';
 import { logger } from "#app/core/infra/logging/logger.js";
 import { getCacheService, getCacheInvalidationManager } from "#app/core/infra/cache/cacheFactory.js";
-import domainEvents from "#app/core/common/events/domainEvents.js";
-// Temporarily remove auth middleware for debugging
-// import { authenticateUser, requireAdmin } from "../middleware/authMiddleware.js";
+import { EventTypes } from "#app/core/common/events/eventTypes.js";
+// Fix the import path to point to the correct file
+import { requireAdmin } from "../middleware/auth.js";
 import { infraLogger as domainLogger } from "#app/core/infra/logging/domainLogger.js"; // Import logger
 'use strict';
 
@@ -21,7 +21,7 @@ export default function systemRoutes(container) {
     const systemController = container.get('systemController');
 
     if (!systemController) {
-        console.error('[systemRoutes] SystemController not found in container. System routes will be unavailable.');
+        logger.error('SystemController not found in container. System routes will be unavailable.');
         // Return a fallback router
         router.all('*', (req, res) => {
             res.status(501).json({ 
@@ -33,8 +33,8 @@ export default function systemRoutes(container) {
     }
 
     // Require admin authentication for all system routes
-    // router.use(authenticateUser);
-    // router.use(requireAdmin);
+    // router.use(authenticateUser); // Removed as this is now applied at a higher level
+    router.use(requireAdmin);
     
     /**
      * GET /system/health
@@ -80,7 +80,15 @@ export default function systemRoutes(container) {
      */
     router.get('/metrics/events', (req, res) => {
         try {
-            const eventMetrics = domainEvents.getMetrics();
+            const eventBus = container.get('eventBus');
+            if (!eventBus || typeof eventBus.getMetrics !== 'function') {
+                return res.status(404).json({
+                    status: 'error',
+                    message: 'Event bus metrics not available'
+                });
+            }
+            
+            const eventMetrics = eventBus.getMetrics();
             
             res.status(200).json({
                 status: 'success',
@@ -175,7 +183,15 @@ export default function systemRoutes(container) {
      */
     router.post('/event-bus/reset-metrics', (req, res) => {
         try {
-            domainEvents.reset();
+            const eventBus = container.get('eventBus');
+            if (!eventBus || typeof eventBus.resetMetrics !== 'function') {
+                return res.status(404).json({
+                    status: 'error',
+                    message: 'Event bus reset metrics not available'
+                });
+            }
+            
+            eventBus.resetMetrics();
             
             res.status(200).json({
                 status: 'success',
@@ -225,13 +241,12 @@ export default function systemRoutes(container) {
      * Requires admin permissions
      */
     if (typeof systemController.getLogs !== 'function') {
-        console.error('[systemRoutes] systemController.getLogs method is missing.');
+        logger.error('systemController.getLogs method is missing.');
     } else {
-        // GET /system/logs - Temporarily remove auth middleware
         router.get('/logs', systemController.getLogs.bind(systemController));
-        console.log('[systemRoutes] Mounted GET /logs (auth temporarily disabled)');
+        logger.info('Mounted GET /system/logs endpoint');
     }
     
-    console.log('[systemRoutes] System routes created.');
+    logger.info('System routes created.');
     return router;
 } 

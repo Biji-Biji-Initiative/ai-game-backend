@@ -1,3 +1,4 @@
+// Types improved by ts-improve-types
 /**
  * Custom interfaces to bridge gaps between implementation and types
  */
@@ -14,7 +15,7 @@ export interface FormSchema {
     required?: boolean;
     label?: string;
     placeholder?: string;
-    defaultValue?: any;
+    defaultValue?: unknown;
     options?: Array<{
       value: string;
       label: string;
@@ -41,10 +42,10 @@ export interface FormSchema {
 
 export interface EntityViewOptions {
   container: string | HTMLElement;
-  entities: any[];
-  onSelect?: (entity: any) => void;
-  onDelete?: (entity: any) => void;
-  onEdit?: (entity: any) => void;
+  entities: Record<string, unknown>[];
+  onSelect?: (entity: Record<string, unknown>) => void;
+  onDelete?: (entity: Record<string, unknown>) => void;
+  onEdit?: (entity) => void;
   displayProperties?: string[];
   primaryKey?: string;
   groupBy?: string;
@@ -56,4 +57,4 @@ export interface EntityViewOptions {
 // This is a convenient way to make all properties in a type optional
 export type PartialDeep<T> = {
   [P in keyof T]?: T[P] extends object ? PartialDeep<T[P]> : T[P];
-}; 
+};

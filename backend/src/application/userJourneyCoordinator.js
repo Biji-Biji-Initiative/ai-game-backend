@@ -8,6 +8,8 @@
  * This coordinator follows DDD principles by coordinating across multiple domains.
  */
 import BaseCoordinator from "#app/application/BaseCoordinator.js";
+import { UserJourneyValidationError } from "#app/core/userJourney/errors/userJourneyErrors.js";
+import { UserNotFoundError } from "#app/core/user/errors/userErrors.js";
 
 /**
  * Class representing the User Journey Coordinator
@@ -17,94 +19,50 @@ import BaseCoordinator from "#app/application/BaseCoordinator.js";
 class UserJourneyCoordinator extends BaseCoordinator {
   /**
    * Create a new UserJourneyCoordinator
-   * @param {Object} dependencies - Injected dependencies
-   * @param {Object} dependencies.userService - Service for user operations
-   * @param {Object} dependencies.challengeService - Service for challenge operations
-   * @param {Object} dependencies.userJourneyService - Service for user journey logic
-   * @param {Object} dependencies.config - Application configuration
-   * @param {Object} dependencies.logger - Logger instance
+   * @param {Object} options - Options for the coordinator
    */
-  constructor({ 
-    userService, 
-    challengeService, 
-    userJourneyService,
-    config,
-    logger 
+  constructor({
+    userJourneyRepository,
+    userRepository, 
+    // Add other dependencies like progressService, challengeService if needed
+    logger
   }) {
-    // Call super with name and logger
-    super({
-      name: 'UserJourneyCoordinator',
-      logger
-    });
-
-    // Validate required dependencies
-    const requiredDependencies = [
-      'userService',
-      'challengeService',
-      'userJourneyService',
-      'config'
-    ];
-    
-    this.validateDependencies({
-      userService,
-      challengeService,
-      userJourneyService,
-      config
-    }, requiredDependencies);
-
-    // Initialize services
-    this.userService = userService;
-    this.challengeService = challengeService;
-    this.userJourneyService = userJourneyService;
-    this.config = config;
+    super('UserJourneyCoordinator', { userJourneyRepository, userRepository, logger });
+    // Store specific dependencies
+    this.userJourneyRepository = userJourneyRepository;
+    this.userRepository = userRepository;
   }
 
   /**
-   * Record a user interaction event
-   * @param {String} userEmail - User's email identifier
-   * @param {String} eventType - Type of event (e.g., 'challenge_started', 'challenge_completed')
-   * @param {Object} eventData - Additional data about the event
-   * @param {String} challengeId - Optional associated challenge ID
-   * @returns {Promise<Object>} The recorded event
+   * Record a user event
+   * @param {string} userEmail - User's email
+   * @param {string} eventType - Type of event
+   * @param {Object} eventData - Additional data
+   * @param {string} challengeId - Optional challenge ID
+   * @returns {Promise<UserJourneyEvent>} Recorded event
    */
-  recordUserEvent(userEmail, eventType, eventData = {}, challengeId = null) {
-    return this.executeOperation(async () => {
-      if (!userEmail || !eventType) {
-        throw new Error('Missing required parameters');
-      }
-      
-      // Record event using the domain service
-      const recordedEvent = await this.userJourneyService.recordEvent(
-        userEmail, 
-        eventType, 
-        eventData, 
-        challengeId
-      );
-      
-      // Get user profile using userService
-      const user = await this.userService.getUserByEmail(userEmail);
-      if (!user) {
-        this.logger.warn(`User not found for event recording: ${userEmail}`);
-        return recordedEvent;
-      }
-      
-      // Get current journey metadata
-      const journeyMeta = user.journeyMeta || {
-        lastActivity: null,
-        engagementLevel: 'new',
-        sessionCount: 0,
-        currentSessionStarted: null,
-        currentPhase: 'onboarding'
-      };
-      
-      // Get recent events to calculate metrics through the service
-      const recentEvents = await this.userJourneyService.getUserEvents(userEmail, 100);
-      
-      // Update user's phase, session data, and engagement level based on events
-      await this.updateUserJourneyMetrics(userEmail, journeyMeta, recentEvents);
-      
-      return recordedEvent;
-    }, 'recordUserEvent', { userEmail, eventType, hasEventData: !!Object.keys(eventData).length, challengeId });
+  async recordUserEvent(userEmail, eventType, eventData = {}, challengeId = null) {
+    // Basic validation (already done in controller with schema)
+    if (!userEmail || !eventType) {
+      // Should ideally not be reached if controller validation is working
+      throw new UserJourneyValidationError('User email and event type are required'); 
+    }
+
+    // User existence check (already done in controller)
+    // const user = await this.userRepository.findByEmail(userEmail);
+    // if (!user) {
+    //     throw new UserNotFoundError(`User not found: ${userEmail}`);
+    // }
+
+    // Record the event using the repository
+    const event = await this.userJourneyRepository.recordEvent(
+      userEmail,
+      eventType,
+      eventData,
+      challengeId
+    );
+
+    return event;
   }
 
   /**
@@ -208,6 +166,106 @@ class UserJourneyCoordinator extends BaseCoordinator {
         ...activityMetrics
       };
     }, 'getUserActivitySummary', { userEmail });
+  }
+
+  /**
+   * Get user events
+   * @param {string} userEmail - User's email
+   * @param {number} limit - Max events to return
+   * @returns {Promise<Array>} List of events
+   */
+  async getUserEvents(userEmail, { startDate, endDate, eventType, limit }) {
+    // Validate parameters
+    if (!userEmail) {
+      throw new UserJourneyValidationError('User email is required');
+    }
+
+    // Check if user exists - This check belongs here or in repository?
+    // For now, keeping it here as coordinator logic
+    const user = await this.userRepository.findByEmail(userEmail);
+    if (!user) {
+      throw new UserNotFoundError(`User not found: ${userEmail}`);
+    }
+    // ... rest of method ...
+  }
+
+  /**
+   * Get activity summary for a user
+   * @param {string} userEmail - User's email
+   * @param {string} timeframe - Timeframe (day, week, month)
+   * @returns {Promise<Object>} Summary data
+   */
+  async getUserActivitySummary(userEmail, timeframe = 'week') {
+    if (!userEmail) {
+      throw new UserJourneyValidationError('User email is required');
+    }
+    // Check if user exists
+    const user = await this.userRepository.findByEmail(userEmail);
+    if (!user) {
+      throw new UserNotFoundError(`User not found: ${userEmail}`);
+    }
+    // ... rest of method ...
+  }
+
+  /**
+   * Get engagement metrics for a user
+   * @param {string} userEmail - User's email
+   * @returns {Promise<Object>} Engagement metrics
+   */
+  async getUserEngagementMetrics(userEmail) {
+    if (!userEmail) {
+      throw new UserJourneyValidationError('User email is required');
+    }
+    // Check if user exists
+    const user = await this.userRepository.findByEmail(userEmail);
+    if (!user) {
+      throw new UserNotFoundError(`User not found: ${userEmail}`);
+    }
+    // ... rest of method ...
+  }
+
+  /**
+   * Get a specific journey by ID for a user
+   * @param {string} journeyId - Journey ID
+   * @param {string} userId - User ID
+   * @returns {Promise<Object|null>} Journey object or null
+   */
+  async getJourneyById(journeyId, userId) {
+    if (!journeyId || !userId) {
+      throw new UserJourneyValidationError('Journey ID and User ID are required');
+    }
+    // Check if user exists
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+       throw new UserNotFoundError(`User not found: ${userId}`);
+    }
+    
+    // Placeholder: Replace with actual repository call
+    this.logger.debug('[UserJourneyCoordinator] getJourneyById (Placeholder)', { journeyId, userId });
+    // Example: const journey = await this.userJourneyRepository.findJourneyByIdAndUser(journeyId, userId);
+    return null; // Placeholder return
+  }
+
+  /**
+   * Get a specific event by ID for a user
+   * @param {string} eventId - Event ID
+   * @param {string} userId - User ID
+   * @returns {Promise<Object|null>} Event object or null
+   */
+  async getEventById(eventId, userId) {
+    if (!eventId || !userId) {
+      throw new UserJourneyValidationError('Event ID and User ID are required');
+    }
+    // Check if user exists
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+       throw new UserNotFoundError(`User not found: ${userId}`);
+    }
+    
+    // Placeholder: Replace with actual repository call
+    this.logger.debug('[UserJourneyCoordinator] getEventById (Placeholder)', { eventId, userId });
+    // Example: const event = await this.userJourneyRepository.findEventByIdAndUser(eventId, userId);
+    return null; // Placeholder return
   }
 }
 

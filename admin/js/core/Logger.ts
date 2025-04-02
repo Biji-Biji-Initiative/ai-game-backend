@@ -1,14 +1,22 @@
+// Types improved by ts-improve-types
 import { ConfigManager } from './ConfigManager';
+// Remove conflicting imports from utils/types
+// import { ComponentLogger, Logger } from '../utils/logger';
+// import { LogLevel } from '../types/logger';
+import { Component } from '../types/component-base';
+import { EventEmitter } from 'events'; // Keep Node.js events for now if needed
+// import { LogOptions } from '../types/logger';
+// import { ComponentLoggerOptions } from '../types/component-logger';
 
 /**
- * Log levels with corresponding numeric values
+ * Log levels enum
  */
 export enum LogLevel {
-  NONE = 0,
-  ERROR = 1,
+  DEBUG = 0,
+  INFO = 1,
   WARN = 2,
-  INFO = 3,
-  DEBUG = 4
+  ERROR = 3,
+  NONE = 4,
 }
 
 /**
@@ -19,26 +27,29 @@ export interface LoggerOptions {
    * Minimum log level to display (default: LogLevel.ERROR)
    */
   level?: LogLevel;
-  
+
   /**
    * Enable timestamp in logs (default: true)
    */
   showTimestamp?: boolean;
-  
+
   /**
    * Enable component name in logs (default: true)
    */
   showComponent?: boolean;
-  
+
   /**
    * Enable log level in output (default: true)
    */
   showLevel?: boolean;
-  
+
   /**
    * Custom prefix for all logs (default: none)
    */
   prefix?: string;
+
+  // Add LogOptions properties if they were distinct and needed
+  context?: string;
 }
 
 /**
@@ -53,14 +64,168 @@ const DEFAULT_OPTIONS: LoggerOptions = {
 };
 
 /**
- * Logger class for consistent application logging
+ * Component logger options
+ */
+export interface ComponentLoggerOptions {
+  /**
+   * Minimum log level
+   */
+  level?: LogLevel;
+
+  /**
+   * Whether to include timestamps
+   */
+  includeTimestamps?: boolean;
+
+  /**
+   * Additional context
+   */
+  context?: Record<string, unknown>;
+}
+
+/**
+ * Component logger class for logging from specific components
+ */
+export class ComponentLogger {
+  private componentName: string;
+  private level: LogLevel;
+  private includeTimestamps: boolean;
+  private context: Record<string, unknown>;
+
+  /**
+   * Constructor
+   * @param componentName Component name
+   * @param options Options
+   */
+  constructor(componentName: string, options: ComponentLoggerOptions = {}) {
+    this.componentName = componentName;
+    this.level = options.level ?? LogLevel.INFO;
+    this.includeTimestamps = options.includeTimestamps ?? true;
+    this.context = options.context ?? {};
+  }
+
+  /**
+   * Set the log level
+   * @param level Log level
+   */
+  setLevel(level: LogLevel): void {
+    this.level = level;
+  }
+
+  /**
+   * Set context
+   * @param context Context
+   */
+  setContext(context: Record<string, unknown> | string): void {
+    if (typeof context === 'string') {
+      this.componentName = context;
+    } else {
+      this.context = { ...this.context, ...context };
+    }
+  }
+
+  /**
+   * Debug log
+   * @param message Message
+   * @param data Optional data
+   */
+  debug(message: string, data?: unknown): void {
+    if (this.level <= LogLevel.DEBUG) {
+      this.log('debug', message, data);
+    }
+  }
+
+  /**
+   * Info log
+   * @param message Message
+   * @param data Optional data
+   */
+  info(message: string, data?: unknown): void {
+    if (this.level <= LogLevel.INFO) {
+      this.log('info', message, data);
+    }
+  }
+
+  /**
+   * Warning log
+   * @param message Message
+   * @param data Optional data
+   */
+  warn(message: string, data?: unknown): void {
+    if (this.level <= LogLevel.WARN) {
+      this.log('warn', message, data);
+    }
+  }
+
+  /**
+   * Error log
+   * @param message Message
+   * @param data Optional data
+   */
+  error(message: string, data?: unknown): void {
+    if (this.level <= LogLevel.ERROR) {
+      this.log('error', message, data);
+    }
+  }
+
+  /**
+   * Log with level
+   * @param level Log level
+   * @param message Message
+   * @param data Optional data
+   */
+  private log(level: string, message: string, data?: unknown): void {
+    const timestamp = this.includeTimestamps ? new Date().toISOString() : '';
+    const prefix = `[${this.componentName}]${timestamp ? ` ${timestamp}` : ''}`;
+    
+    if (data !== undefined) {
+      switch (level) {
+        case 'debug':
+          console.debug(`${prefix} ${message}`, data);
+          break;
+        case 'info':
+          console.info(`${prefix} ${message}`, data);
+          break;
+        case 'warn':
+          console.warn(`${prefix} ${message}`, data);
+          break;
+        case 'error':
+          console.error(`${prefix} ${message}`, data);
+          break;
+        default:
+          console.log(`${prefix} ${message}`, data);
+      }
+    } else {
+      switch (level) {
+        case 'debug':
+          console.debug(`${prefix} ${message}`);
+          break;
+        case 'info':
+          console.info(`${prefix} ${message}`);
+          break;
+        case 'warn':
+          console.warn(`${prefix} ${message}`);
+          break;
+        case 'error':
+          console.error(`${prefix} ${message}`);
+          break;
+        default:
+          console.log(`${prefix} ${message}`);
+      }
+    }
+  }
+}
+
+/**
+ * Logger class
  */
 export class Logger {
   private static instance: Logger;
-  private options: LoggerOptions;
-  
+  private logLevel: LogLevel = LogLevel.INFO;
+  private componentLoggers: Map<string, ComponentLogger> = new Map();
+
   /**
-   * Get the singleton instance of Logger
+   * Get singleton instance
    */
   public static getInstance(): Logger {
     if (!Logger.instance) {
@@ -68,205 +233,93 @@ export class Logger {
     }
     return Logger.instance;
   }
-  
+
   /**
-   * Get a component-specific logger
+   * Get component logger
    * @param component Component name
    */
   public static getLogger(component: string): ComponentLogger {
-    return new ComponentLogger(component, Logger.getInstance());
+    return Logger.getInstance().getComponentLogger(component);
   }
-  
+
   /**
-   * Private constructor to prevent direct creation
+   * Private constructor
    */
   private constructor() {
-    // Get default log level from config if available
-    const config = ConfigManager.getInstance();
-    const configLevel = config.get('logLevel');
-    let level = DEFAULT_OPTIONS.level;
-    
-    if (configLevel) {
-      switch (configLevel) {
-        case 'error': level = LogLevel.ERROR; break;
-        case 'warn': level = LogLevel.WARN; break;
-        case 'info': level = LogLevel.INFO; break;
-        case 'debug': level = LogLevel.DEBUG; break;
-        case 'none': level = LogLevel.NONE; break;
-      }
-    }
-    
-    this.options = {
-      ...DEFAULT_OPTIONS,
-      level,
-    };
+    // Initialize logger
   }
-  
+
   /**
-   * Configure the logger
-   * @param options Logger options
-   */
-  public configure(options: LoggerOptions): void {
-    this.options = { ...this.options, ...options };
-  }
-  
-  /**
-   * Get current logger options
-   */
-  public getOptions(): LoggerOptions {
-    return { ...this.options };
-  }
-  
-  /**
-   * Set the current log level
-   * @param level New log level
+   * Set the global log level
+   * @param level Log level
    */
   public setLevel(level: LogLevel): void {
-    this.options.level = level;
+    this.logLevel = level;
+    
+    // Update all component loggers
+    this.componentLoggers.forEach(logger => {
+      logger.setLevel(level);
+    });
   }
-  
+
   /**
-   * Log an error message
+   * Get component logger
    * @param component Component name
-   * @param message Error message
-   * @param args Additional arguments
+   * @returns Component logger
    */
-  public error(component: string, message: string, ...args: any[]): void {
-    this.log(LogLevel.ERROR, component, message, args);
-  }
-  
-  /**
-   * Log a warning message
-   * @param component Component name
-   * @param message Warning message
-   * @param args Additional arguments
-   */
-  public warn(component: string, message: string, ...args: any[]): void {
-    this.log(LogLevel.WARN, component, message, args);
-  }
-  
-  /**
-   * Log an info message
-   * @param component Component name
-   * @param message Info message
-   * @param args Additional arguments
-   */
-  public info(component: string, message: string, ...args: any[]): void {
-    this.log(LogLevel.INFO, component, message, args);
-  }
-  
-  /**
-   * Log a debug message
-   * @param component Component name
-   * @param message Debug message
-   * @param args Additional arguments
-   */
-  public debug(component: string, message: string, ...args: any[]): void {
-    this.log(LogLevel.DEBUG, component, message, args);
-  }
-  
-  /**
-   * Internal log method
-   * @param level Log level
-   * @param component Component name
-   * @param message Log message
-   * @param args Additional arguments
-   */
-  private log(level: LogLevel, component: string, message: string, args: any[]): void {
-    // Check if we should log this level
-    if (!this.options.level || level > this.options.level) {
-      return;
+  public getComponentLogger(component: string): ComponentLogger {
+    // Create logger if it doesn't exist
+    if (!this.componentLoggers.has(component)) {
+      const logger = new ComponentLogger(component, {
+        level: this.logLevel,
+      });
+      this.componentLoggers.set(component, logger);
     }
     
-    // Build log prefix
-    let prefix = this.options.prefix ? `${this.options.prefix} ` : '';
-    
-    // Add timestamp if enabled
-    if (this.options.showTimestamp) {
-      const now = new Date();
-      prefix += `[${now.toISOString()}] `;
+    return this.componentLoggers.get(component)!;
+  }
+
+  /**
+   * Debug log
+   * @param message Message
+   * @param data Optional data
+   */
+  public debug(message: string, data?: unknown): void {
+    if (this.logLevel <= LogLevel.DEBUG) {
+      console.debug(message, data);
     }
-    
-    // Add log level if enabled
-    if (this.options.showLevel) {
-      const levelName = LogLevel[level];
-      prefix += `${levelName} `;
+  }
+
+  /**
+   * Info log
+   * @param message Message
+   * @param data Optional data
+   */
+  public info(message: string, data?: unknown): void {
+    if (this.logLevel <= LogLevel.INFO) {
+      console.info(message, data);
     }
-    
-    // Add component name if enabled
-    if (this.options.showComponent && component) {
-      prefix += `[${component}] `;
+  }
+
+  /**
+   * Warning log
+   * @param message Message
+   * @param data Optional data
+   */
+  public warn(message: string, data?: unknown): void {
+    if (this.logLevel <= LogLevel.WARN) {
+      console.warn(message, data);
     }
-    
-    // Select console method based on level
-    let method: 'error' | 'warn' | 'info' | 'debug' | 'log';
-    switch (level) {
-      case LogLevel.ERROR: method = 'error'; break;
-      case LogLevel.WARN: method = 'warn'; break;
-      case LogLevel.INFO: method = 'info'; break;
-      case LogLevel.DEBUG: method = 'debug'; break;
-      default: method = 'log';
-    }
-    
-    // Log the message
-    if (args.length > 0) {
-      console[method](prefix + message, ...args);
-    } else {
-      console[method](prefix + message);
+  }
+
+  /**
+   * Error log
+   * @param message Message
+   * @param data Optional data
+   */
+  public error(message: string, data?: unknown): void {
+    if (this.logLevel <= LogLevel.ERROR) {
+      console.error(message, data);
     }
   }
 }
-
-/**
- * Component-specific logger that remembers the component name
- */
-export class ComponentLogger {
-  private component: string;
-  private logger: Logger;
-  
-  /**
-   * Create a new component logger
-   * @param component Component name
-   * @param logger Parent logger
-   */
-  constructor(component: string, logger: Logger) {
-    this.component = component;
-    this.logger = logger;
-  }
-  
-  /**
-   * Log an error message
-   * @param message Error message
-   * @param args Additional arguments
-   */
-  public error(message: string, ...args: any[]): void {
-    this.logger.error(this.component, message, ...args);
-  }
-  
-  /**
-   * Log a warning message
-   * @param message Warning message
-   * @param args Additional arguments
-   */
-  public warn(message: string, ...args: any[]): void {
-    this.logger.warn(this.component, message, ...args);
-  }
-  
-  /**
-   * Log an info message
-   * @param message Info message
-   * @param args Additional arguments
-   */
-  public info(message: string, ...args: any[]): void {
-    this.logger.info(this.component, message, ...args);
-  }
-  
-  /**
-   * Log a debug message
-   * @param message Debug message
-   * @param args Additional arguments
-   */
-  public debug(message: string, ...args: any[]): void {
-    this.logger.debug(this.component, message, ...args);
-  }
-} 

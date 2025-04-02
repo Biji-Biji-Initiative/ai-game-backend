@@ -1,6 +1,7 @@
 'use strict';
 
 import express from 'express';
+import { requireAdmin } from "#app/core/infra/http/middleware/auth.js"; 
 import { logger } from "#app/core/infra/logging/logger.js";
 import fs from 'fs';
 import path from 'path';
@@ -11,13 +12,55 @@ import readline from 'readline';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Import the specific route factories
+import createEntityStateRoute from '#app/api/v1/api-tester/entity-state.js';
+
 /**
  * Creates API tester routes for debugging
  * @returns {express.Router} Router with API tester routes
  */
-export default function createApiTesterRoutes() {
+export default function createApiTesterRoutes(container) {
   const router = express.Router();
 
+  if (!container) {
+    logger.error('Container is not provided');
+    return router;
+  }
+
+  // Middleware for all API Tester routes
+  router.use(requireAdmin);
+
+  try {
+    // --- Mount routes from api/v1/api-tester --- 
+    const userService = container.get('userService');
+    const challengeService = container.get('challengeService');
+    const evaluationService = container.get('evaluationService');
+    const focusAreaService = container.get('focusAreaService');
+    
+    const entityStateRouter = createEntityStateRoute({ 
+      userService, 
+      challengeService, 
+      evaluationService,
+      focusAreaService,
+    });
+    router.use(entityStateRouter); // Mounts routes like /entity-state
+
+    // --- Mount directly defined routes --- 
+    setupDirectTesterRoutes(router); // Mounts /health, /echo, /logs, /endpoints
+
+    logger.info('API Tester routes configured successfully.');
+
+  } catch (error) {
+    logger.error('Error configuring API tester routes', { error });
+    // Don't try to use res here as it's not defined in this scope
+    // We'll handle errors at a higher level
+  }
+
+  return router;
+}
+
+// Function to contain the directly defined routes
+function setupDirectTesterRoutes(router) {
   // Health check endpoint for testing
   router.get('/health', (req, res) => {
     logger.info('API tester health check called');
@@ -305,7 +348,7 @@ export default function createApiTesterRoutes() {
 
   // Get all registered routes (original implementation)
   router.get('/routes', (req, res) => {
-    logger.info('API tester routes endpoint called');
+    logger.warn('Deprecated /routes endpoint called, use /endpoints');
     
     try {
       // Get the Express app instance
@@ -378,6 +421,33 @@ export default function createApiTesterRoutes() {
           dependencies: process.versions
         },
         timestamp: new Date().toISOString()
+      }
+    });
+  });
+
+  // Create entity state tracking endpoints for API tester UI
+  router.get('/entity-state', (req, res) => {
+    logger.debug('API Tester requested entity state');
+    res.json({ status: 'success', data: {} });
+  });
+
+  router.post('/entity-state', (req, res) => {
+    logger.debug('API Tester updated entity state', req.body);
+    res.json({ status: 'success', message: 'Entity state updated' });
+  });
+
+  // Add a simple logs endpoint for admin UI
+  router.get('/logs', (req, res) => {
+    const limit = parseInt(req.query.limit) || 100;
+    logger.debug(`Admin UI requested logs (limit: ${limit})`);
+    
+    res.json({
+      success: true,
+      message: 'Logs retrieved successfully',
+      data: {
+        logs: [],
+        total: 0,
+        limit: limit
       }
     });
   });

@@ -7,9 +7,9 @@
  * by replacing 'any' with more specific types where possible.
  */
 
-const fs = require('fs');
-const path = require('path');
-const glob = require('glob');
+import fs from 'fs';
+import path from 'path';
+import * as glob from 'glob';
 
 // Common types that can replace 'any'
 const commonTypes = {
@@ -148,6 +148,25 @@ const interfaces = {
 }`,
 };
 
+// TypeScript Improvement Plan
+
+/**
+ * List of files to prioritize for TypeScript fixes
+ * 
+ * The following files have the most TypeScript errors and should be fixed first:
+ * 1. js/modules/tab-manager.ts (156 errors)
+ * 2. js/api/auth-manager.ts (71 errors)
+ * 3. js/utils/json-editor-manager.ts (33 errors)
+ * 4. js/ui/section-builder.ts (28 errors)
+ * 5. js/data/bundled-endpoints.ts (12 errors)
+ * 
+ * Common issues to fix:
+ * - Add explicit type annotations to parameters
+ * - Fix missing property declarations in classes
+ * - Correct type assertions and casts
+ * - Update interfaces to match actual usage
+ */
+
 // Function to improve types in a file
 function improveTypesInFile(filePath) {
   console.log(`Improving types in ${filePath}...`);
@@ -217,19 +236,19 @@ function improveTypesInFile(filePath) {
     // Replace parameter types
     content = content.replace(
       new RegExp(`(${pattern}):\\s*any\\b`, 'g'),
-      `$1: ${replacement}`
+      `$1: ${replacement}`,
     );
     
     // Replace in arrow functions
     content = content.replace(
       new RegExp(`(${pattern}):\\s*any\\s*=>`, 'g'),
-      `$1: ${replacement} =>`
+      `$1: ${replacement} =>`,
     );
     
     // Replace in property declarations
     content = content.replace(
       new RegExp(`(${pattern}):\\s*any;`, 'g'),
-      `$1: ${replacement};`
+      `$1: ${replacement};`,
     );
   }
   
@@ -239,7 +258,7 @@ function improveTypesInFile(filePath) {
   if (content.includes('LoggerOptions')) {
     content = content.replace(
       /options:\s*any(\s*=\s*{[^}]*})/g,
-      'options: LoggerOptions$1'
+      'options: LoggerOptions$1',
     );
   }
   
@@ -247,7 +266,7 @@ function improveTypesInFile(filePath) {
   if (content.includes('ThemeVariables')) {
     content = content.replace(
       /themeVars:\s*any/g,
-      'themeVars: ThemeVariables'
+      'themeVars: ThemeVariables',
     );
   }
   
@@ -255,7 +274,7 @@ function improveTypesInFile(filePath) {
   if (content.includes('ApiResponse')) {
     content = content.replace(
       /response:\s*any/g,
-      'response: ApiResponse'
+      'response: ApiResponse',
     );
   }
   
@@ -263,7 +282,7 @@ function improveTypesInFile(filePath) {
   if (content.includes('LogEntry')) {
     content = content.replace(
       /logEntry:\s*any/g,
-      'logEntry: LogEntry'
+      'logEntry: LogEntry',
     );
   }
   
@@ -271,14 +290,14 @@ function improveTypesInFile(filePath) {
   if (content.includes('EndpointConfig')) {
     content = content.replace(
       /endpoint:\s*any/g,
-      'endpoint: EndpointConfig'
+      'endpoint: EndpointConfig',
     );
   }
   
   // Remove some @ts-expect-error comments with better types
   content = content.replace(
     /\/\/\s*@ts-expect-error\s*TS\(2550\):[^(\n]*\(([^)]*)\)/g,
-    '$1'
+    '$1',
   );
   
   fs.writeFileSync(filePath, content, 'utf8');
@@ -287,22 +306,16 @@ function improveTypesInFile(filePath) {
 
 // Main function
 function main() {
-  console.log('TypeScript Type Improvement Script');
-  console.log('=================================');
+  const tsFiles = glob.sync('js/**/*.ts');
   
-  // Find all TypeScript files
-  const files = glob.sync('js/**/*.ts', { cwd: process.cwd() });
+  console.log(`Found ${tsFiles.length} TypeScript files to process`);
   
   // Process each file
-  let processedCount = 0;
-  for (const file of files) {
-    improveTypesInFile(file);
-    processedCount++;
+  for (const filePath of tsFiles) {
+    improveTypesInFile(filePath);
   }
   
-  console.log('\nSummary:');
-  console.log(`Processed ${processedCount} TypeScript files`);
-  console.log('Type improvement complete!');
+  console.log('TypeScript type improvement complete!');
 }
 
 // Execute the script

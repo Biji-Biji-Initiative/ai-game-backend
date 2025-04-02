@@ -1,7 +1,6 @@
 import DifficultyLevel from "#app/core/challenge/models/config/DifficultyLevel.js";
 import difficultyLevelMapper from "#app/core/challenge/mappers/DifficultyLevelMapper.js";
 import { challengeLogger } from "#app/core/infra/logging/domainLogger.js";
-import { supabaseClient } from "#app/core/infra/db/supabaseClient.js";
 import { ValidationError, DatabaseError, EntityNotFoundError } from "#app/core/infra/repositories/BaseRepository.js";
 import { withRepositoryErrorHandling, createErrorMapper } from "#app/core/infra/errors/errorStandardization.js";
 import challengeErrors from "#app/core/challenge/errors/ChallengeErrors.js";
@@ -29,14 +28,22 @@ const difficultyLevelErrorMapper = createErrorMapper({
 class DifficultyLevelRepository {
   /**
    * Create a new DifficultyLevelRepository
-   * @param {Object} supabase - Supabase client instance for database operations
-   * @param {Object} logger - Logger instance for recording repository operations
+   * @param {Object} options - Repository options
    */
-  constructor(supabase, logger) {
-    this.supabase = supabase || supabaseClient;
+  constructor(options = {}) {
+    this.supabase = options.db;
     this.tableName = 'difficulty_levels';
-    this.logger = logger || challengeLogger.child({ component: 'repository:difficultyLevel' });
+    this.logger = options.logger || challengeLogger.child({ component: 'repository:difficultyLevel' });
     this.domainName = 'challenge:difficultyLevel';
+    this.cache = options.cache;
+
+    // Log if dependencies are missing
+    if (!this.supabase) {
+      this.logger.warn('No database client provided to DifficultyLevelRepository');
+    }
+    if (!this.cache) {
+      this.logger.warn('No cache service provided to DifficultyLevelRepository');
+    }
     
     // Apply repository error handling with standardized pattern
     this.findAll = withRepositoryErrorHandling(

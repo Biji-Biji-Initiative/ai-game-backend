@@ -1,3 +1,4 @@
+// Types improved by ts-improve-types
 /**
  * Endpoint Parameter Schema
  */
@@ -7,12 +8,12 @@ export interface EndpointParameter {
   type?: string;
   description?: string;
   required?: boolean;
-  example?: any;
+  example?: unknown;
   format?: string;
   schema?: {
     type: string;
     format?: string;
-    example?: any;
+    example?: unknown;
   };
 }
 
@@ -29,13 +30,13 @@ export interface RequestBody {
         properties?: {
           [key: string]: {
             type: string;
-            example?: any;
-            items?: any;
+            example?: unknown;
+            items?: unknown;
           };
         };
         required?: string[];
       };
-      example?: any;
+      example?: unknown;
     };
   };
 }
@@ -51,7 +52,7 @@ export interface Endpoint {
   category: string;
   parameters?: EndpointParameter[];
   requestBody?: RequestBody;
-  responseExample?: any;
+  responseExample?: unknown;
 }
 
 /**
@@ -66,4 +67,4 @@ export interface EndpointsCollection {
  */
 export interface BundledEndpointsModule {
   bundledEndpoints: EndpointsCollection;
-} 
+}

@@ -8,28 +8,30 @@
 /**
  * User Journey Event domain entity
  */
+import { v4 as uuidv4 } from "uuid";
+import { EventTypes } from "#app/core/common/events/eventTypes.js";
+import { UserJourneyValidationError } from "#app/core/userJourney/errors/userJourneyErrors.js";
+
 class UserJourneyEvent {
     /**
-     * Create a new user journey event
-     * @param {Object} params - Event parameters
-     * @param {string} params.id - Unique identifier for the event
-     * @param {string} params.userEmail - User's email address
-     * @param {string} params.eventType - Type of event (e.g., 'challenge_started', 'challenge_completed')
-     * @param {Object} params.eventData - Additional data associated with the event
-     * @param {string|null} params.challengeId - Optional associated challenge ID
-     * @param {string} params.timestamp - ISO timestamp of when the event occurred
+     * Create a new UserJourneyEvent instance
+     * @param {Object} data - Event data
+     * @param {Object} options - Additional options
+     * @param {Object} options.EventTypes - Event type constants
      */
-    constructor({ id, userEmail, eventType, eventData = {}, challengeId = null, timestamp = new Date().toISOString(), }) {
-        this.id = id;
-        this.userEmail = userEmail;
-        this.eventType = eventType;
-        this.eventData = eventData;
-        this.challengeId = challengeId;
-        this.timestamp = timestamp;
-        this.validate();
-        // Initialize domain events collection
+    constructor(data = {}, options = {}) {
+        this.id = data.id || uuidv4();
+        this.userId = data.userId;
+        this.type = data.type;
+        this.data = data.data || {};
+        this.metadata = data.metadata || {};
+        this.createdAt = data.createdAt || new Date().toISOString();
         this._domainEvents = [];
+        
+        // Store EventTypes from options
+        this.EventTypes = options.EventTypes || EventTypes;
     }
+
     /**
      * Validate the event data
      * @throws {Error} If validation fails
@@ -39,23 +41,23 @@ class UserJourneyEvent {
      */
     validate() {
         if (!this.userEmail) {
-            throw new Error('User email is required');
+            throw new UserJourneyValidationError('User email is required');
         }
         if (!this.eventType) {
-            throw new Error('Event type is required');
+            throw new UserJourneyValidationError('Event type is required');
         }
         if (typeof this.eventData !== 'object') {
-            throw new Error('Event data must be an object');
+            throw new UserJourneyValidationError('Event data must be an object');
         }
         if (this.challengeId !== null && typeof this.challengeId !== 'string') {
-            throw new Error('Challenge ID must be a string or null');
+            throw new UserJourneyValidationError('Challenge ID must be a string or null');
         }
         // Validate timestamp format
         try {
             new Date(this.timestamp);
         }
         catch (error) {
-            throw new Error('Invalid timestamp format');
+            throw new UserJourneyValidationError('Invalid timestamp format');
         }
     }
     /**
@@ -91,24 +93,39 @@ class UserJourneyEvent {
     }
     /**
      * Add a domain event to the collection
-     * @param {string} type - Event type
-     * @param {Object} data - Event data
+     * @param {string} eventType - Event type from EventTypes
+     * @param {Object} eventData - Event data
      */
-    addDomainEvent(type, data) {
-        if (!type) {
-            throw new Error('Event type is required');
+    addDomainEvent(eventType, eventData = {}) {
+        if (!eventType) {
+            throw new UserJourneyValidationError('Event type is required when adding domain event');
         }
-        this._domainEvents.push({ type, data });
+
+        // Create standardized event structure
+        const event = {
+            type: eventType,
+            data: {
+                ...eventData,
+                entityId: this.id,
+                entityType: 'UserJourneyEvent'
+            },
+            metadata: {
+                timestamp: new Date().toISOString(),
+                correlationId: `user-journey-event-${this.id}-${Date.now()}`
+            }
+        };
+        
+        this._domainEvents.push(event);
     }
     /**
-     * Get collected domain events
-     * @returns {Array} Collection of domain events
+     * Get all domain events
+     * @returns {Array} Array of domain events
      */
     getDomainEvents() {
-        return this._domainEvents;
+        return this._domainEvents || [];
     }
     /**
-     * Clear collected domain events
+     * Clear all domain events
      */
     clearDomainEvents() {
         this._domainEvents = [];
@@ -122,20 +139,6 @@ class UserJourneyEvent {
             this.userEmail &&
             this.eventType &&
             this.timestamp);
-    }
-    /**
-     * Convert to an object representation
-     * @returns {Object} Object representation
-     */
-    toObject() {
-        return {
-            id: this.id,
-            userEmail: this.userEmail,
-            eventType: this.eventType,
-            eventData: this.eventData,
-            challengeId: this.challengeId,
-            timestamp: this.timestamp
-        };
     }
 }
 export default UserJourneyEvent;

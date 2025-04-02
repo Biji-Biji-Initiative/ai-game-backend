@@ -1,6 +1,6 @@
 import express from 'express';
 import AdaptiveController from "#app/core/adaptive/controllers/AdaptiveController.js";
-import { authenticateUser } from "#app/core/infra/http/middleware/auth.js";
+// import { authenticateUser } from "#app/core/infra/http/middleware/auth.js"; // Removed as auth is applied at a higher level
 'use strict';
 
 /**
@@ -16,16 +16,16 @@ const router = express.Router();
  */
 export default function adaptiveRoutes(adaptiveController) {
     // Get adaptive settings for a user
-    router.get('/settings', authenticateUser, (req, res) => adaptiveController.getAdaptiveSettings(req, res));
+    router.get('/settings', (req, res) => adaptiveController.getAdaptiveSettings(req, res));
     
     // Update adaptive settings
-    router.put('/settings', authenticateUser, (req, res) => adaptiveController.updateAdaptiveSettings(req, res));
+    router.put('/settings', (req, res) => adaptiveController.updateAdaptiveSettings(req, res));
     
     // Get challenge recommendations
-    router.get('/recommendations', authenticateUser, (req, res) => adaptiveController.getRecommendations(req, res));
+    router.get('/recommendations', (req, res) => adaptiveController.getRecommendations(req, res));
     
     // Record difficulty feedback
-    router.post('/feedback', authenticateUser, (req, res) => adaptiveController.recordDifficultyFeedback(req, res));
+    router.post('/feedback', (req, res) => adaptiveController.recordDifficultyFeedback(req, res));
     
     return router;
 }

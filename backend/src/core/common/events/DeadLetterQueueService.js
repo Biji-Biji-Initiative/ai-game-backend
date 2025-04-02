@@ -1,4 +1,3 @@
-import { supabaseClient } from "#app/core/infra/db/supabaseClient.js";
 import { logger } from "#app/core/infra/logging/logger.js";
 import { v4 as uuidv4 } from 'uuid';
 
@@ -12,13 +11,21 @@ class DeadLetterQueueService {
   /**
    * Create a new DeadLetterQueueService
    * @param {Object} options - Configuration options
-   * @param {Object} options.db - Database client
-   * @param {Object} options.logger - Logger instance
+   * @param {Object} options.db - Database client (required)
+   * @param {Object} options.logger - Logger instance (required)
    */
-  constructor(options = {}) {
-    this.db = options.db || supabaseClient;
-    this.logger = options.logger || logger.child({ component: 'dead-letter-queue' });
+  constructor({ db, logger: serviceLogger }) {
+    if (!db) {
+      throw new Error('DeadLetterQueueService requires a database client (db) dependency.');
+    }
+    if (!serviceLogger) {
+       throw new Error('DeadLetterQueueService requires a logger dependency.');
+    }
+    this.db = db;
+    // Use provided logger, potentially childed
+    this.logger = serviceLogger.child ? serviceLogger.child({ component: 'dead-letter-queue' }) : serviceLogger;
     this.tableName = 'event_dead_letter_queue';
+    this.logger.info('DeadLetterQueueService initialized.');
   }
 
   /**
@@ -337,7 +344,11 @@ class DeadLetterQueueService {
   }
 }
 
-// Create a singleton instance
-const deadLetterQueueService = new DeadLetterQueueService();
+// Create a function to instantiate the service with dependencies
+// This avoids creating a singleton directly in the module scope
+function createDeadLetterQueueService(dependencies) {
+  return new DeadLetterQueueService(dependencies);
+}
 
-export { deadLetterQueueService }; 
+// Export the creator function or the class itself, depending on registration style
+export { DeadLetterQueueService, createDeadLetterQueueService }; 

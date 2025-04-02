@@ -1,5 +1,7 @@
+'use strict';
+
 import { logger } from "#app/core/infra/logging/logger.js";
-import domainEvents from "#app/core/common/events/domainEvents.js";
+import { EventTypes } from "#app/core/common/events/eventTypes.js";
 import { registerEvaluationEventHandlers } from "#app/core/evaluation/events/evaluationEvents.js";
 import { registerPersonalityEventHandlers } from "#app/core/personality/events/personalityEvents.js";
 import { registerProgressEventHandlers } from "#app/core/progress/events/progressEvents.js";
@@ -9,49 +11,42 @@ import { registerFocusAreaEventHandlers } from "#app/core/focusArea/events/focus
 import { registerChallengeEventHandlers } from "#app/core/challenge/events/challengeEvents.js";
 import { registerUserEventHandlers } from "#app/core/user/events/userEvents.js";
 import { registerCacheInvalidationEventHandlers } from "#app/application/events/CacheInvalidationEventHandlers.js";
-'use strict';
-const {
-  eventBus,
-  EventTypes
-} = domainEvents;
+
 /**
- * Initializes and registers all domain event handlers across different modules.
- * This function orchestrates the setup of listeners for domain events.
+ * Setup all event handlers for the application
+ * This function wires up all domain event handlers when the application starts
+ * 
+ * @param {Object} container - Dependency injection container
  */
-function registerAllDomainEventHandlers() {
+export function setupEventHandlers(container) {
+  if (!container) {
+    throw new Error('Container is required for event setup');
+  }
+  
+  logger.info('Setting up event handlers...');
+  
   try {
-    // Verify the event bus is available
-    if (!eventBus || typeof eventBus.subscribe !== 'function') {
-      logger.warn('Event bus not properly initialized, skipping event handler registration');
-      return;
-    }
+    // Register all domain event handlers
+    registerEvaluationEventHandlers(container);
+    registerPersonalityEventHandlers(container);
+    registerProgressEventHandlers(container);
+    registerAdaptiveEventHandlers(container);
+    registerUserJourneyEventHandlers(container);
+    registerFocusAreaEventHandlers(container);
+    registerChallengeEventHandlers(container);
+    registerUserEventHandlers(container);
     
-    // Register event handlers from each domain
-    registerUserEventHandlers();
-    registerChallengeEventHandlers();
-    registerEvaluationEventHandlers();
-    registerProgressEventHandlers();
-    registerPersonalityEventHandlers();
-    registerAdaptiveEventHandlers();
-    registerUserJourneyEventHandlers();
-    registerFocusAreaEventHandlers();
+    // Register application event handlers
+    registerCacheInvalidationEventHandlers(container);
     
-    // Register cache invalidation event handlers
-    registerCacheInvalidationEventHandlers(eventBus);
-    
-    logger.info('Domain event handlers registered successfully');
+    logger.info('Event handlers setup complete');
   } catch (error) {
-    logger.error('Error registering domain event handlers', { 
-      error: error.message,
-      stack: error.stack
-    });
+    logger.error('Error setting up event handlers', { error: error.message });
+    throw error;
   }
 }
-export { registerAllDomainEventHandlers };
-export { eventBus };
-export { EventTypes };
+
 export default {
-  registerAllDomainEventHandlers,
-  eventBus,
-  EventTypes
+  setupEventHandlers,
+  EventTypes // Export EventTypes for convenience
 };

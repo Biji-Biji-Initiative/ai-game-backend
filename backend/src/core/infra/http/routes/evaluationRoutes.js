@@ -2,7 +2,7 @@
 
 import express from 'express';
 import EvaluationController from "#app/core/evaluation/controllers/EvaluationController.js";
-import { authenticateUser, requireAdmin } from "#app/core/infra/http/middleware/auth.js";
+import { requireAdmin } from "#app/core/infra/http/middleware/auth.js";
 import { authorizeResource, authorizeUserSpecificResource } from "#app/core/infra/http/middleware/resourceAuth.js";
 
 /**
@@ -43,19 +43,16 @@ export default function evaluationRoutes(evaluationController) {
 
   // Submit a new evaluation
   router.post('/', 
-    authenticateUser, 
     (req, res) => evaluationController.createEvaluation(req, res)
   );
   
   // Stream an evaluation
   router.post('/stream', 
-    authenticateUser, 
     (req, res) => evaluationController.streamEvaluation(req, res)
   );
   
   // Get evaluations for a challenge (must be owner of the challenge or admin)
   router.get('/challenge/:challengeId', 
-    authenticateUser,
     authorizeResource({
       resourceType: 'challenge',
       paramName: 'challengeId',
@@ -67,7 +64,6 @@ export default function evaluationRoutes(evaluationController) {
   
   // Get evaluations for current user (personal data)
   router.get('/user/me', 
-    authenticateUser,
     (req, res) => {
       // Set userId param to current user's ID
       req.params.userId = req.user.id;
@@ -77,14 +73,12 @@ export default function evaluationRoutes(evaluationController) {
   
   // Get evaluations for a specific user (must be same user or admin)
   router.get('/user/:userId', 
-    authenticateUser,
     authorizeUserSpecificResource('userId'),
     (req, res) => evaluationController.getEvaluationsForUser(req, res)
   );
   
   // Get an evaluation by ID (must be owner or admin)
   router.get('/:id', 
-    authenticateUser,
     authorizeResource({
       resourceType: 'evaluation',
       paramName: 'id',
@@ -96,7 +90,6 @@ export default function evaluationRoutes(evaluationController) {
   
   // Delete an evaluation (admin only)
   router.delete('/:id',
-    authenticateUser,
     requireAdmin,
     (req, res) => evaluationController.deleteEvaluation(req, res)
   );

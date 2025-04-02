@@ -7,7 +7,7 @@
 // Imports using ES modules
 import User from "#app/core/user/models/User.js";
 import UserRepository from "#app/core/user/repositories/UserRepository.js";
-import { EventTypes, eventBus } from "#app/core/common/events/domainEvents.js";
+import { EventTypes } from "#app/core/common/events/eventTypes.js";
 import { v4 as uuidv4 } from 'uuid';
 import { userLogger } from "#app/core/infra/logging/domainLogger.js";
 import { UserNotFoundError, UserValidationError, UserError } from "#app/core/user/errors/UserErrors.js";
@@ -50,6 +50,11 @@ export default class UserService {
             productionOnly: true
         });
         
+        // Add eventBus validation/warning
+        if (!eventBus) {
+            this.logger?.warn('EventBus was not provided to UserService. Domain events will not be published.');
+        }
+        
         // Store repository reference
         this.userRepository = userRepository;
         this.cache = cacheService;
@@ -86,7 +91,7 @@ export default class UserService {
         
         // Common initialization for all environments
         this.logger = logger || userLogger.child('service');
-        this.eventBus = eventBus || null;
+        this.eventBus = eventBus;
         this.userPreferencesManager = userPreferencesManager;
         
         // Apply standardized error handling to methods
@@ -116,6 +121,12 @@ export default class UserService {
         });
         this.updateUserActivity = withServiceErrorHandling(this.updateUserActivity.bind(this), {
             methodName: 'updateUserActivity',
+            domainName: 'user',
+            logger: this.logger,
+            errorMapper: userServiceErrorMapper
+        });
+        this.updateUserDifficulty = withServiceErrorHandling(this.updateUserDifficulty.bind(this), {
+            methodName: 'updateUserDifficulty',
             domainName: 'user',
             logger: this.logger,
             errorMapper: userServiceErrorMapper
@@ -156,22 +167,26 @@ export default class UserService {
         }
         // Save user to database
         const savedUser = await this.userRepository.save(user);
-        // Publish user created event
         
-    // Add domain event to entity
-    entity.addDomainEvent(EventTypes.USER_CREATED, {
-      userId: savedUser.id,
-            email: savedUser.email
-    });
-    
-    // Save entity with events
-    await this.userRepository.save(entity);
+        // Find the user entity to add the event
+        const entity = await this.userRepository.findById(user.id);
+        if (entity) {
+            // Add domain event to entity
+            entity.addDomainEvent(EventTypes.USER_CREATED, {
+              userId: user.id,
+                    email: user.email
+            });
+            
+            // Save entity with events (this will trigger publishing)
+            await this.userRepository.save(entity);
+        }
+        
         // Cache the new user
         await this.cache.set(`user:id:${savedUser.id}`, savedUser, USER_CACHE_TTL);
         await this.cache.set(`user:email:${savedUser.email}`, savedUser, USER_CACHE_TTL);
         // Invalidate user lists
         await this.invalidateUserListCaches();
-        return savedUser;
+        return entity || savedUser;
     }
     /**
      * Get a user by ID
@@ -394,5 +409,74 @@ export default class UserService {
             throw new UserError('UserPreferencesManager not available for preference operations');
         }
         return this.userPreferencesManager.resetUserPreference(userId, key);
+    }
+    /**
+     * List all users (supports basic pagination/sorting via options)
+     * @param {Object} options - Query options (e.g., limit, offset, sortBy, sortDir)
+     * @returns {Promise<{users: Array<User>, total: number}>} List of users and total count
+     */
+    async listUsers(options = {}) {
+        this.logger.debug('Listing users', { options });
+        // Directly call repository's findAll which should handle options
+        // Ensure repository returns the structure { users: [...], total: ... }
+        // Note: Caching for list operations might be complex, handled carefully if needed.
+        // Currently relies on repository potentially caching if implemented there, or no caching.
+        const result = await this.userRepository.findAll({}, options);
+        return result; 
+    }
+    /**
+     * Delete a user by ID
+     * @param {string|UserId} id - User ID or UserId value object
+     * @returns {Promise<void>}
+     */
+    async deleteUser(id) {
+        // Convert to value object if needed
+        const userIdVO = id instanceof UserId ? id : createUserId(id);
+        if (!userIdVO) {
+            throw new UserValidationError(`Invalid user ID: ${id}`);
+        }
+        // Delete user from repository
+        await this.userRepository.delete(userIdVO.value);
+        // Invalidate user lists
+        await this.invalidateUserListCaches();
+    }
+    /**
+     * Update a user's difficulty level
+     * @param {string|UserId} userId - User ID or UserId value object
+     * @param {string} difficultyLevel - The new difficulty level code (e.g., 'beginner')
+     * @returns {Promise<User>} Updated user
+     * @throws {UserNotFoundError} If user not found
+     * @throws {UserValidationError} If difficultyLevel is invalid
+     * @throws {UserError} If update fails
+     */
+    async updateUserDifficulty(userId, difficultyLevel) {
+        this.logger.info('Updating user difficulty', { userId, difficultyLevel });
+        // Convert to value object if needed
+        const userIdVO = userId instanceof UserId ? userId : createUserId(userId);
+        if (!userIdVO) {
+            throw new UserValidationError(`Invalid user ID: ${userId}`);
+        }
+
+        // Get existing user directly from repository to ensure fresh data and lock
+        // Pass throwIfNotFound=true to ensure we get an error if user is gone
+        const user = await this.userRepository.findById(userIdVO.value, true);
+
+        // Use the domain model's method to update difficulty (handles validation & event)
+        user.setDifficultyLevel(difficultyLevel);
+
+        // Save updated user
+        const updatedUser = await this.userRepository.save(user);
+
+        // Update cache with fresh data
+        await this.cache.set(`user:id:${updatedUser.id}`, updatedUser, USER_CACHE_TTL);
+        if (updatedUser.email) {
+            await this.cache.set(`user:email:${updatedUser.email}`, updatedUser, USER_CACHE_TTL);
+        }
+
+        // Invalidate cache for lists and searches (optional, depends if difficulty is used in lists)
+        // await this.invalidateUserListCaches();
+
+        this.logger.info('User difficulty updated successfully', { userId: updatedUser.id, newLevel: updatedUser.difficultyLevel });
+        return updatedUser;
     }
 }

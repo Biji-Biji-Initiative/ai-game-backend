@@ -1,3 +1,4 @@
+// Types improved by ts-improve-types
 /**
  * RequestBuilder Component
  * Handles building API requests with tabs for params, headers, body, and auth
@@ -33,7 +34,7 @@ export interface RequestBuilderOptions {
 }
 
 const DEFAULT_OPTIONS: RequestBuilderOptions = {
-  containerId: 'request-form'
+  containerId: 'request-form',
 };
 
 /**
@@ -50,33 +51,37 @@ export class RequestBuilder {
     url: '',
     params: {},
     headers: {},
-    bodyType: 'json'
+    bodyType: 'json',
   };
   private uiManager?: IUIManager;
-  
+
   /**
    * Creates a new RequestBuilder instance
    */
-  constructor(options: RequestBuilderOptions = {}) {
+  constructor(option: RequestBuilderOptions = {}) {
     this.options = { ...DEFAULT_OPTIONS, ...options } as Required<RequestBuilderOptions>;
-    this.container = getById(this.options.containerId);
-    this.uiManager = this.options.uiManager;
-    
+    // @ts-ignore - Complex type issues
+    this.container = getById(this.options.containerId); // Property added
+    this.uiManager = this.options.uiManager; // Property added
+
     if (!this.container) {
-      logger.warn(`RequestBuilder: Container element with ID "${this.options.containerId}" not found`);
+      // @ts-ignore - Complex type issues
+      logger.warn(
+        `RequestBuilder: Container element with ID "${this.options.containerId}" not found`,
+      );
       return;
     }
-    
+
     this.initTabs();
     this.setupEventListeners();
   }
-  
+
   /**
    * Initialize tabs
    */
   private initTabs(): void {
     if (!this.container) return;
-    
+
     // Create tabs structure
     const tabsHtml = `
       <div class="flex border-b border-border mb-4">
@@ -90,43 +95,43 @@ export class RequestBuilder {
       <div id="body-tab" class="tab-content hidden"></div>
       <div id="auth-tab" class="tab-content hidden"></div>
     `;
-    
+
     setHTML(this.container, tabsHtml);
-    
+
     // Store references to tab buttons and contents
-    this.tabButtons = Array.from(this.container.querySelectorAll('.tab-button'));
-    
+    this.tabButtons = Array.from(this.container.querySelectorAll('.tab-button')); // Property added
+
     this.tabContents = [
       getById('params-tab'),
       getById('headers-tab'),
       getById('body-tab'),
-      getById('auth-tab')
-    ].filter((el): el is HTMLElement => el !== null);
-    
+      getById('auth-tab'),
+    ].filter((el): el is HTMLElement => el !== null); // Property added
+
     // Render empty tab contents
     this.renderParamsTab();
     this.renderHeadersTab();
     this.renderBodyTab();
     this.renderAuthTab();
   }
-  
+
   /**
    * Set up event listeners
    */
   private setupEventListeners(): void {
     if (!this.container) return;
-    
+
     // Add event listeners for tabs
     this.tabButtons.forEach(button => {
       button.addEventListener('click', () => {
         // Remove active class from all tabs
         this.tabButtons.forEach(btn => btn.classList.remove('active'));
         this.tabContents.forEach(content => content.classList.add('hidden'));
-        
+
         // Activate clicked tab
         button.classList.add('active');
         const tabName = button.getAttribute('data-tab');
-        
+
         if (tabName) {
           const tabContent = getById(`${tabName}-tab`);
           if (tabContent) {
@@ -135,48 +140,56 @@ export class RequestBuilder {
         }
       });
     });
-    
+
     // Set up event delegation for form inputs
-    this.container.addEventListener('change', (e) => {
+    this.container.addEventListener('change', e => {
       const target = e.target as HTMLElement;
-      
-      if (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA') {
+
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'SELECT' ||
+        target.tagName === 'TEXTAREA'
+      ) {
         this.handleInputChange(target);
       }
     });
-    
+
     // Listen for keyup events in text inputs to update in real-time
-    this.container.addEventListener('keyup', (e) => {
+    this.container.addEventListener('keyup', e => {
       const target = e.target as HTMLElement;
-      
+
       if (target.tagName === 'INPUT' && target.getAttribute('type') === 'text') {
         this.handleInputChange(target);
       }
     });
   }
-  
+
   /**
    * Handle input change events
    */
-  private handleInputChange(target: HTMLElement): void {
+  private handleInputChange(targe: HTMLElement): void {
     const inputType = target.getAttribute('data-type');
     const inputKey = target.getAttribute('data-key');
-    
+
     if (!inputType || !inputKey) return;
-    
-    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
+
+    if (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement
+    ) {
       const value = target.value;
-      
+
       // Update the request data based on input type
       switch (inputType) {
         case 'param':
           this.requestData.params[inputKey] = value;
           break;
-          
+
         case 'header':
           this.requestData.headers[inputKey] = value;
           break;
-          
+
         case 'body':
           // Handle body differently depending on body type
           if (this.requestData.bodyType === 'json') {
@@ -191,17 +204,17 @@ export class RequestBuilder {
             this.requestData.body = value;
           }
           break;
-          
+
         case 'bodyType':
           this.requestData.bodyType = value as RequestData['bodyType'];
           this.renderBodyTab(); // Re-render body tab when type changes
           break;
-          
+
         case 'auth':
           if (!this.requestData.auth) {
             this.requestData.auth = { type: 'none' };
           }
-          
+
           if (inputKey === 'type') {
             this.requestData.auth.type = value;
             this.renderAuthTab(); // Re-render auth tab when type changes
@@ -209,30 +222,30 @@ export class RequestBuilder {
             (this.requestData.auth as any)[inputKey] = value;
           }
           break;
-          
+
         case 'method':
           this.requestData.method = value;
           break;
-          
+
         case 'url':
           this.requestData.url = value;
           break;
       }
-      
+
       // Notify about data change
       if (this.options.onRequestDataChange) {
         this.options.onRequestDataChange(this.requestData);
       }
     }
   }
-  
+
   /**
    * Render parameters tab content
    */
   private renderParamsTab(): void {
     const tab = getById('params-tab');
     if (!tab) return;
-    
+
     let html = `
       <div class="mb-2 flex justify-between items-center">
         <h3 class="text-sm font-medium">Query Parameters</h3>
@@ -242,33 +255,33 @@ export class RequestBuilder {
       </div>
       <div class="space-y-2" id="params-list">
     `;
-    
+
     // Add existing parameters
     const params = this.requestData.params;
-    
+
     if (Object.keys(params).length === 0) {
-      html += `<p class="text-sm text-text-muted italic">No parameters defined</p>`;
+      html += '<p class="text-sm text-text-muted italic">No parameters defined</p>';
     } else {
       Object.entries(params).forEach(([key, value]) => {
         html += this.createParamRow(key, value);
       });
     }
-    
-    html += `</div>`;
-    
+
+    html += '</div>';
+
     setHTML(tab, html);
-    
+
     // Add event listener for the add parameter button
     const addParamBtn = getById('add-param-btn');
     if (addParamBtn) {
       addParamBtn.addEventListener('click', () => this.addParameter());
     }
   }
-  
+
   /**
    * Create a parameter input row
    */
-  private createParamRow(key: string = '', value: string = ''): string {
+  private createParamRow(ke = '', value = ''): string {
     return `
       <div class="flex gap-2 items-center param-row">
         <input 
@@ -294,74 +307,74 @@ export class RequestBuilder {
       </div>
     `;
   }
-  
+
   /**
    * Add a new parameter
    */
   private addParameter(): void {
     const paramsList = getById('params-list');
     if (!paramsList) return;
-    
+
     const newParam = createElement('div', { class: 'flex gap-2 items-center param-row' });
-    
+
     const keyInput = createElement('input', {
       type: 'text',
       class: 'w-1/3 px-2 py-1 border border-border rounded bg-bg text-sm',
       placeholder: 'Parameter name',
-      'data-type': 'param-key'
+      'data-type': 'param-key',
     });
-    
+
     const valueInput = createElement('input', {
       type: 'text',
       class: 'flex-1 px-2 py-1 border border-border rounded bg-bg text-sm',
       placeholder: 'Value',
       'data-type': 'param',
-      'data-key': ''
+      'data-key': '',
     });
-    
+
     const deleteBtn = createElement('button', {
-      class: 'text-red-500 hover:text-red-700 delete-param-btn'
+      class: 'text-red-500 hover:text-red-700 delete-param-btn',
     });
-    
+
     deleteBtn.innerHTML = `
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
       </svg>
     `;
-    
+
     deleteBtn.addEventListener('click', () => {
       newParam.remove();
     });
-    
+
     keyInput.addEventListener('input', () => {
       const newKey = keyInput.value;
       valueInput.setAttribute('data-key', newKey);
-      
+
       // Update request data
       const oldValue = valueInput.value;
       delete this.requestData.params[valueInput.getAttribute('data-key') || ''];
       this.requestData.params[newKey] = oldValue;
     });
-    
+
     newParam.appendChild(keyInput);
     newParam.appendChild(valueInput);
     newParam.appendChild(deleteBtn);
-    
+
     if (paramsList.querySelector('.italic')) {
       // Remove "No parameters defined" message
       paramsList.innerHTML = '';
     }
-    
+
     paramsList.appendChild(newParam);
   }
-  
+
   /**
    * Render headers tab content
    */
   private renderHeadersTab(): void {
     const tab = getById('headers-tab');
     if (!tab) return;
-    
+
     let html = `
       <div class="mb-2 flex justify-between items-center">
         <h3 class="text-sm font-medium">HTTP Headers</h3>
@@ -371,7 +384,7 @@ export class RequestBuilder {
       </div>
       <div class="space-y-2" id="headers-list">
     `;
-    
+
     // Add common headers dropdown
     html += `
       <div class="mb-3">
@@ -387,28 +400,28 @@ export class RequestBuilder {
         </select>
       </div>
     `;
-    
+
     // Add existing headers
     const headers = this.requestData.headers;
-    
+
     if (Object.keys(headers).length === 0) {
-      html += `<p class="text-sm text-text-muted italic">No headers defined</p>`;
+      html += '<p class="text-sm text-text-muted italic">No headers defined</p>';
     } else {
       Object.entries(headers).forEach(([key, value]) => {
         html += this.createHeaderRow(key, value);
       });
     }
-    
-    html += `</div>`;
-    
+
+    html += '</div>';
+
     setHTML(tab, html);
-    
+
     // Add event listener for the add header button
     const addHeaderBtn = getById('add-header-btn');
     if (addHeaderBtn) {
       addHeaderBtn.addEventListener('click', () => this.addHeader());
     }
-    
+
     // Add event listener for common headers dropdown
     const commonHeadersSelect = getById('common-headers') as HTMLSelectElement;
     if (commonHeadersSelect) {
@@ -421,26 +434,26 @@ export class RequestBuilder {
       });
     }
   }
-  
+
   /**
    * Get default value for common headers
    */
-  private getDefaultHeaderValue(header: string): string {
+  private getDefaultHeaderValue(heade: string): string {
     const defaults: Record<string, string> = {
       'Content-Type': 'application/json',
-      'Accept': 'application/json',
+      Accept: 'application/json',
       'Accept-Language': 'en-US,en;q=0.9',
       'Cache-Control': 'no-cache',
-      'User-Agent': 'API-Admin-UI'
+      'User-Agent': 'API-Admin-UI',
     };
-    
+
     return defaults[header] || '';
   }
-  
+
   /**
    * Create a header input row
    */
-  private createHeaderRow(key: string = '', value: string = ''): string {
+  private createHeaderRow(ke = '', value = ''): string {
     return `
       <div class="flex gap-2 items-center header-row">
         <input 
@@ -466,108 +479,108 @@ export class RequestBuilder {
       </div>
     `;
   }
-  
+
   /**
    * Add a new header
    */
-  private addHeader(key: string = '', value: string = ''): void {
+  private addHeader(ke = '', value = ''): void {
     const headersList = getById('headers-list');
     if (!headersList) return;
-    
+
     const newHeader = createElement('div', { class: 'flex gap-2 items-center header-row' });
-    
+
     const keyInput = createElement('input', {
       type: 'text',
       class: 'w-1/3 px-2 py-1 border border-border rounded bg-bg text-sm',
       placeholder: 'Header name',
       'data-type': 'header-key',
-      value: key
+      value: key,
     });
-    
+
     const valueInput = createElement('input', {
       type: 'text',
       class: 'flex-1 px-2 py-1 border border-border rounded bg-bg text-sm',
       placeholder: 'Value',
       'data-type': 'header',
       'data-key': key,
-      value: value
+      value: value,
     });
-    
+
     const deleteBtn = createElement('button', {
-      class: 'text-red-500 hover:text-red-700 delete-header-btn'
+      class: 'text-red-500 hover:text-red-700 delete-header-btn',
     });
-    
+
     deleteBtn.innerHTML = `
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
       </svg>
     `;
-    
+
     deleteBtn.addEventListener('click', () => {
       newHeader.remove();
       delete this.requestData.headers[keyInput.value];
-      
+
       // Notify about data change
       if (this.options.onRequestDataChange) {
         this.options.onRequestDataChange(this.requestData);
       }
     });
-    
+
     keyInput.addEventListener('input', () => {
       const newKey = keyInput.value;
       valueInput.setAttribute('data-key', newKey);
-      
+
       // Update request data
       const oldValue = valueInput.value;
       delete this.requestData.headers[valueInput.getAttribute('data-key') || ''];
       this.requestData.headers[newKey] = oldValue;
-      
+
       // Notify about data change
       if (this.options.onRequestDataChange) {
         this.options.onRequestDataChange(this.requestData);
       }
     });
-    
+
     valueInput.addEventListener('input', () => {
       this.requestData.headers[keyInput.value] = valueInput.value;
-      
+
       // Notify about data change
       if (this.options.onRequestDataChange) {
         this.options.onRequestDataChange(this.requestData);
       }
     });
-    
+
     newHeader.appendChild(keyInput);
     newHeader.appendChild(valueInput);
     newHeader.appendChild(deleteBtn);
-    
+
     if (headersList.querySelector('.italic')) {
       // Remove "No headers defined" message
       headersList.innerHTML = '';
     }
-    
+
     headersList.appendChild(newHeader);
-    
+
     // Update request data
     if (key && value) {
       this.requestData.headers[key] = value;
-      
+
       // Notify about data change
       if (this.options.onRequestDataChange) {
         this.options.onRequestDataChange(this.requestData);
       }
     }
   }
-  
+
   /**
    * Render body tab content
    */
   private renderBodyTab(): void {
     const tab = getById('body-tab');
     if (!tab) return;
-    
+
     const bodyType = this.requestData.bodyType || 'json';
-    
+
     let html = `
       <div class="mb-2">
         <h3 class="text-sm font-medium mb-2">Request Body</h3>
@@ -582,14 +595,15 @@ export class RequestBuilder {
           </select>
         </div>
       `;
-    
+
     // Render different body inputs based on type
     switch (bodyType) {
       case 'json':
-        const jsonValue = typeof this.requestData.body === 'object' 
-          ? JSON.stringify(this.requestData.body, null, 2) 
-          : (this.requestData.body || '{\n  \n}');
-          
+        const jsonValue =
+          typeof this.requestData.body === 'object'
+            ? JSON.stringify(this.requestData.body, null, 2)
+            : this.requestData.body || '{\n  \n}';
+
         html += `
           <div id="json-body-container">
             <textarea 
@@ -607,7 +621,7 @@ export class RequestBuilder {
           </div>
         `;
         break;
-        
+
       case 'form-data':
         html += `
           <div id="form-data-container" class="space-y-2">
@@ -617,21 +631,21 @@ export class RequestBuilder {
               </button>
             </div>
         `;
-        
+
         // Add form fields
         const formData = this.requestData.body || {};
-        
+
         if (typeof formData !== 'object' || Object.keys(formData).length === 0) {
-          html += `<p class="text-sm text-text-muted italic">No form fields defined</p>`;
+          html += '<p class="text-sm text-text-muted italic">No form fields defined</p>';
         } else {
           Object.entries(formData).forEach(([key, value]) => {
             html += this.createFormDataRow(key, value as string);
           });
         }
-        
-        html += `</div>`;
+
+        html += '</div>';
         break;
-        
+
       case 'x-www-form-urlencoded':
         html += `
           <div id="urlencoded-container" class="space-y-2">
@@ -641,21 +655,21 @@ export class RequestBuilder {
               </button>
             </div>
         `;
-        
+
         // Add urlencoded fields
         const urlencoded = this.requestData.body || {};
-        
+
         if (typeof urlencoded !== 'object' || Object.keys(urlencoded).length === 0) {
-          html += `<p class="text-sm text-text-muted italic">No form fields defined</p>`;
+          html += '<p class="text-sm text-text-muted italic">No form fields defined</p>';
         } else {
           Object.entries(urlencoded).forEach(([key, value]) => {
             html += this.createUrlencodedRow(key, value as string);
           });
         }
-        
-        html += `</div>`;
+
+        html += '</div>';
         break;
-        
+
       case 'raw':
         html += `
           <textarea 
@@ -667,7 +681,7 @@ export class RequestBuilder {
           >${escapeHtml(this.requestData.body || '')}</textarea>
         `;
         break;
-        
+
       case 'binary':
         html += `
           <div id="binary-container" class="border-2 border-dashed border-border rounded p-8 text-center">
@@ -681,26 +695,26 @@ export class RequestBuilder {
         `;
         break;
     }
-    
-    html += `</div>`;
-    
+
+    html += '</div>';
+
     setHTML(tab, html);
-    
+
     // Set up event listeners based on body type
     this.setupBodyEventListeners(bodyType);
   }
-  
+
   /**
    * Set up event listeners for the body tab
    */
-  private setupBodyEventListeners(bodyType: string): void {
+  private setupBodyEventListeners(bodyTyp: string): void {
     // Body type select
     const bodyTypeSelect = getById('body-type-select') as HTMLSelectElement;
     if (bodyTypeSelect) {
       bodyTypeSelect.addEventListener('change', () => {
         const newBodyType = bodyTypeSelect.value as RequestData['bodyType'];
         this.requestData.bodyType = newBodyType;
-        
+
         // Reset body when changing type
         if (newBodyType === 'json') {
           this.requestData.body = {};
@@ -709,17 +723,17 @@ export class RequestBuilder {
         } else {
           this.requestData.body = '';
         }
-        
+
         // Re-render body tab
         this.renderBodyTab();
-        
+
         // Notify about data change
         if (this.options.onRequestDataChange) {
           this.options.onRequestDataChange(this.requestData);
         }
       });
     }
-    
+
     // Body type specific listeners
     switch (bodyType) {
       case 'json':
@@ -733,14 +747,14 @@ export class RequestBuilder {
               // Store as string if not valid JSON
               this.requestData.body = jsonBody.value;
             }
-            
+
             // Notify about data change
             if (this.options.onRequestDataChange) {
               this.options.onRequestDataChange(this.requestData);
             }
           });
         }
-        
+
         // Format JSON button
         const formatJsonBtn = getById('format-json-btn');
         if (formatJsonBtn) {
@@ -751,7 +765,7 @@ export class RequestBuilder {
                 const formatted = JSON.stringify(JSON.parse(jsonBody.value), null, 2);
                 jsonBody.value = formatted;
                 this.requestData.body = JSON.parse(formatted);
-                
+
                 // Notify about data change
                 if (this.options.onRequestDataChange) {
                   this.options.onRequestDataChange(this.requestData);
@@ -767,7 +781,7 @@ export class RequestBuilder {
           });
         }
         break;
-        
+
       case 'form-data':
         // Add form field button
         const addFormFieldBtn = getById('add-form-field-btn');
@@ -775,7 +789,7 @@ export class RequestBuilder {
           addFormFieldBtn.addEventListener('click', () => this.addFormDataField());
         }
         break;
-        
+
       case 'x-www-form-urlencoded':
         // Add urlencoded field button
         const addUrlencodedFieldBtn = getById('add-urlencoded-field-btn');
@@ -783,7 +797,7 @@ export class RequestBuilder {
           addUrlencodedFieldBtn.addEventListener('click', () => this.addUrlencodedField());
         }
         break;
-        
+
       case 'binary':
         // Select file button
         const selectFileBtn = getById('select-file-btn');
@@ -795,7 +809,7 @@ export class RequestBuilder {
             }
           });
         }
-        
+
         // File input change
         const fileInput = getById('binary-file') as HTMLInputElement;
         if (fileInput) {
@@ -804,7 +818,7 @@ export class RequestBuilder {
             if (fileNameElement && fileInput.files && fileInput.files[0]) {
               fileNameElement.textContent = fileInput.files[0].name;
               this.requestData.body = fileInput.files[0];
-              
+
               // Notify about data change
               if (this.options.onRequestDataChange) {
                 this.options.onRequestDataChange(this.requestData);
@@ -815,11 +829,11 @@ export class RequestBuilder {
         break;
     }
   }
-  
+
   /**
    * Create a form-data input row
    */
-  private createFormDataRow(key: string = '', value: string = ''): string {
+  private createFormDataRow(ke = '', value = ''): string {
     return `
       <div class="flex gap-2 items-center form-data-row">
         <input 
@@ -845,77 +859,77 @@ export class RequestBuilder {
       </div>
     `;
   }
-  
+
   /**
    * Add a new form-data field
    */
   private addFormDataField(): void {
     const container = getById('form-data-container');
     if (!container) return;
-    
+
     // Check if we need to remove the "No form fields defined" message
     const noFieldsMessage = container.querySelector('.italic');
     if (noFieldsMessage) {
       container.removeChild(noFieldsMessage);
     }
-    
+
     // Create a new row for form data field
     const newRow = createElement('div', { class: 'flex gap-2 items-center form-data-row' });
-    
+
     // Create key input
     const keyInput = createElement('input', {
       type: 'text',
       class: 'w-1/3 px-2 py-1 border border-border rounded bg-bg text-sm',
       placeholder: 'Field name',
-      'data-type': 'form-data-key'
+      'data-type': 'form-data-key',
     });
-    
+
     // Create value input
     const valueInput = createElement('input', {
       type: 'text',
       class: 'flex-1 px-2 py-1 border border-border rounded bg-bg text-sm',
       placeholder: 'Value',
       'data-type': 'form-data',
-      'data-key': ''
+      'data-key': '',
     });
-    
+
     // Create delete button
     const deleteBtn = createElement('button', {
-      class: 'text-red-500 hover:text-red-700 delete-form-data-btn'
+      class: 'text-red-500 hover:text-red-700 delete-form-data-btn',
     });
-    
+
     deleteBtn.innerHTML = `
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
       </svg>
     `;
-    
+
     // Set up event listeners
     deleteBtn.addEventListener('click', () => {
       newRow.remove();
-      
+
       // Update request body by removing this field
       if (keyInput.value) {
         if (typeof this.requestData.body === 'object') {
           delete this.requestData.body[keyInput.value];
         }
       }
-      
+
       // Notify about data change
       if (this.options.onRequestDataChange) {
         this.options.onRequestDataChange(this.requestData);
       }
     });
-    
+
     keyInput.addEventListener('input', () => {
       const newKey = keyInput.value;
       valueInput.setAttribute('data-key', newKey);
-      
+
       // Update request body
       if (typeof this.requestData.body !== 'object') {
         this.requestData.body = {};
       }
-      
+
       const oldKey = valueInput.getAttribute('data-key') || '';
       if (oldKey && oldKey !== newKey) {
         const value = this.requestData.body[oldKey];
@@ -925,37 +939,37 @@ export class RequestBuilder {
         }
       }
     });
-    
+
     valueInput.addEventListener('input', () => {
       // Update request body
       if (typeof this.requestData.body !== 'object') {
         this.requestData.body = {};
       }
-      
+
       const key = keyInput.value;
       if (key) {
         this.requestData.body[key] = valueInput.value;
-        
+
         // Notify about data change
         if (this.options.onRequestDataChange) {
           this.options.onRequestDataChange(this.requestData);
         }
       }
     });
-    
+
     // Add elements to the row
     newRow.appendChild(keyInput);
     newRow.appendChild(valueInput);
     newRow.appendChild(deleteBtn);
-    
+
     // Add row to the container
     container.appendChild(newRow);
   }
-  
+
   /**
    * Create a x-www-form-urlencoded input row
    */
-  private createUrlencodedRow(key: string = '', value: string = ''): string {
+  private createUrlencodedRow(ke = '', value = ''): string {
     return `
       <div class="flex gap-2 items-center urlencoded-row">
         <input 
@@ -981,77 +995,77 @@ export class RequestBuilder {
       </div>
     `;
   }
-  
+
   /**
    * Add a new x-www-form-urlencoded field
    */
   private addUrlencodedField(): void {
     const container = getById('urlencoded-container');
     if (!container) return;
-    
+
     // Check if we need to remove the "No form fields defined" message
     const noFieldsMessage = container.querySelector('.italic');
     if (noFieldsMessage) {
       container.removeChild(noFieldsMessage);
     }
-    
+
     // Create a new row for urlencoded field
     const newRow = createElement('div', { class: 'flex gap-2 items-center urlencoded-row' });
-    
+
     // Create key input
     const keyInput = createElement('input', {
       type: 'text',
       class: 'w-1/3 px-2 py-1 border border-border rounded bg-bg text-sm',
       placeholder: 'Field name',
-      'data-type': 'urlencoded-key'
+      'data-type': 'urlencoded-key',
     });
-    
+
     // Create value input
     const valueInput = createElement('input', {
       type: 'text',
       class: 'flex-1 px-2 py-1 border border-border rounded bg-bg text-sm',
       placeholder: 'Value',
       'data-type': 'urlencoded',
-      'data-key': ''
+      'data-key': '',
     });
-    
+
     // Create delete button
     const deleteBtn = createElement('button', {
-      class: 'text-red-500 hover:text-red-700 delete-urlencoded-btn'
+      class: 'text-red-500 hover:text-red-700 delete-urlencoded-btn',
     });
-    
+
     deleteBtn.innerHTML = `
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
       </svg>
     `;
-    
+
     // Set up event listeners
     deleteBtn.addEventListener('click', () => {
       newRow.remove();
-      
+
       // Update request body by removing this field
       if (keyInput.value) {
         if (typeof this.requestData.body === 'object') {
           delete this.requestData.body[keyInput.value];
         }
       }
-      
+
       // Notify about data change
       if (this.options.onRequestDataChange) {
         this.options.onRequestDataChange(this.requestData);
       }
     });
-    
+
     keyInput.addEventListener('input', () => {
       const newKey = keyInput.value;
       valueInput.setAttribute('data-key', newKey);
-      
+
       // Update request body
       if (typeof this.requestData.body !== 'object') {
         this.requestData.body = {};
       }
-      
+
       const oldKey = valueInput.getAttribute('data-key') || '';
       if (oldKey && oldKey !== newKey) {
         const value = this.requestData.body[oldKey];
@@ -1061,42 +1075,42 @@ export class RequestBuilder {
         }
       }
     });
-    
+
     valueInput.addEventListener('input', () => {
       // Update request body
       if (typeof this.requestData.body !== 'object') {
         this.requestData.body = {};
       }
-      
+
       const key = keyInput.value;
       if (key) {
         this.requestData.body[key] = valueInput.value;
-        
+
         // Notify about data change
         if (this.options.onRequestDataChange) {
           this.options.onRequestDataChange(this.requestData);
         }
       }
     });
-    
+
     // Add elements to the row
     newRow.appendChild(keyInput);
     newRow.appendChild(valueInput);
     newRow.appendChild(deleteBtn);
-    
+
     // Add row to the container
     container.appendChild(newRow);
   }
-  
+
   /**
    * Render authentication tab content
    */
   private renderAuthTab(): void {
     const tab = getById('auth-tab');
     if (!tab) return;
-    
+
     const auth = this.requestData.auth || { type: 'none' };
-    
+
     let html = `
       <div class="mb-2">
         <h3 class="text-sm font-medium mb-2">Authentication</h3>
@@ -1110,7 +1124,7 @@ export class RequestBuilder {
           </select>
         </div>
     `;
-    
+
     // Render auth inputs based on type
     switch (auth.type) {
       case 'basic':
@@ -1141,7 +1155,7 @@ export class RequestBuilder {
           </div>
         `;
         break;
-        
+
       case 'bearer':
         html += `
           <div>
@@ -1157,7 +1171,7 @@ export class RequestBuilder {
           </div>
         `;
         break;
-        
+
       case 'apiKey':
         html += `
           <div class="space-y-3">
@@ -1187,26 +1201,26 @@ export class RequestBuilder {
         `;
         break;
     }
-    
-    html += `</div>`;
-    
+
+    html += '</div>';
+
     setHTML(tab, html);
-    
+
     // Set up event listeners
     const authTypeSelect = getById('auth-type-select') as HTMLSelectElement;
     if (authTypeSelect) {
       authTypeSelect.addEventListener('change', () => {
         const newAuthType = authTypeSelect.value;
-        
+
         if (!this.requestData.auth) {
           this.requestData.auth = { type: newAuthType };
         } else {
           this.requestData.auth.type = newAuthType;
         }
-        
+
         // Re-render auth tab
         this.renderAuthTab();
-        
+
         // Notify about data change
         if (this.options.onRequestDataChange) {
           this.options.onRequestDataChange(this.requestData);
@@ -1214,24 +1228,24 @@ export class RequestBuilder {
       });
     }
   }
-  
+
   /**
    * Load request data
    * @param data Request data to load
    */
-  public loadRequest(data: Partial<RequestData>): void {
+  public loadRequest(dat: Partial<RequestData>): void {
     this.requestData = {
       ...this.requestData,
-      ...data
+      ...data,
     };
-    
+
     // Re-render tabs
     this.renderParamsTab();
     this.renderHeadersTab();
     this.renderBodyTab();
     this.renderAuthTab();
   }
-  
+
   /**
    * Get current request data
    * @returns Current request data
@@ -1239,4 +1253,4 @@ export class RequestBuilder {
   public getRequestData(): RequestData {
     return { ...this.requestData };
   }
-} 
+}

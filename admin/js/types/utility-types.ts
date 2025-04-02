@@ -1,6 +1,7 @@
+// Types improved by ts-improve-types
 /**
  * Utility Types and Functions
- * 
+ *
  * This file provides common utility types and functions to improve type safety across the application.
  */
 
@@ -48,25 +49,25 @@ export type NonNullable<T> = T extends null | undefined ? never : T;
 /**
  * Type safe function to get a property value with a default
  * if the property is undefined or null
- * 
+ *
  * @param obj The object to get a property from
  * @param key The property key
  * @param defaultValue The default value to return if property is null/undefined
  * @returns The property value or default value
  */
 export function getPropertyWithDefault<T, K extends keyof T>(
-  obj: T, 
-  key: K, 
-  defaultValue: NonNullable<T[K]>
+  obj: T,
+  key: K,
+  defaultValue: NonNullable<T[K]>,
 ): NonNullable<T[K]> {
   const value = obj[key];
-  return (value === undefined || value === null) ? defaultValue : value as NonNullable<T[K]>;
+  return value === undefined || value === null ? defaultValue : (value as NonNullable<T[K]>);
 }
 
 /**
  * Creates a type-safe defaults object by providing default values
  * for any missing properties in the options object
- * 
+ *
  * @param options User provided options
  * @param defaults Default values
  * @returns A complete object with defaults applied
@@ -77,32 +78,32 @@ export function applyDefaults<T>(options: Partial<T>, defaults: T): T {
 
 /**
  * Ensure a string value is provided, using a default if undefined
- * 
+ *
  * @param value The value to check
  * @param defaultValue Default value to use if value is undefined
  * @returns Non-empty string
  */
-export function ensureString(value: string | undefined | null, defaultValue: string): string {
-  return (value === undefined || value === null) ? defaultValue : value;
+export function valu(e: string | undefined | null, defaultValue: string): string {
+  return value === undefined || value === null ? defaultValue : value;
 }
 
 /**
  * Ensure a number value is provided, using a default if undefined
- * 
+ *
  * @param value The value to check
  * @param defaultValue Default value to use if value is undefined
  * @returns Number
  */
-export function ensureNumber(value: number | undefined | null, defaultValue: number): number {
-  return (value === undefined || value === null) ? defaultValue : value;
+export function valu(e: number | undefined | null, defaultValue: number): number {
+  return value === undefined || value === null ? defaultValue : value;
 }
 
 /**
  * Type-safe way to check if a variable is defined (not undefined or null)
- * 
+ *
  * @param value Value to check
  * @returns True if value is not undefined and not null
  */
 export function isDefined<T>(value: T | undefined | null): value is T {
   return value !== undefined && value !== null;
-} 
+}

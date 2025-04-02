@@ -1,22 +1,20 @@
 'use strict';
 
+import { BaseRepository, EntityNotFoundError, ValidationError, DatabaseError } from "#app/core/infra/repositories/BaseRepository.js";
 import Progress from "#app/core/progress/models/Progress.js";
-import { supabaseClient } from "#app/core/infra/db/supabaseClient.js";
 import { v4 as uuidv4 } from "uuid";
-import domainEvents from "#app/core/common/events/domainEvents.js";
-import { BaseRepository } from "#app/core/infra/repositories/BaseRepository.js";
-import { ProgressError, ProgressNotFoundError, ProgressValidationError, ProgressProcessingError } from "#app/core/progress/errors/progressErrors.js";
 import { createErrorMapper, withRepositoryErrorHandling } from "#app/core/infra/errors/errorStandardization.js";
 import progressMapper from "#app/core/progress/mappers/ProgressMapper.js";
+import { EventTypes } from "#app/core/common/events/eventTypes.js";
+import { ProgressError, ProgressNotFoundError, ProgressValidationError, ProgressProcessingError } from "#app/core/progress/errors/progressErrors.js";
 
-const { eventBus } = domainEvents;
-const { EntityNotFoundError, ValidationError, DatabaseError, } = BaseRepository;
 // Create an error mapper for the progress domain
 const progressErrorMapper = createErrorMapper({
     EntityNotFoundError: ProgressNotFoundError,
     ValidationError: ProgressValidationError,
     DatabaseError: ProgressProcessingError
 }, ProgressError);
+
 /**
  * Repository for progress data access
  * @extends BaseRepository
@@ -25,20 +23,24 @@ class ProgressRepository extends BaseRepository {
     /**
      * Create a new ProgressRepository
      * @param {Object} options - Repository options
-     * @param {Object} options.db - Database client
+     * @param {Object} options.db - Database client (Expected to be the initialized Supabase client)
      * @param {Object} options.logger - Logger instance
      * @param {Object} options.eventBus - Event bus for domain events
+     * @param {Object} [options.container] - Optional DI container reference
      */
     constructor(options = {}) {
         super({
-            db: options.db || supabaseClient,
-            tableName: 'user_progress',
+            db: options.db,
+            tableName: 'progress',
             domainName: 'progress',
             logger: options.logger,
             maxRetries: 3,
         });
-        this.eventBus = options.eventBus || eventBus;
+        this.eventBus = options.eventBus;
         this.validateUuids = true;
+        
+        // Store container reference if provided, useful for resolving other dependencies
+        this.container = options.container;
         
         // Apply standardized error handling to methods
         this.findById = withRepositoryErrorHandling(
@@ -100,6 +102,17 @@ class ProgressRepository extends BaseRepository {
                 errorMapper: progressErrorMapper
             }
         );
+        
+        // Add findByIds error handling decorator
+        this.findByIds = withRepositoryErrorHandling(
+            this.findByIds.bind(this),
+            {
+                methodName: 'findByIds',
+                domainName: this.domainName,
+                logger: this.logger,
+                errorMapper: progressErrorMapper
+            }
+        );
     }
     /**
      * Find a progress record by ID
@@ -128,8 +141,8 @@ class ProgressRepository extends BaseRepository {
                 this._log('debug', 'Progress not found', { id });
                 return null;
             }
-            // Use mapper to convert database record to domain entity
-            return progressMapper.toDomain(data);
+            // Use mapper to convert database record to domain entity, passing options
+            return progressMapper.toDomain(data, { EventTypes: EventTypes });
         }, 'findById', { id });
     }
 
@@ -150,8 +163,8 @@ class ProgressRepository extends BaseRepository {
             // Use the base repository implementation to get raw data
             const records = await super.findByIds(ids);
             
-            // Map database records to domain objects
-            const progressRecords = records.map(record => progressMapper.toDomain(record));
+            // Map database records to domain objects, passing options
+            const progressRecords = progressMapper.toDomainCollection(records, { EventTypes: EventTypes });
             
             // If include options are specified, handle eager loading
             if (options.include && Array.isArray(options.include) && options.include.length > 0) {
@@ -283,8 +296,8 @@ class ProgressRepository extends BaseRepository {
                 return null;
             }
             
-            // Use mapper to convert database record to domain entity
-            const progress = progressMapper.toDomain(data);
+            // Use mapper to convert database record to domain entity, passing options
+            const progress = progressMapper.toDomain(data, { EventTypes: EventTypes });
             
             // Handle eager loading if specified in options
             if (options.include && Array.isArray(options.include) && options.include.length > 0
@@ -324,8 +337,10 @@ class ProgressRepository extends BaseRepository {
                 this._log('debug', 'Progress not found for challenge', { userId, challengeId });
                 return null;
             }
-            // Use mapper to convert database record to domain entity
-            return progressMapper.toDomain(data);
+            // Use mapper to convert database record to domain entity, passing options
+            const progress = progressMapper.toDomain(data, { EventTypes: EventTypes });
+            
+            return progress;
         }, 'findByUserAndChallenge', { userId, challengeId });
     }
     /**
@@ -356,11 +371,16 @@ class ProgressRepository extends BaseRepository {
             });
         }
         
+        // Ensure entity has EventTypes
+        if (!progress.EventTypes) {
+             progress.EventTypes = EventTypes;
+        }
+        
         // Collect domain events for publishing after successful save
-        const domainEvents = progress.getDomainEvents ? progress.getDomainEvents() : [];
+        const domainEventsToPublish = progress.getDomainEvents ? progress.getDomainEvents() : [];
         
         // Clear the events from the entity to prevent double-publishing
-        if (domainEvents.length > 0 && progress.clearDomainEvents) {
+        if (domainEventsToPublish.length > 0 && progress.clearDomainEvents) {
             progress.clearDomainEvents();
         }
         
@@ -384,7 +404,7 @@ class ProgressRepository extends BaseRepository {
             this._log('debug', 'Saving progress record', {
                 id: progress.id,
                 userId: progress.userId,
-                isNew: !progress.createdAt,
+                isNew: !progress.createdAt, // Assuming createdAt reflects creation status
             });
             
             // Upsert progress data using the transaction
@@ -405,13 +425,13 @@ class ProgressRepository extends BaseRepository {
             
             this._log('debug', 'Progress record saved successfully', { id: data.id });
             
-            // Convert database record to domain entity using mapper
-            const savedProgress = progressMapper.toDomain(data);
+            // Convert database record to domain entity using mapper, passing options
+            const savedProgress = progressMapper.toDomain(data, { EventTypes: EventTypes });
             
             // Return both the result and the domain events for publishing after commit
             return {
                 result: savedProgress,
-                domainEvents: domainEvents
+                domainEvents: domainEventsToPublish
             };
         }, {publishEvents: true,
             eventBus: this.eventBus,
@@ -441,7 +461,8 @@ class ProgressRepository extends BaseRepository {
                     metadata: { userId },
                 });
             }
-            return progressMapper.toDomainCollection(data || []);
+            // Use mapper, passing options
+            return progressMapper.toDomainCollection(data || [], { EventTypes: EventTypes });
         }, 'findAllByUserId', { userId });
     }
 
@@ -484,8 +505,8 @@ class ProgressRepository extends BaseRepository {
                 });
             }
             
-            // Map database records to domain objects
-            const progressRecords = progressMapper.toDomainCollection(data || []);
+            // Map database records to domain objects, passing options
+            const progressRecords = progressMapper.toDomainCollection(data || [], { EventTypes: EventTypes });
             
             // If include options are specified, handle eager loading
             if (options.include && Array.isArray(options.include) && options.include.length > 0) {
@@ -532,20 +553,20 @@ class ProgressRepository extends BaseRepository {
                 });
             }
             
-            // Convert to domain entity to create events
-            const existingProgress = progressMapper.toDomain(existing);
+            // Convert to domain entity to create events, passing options
+            const existingProgress = progressMapper.toDomain(existing, { EventTypes: EventTypes });
             
-            // Create a domain event for deletion
-            if (existingProgress.addDomainEvent) {
-                existingProgress.addDomainEvent('ProgressDeleted', {
+            // Collect domain events for publishing after successful deletion
+            const domainEventsToPublish = [];
+            if (existingProgress?.addDomainEvent) { // Check if method exists
+                 existingProgress.addDomainEvent(EventTypes.PROGRESS_DELETED, {
                     progressId: id,
                     userId: existingProgress.userId,
                     timestamp: new Date().toISOString(),
                 });
+                domainEventsToPublish.push(...existingProgress.getDomainEvents());
+                existingProgress.clearDomainEvents(); // Clear events after collecting
             }
-            
-            // Collect domain events for publishing after successful deletion
-            const domainEvents = existingProgress.getDomainEvents ? existingProgress.getDomainEvents() : [];
             
             // Delete the record using transaction
             const { error: deleteError } = await transaction
@@ -567,7 +588,7 @@ class ProgressRepository extends BaseRepository {
             // Return both the result and the domain events for publishing after commit
             return {
                 result: true,
-                domainEvents: domainEvents
+                domainEvents: domainEventsToPublish
             };
         }, {publishEvents: true,
             eventBus: this.eventBus,

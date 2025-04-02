@@ -18,88 +18,64 @@ import config from "#app/config/env.js";
  * @param {object} container - The DI container 
  */
 function registerAIComponents(container) {
-    console.log('Registering AI components following hexagonal architecture...');
+    const aiLogger = container.get('logger').child({ context: 'DI-AI' });
+    aiLogger.info('[DI AI] Registering AI components...');
     
     // Register the OpenAI SDK client FIRST (external dependency)
     try {
-        // Create the OpenAI client immediately, don't wait for lazy initialization
-        console.log('Creating OpenAI client with API key...');
+        aiLogger.info('[DI AI] Creating OpenAI client...');
         if (!config.OPENAI_API_KEY) {
-            throw new Error('OPENAI_API_KEY is required in the environment to initialize the OpenAI client');
+            throw new Error('OPENAI_API_KEY is required');
         }
+        const openAIClient = new OpenAI({ apiKey: config.OPENAI_API_KEY });
         
-        const openAIClient = new OpenAI({
-            apiKey: config.OPENAI_API_KEY
-        });
-        
-        // Register it as a singleton
+        aiLogger.info('[DI AI] Registering openAIClient...');
         container.register('openAIClient', () => openAIClient, true);
-        console.log('OpenAI client successfully created and registered');
+        aiLogger.info('[DI AI] OpenAI client registered.');
         
-        // NOW register the AI client adapter (implements domain port)
-        console.log('Registering AI client adapter...');
+        aiLogger.info('[DI AI] Registering AI client adapter...');
+        // NOTE: Instantiate adapters here, but register the *instance* using registerInstance or a factory
         const aiClientAdapter = new OpenAIClientAdapter({
             openAIClient: openAIClient,
             logger: container.get('logger')
         });
         container.register('aiClient', () => aiClientAdapter, true);
+        aiLogger.info('[DI AI] AI client adapter registered.');
         
-        // Register the AI state manager adapter (implements domain port)
-        console.log('Registering AI state manager adapter...');
+        aiLogger.info('[DI AI] Registering AI state manager adapter...');
+        // NOTE: Passing openAIClient (the SDK instance) to OpenAIStateManagerAdapter might be incorrect.
+        // It likely expects the OpenAIStateManager *implementation* registered in infrastructure.js.
+        // Let's assume it expects the SDK client for now based on the original code.
         const stateManagerAdapter = new OpenAIStateManagerAdapter({
-            openAIStateManager: openAIClient,
+            openAIStateManager: container.get('openAIStateManager'), // Corrected: Inject the implementation
             logger: container.get('logger')
         });
         container.register('aiStateManager', () => stateManagerAdapter, true);
+        aiLogger.info('[DI AI] AI state manager adapter registered.');
         
-        // Register the FocusAreaThreadState adapter (implements domain port)
-        console.log('Registering FocusAreaThreadState adapter...');
+        aiLogger.info('[DI AI] Registering FocusAreaThreadState adapter...');
         const focusAreaAdapter = new FocusAreaThreadStateAdapter({
-            openAIStateManager: stateManagerAdapter,
+            openAIStateManager: stateManagerAdapter, // This adapter depends on the previous adapter
             logger: container.get('focusAreaLogger') || container.get('logger')
         });
         container.register('focusAreaThreadState', () => focusAreaAdapter, true);
+        aiLogger.info('[DI AI] FocusAreaThreadState adapter registered.');
         
-        console.log('AI components registered successfully.');
+        aiLogger.info('[DI AI] AI components registered successfully.');
     } catch (error) {
-        console.error(`Error registering AI components: ${error.message}`);
-        console.error(error.stack);
+        aiLogger.error(`[DI AI] Error registering AI components: ${error.message}`, { stack: error.stack });
         
         // Register fallback mock implementations for development
         if (process.env.NODE_ENV !== 'production') {
-            console.log('Registering mock AI components for development...');
+            aiLogger.warn('[DI AI] Registering mock AI components for development...');
             
-            // Mock OpenAI client
-            container.register('openAIClient', () => ({
-                chat: { completions: { create: async () => ({ choices: [{ message: { content: 'Mock AI response' } }] }) } }
-            }), true);
+            container.register('openAIClient', () => ({ /* mock */ }), true);
+            container.register('aiClient', () => ({ /* mock */ }), true);
+            container.register('aiStateManager', () => ({ /* mock */ }), true);
+            container.register('focusAreaThreadState', () => ({ /* mock */ }), true);
             
-            // Mock AI client adapter
-            container.register('aiClient', () => ({
-                generateResponse: async () => 'Mock AI response',
-                generateChatCompletion: async () => ({ content: 'Mock AI response' })
-            }), true);
-            
-            // Mock state manager
-            container.register('aiStateManager', () => ({
-                createThread: async () => 'mock-thread-id',
-                addMessageToThread: async () => 'mock-message-id',
-                getOrCreateAssistant: async () => 'mock-assistant-id',
-                runAssistantOnThread: async () => 'mock-run-id',
-                waitForRunCompletion: async () => 'completed',
-                getThreadMessages: async () => []
-            }), true);
-            
-            // Mock focus area thread state
-            container.register('focusAreaThreadState', () => ({
-                createThreadForUser: async () => 'mock-thread-id',
-                addUserMessageToThread: async () => 'mock-message-id',
-                getResponseFromAssistant: async () => 'Mock focus area suggestion'
-            }), true);
-            
-            console.log('Mock AI components registered for development environment');
+            aiLogger.warn('[DI AI] Mock AI components registered.');
         } else {
-            // Re-throw in production since AI functionality is critical
             throw new Error(`Failed to register AI components: ${error.message}`);
         }
     }

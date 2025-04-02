@@ -1,3 +1,4 @@
+// Types improved by ts-improve-types
 /**
  * JSON Editor Manager Module
  * Manages JSON Editor instances
@@ -22,7 +23,7 @@ export class JSONEditorManager {
       ...options,
     };
 
-    this.editors = new Map();
+    this.editors = new Map(); // Property added
     this.defaultOptions = {
       mode: this.options.defaultMode,
       modes: this.options.defaultModes,

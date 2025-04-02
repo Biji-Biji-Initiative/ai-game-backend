@@ -2,15 +2,12 @@
 
 import User from "#app/core/user/models/User.js";
 import UserMapper from "#app/core/user/mappers/UserMapper.js";
-import { supabaseClient } from "#app/core/infra/db/supabaseClient.js";
 import { userDatabaseSchema } from "#app/core/user/schemas/userSchema.js";
 import { UserNotFoundError, UserValidationError, UserError } from "#app/core/user/errors/UserErrors.js";
-import domainEvents from "#app/core/common/events/domainEvents.js";
 import { BaseRepository, EntityNotFoundError, ValidationError, DatabaseError } from "#app/core/infra/repositories/BaseRepository.js";
 import { withRepositoryErrorHandling, createErrorMapper, createErrorCollector } from "#app/core/infra/errors/errorStandardization.js";
-import { EventTypes } from "#app/core/common/events/domainEvents.js";
+import { EventTypes } from "#app/core/common/events/eventTypes.js";
 
-const { eventBus } = domainEvents;
 // Create an error mapper for the user domain
 const userErrorMapper = createErrorMapper({
     EntityNotFoundError: UserNotFoundError,
@@ -27,18 +24,28 @@ class UserRepository extends BaseRepository {
      * @param {Object} options - Repository options
      * @param {Object} options.db - Database client
      * @param {Object} options.logger - Logger instance
-     * @param {Object} options.eventBus - Event bus for domain events
+     * @param {Object} options.eventBus - Event bus instance (INJECTED)
      */
     constructor(options = {}) {
         super({
-            db: options.db || supabaseClient,
+            db: options.db, // Expect db to be provided via dependency injection
             tableName: 'users',
             domainName: 'user',
             logger: options.logger,
             maxRetries: 3,
         });
-        this.eventBus = options.eventBus || eventBus;
+        this.eventBus = options.eventBus;
         this.validateUuids = true;
+        
+        // Log if db is missing
+        if (!this.db) {
+            this.logger?.warn('No database client provided to UserRepository');
+        }
+        if (!this.eventBus) {
+            // Decide how critical eventBus is. Warn or throw?
+            this.logger?.warn('No eventBus provided to UserRepository. Domain events will not be published.');
+        }
+        
         // Apply standardized error handling to methods
         this.findById = withRepositoryErrorHandling(this.findById.bind(this), {
             methodName: 'findById',
@@ -105,8 +112,8 @@ class UserRepository extends BaseRepository {
                 });
             }
             // Convert database model to domain model using the mapper
-            const userData = UserMapper.fromDatabase(data);
-            return new User(userData);
+            const user = UserMapper.toDomain(data, { eventBus: this.eventBus, EventTypes: EventTypes });
+            return user;
         }, 'findById', { id });
     }
     /**
@@ -124,9 +131,7 @@ class UserRepository extends BaseRepository {
             // Use the base repository implementation to get raw data
             const records = await super.findByIds(ids);
             
-            // Validate and convert each record to a domain object
             const users = [];
-            
             for (const record of records) {
                 // Validate the database data
                 const validationResult = userDatabaseSchema.safeParse(record);
@@ -135,11 +140,14 @@ class UserRepository extends BaseRepository {
                         id: record.id,
                         errors: validationResult.error.errors,
                     });
+                    continue;
                 }
                 
                 // Convert database model to domain model using the mapper
-                const userData = UserMapper.fromDatabase(record);
-                users.push(new User(userData));
+                const user = UserMapper.toDomain(record, { eventBus: this.eventBus, EventTypes: EventTypes });
+                if (user) {
+                    users.push(user);
+                }
             }
             
             return users;
@@ -202,8 +210,8 @@ class UserRepository extends BaseRepository {
                 });
             }
             // Convert database model to domain model using the mapper
-            const userData = UserMapper.fromDatabase(data);
-            return new User(userData);
+            const user = UserMapper.toDomain(data, { eventBus: this.eventBus, EventTypes: EventTypes });
+            return user;
         }, 'findByEmail', { email });
     }
     /**
@@ -218,25 +226,40 @@ class UserRepository extends BaseRepository {
             throw new ValidationError('Invalid user object provided to save method');
         }
         
-        const isNew = !user.id || !(this.exists(user.id));
-        this._log('debug', `${isNew ? 'Creating' : 'Updating'} user`, { userId: user.id });
+        const isUpdate = user.id && this.exists(user.id);
+        this._log('debug', `${isUpdate ? 'Updating' : 'Creating'} user`, { userId: user.id });
         
-        // Collect domain events from the entity before saving
-        const domainEvents = user.getDomainEvents();
+        // Ensure User instance has EventTypes, pass if necessary
+        // This assumes the User instance passed in might not have been created
+        // by this repository (e.g., created in a service layer).
+        if (!user.EventTypes) {
+             user.EventTypes = EventTypes; // Assign static EventTypes if missing
+        }
+        
+        // Get events *before* transaction
+        const domainEventsToPublish = user.getDomainEvents();
         
         return this.withTransaction(async (transaction) => {
             let result;
             
-            // Convert domain model to database format
-            const dbData = UserMapper.toDatabase(user);
+            // Convert domain model to database format using mapper
+            const dbData = UserMapper.toPersistence(user);
             
-            if (!isNew) {
+            // Validate persistence data (optional, but good practice)
+            const dbValidation = userDatabaseSchema.safeParse(dbData);
+            if (!dbValidation.success) {
+                throw new ValidationError(`Invalid data format for persistence: ${dbValidation.error.message}`, {
+                    validationErrors: dbValidation.error.flatten(),
+                });
+            }
+
+            if (isUpdate) {
                 // Update existing user
                 this._log('debug', 'Updating user', { userId: user.id });
                 
                 const { data, error } = await transaction
                     .from(this.tableName)
-                    .update(dbData)
+                    .update(dbValidation.data) // Use validated data
                     .eq('id', user.id)
                     .select()
                     .single();
@@ -257,7 +280,7 @@ class UserRepository extends BaseRepository {
                 
                 const { data, error } = await transaction
                     .from(this.tableName)
-                    .insert(dbData)
+                    .insert(dbValidation.data) // Use validated data
                     .select()
                     .single();
                     
@@ -273,19 +296,18 @@ class UserRepository extends BaseRepository {
             }
             
             // Convert database result back to domain model using the mapper
-            const userData = UserMapper.fromDatabase(result);
-            const savedUser = new User(userData);
+            const savedUser = UserMapper.toDomain(result, { eventBus: this.eventBus, EventTypes: EventTypes });
             
-            // Clear domain events from the original entity since they will be published
+            // Clear events from the *original* entity passed in
             user.clearDomainEvents();
             
-            // Return both the result and the domain events for publishing after commit
+            // Return result and the events collected *before* the transaction
             return {
                 result: savedUser,
-                domainEvents: domainEvents
+                domainEvents: domainEventsToPublish
             };
         }, {
-            publishEvents: true,
+            publishEvents: true, // BaseRepository handles publishing events from the return value
             eventBus: this.eventBus,
             invalidateCache: true,
             cacheInvalidator: this.cacheInvalidator
@@ -305,7 +327,7 @@ class UserRepository extends BaseRepository {
         this._log('debug', 'Deleting user', { userId: id });
         
         return this.withTransaction(async (transaction) => {
-            // First find the user to ensure it exists
+            // First find the user to ensure it exists and get data for event
             const { data: userRecord, error: findError } = await transaction
                 .from(this.tableName)
                 .select('*')
@@ -328,18 +350,18 @@ class UserRepository extends BaseRepository {
                 });
             }
             
-            // Convert to domain entity to collect events
-            const userData = UserMapper.fromDatabase(userRecord);
-            const user = new User(userData);
+            // Convert to domain entity to create/collect events
+            const user = UserMapper.toDomain(userRecord, { EventTypes: EventTypes });
             
-            // Add domain event for deletion
+            // Add domain event for deletion using the static EventTypes
             user.addDomainEvent(EventTypes.USER_DELETED, {
                 userId: id,
+                email: user.email, // Include email if available
                 action: 'deleted'
             });
             
             // Collect domain events from the entity
-            const domainEvents = user.getDomainEvents();
+            const domainEventsToPublish = user.getDomainEvents();
             
             // Delete from the database
             const { data: result, error: deleteError } = await transaction
@@ -359,18 +381,20 @@ class UserRepository extends BaseRepository {
             }
             
             if (!result) {
-                throw new UserError(`Failed to delete user with ID ${id}`);
+                // This case might indicate the record was deleted between find and delete
+                this._log('warn', 'User record disappeared before delete completed', { id });
+                throw new UserError(`Failed to confirm deletion for user with ID ${id}`);
             }
             
-            // Clear events from entity since they will be published
+            // Clear events from entity
             user.clearDomainEvents();
             
             return {
                 result: { deleted: true, id: result.id },
-                domainEvents
+                domainEvents: domainEventsToPublish
             };
         }, {
-            publishEvents: true,
+            publishEvents: true, // BaseRepository handles publishing
             eventBus: this.eventBus,
             invalidateCache: true,
             cacheInvalidator: this.cacheInvalidator
@@ -384,7 +408,45 @@ class UserRepository extends BaseRepository {
      */
     findAll(_criteria = {}, _options = {}) {
         // FindAll method with standardized error handling is applied in constructor
-        // Implementation here...
+        // Implementation needs to use the mapper
+        // Example structure:
+        return this._withRetry(async () => {
+            // ... build query based on criteria/options ...
+            // Example: Fetching all for simplicity, add actual filtering/pagination
+            const { data, error, count } = await this.db
+                .from(this.tableName)
+                .select('* ', { count: 'exact' }); // Corrected syntax
+            if (error) {
+                throw new DatabaseError('Failed to fetch users', { cause: error, operation: 'findAll' });
+            }
+            const users = UserMapper.toDomainCollection(data || [], { eventBus: this.eventBus, EventTypes: EventTypes });
+            return { users, total: count || 0 }; // Ensure total is a number
+        }, 'findAll', { _criteria, _options });
+    }
+
+    /**
+     * Check if a user exists by ID.
+     * @param {string} id User ID.
+     * @returns {Promise<boolean>} True if user exists, false otherwise.
+     * @private // Or make public if needed elsewhere
+     */
+    async exists(id) {
+        if (!id) return false;
+        try {
+            const { count, error } = await this.db
+                .from(this.tableName)
+                .select('id', { count: 'exact', head: true })
+                .eq('id', id);
+                
+            if (error) {
+                this._log('error', 'Error checking user existence', { id, error: error.message });
+                return false; // Fail safe
+            }
+            return count > 0;
+        } catch (err) {
+            this._log('error', 'Exception checking user existence', { id, error: err.message });
+            return false;
+        }
     }
 }
 

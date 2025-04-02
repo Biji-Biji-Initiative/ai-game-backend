@@ -13,22 +13,24 @@
 /**
  * FocusArea Value Object
  */
+import { ChallengeValidationError } from "#app/core/challenge/errors/ChallengeErrors.js";
+
 class FocusArea {
     /**
      * Create a new FocusArea value object
      * @param {string} value - Focus area code or display name
-     * @throws {Error} If the focus area format is invalid
+     * @throws {ChallengeValidationError} If the focus area format is invalid
      */
     constructor(value) {
         if (!value) {
-            throw new Error('FocusArea cannot be empty');
+            throw new ChallengeValidationError('FocusArea cannot be empty');
         }
-        // Normalize the value to a code
-        const normalizedValue = this.normalizeToCode(value);
-        if (!FocusArea.isValidFormat(normalizedValue)) {
-            throw new Error(`Invalid focus area format: ${value}`);
+        // Basic format check - adjust as needed (e.g., allow spaces, specific characters)
+        const formatRegex = /^[a-zA-Z0-9_\-]+$/;
+        if (typeof value !== 'string' || !formatRegex.test(value)) {
+            throw new ChallengeValidationError(`Invalid focus area format: ${value}`);
         }
-        this._code = normalizedValue;
+        this._value = value;
         Object.freeze(this);
     }
     /**
@@ -36,14 +38,14 @@ class FocusArea {
      * @returns {string} Focus area code
      */
     get code() {
-        return this._code;
+        return this._value;
     }
     /**
      * Get the display name for the focus area
      * @returns {string} Display name (same as code for base value object)
      */
     get displayName() {
-        return this._code;
+        return this._value;
     }
     /**
      * Normalize a value to a focus area code
@@ -98,14 +100,14 @@ class FocusArea {
      * @returns {string} String representation
      */
     toString() {
-        return this._code;
+        return this._value;
     }
     /**
      * Convert to primitive value when serializing
      * @returns {string} The focus area code
      */
     toJSON() {
-        return this._code;
+        return this._value;
     }
 }
 export default FocusArea;

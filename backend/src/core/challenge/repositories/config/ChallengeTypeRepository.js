@@ -1,7 +1,6 @@
 import ChallengeType from "#app/core/challenge/models/config/ChallengeType.js";
 import challengeTypeMapper from "#app/core/challenge/mappers/ChallengeTypeMapper.js";
 import { withRepositoryErrorHandling, createErrorMapper } from "#app/core/infra/errors/errorStandardization.js";
-import { supabaseClient } from "#app/core/infra/db/supabaseClient.js";
 import { BaseRepository, ValidationError, DatabaseError, EntityNotFoundError } from "#app/core/infra/repositories/BaseRepository.js";
 import { ChallengeError, ChallengeNotFoundError, ChallengeValidationError, ChallengeProcessingError } from "#app/core/challenge/errors/ChallengeErrors.js";
 import { challengeLogger } from "#app/core/infra/logging/domainLogger.js";
@@ -21,16 +20,24 @@ const {
 class ChallengeTypeRepository {
   /**
    * Create a new ChallengeTypeRepository
-   * @param {Object} supabase - Supabase client
-   * @param {Object} logger - Logger instance
+   * @param {Object} options - Repository options
    */
-  constructor(supabase, logger) {
-    this.supabase = supabase || supabaseClient;
+  constructor(options = {}) {
+    this.supabase = options.db;
     this.tableName = 'challenge_types';
-    this.logger = logger || challengeLogger.child({
+    this.logger = options.logger || challengeLogger.child({
       component: 'repository:challengeType'
     });
     this.domainName = 'challenge:challengeType';
+    this.cache = options.cache;
+
+    // Log if dependencies are missing
+    if (!this.supabase) {
+      this.logger.warn('No database client provided to ChallengeTypeRepository');
+    }
+    if (!this.cache) {
+      this.logger.warn('No cache service provided to ChallengeTypeRepository');
+    }
     
     // Create an error mapper for the challenge type domain
     const challengeTypeErrorMapper = createErrorMapper({

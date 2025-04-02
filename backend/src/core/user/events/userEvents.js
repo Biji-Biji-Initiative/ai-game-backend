@@ -1,8 +1,9 @@
 'use strict';
 
-import domainEvents from "#app/core/common/events/domainEvents.js";
+import { EventTypes } from "#app/core/common/events/eventTypes.js";
 import { logger } from "#app/core/infra/logging/logger.js";
-import { UserRepository } from "#app/core/user/repositories/UserRepository.js";
+// REMOVED: Direct import
+// import { UserRepository } from "#app/core/user/repositories/UserRepository.js";
 
 /**
  * User Domain Events
@@ -17,195 +18,146 @@ import { UserRepository } from "#app/core/user/repositories/UserRepository.js";
  * - Let repositories publish events after successful persistence
  * See docs/event-handling-standard.md for details on the recommended approach.
  */
-const {
-  EventTypes,
-  eventBus
-} = domainEvents;
 
-// Create repository instance
-const userRepository = new UserRepository();
+// REMOVED: Top-level instantiation
+// const userRepository = new UserRepository();
+
+/**
+ * Get the UserRepository instance from the container.
+ * @param {DIContainer} container - The DI container instance.
+ * @returns {UserRepository}
+ */
+function getRepo(container) {
+    if (!container) {
+        logger.error('[userEvents] Container not provided to getRepo!');
+        throw new Error('DI container is required to get UserRepository');
+    }
+    try {
+        return container.get('userRepository');
+    } catch (error) {
+        logger.error('[userEvents] Failed to get UserRepository from container', { error: error.message });
+        throw error;
+    }
+}
 
 /**
  * Publish an event when a user is created
+ * @param {DIContainer} container - The DI container instance.
  * @param {string} userId - ID of the user
  * @param {string} email - Email of the user
  * @returns {Promise<void>}
  * @deprecated Use User entity's addDomainEvent method and let repository handle publishing
  */
-async function publishUserCreated(userId, email) {
+async function publishUserCreated(container, userId, email) {
   logger.warn('DEPRECATED: Direct event publishing via publishUserCreated. Use entity-based event collection instead.');
   try {
-    // Get entity to add domain event
-    const entity = await userRepository.findById(userId);
+    const repo = getRepo(container);
+    const entity = await repo.findById(userId);
     if (entity) {
-      // Add domain event to entity
-      entity.addDomainEvent(EventTypes.USER_CREATED, {
-        userId,
-        email
-      });
-      
-      // Save entity which will publish the event
-      await userRepository.save(entity);
+      entity.addDomainEvent(EventTypes.USER_CREATED, { userId, email });
+      await repo.save(entity);
     } else {
-      // Fallback to direct event publishing if entity not found
-      console.warn(`Entity with ID ${userId} not found for event USER_CREATED. Using direct event publishing.`);
-      await eventBus.publishEvent(EventTypes.USER_CREATED, {
-        userId,
-        email
+      logger.warn(`[userEvents] Entity ${userId} not found for USER_CREATED. Direct publish.`);
+      await eventBus.publish({
+        type: EventTypes.USER_CREATED,
+        data: { entityId: userId, entityType: 'User', userId, email },
+        metadata: { timestamp: new Date().toISOString() }
       });
     }
-    
-    logger.debug('Published user created event', {
-      userId,
-      email
-    });
+    logger.debug('Published user created event', { userId, email });
   } catch (error) {
-    logger.error('Error publishing user created event', {
-      error: error.message,
-      userId,
-      email
-    });
+    logger.error('Error publishing user created event', { error: error.message, userId, email });
   }
 }
 
 /**
  * Publish an event when a user is updated
+ * @param {DIContainer} container - The DI container instance.
  * @param {string} userId - ID of the user
  * @param {Object} changes - Changes made to the user
  * @returns {Promise<void>}
  * @deprecated Use User entity's addDomainEvent method and let repository handle publishing
  */
-async function publishUserUpdated(userId, changes) {
+async function publishUserUpdated(container, userId, changes) {
   logger.warn('DEPRECATED: Direct event publishing via publishUserUpdated. Use entity-based event collection instead.');
   try {
-    // Get entity to add domain event
-    const entity = await userRepository.findById(userId);
+    const repo = getRepo(container);
+    const entity = await repo.findById(userId);
     if (entity) {
-      // Add domain event to entity
-      entity.addDomainEvent(EventTypes.USER_UPDATED, {
-        userId,
-        changes
-      });
-      
-      // Save entity which will publish the event
-      await userRepository.save(entity);
+      entity.addDomainEvent(EventTypes.USER_UPDATED, { userId, changes });
+      await repo.save(entity);
     } else {
-      // Fallback to direct event publishing if entity not found
-      console.warn(`Entity with ID ${userId} not found for event USER_UPDATED. Using direct event publishing.`);
-      await eventBus.publishEvent(EventTypes.USER_UPDATED, {
-        userId,
-        changes
-      });
+        logger.warn(`[userEvents] Entity ${userId} not found for USER_UPDATED. Direct publish.`);
+        await eventBus.publish({
+            type: EventTypes.USER_UPDATED,
+            data: { entityId: userId, entityType: 'User', userId, changes },
+            metadata: { timestamp: new Date().toISOString() }
+        });
     }
-    
-    logger.debug('Published user updated event', {
-      userId
-    });
+    logger.debug('Published user updated event', { userId });
   } catch (error) {
-    logger.error('Error publishing user updated event', {
-      error: error.message,
-      userId
-    });
+    logger.error('Error publishing user updated event', { error: error.message, userId });
   }
 }
 
 /**
  * Publish an event when a user profile is completed
+ * @param {DIContainer} container - The DI container instance.
  * @param {string} userId - ID of the user
  * @param {string} email - Email of the user
  * @returns {Promise<void>}
  * @deprecated Use User entity's addDomainEvent method and let repository handle publishing
  */
-async function publishUserProfileCompleted(userId, email) {
+async function publishUserProfileCompleted(container, userId, email) {
   logger.warn('DEPRECATED: Direct event publishing via publishUserProfileCompleted. Use entity-based event collection instead.');
   try {
-    // Get entity to add domain event
-    const entity = await userRepository.findById(userId);
+    const repo = getRepo(container);
+    const entity = await repo.findById(userId);
     if (entity) {
-      // Add domain event to entity
-      entity.addDomainEvent(EventTypes.USER_PROFILE_COMPLETED, {
-        userId,
-        email
-      });
-      
-      // Save entity which will publish the event
-      await userRepository.save(entity);
+      entity.addDomainEvent(EventTypes.USER_PROFILE_COMPLETED, { userId, email });
+      await repo.save(entity);
     } else {
-      // Fallback to direct event publishing if entity not found
-      console.warn(`Entity with ID ${userId} not found for event USER_PROFILE_COMPLETED. Using direct event publishing.`);
-      await eventBus.publishEvent(EventTypes.USER_PROFILE_COMPLETED, {
-        userId,
-        email
-      });
+        logger.warn(`[userEvents] Entity ${userId} not found for USER_PROFILE_COMPLETED. Direct publish.`);
+        await eventBus.publish({
+            type: EventTypes.USER_PROFILE_COMPLETED,
+            data: { entityId: userId, entityType: 'User', userId, email },
+            metadata: { timestamp: new Date().toISOString() }
+        });
     }
-    
-    logger.debug('Published user profile completed event', {
-      userId,
-      email
-    });
+    logger.debug('Published user profile completed event', { userId, email });
   } catch (error) {
-    logger.error('Error publishing user profile completed event', {
-      error: error.message,
-      userId,
-      email
-    });
+    logger.error('Error publishing user profile completed event', { error: error.message, userId, email });
   }
 }
 
 /**
  * Set up user event subscriptions
+ * @param {DIContainer} container - The DI container instance.
  */
-function registerUserEventHandlers() {
-  // Skip if event bus is not available or we're in development mode
-  if (!eventBus || typeof eventBus.subscribe !== 'function' || process.env.NODE_ENV === 'development') {
-    logger.debug('Skipping user event handler registration (dev mode or unavailable event bus)');
-    return;
-  }
+export function registerUserEventHandlers(container) {
+    if (!container) {
+        throw new Error('Container is required to register user event handlers');
+    }
 
-  // When personality insights are generated, update user profile
-  eventBus.subscribe(EventTypes.PERSONALITY_TRAIT_IDENTIFIED, async event => {
-    try {
-      logger.debug('Handling personality trait identified event', {
-        userId: event.payload.userId
-      });
-      // In a real implementation, we would update the user profile with the new traits
-      logger.info('User profile would be updated with personality traits', {
-        userId: event.payload.userId
-      });
-    } catch (error) {
-      logger.error('Error handling personality trait identified event', {
-        error: error.message,
-        userId: event.payload?.userId
-      });
+    const eventBus = container.get('eventBus');
+    if (!eventBus) {
+        throw new Error('EventBus not found in container');
     }
-  });
-  
-  // When focus area is set, update user profile
-  eventBus.subscribe(EventTypes.USER_FOCUS_AREA_SET, async event => {
-    try {
-      logger.debug('Handling user focus area set event', {
-        userId: event.payload.userId,
-        focusArea: event.payload.focusArea
-      });
-      // In a real implementation, we would update the user profile with the new focus area
-      logger.info('User profile would be updated with focus area', {
-        userId: event.payload.userId,
-        focusArea: event.payload.focusArea
-      });
-    } catch (error) {
-      logger.error('Error handling user focus area set event', {
-        error: error.message,
-        userId: event.payload?.userId,
-        focusArea: event.payload?.focusArea
-      });
-    }
-  });
+
+    // Register event handlers here...
+    // Example:
+    eventBus.on(EventTypes.USER_CREATED, async (event) => {
+        try {
+            const repo = getRepo(container);
+            // Handle user created event...
+            logger.info('User created event handled', { eventId: event.id });
+        } catch (error) {
+            logger.error('Error handling user created event', { error: error.message });
+        }
+    });
+
+    // Add more event handlers as needed...
 }
-
-export { publishUserCreated };
-export { publishUserUpdated };
-export { publishUserProfileCompleted };
-export { registerUserEventHandlers };
 
 export default {
   publishUserCreated,

@@ -1,4 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
+import { EventTypes } from "#app/core/common/events/eventTypes.js";
+import { EvaluationValidationError } from "#app/core/evaluation/errors/EvaluationErrors.js";
 'use strict';
 // Remove the direct repository dependency
 // const evaluationCategoryRepository = require('../repositories/evaluationCategoryRepository');
@@ -32,30 +34,32 @@ class Evaluation {
      * @param {Date|string} [data.createdAt] - Creation timestamp
      * @param {Date|string} [data.updatedAt] - Last update timestamp
      * @param {Object} [data.challengeContext] - Challenge-specific context information
+     * @param {Object} options - Additional options
+     * @param {Object} options.EventTypes - Event type constants
      * @throws {Error} If required data is missing
      */
-    constructor(data = {}) {
+    constructor(data = {}, options = {}) {
         if (!data || typeof data !== 'object') {
-            throw new Error('Evaluation data must be an object');
+            throw new EvaluationValidationError('Evaluation data must be an object');
         }
         // Validate required fields
         if (!data.userId) {
-            throw new Error('User ID is required for evaluation');
+            throw new EvaluationValidationError('User ID is required for evaluation');
         }
         if (!data.challengeId) {
-            throw new Error('Challenge ID is required for evaluation');
+            throw new EvaluationValidationError('Challenge ID is required for evaluation');
         }
         if (typeof data.score !== 'number' || data.score < 0 || data.score > 100) {
-            throw new Error('Valid score (0-100) is required for evaluation');
+            throw new EvaluationValidationError('Valid score (0-100) is required for evaluation');
         }
         if (!data.categoryScores || Object.keys(data.categoryScores).length === 0) {
-            throw new Error('Category scores are required for evaluation');
+            throw new EvaluationValidationError('Category scores are required for evaluation');
         }
         // Core properties
         this.id = data.id || uuidv4();
         this.userId = data.userId;
         this.challengeId = data.challengeId;
-        this.score = data.score;
+        this.score = data.score || 0;
         this.scorePercent = 0;
         // Category scores
         this.categoryScores = data.categoryScores;
@@ -110,6 +114,8 @@ class Evaluation {
         this.relevantCategories = data.relevantCategories || [];
         // Initialize domain events collection
         this._domainEvents = [];
+        // Store EventTypes from options
+        this.EventTypes = options.EventTypes || EventTypes;
         // Calculate metrics if we have enough data
         if (this.score > 0 && Object.keys(this.categoryScores).length > 0) {
             this.calculateMetrics();
@@ -117,24 +123,37 @@ class Evaluation {
     }
     /**
      * Add a domain event to the collection
-     * @param {string} type - Event type
-     * @param {Object} data - Event data
+     * @param {string} eventType - Event type from EventTypes
+     * @param {Object} eventData - Event data
      */
-    addDomainEvent(type, data) {
-        if (!type) {
-            throw new Error('Event type is required');
+    addDomainEvent(eventType, eventData = {}) {
+        if (!eventType) {
+            throw new EvaluationValidationError('Event type is required when adding domain event');
         }
-        this._domainEvents.push({ type, data });
+        // Create standardized event structure
+        const event = {
+            type: eventType,
+            data: {
+                ...eventData,
+                entityId: this.id,
+                entityType: 'Evaluation'
+            },
+            metadata: {
+                timestamp: new Date().toISOString(),
+                correlationId: `evaluation-${this.id}-${Date.now()}`
+            }
+        };
+        this._domainEvents.push(event);
     }
     /**
-     * Get collected domain events
-     * @returns {Array} Collection of domain events
+     * Get all domain events
+     * @returns {Array} Array of domain events
      */
     getDomainEvents() {
-        return this._domainEvents;
+        return this._domainEvents || [];
     }
     /**
-     * Clear collected domain events
+     * Clear all domain events
      */
     clearDomainEvents() {
         this._domainEvents = [];
@@ -499,7 +518,7 @@ class Evaluation {
      */
     update(updates) {
         if (!updates || typeof updates !== 'object') {
-            throw new Error('Update data must be an object');
+            throw new EvaluationValidationError('Update data must be an object');
         }
         // Prevent modification of core identifiers
         const protectedFields = ['id', 'userId', 'challengeId', 'createdAt'];
@@ -530,10 +549,10 @@ class Evaluation {
      */
     addCategoryScore(category, score) {
         if (!category || typeof category !== 'string') {
-            throw new Error('Category must be a non-empty string');
+            throw new EvaluationValidationError('Category must be a non-empty string');
         }
         if (typeof score !== 'number' || score < 0 || score > 100) {
-            throw new Error('Score must be a number between 0 and 100');
+            throw new EvaluationValidationError('Score must be a number between 0 and 100');
         }
         this.categoryScores = this.categoryScores || {};
         this.categoryScores[category] = score;
@@ -548,10 +567,10 @@ class Evaluation {
      */
     addImprovementPlan(plan) {
         if (!plan || typeof plan !== 'object') {
-            throw new Error('Plan must be an object');
+            throw new EvaluationValidationError('Plan must be an object');
         }
         if (!plan.area || typeof plan.area !== 'string') {
-            throw new Error('Plan must include an area string');
+            throw new EvaluationValidationError('Plan must include an area string');
         }
         // Initialize if necessary
         this.improvementPlans = this.improvementPlans || [];
@@ -578,7 +597,7 @@ class Evaluation {
      */
     addUserContext(userContext) {
         if (!userContext || typeof userContext !== 'object') {
-            throw new Error('User context must be an object');
+            throw new EvaluationValidationError('User context must be an object');
         }
         this.userContext = {
             ...this.userContext,
@@ -595,7 +614,7 @@ class Evaluation {
      */
     setRelevantCategories(categories) {
         if (!Array.isArray(categories)) {
-            throw new Error('Categories must be an array');
+            throw new EvaluationValidationError('Categories must be an array');
         }
         this.relevantCategories = categories;
         this.metrics = this.calculateMetrics();
@@ -609,7 +628,7 @@ class Evaluation {
      */
     addChallengeContext(challengeContext) {
         if (!challengeContext || typeof challengeContext !== 'object') {
-            throw new Error('Challenge context must be an object');
+            throw new EvaluationValidationError('Challenge context must be an object');
         }
         this.challengeContext = {
             ...this.challengeContext,
@@ -626,10 +645,10 @@ class Evaluation {
      */
     addRecommendedResource(resource) {
         if (!resource || typeof resource !== 'object') {
-            throw new Error('Resource must be an object');
+            throw new EvaluationValidationError('Resource must be an object');
         }
         if (!resource.title || typeof resource.title !== 'string') {
-            throw new Error('Resource must include a title');
+            throw new EvaluationValidationError('Resource must include a title');
         }
         this.recommendedResources = this.recommendedResources || [];
         this.recommendedResources.push(resource);
@@ -643,81 +662,15 @@ class Evaluation {
      */
     addRecommendedChallenge(challenge) {
         if (!challenge || typeof challenge !== 'object') {
-            throw new Error('Challenge must be an object');
+            throw new EvaluationValidationError('Challenge must be an object');
         }
         if (!challenge.title || typeof challenge.title !== 'string') {
-            throw new Error('Challenge must include a title');
+            throw new EvaluationValidationError('Challenge must include a title');
         }
         this.recommendedChallenges = this.recommendedChallenges || [];
         this.recommendedChallenges.push(challenge);
         this.updatedAt = new Date().toISOString();
         return this;
-    }
-    /**
-     * Convert to plain object for storage
-     * @returns {Object} Plain object representation of the evaluation
-     */
-    toObject() {
-        return {
-            user_id: this.userId,
-            challenge_id: this.challengeId,
-            score: this.score,
-            score_percent: this.scorePercent,
-            category_scores: this.categoryScores,
-            relevant_scores: this.relevantScores,
-            overall_feedback: this.overallFeedback,
-            strengths: this.strengths,
-            strength_analysis: this.strengthAnalysis,
-            areas_for_improvement: this.areasForImprovement,
-            improvement_plans: this.improvementPlans,
-            next_steps: this.nextSteps,
-            recommended_resources: this.recommendedResources,
-            recommended_challenges: this.recommendedChallenges,
-            user_context: this.userContext,
-            challenge_context: this.challengeContext,
-            growth_metrics: this.growthMetrics,
-            response_id: this.responseId,
-            thread_id: this.threadId,
-            metadata: this.metadata,
-            relevant_categories: this.relevantCategories,
-        };
-    }
-    /**
-     * Create Evaluation instance from database object
-     * @param {Object} data - Evaluation data from database
-     * @returns {Evaluation} Evaluation instance
-     */
-    static fromDatabase(data) {
-        if (!data) {
-            throw new Error('Database data is required to create Evaluation instance');
-        }
-        // Convert snake_case to camelCase if needed
-        const mapped = {
-            id: data.id,
-            userId: data.user_id || data.userId,
-            challengeId: data.challenge_id || data.challengeId,
-            score: data.score || data.overall_score || 0,
-            categoryScores: data.category_scores || data.categoryScores || {},
-            overallFeedback: data.overall_feedback || data.overallFeedback || '',
-            strengths: data.strengths || [],
-            strengthAnalysis: data.strength_analysis || data.strengthAnalysis || [],
-            areasForImprovement: data.areas_for_improvement || data.areasForImprovement || [],
-            improvementPlans: data.improvement_plans || data.improvementPlans || [],
-            nextSteps: data.next_steps || data.nextSteps || '',
-            recommendedResources: data.recommended_resources || data.recommendedResources || [],
-            recommendedChallenges: data.recommended_challenges || data.recommendedChallenges || [],
-            responseId: data.response_id || data.responseId,
-            threadId: data.thread_id || data.threadId,
-            userContext: data.user_context || data.userContext || {},
-            challengeContext: data.challenge_context || data.challengeContext || {},
-            growthMetrics: data.growth_metrics || data.growthMetrics || {},
-            metrics: data.metrics || {},
-            metadata: data.metadata || {},
-            createdAt: data.created_at || data.createdAt,
-            updatedAt: data.updated_at || data.updatedAt,
-            relevantCategories: data.relevant_categories || data.relevantCategories || [],
-        };
-        return new Evaluation(mapped);
     }
     /**
      * Create a new unique ID for an evaluation

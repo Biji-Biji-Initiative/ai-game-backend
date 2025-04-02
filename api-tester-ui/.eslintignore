@@ -1,0 +1,12 @@
+# Vendor directories and files
+js/vendor/**/*
+vendor/**/*
+node_modules/**/*
+
+# Build artifacts
+dist/**/*
+build/**/*
+
+# Generated files
+*.min.js
+*.bundle.js 

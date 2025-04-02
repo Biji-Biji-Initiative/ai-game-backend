@@ -18,14 +18,6 @@ class HealthCheckService {
      * @param {Object} dependencies.logger - Logger instance
      */
     constructor(dependencies) { // Accept dependencies object directly
-        // Log received dependencies immediately
-        console.log('[HealthCheckService Constructor] Received dependencies:', {
-             hasLogger: !!dependencies?.logger,
-             hasDbCheckFn: typeof dependencies?.runDatabaseHealthCheck === 'function',
-             hasAiClient: !!dependencies?.openAIClient,
-             hasAiCheckFn: typeof dependencies?.checkOpenAIStatus === 'function'
-        });
-
         const { runDatabaseHealthCheck, openAIClient, checkOpenAIStatus, logger } = dependencies || {};
 
         if (!logger) {
@@ -33,6 +25,15 @@ class HealthCheckService {
             throw new Error('Logger is required for HealthCheckService constructor');
         }
         this.logger = logger;
+        
+        // Log received dependencies
+        this.logger.debug('[HealthCheckService Constructor] Received dependencies:', {
+             hasLogger: !!dependencies?.logger,
+             hasDbCheckFn: typeof dependencies?.runDatabaseHealthCheck === 'function',
+             hasAiClient: !!dependencies?.openAIClient,
+             hasAiCheckFn: typeof dependencies?.checkOpenAIStatus === 'function'
+        });
+        
         this.logger.info('HealthCheckService initializing...');
 
         // Create fallback implementation if needed

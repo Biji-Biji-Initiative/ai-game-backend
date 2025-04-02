@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
-import _domainEvents from "#app/core/common/events/domainEvents.js";
+import { EventTypes } from "#app/core/common/events/eventTypes.js";
+import { ProgressValidationError } from "#app/core/progress/errors/progressErrors.js";
 'use strict';
 /**
  *
@@ -8,11 +9,12 @@ class Progress {
     /**
      * Create a progress instance
      * @param {Object} data - Progress data
+     * @param {Object} options - Additional options
      */
     /**
      * Method constructor
      */
-    constructor(data = {}) {
+    constructor(data = {}, options = {}) {
         this.id = data.id || uuidv4();
         this.userId = data.userId || data.user_id || null;
         this.focusArea = data.focusArea || data.focus_area || null;
@@ -34,19 +36,35 @@ class Progress {
         this.status = data.status || 'active';
         this.createdAt = data.createdAt || data.created_at || new Date().toISOString();
         this.updatedAt = data.updatedAt || data.updated_at || new Date().toISOString();
+        
+        // Store EventTypes if provided
+        this.EventTypes = options.EventTypes; 
+        
         // Initialize domain events collection
         this._domainEvents = [];
     }
     /**
      * Add a domain event to the collection
-     * @param {string} type - Event type
-     * @param {Object} data - Event data
+     * @param {string} eventType - Event type
+     * @param {Object} eventData - Event data
      */
-    addDomainEvent(type, data) {
-        if (!type) {
-            throw new Error('Event type is required');
+    addDomainEvent(eventType, eventData) {
+        if (!this.EventTypes || !this.EventTypes[eventType]) {
+           // console.warn(`[Progress Model] Unknown eventType constant used: ${eventType}. Cannot validate.`);
+           // Or load dynamically as fallback?
         }
-        this._domainEvents.push({ type, data });
+        // Use super.addDomainEvent if Progress extends Entity, otherwise:
+        if (!eventType) { throw new ProgressValidationError('Event type is required when adding domain event'); }
+        const event = { 
+            type: eventType, 
+            data: { 
+                ...eventData, 
+                entityId: this.id, 
+                entityType: 'Progress'
+            },
+            metadata: { timestamp: new Date().toISOString() }
+        };
+        this._domainEvents.push(event);
     }
     /**
      * Get collected domain events
@@ -103,13 +121,13 @@ class Progress {
      */
     recordChallengeCompletion(challengeId, score, completionTime, evaluationData = {}) {
         if (!challengeId) {
-            throw new Error('Challenge ID is required');
+            throw new ProgressValidationError('Challenge ID is required');
         }
         if (isNaN(score) || score < 0 || score > 100) {
-            throw new Error('Score must be a number between 0 and 100');
+            throw new ProgressValidationError('Score must be a number between 0 and 100');
         }
         if (isNaN(completionTime) || completionTime < 0) {
-            throw new Error('Completion time must be a positive number');
+            throw new ProgressValidationError('Completion time must be a positive number');
         }
         // Set challenge data
         this.challengeId = challengeId;
@@ -144,14 +162,26 @@ class Progress {
             this.updateSkillLevels(evaluationData.skillLevels);
         }
         this.updatedAt = new Date().toISOString();
-        // Add domain event instead of publishing directly
-        this.addDomainEvent('ChallengeProgressRecorded', {
-            userId: this.userId,
-            challengeId,
-            score,
-            completionTime,
-            skillLevels: this.skillLevels,
-        });
+        // Use this.EventTypes
+        if (this.EventTypes) {
+            this.addDomainEvent(this.EventTypes.PROGRESS_UPDATED, { 
+                userId: this.userId,
+                challengeId,
+                score,
+                completionTime,
+                skillLevels: this.skillLevels,
+                area: 'challenge' // Specify area
+            });
+            // Add ACHIEVEMENT_UNLOCKED event based on score
+            if (score >= 90) { // Example threshold
+                 this.addDomainEvent(this.EventTypes.ACHIEVEMENT_UNLOCKED, { 
+                      userId: this.userId,
+                      achievementId: 'high_scorer',
+                      achievementName: 'High Scorer',
+                      description: 'Achieved 90+ on a challenge'
+                 });
+            }
+        }
     }
     /**
      * Update skill levels
@@ -164,7 +194,7 @@ class Progress {
         // Validate skill levels
         Object.entries(newSkillLevels).forEach(([skill, level]) => {
             if (isNaN(level) || level < 0 || level > 100) {
-                throw new Error(`Skill level for ${skill} must be a number between 0 and 100`);
+                throw new ProgressValidationError(`Skill level for ${skill} must be a number between 0 and 100`);
             }
         });
         // Merge skill levels
@@ -173,11 +203,14 @@ class Progress {
             ...newSkillLevels,
         };
         this.updatedAt = new Date().toISOString();
-        // Add domain event instead of publishing directly
-        this.addDomainEvent('SkillLevelsUpdated', {
-            userId: this.userId,
-            skillLevels: this.skillLevels,
-        });
+        // Use this.EventTypes
+        if (this.EventTypes) {
+            this.addDomainEvent(this.EventTypes.PROGRESS_UPDATED, { 
+                userId: this.userId,
+                skillLevels: this.skillLevels,
+                area: 'skill_update' // Specify area
+            });
+        }
     }
     /**
      * Update progress statistics
@@ -220,11 +253,14 @@ class Progress {
     setFocusArea(focusArea) {
         this.focusArea = focusArea;
         this.updatedAt = new Date().toISOString();
-        // Add domain event instead of publishing directly
-        this.addDomainEvent('ProgressFocusAreaSet', {
-            userId: this.userId,
-            focusArea,
-        });
+        // Use this.EventTypes
+        if (this.EventTypes) {
+            this.addDomainEvent(this.EventTypes.PROGRESS_UPDATED, { 
+                userId: this.userId,
+                focusArea,
+                area: 'focus_area_set' // Specify area
+            });
+        }
     }
 }
 export default Progress;

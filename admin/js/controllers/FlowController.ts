@@ -6,82 +6,142 @@
 import { EndpointManager } from '../modules/endpoint-manager';
 import { VariableManager } from '../modules/variable-manager';
 import { HistoryManager } from '../modules/history-manager';
-import { IUIManager } from '../components/UIManagerNew';
-import { logger } from '../utils/logger';
-import { evaluateCondition } from '../utils/condition-evaluator';
-
-export interface FlowStep {
-  id: string;
-  name: string;
-  description?: string;
-  endpoint?: string;
-  method?: string;
-  url?: string;
-  headers?: Record<string, string>;
-  params?: Record<string, string>;
-  body?: any;
-  skipIf?: string;
-  delay?: number;
-  extractVariables?: Array<{
-    name: string;
-    path: string;
-    description?: string;
-  }>;
-  skipCondition?: string;
-}
-
-export interface Flow {
-  id: string;
-  name: string;
-  description?: string;
-  steps: FlowStep[];
-  createdAt: number;
-  updatedAt: number;
-  tags?: string[];
-}
-
-export interface FlowControllerOptions {
-  endpointManager: EndpointManager;
-  uiManager: IUIManager;
-  variableManager: VariableManager;
-  historyManager: HistoryManager;
-}
+import { UIManager } from '../components/UIManagerNew';
+import { Logger, ComponentLogger } from '../core/Logger';
+import { evaluateCondition, ConditionEvaluationOptions } from '../utils/condition-evaluator';
+import { APIClient } from '../api/api-client';
+import { AppController } from './AppController';
+import { StorageService } from '../services/StorageService';
+import { DomService } from '../services/DomService';
+import { DependencyContainer } from '../core/DependencyContainer';
+import {
+  Flow,
+  FlowStep,
+  StepType,
+  RequestStep,
+  DelayStep,
+  ConditionStep,
+  LogStep,
+} from '../types/flow-types';
+import { FlowControllerOptions, RequestInfo } from '../types/app-types';
+import { ConfigManager } from '../core/ConfigManager';
+import { EventEmitter } from '../utils/event-emitter';
+import { FlowUIService, StepStatus } from '../services/FlowUIService';
 
 /**
- * FlowController class
- * Manages API flows and operations
+ * Flow Controller class
+ * Manages flows and executing their steps
  */
-export class FlowController {
-  private flows: Flow[] = [];
+export class FlowController extends EventEmitter {
+  private flows: Map<string, Flow> = new Map();
   private activeFlow: Flow | null = null;
-  private activeStepIndex: number = -1;
-  private isRunning: boolean = false;
+  private stepStatuses: Map<string, StepStatus> = new Map();
+  private isExecuting = false;
+  private logger: ComponentLogger;
+  private apiClient: APIClient;
   private endpointManager: EndpointManager;
-  private uiManager: IUIManager;
   private variableManager: VariableManager;
   private historyManager: HistoryManager;
-  
+  private uiManager: UIManager;
+  private appController: AppController;
+  private storageService: StorageService;
+  private domService: DomService;
+  private configManager: ConfigManager;
+  private flowUIService: FlowUIService;
+  private flowStorageKey: string = 'api_flows';
+
   /**
-   * Constructor
-   * @param options FlowController options
+   * Creates a Flow Controller
+   * @param options Flow controller options
    */
   constructor(options: FlowControllerOptions) {
+    super();
+    
+    // Initialize properties
+    this.apiClient = options.apiClient;
     this.endpointManager = options.endpointManager;
-    this.uiManager = options.uiManager;
     this.variableManager = options.variableManager;
     this.historyManager = options.historyManager;
+    this.uiManager = options.uiManager;
+    this.appController = options.appController;
     
+    // Get dependency container
+    const container = DependencyContainer.getInstance();
+    
+    // Get additional services from container
+    this.storageService = container.get('storageService');
+    this.domService = container.get('domService');
+    this.configManager = container.get('configManager');
+    
+    // Initialize logger
+    this.logger = Logger.getLogger('FlowController');
+    
+    // Initialize UI service
+    this.flowUIService = new FlowUIService({
+      domService: this.domService,
+      flowDetailsContainerId: 'flow-details',
+      flowMenuContainerId: 'flow-menu'
+    });
+    
+    // Set up event listeners
+    this.setupEventListeners();
+    
+    // Load flows
     this.loadFlows();
+    
+    // Render flows
+    this.renderFlows();
   }
   
   /**
-   * Initialize the flow controller
+   * Set up event listeners for UI interactions
    */
-  initialize(): void {
-    this.setupEventListeners();
+  private setupEventListeners(): void {
+    // Listen for flow events from FlowUIService
+    this.flowUIService.on('flow:select', (data: { flowId: string }) => {
+      this.setActiveFlow(data.flowId);
+    });
     
-    // Display flows in UI
-    this.renderFlows();
+    this.flowUIService.on('flow:create', () => {
+      this.createFlow();
+    });
+    
+    this.flowUIService.on('flow:delete', (data: { flowId: string }) => {
+      this.deleteFlow(data.flowId);
+    });
+    
+    this.flowUIService.on('flow:run', (data: { flowId: string }) => {
+      this.executeFlow(data.flowId);
+    });
+    
+    this.flowUIService.on('flow:edit', (data: { flowId: string }) => {
+      const flow = this.flows.get(data.flowId);
+      if (flow) {
+        this.showFlowEditor(flow);
+      }
+    });
+    
+    this.flowUIService.on('step:add', (data: { flowId: string }) => {
+      const flow = this.flows.get(data.flowId);
+      if (flow) {
+        this.showStepEditor();
+      }
+    });
+    
+    this.flowUIService.on('step:edit', (data: { stepId: string }) => {
+      if (this.activeFlow) {
+        const step = this.activeFlow.steps.find(s => s.id === data.stepId);
+        if (step) {
+          this.showStepEditor(step);
+        }
+      }
+    });
+    
+    this.flowUIService.on('step:delete', (data: { stepId: string }) => {
+      if (this.activeFlow) {
+        this.deleteStep(data.stepId);
+      }
+    });
   }
   
   /**
@@ -89,43 +149,18 @@ export class FlowController {
    */
   private loadFlows(): void {
     try {
-      const savedFlows = localStorage.getItem('api_admin_flows');
-      if (savedFlows) {
-        this.flows = JSON.parse(savedFlows);
+      const savedFlows = this.storageService.get<Flow[]>(this.flowStorageKey, []);
+      if (Array.isArray(savedFlows)) {
+        this.flows = new Map(savedFlows.map(flow => [flow.id, flow]));
+        this.logger.debug(`Loaded ${this.flows.size} flows from storage`);
       } else {
-        // Create default flow if none exist
-        this.createDefaultFlow();
+        this.logger.warn('Invalid flows data in storage, initializing empty flows');
+        this.flows = new Map();
       }
     } catch (error) {
-      console.error('Failed to load flows:', error);
-      this.flows = [];
-      this.createDefaultFlow();
+      this.logger.error('Failed to load flows from storage', error);
+      this.flows = new Map();
     }
-  }
-  
-  /**
-   * Create a default flow
-   */
-  private createDefaultFlow(): void {
-    const defaultFlow: Flow = {
-      id: this.generateId(),
-      name: 'Default Flow',
-      description: 'A default flow with basic API operations',
-      steps: [
-        {
-          id: this.generateId(),
-          name: 'Get API Status',
-          description: 'Check if the API is up and running',
-          method: 'GET',
-          url: '/api/v1/health'
-        }
-      ],
-      createdAt: Date.now(),
-      updatedAt: Date.now()
-    };
-    
-    this.flows.push(defaultFlow);
-    this.saveFlows();
   }
   
   /**
@@ -133,295 +168,142 @@ export class FlowController {
    */
   private saveFlows(): void {
     try {
-      localStorage.setItem('api_admin_flows', JSON.stringify(this.flows));
+      const flowsArray = Array.from(this.flows.values());
+      this.storageService.set(this.flowStorageKey, flowsArray);
     } catch (error) {
-      console.error('Failed to save flows:', error);
-      this.uiManager.showError('Error', 'Failed to save flows. Local storage may be full.');
+      this.logger.error('Failed to save flows to storage', error);
     }
   }
   
   /**
-   * Set up event listeners
-   */
-  private setupEventListeners(): void {
-    // Add any necessary event listeners here
-    document.addEventListener('click', (e) => {
-      const target = e.target as HTMLElement;
-      
-      // Handle flow selection
-      if (target.closest('.flow-item')) {
-        const flowItem = target.closest('.flow-item') as HTMLElement;
-        const flowId = flowItem.dataset.flowId;
-        
-        if (flowId) {
-          this.selectFlow(flowId);
-        }
-      }
-    });
-  }
-  
-  /**
-   * Select a flow
-   * @param flowId Flow ID
-   */
-  selectFlow(flowId: string): void {
-    const flow = this.flows.find(f => f.id === flowId);
-    
-    if (flow) {
-      this.activeFlow = flow;
-      this.activeStepIndex = -1;
-      
-      // Update UI
-      this.renderActiveFlow();
-    }
-  }
-  
-  /**
-   * Render flows in the UI
+   * Render the flows in the UI
    */
   private renderFlows(): void {
-    const flowMenu = document.getElementById('flow-menu');
-    if (!flowMenu) return;
+    this.flowUIService.renderFlows(this.flows, this.activeFlow?.id);
     
-    flowMenu.innerHTML = '';
-    
-    this.flows.forEach(flow => {
-      const flowItem = document.createElement('div');
-      flowItem.className = `flow-item p-2 my-1 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 ${this.activeFlow?.id === flow.id ? 'bg-primary-100 dark:bg-primary-900' : ''}`;
-      flowItem.dataset.flowId = flow.id;
-      
-      const flowName = document.createElement('div');
-      flowName.className = 'font-medium';
-      flowName.textContent = flow.name;
-      
-      const flowDesc = document.createElement('div');
-      flowDesc.className = 'text-xs text-gray-500 dark:text-gray-400';
-      flowDesc.textContent = flow.description || '';
-      
-      flowItem.appendChild(flowName);
-      flowItem.appendChild(flowDesc);
-      
-      flowMenu.appendChild(flowItem);
-    });
-    
-    // Add "New Flow" button
-    const newFlowButton = document.createElement('button');
-    newFlowButton.className = 'btn btn-sm btn-secondary w-full mt-2';
-    newFlowButton.textContent = '+ New Flow';
-    newFlowButton.addEventListener('click', () => this.createFlow());
-    
-    flowMenu.appendChild(newFlowButton);
+    if (this.activeFlow) {
+      this.renderActiveFlow();
+    }
   }
   
   /**
    * Render the active flow
    */
   private renderActiveFlow(): void {
-    if (!this.activeFlow) return;
-    
-    const flowContainer = document.getElementById('flow-details');
-    if (!flowContainer) return;
-    
-    // Clear flow container
-    flowContainer.innerHTML = '';
-    
-    // Create header
-    const header = document.createElement('div');
-    header.className = 'flex justify-between items-center mb-4';
-    
-    const title = document.createElement('h2');
-    title.className = 'text-xl font-bold';
-    title.textContent = this.activeFlow.name;
-    
-    const actions = document.createElement('div');
-    actions.className = 'flex gap-2';
-    
-    const runButton = document.createElement('button');
-    runButton.className = 'btn btn-sm btn-primary';
-    runButton.textContent = 'Run Flow';
-    runButton.addEventListener('click', () => this.runActiveFlow());
-    
-    const editButton = document.createElement('button');
-    editButton.className = 'btn btn-sm btn-secondary';
-    editButton.textContent = 'Edit Flow';
-    editButton.addEventListener('click', () => this.editActiveFlow());
-    
-    actions.appendChild(runButton);
-    actions.appendChild(editButton);
-    
-    header.appendChild(title);
-    header.appendChild(actions);
-    
-    // Create description
-    const description = document.createElement('p');
-    description.className = 'text-gray-600 dark:text-gray-400 mb-4';
-    description.textContent = this.activeFlow.description || 'No description provided';
-    
-    // Create steps container
-    const stepsContainer = document.createElement('div');
-    stepsContainer.className = 'mt-6';
-    
-    const stepsTitle = document.createElement('h3');
-    stepsTitle.className = 'text-lg font-semibold mb-2';
-    stepsTitle.textContent = 'Steps';
-    
-    stepsContainer.appendChild(stepsTitle);
-    
-    // Create steps list
-    const stepsList = document.createElement('div');
-    stepsList.className = 'space-y-3';
-    
-    if (this.activeFlow.steps.length === 0) {
-      const emptySteps = document.createElement('div');
-      emptySteps.className = 'text-gray-500 dark:text-gray-400 text-center p-4 border border-dashed rounded';
-      emptySteps.textContent = 'No steps defined. Add a step to get started.';
-      stepsList.appendChild(emptySteps);
-    } else {
-      // Render each step
-      this.activeFlow.steps.forEach((step, index) => {
-        const stepItem = document.createElement('div');
-        stepItem.className = 'card';
-        stepItem.dataset.stepId = step.id;
-        
-        const stepHeader = document.createElement('div');
-        stepHeader.className = 'flex justify-between items-center';
-        
-        const stepTitle = document.createElement('div');
-        stepTitle.className = 'font-medium';
-        stepTitle.textContent = `${index + 1}. ${step.name}`;
-        
-        const stepActions = document.createElement('div');
-        stepActions.className = 'flex gap-1';
-        
-        const editStepBtn = document.createElement('button');
-        editStepBtn.className = 'text-xs px-2 py-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300';
-        editStepBtn.textContent = 'Edit';
-        editStepBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          this.editStep(step.id);
-        });
-        
-        const deleteStepBtn = document.createElement('button');
-        deleteStepBtn.className = 'text-xs px-2 py-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300';
-        deleteStepBtn.textContent = 'Delete';
-        deleteStepBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          this.deleteStep(step.id);
-        });
-        
-        stepActions.appendChild(editStepBtn);
-        stepActions.appendChild(deleteStepBtn);
-        
-        stepHeader.appendChild(stepTitle);
-        stepHeader.appendChild(stepActions);
-        
-        // Step details
-        const stepDetails = document.createElement('div');
-        stepDetails.className = 'mt-2 text-sm';
-        
-        if (step.description) {
-          const stepDesc = document.createElement('div');
-          stepDesc.className = 'text-gray-600 dark:text-gray-400 mb-2';
-          stepDesc.textContent = step.description;
-          stepDetails.appendChild(stepDesc);
-        }
-        
-        // Display method and URL
-        const methodUrl = document.createElement('div');
-        methodUrl.className = 'font-mono text-xs bg-gray-100 dark:bg-gray-800 p-1 rounded';
-        
-        if (step.method && (step.url || step.endpoint)) {
-          methodUrl.textContent = `${step.method} ${step.url || `[Endpoint: ${step.endpoint}]`}`;
-        } else {
-          methodUrl.textContent = 'No method or URL defined';
-        }
-        
-        stepDetails.appendChild(methodUrl);
-        
-        // Add to step item
-        stepItem.appendChild(stepHeader);
-        stepItem.appendChild(stepDetails);
-        stepsList.appendChild(stepItem);
-      });
+    if (this.activeFlow) {
+      this.flowUIService.renderActiveFlow(this.activeFlow, this.stepStatuses, this.isExecuting);
     }
-    
-    stepsContainer.appendChild(stepsList);
-    
-    // Add new step button
-    const addStepBtn = document.createElement('button');
-    addStepBtn.className = 'btn btn-sm btn-outline mt-4 w-full';
-    addStepBtn.textContent = '+ Add Step';
-    addStepBtn.addEventListener('click', () => this.showAddStepModal());
-    
-    stepsContainer.appendChild(addStepBtn);
-    
-    // Append all elements to container
-    flowContainer.appendChild(header);
-    flowContainer.appendChild(description);
-    flowContainer.appendChild(stepsContainer);
   }
   
   /**
-   * Show modal to add a new step
+   * Set the active flow
+   * @param flowId The flow ID to set as active
    */
-  private showAddStepModal(): void {
-    // Implementation will depend on UI system
-    // For now, just create a basic step
-    this.addStep({
-      name: 'New Step',
-      method: 'GET',
-      url: '/api/v1/example'
+  public setActiveFlow(flowId: string): void {
+    const flow = this.flows.get(flowId);
+    if (flow) {
+      this.activeFlow = flow;
+      this.clearAllStepStatuses();
+      this.renderFlows();
+      this.emit('flow:active', { flowId });
+    } else {
+      this.logger.warn(`Flow with ID ${flowId} not found`);
+    }
+  }
+  
+  /**
+   * Clear all step statuses
+   */
+  private clearAllStepStatuses(): void {
+    this.stepStatuses.clear();
+  }
+  
+  /**
+   * Update a step's status
+   * @param stepId Step ID
+   * @param status Status to set
+   */
+  private updateStepStatus(stepId: string, status: StepStatus): void {
+    this.stepStatuses.set(stepId, status);
+    this.renderActiveFlow();
+  }
+  
+  /**
+   * Get a step's status
+   * @param stepId Step ID
+   * @returns The step status or undefined
+   */
+  private getStepStatus(stepId: string): StepStatus | undefined {
+    return this.stepStatuses.get(stepId);
+  }
+  
+  /**
+   * Show the flow editor
+   * @param flow Flow to edit or undefined for a new flow
+   */
+  private showFlowEditor(flow?: Flow): void {
+    // Using our UI abstraction
+    this.flowUIService.showFlowEditor(flow, (updatedFlow: Flow) => {
+      if (flow) {
+        // Updating existing flow
+        this.flows.set(updatedFlow.id, updatedFlow);
+        
+        if (this.activeFlow && this.activeFlow.id === updatedFlow.id) {
+          this.activeFlow = updatedFlow;
+        }
+      } else {
+        // Adding new flow
+        this.flows.set(updatedFlow.id, updatedFlow);
+        this.activeFlow = updatedFlow;
+      }
+      
+      this.saveFlows();
+      this.renderFlows();
     });
   }
   
   /**
-   * Edit the active flow
+   * Show the step editor
+   * @param step Step to edit or undefined for a new step
    */
-  private editActiveFlow(): void {
-    if (!this.activeFlow) return;
-    
-    // Implementation depends on UI system
-    console.debug('Edit flow:', this.activeFlow);
-    
-    // Basic prompt-based editing for now
-    const newName = prompt('Flow name:', this.activeFlow.name);
-    if (newName) {
-      this.activeFlow.name = newName;
+  private showStepEditor(step?: FlowStep): void {
+    // Using our UI abstraction
+    this.flowUIService.showStepEditor(step, (updatedStep: FlowStep) => {
+      if (!this.activeFlow) {
+        this.logger.warn('Cannot update step, no active flow');
+        return;
+      }
       
-      const newDescription = prompt('Flow description:', this.activeFlow.description || '');
-      this.activeFlow.description = newDescription || '';
+      if (step) {
+        // Update existing step
+        const stepIndex = this.activeFlow.steps.findIndex(s => s.id === step.id);
+        if (stepIndex >= 0) {
+          this.activeFlow.steps[stepIndex] = updatedStep;
+        }
+      } else {
+        // Add new step
+        this.activeFlow.steps.push(updatedStep);
+      }
       
       this.activeFlow.updatedAt = Date.now();
       this.saveFlows();
-      this.renderFlows();
       this.renderActiveFlow();
-    }
+    });
   }
   
   /**
-   * Edit a step
-   * @param stepId Step ID
+   * Delete a step from the active flow
+   * @param stepId Step ID to delete
    */
-  private editStep(stepId: string): void {
-    if (!this.activeFlow) return;
+  private deleteStep(stepId: string): void {
+    if (!this.activeFlow) {
+      this.logger.warn('Cannot delete step, no active flow');
+      return;
+    }
     
-    const step = this.activeFlow.steps.find(s => s.id === stepId);
-    if (!step) return;
-    
-    // Basic prompt-based editing for now
-    const newName = prompt('Step name:', step.name);
-    if (newName) {
-      step.name = newName;
-      
-      const newDescription = prompt('Step description:', step.description || '');
-      step.description = newDescription || '';
-      
-      const newMethod = prompt('HTTP Method (GET, POST, PUT, DELETE):', step.method || 'GET');
-      step.method = newMethod || 'GET';
-      
-      const newUrl = prompt('URL or path:', step.url || '');
-      step.url = newUrl || '';
-      
+    const stepIndex = this.activeFlow.steps.findIndex(step => step.id === stepId);
+    if (stepIndex >= 0) {
+      this.activeFlow.steps.splice(stepIndex, 1);
       this.activeFlow.updatedAt = Date.now();
       this.saveFlows();
       this.renderActiveFlow();
@@ -431,368 +313,284 @@ export class FlowController {
   /**
    * Create a new flow
    */
-  createFlow(): void {
-    const newFlow: Flow = {
-      id: this.generateId(),
-      name: 'New Flow',
-      description: 'A new API flow',
-      steps: [],
-      createdAt: Date.now(),
-      updatedAt: Date.now()
-    };
-    
-    this.flows.push(newFlow);
-    this.saveFlows();
-    this.renderFlows();
+  private createFlow(): void {
+    this.showFlowEditor();
   }
   
   /**
    * Delete a flow
-   * @param flowId Flow ID
+   * @param flowId Flow ID to delete
    */
-  deleteFlow(flowId: string): void {
-    const index = this.flows.findIndex(f => f.id === flowId);
-    
-    if (index !== -1) {
-      this.flows.splice(index, 1);
-      this.saveFlows();
+  private deleteFlow(flowId: string): void {
+    if (this.flows.has(flowId)) {
+      this.flows.delete(flowId);
       
-      if (this.activeFlow?.id === flowId) {
-        this.activeFlow = this.flows.length > 0 ? this.flows[0] : null;
-        this.activeStepIndex = -1;
+      if (this.activeFlow && this.activeFlow.id === flowId) {
+        this.activeFlow = null;
       }
       
+      this.saveFlows();
       this.renderFlows();
     }
   }
   
   /**
-   * Add a step to the active flow
-   * @param step Flow step
+   * Generate a unique ID
+   * @returns Unique ID string
    */
-  addStep(step: Partial<FlowStep>): void {
-    if (!this.activeFlow) return;
-    
-    const newStep: FlowStep = {
-      id: this.generateId(),
-      name: step.name || 'New Step',
-      ...step
-    };
-    
-    this.activeFlow.steps.push(newStep);
-    this.activeFlow.updatedAt = Date.now();
-    
-    this.saveFlows();
-    this.renderActiveFlow();
+  private generateId(): string {
+    return `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
   }
   
   /**
-   * Update a step in the active flow
-   * @param stepId Step ID
-   * @param updates Step updates
+   * Get the status color for a status
+   * @param status Step status
+   * @returns Color class name
    */
-  updateStep(stepId: string, updates: Partial<FlowStep>): void {
-    if (!this.activeFlow) return;
-    
-    const stepIndex = this.activeFlow.steps.findIndex(s => s.id === stepId);
-    
-    if (stepIndex !== -1) {
-      this.activeFlow.steps[stepIndex] = {
-        ...this.activeFlow.steps[stepIndex],
-        ...updates
-      };
-      
-      this.activeFlow.updatedAt = Date.now();
-      this.saveFlows();
-      this.renderActiveFlow();
+  private getStatusColor(status: StepStatus): string {
+    switch (status) {
+      case 'running': return 'info';
+      case 'success': return 'success';
+      case 'error': return 'error';
+      case 'skipped': return 'warning';
+      case 'pending':
+      default: return 'ghost';
     }
   }
   
   /**
-   * Delete a step from the active flow
-   * @param stepId Step ID
+   * Execute a flow
+   * @param flowId Flow ID to execute
    */
-  deleteStep(stepId: string): void {
-    if (!this.activeFlow) return;
-    
-    const stepIndex = this.activeFlow.steps.findIndex(s => s.id === stepId);
-    
-    if (stepIndex !== -1) {
-      this.activeFlow.steps.splice(stepIndex, 1);
-      this.activeFlow.updatedAt = Date.now();
-      
-      this.saveFlows();
-      this.renderActiveFlow();
+  public async executeFlow(flowId: string): Promise<void> {
+    const flow = this.flows.get(flowId);
+    if (!flow) {
+      this.logger.error(`Flow with ID ${flowId} not found`);
+      return;
     }
-  }
-  
-  /**
-   * Run the active flow
-   */
-  async runActiveFlow(): Promise<void> {
-    if (!this.activeFlow || this.isRunning) return;
     
-    this.isRunning = true;
-    this.activeStepIndex = -1;
+    if (this.isExecuting) {
+      this.logger.warn('Already executing a flow, cannot start another');
+      return;
+    }
+    
+    this.activeFlow = flow;
+    this.isExecuting = true;
+    this.clearAllStepStatuses();
+    this.renderFlows();
     
     try {
-      // Run each step in sequence
-      for (let i = 0; i < this.activeFlow.steps.length; i++) {
-        this.activeStepIndex = i;
-        
-        // Update UI to show current step
-        this.renderActiveFlow();
-        
-        const step = this.activeFlow.steps[i];
-        
-        // Check if we should skip this step
-        if (step.skipIf && this.evaluateSkipCondition(step.skipIf)) {
-          console.debug(`Skipping step: ${step.name}`);
+      this.emit('flow:started', { flowId });
+      
+      for (const step of flow.steps) {
+        // Check if the step should be skipped
+        if (step.skipCondition && this.evaluateStepCondition(step.skipCondition)) {
+          this.updateStepStatus(step.id, 'skipped');
           continue;
         }
         
-        // Execute step
-        const result = await this.executeStep(step);
+        this.updateStepStatus(step.id, 'running');
         
-        // Process step result (extract variables, etc.)
-        this.processStepResult(step, result);
-        
-        // Add delay if specified
-        if (step.delay && step.delay > 0) {
-          await new Promise(resolve => setTimeout(resolve, step.delay));
+        try {
+          await this.executeStep(step);
+          this.updateStepStatus(step.id, 'success');
+        } catch (error) {
+          this.updateStepStatus(step.id, 'error');
+          this.logger.error(`Failed to execute step ${step.id}:`, error);
+          break; // Stop execution on error
         }
       }
       
-      this.activeStepIndex = -1;
-      this.uiManager.showSuccess('Success', 'Flow executed successfully');
+      this.emit('flow:completed', {
+        flowId,
+        success: true,
+      });
     } catch (error) {
-      console.error('Flow execution failed:', error);
-      this.uiManager.showError('Error', `Flow execution failed: ${error instanceof Error ? error.message : String(error)}`);
+      this.emit('flow:completed', {
+        flowId,
+        success: false,
+        error,
+      });
+      this.logger.error(`Failed to execute flow ${flowId}:`, error);
     } finally {
-      this.isRunning = false;
-      this.renderActiveFlow();
+      this.isExecuting = false;
+      this.renderFlows();
     }
   }
   
   /**
-   * Execute a flow step
-   * @param step Flow step
-   * @returns Step result
+   * Execute a single step
+   * @param step Step to execute
+   * @returns Result of the step execution
    */
-  private async executeStep(step: FlowStep): Promise<any> {
-    logger.info('Executing step:', step.name);
-    
-    // Check skip condition
-    if (step.skipCondition) {
-      try {
-        const variables = this.variableManager?.getVariables() || {};
-        if (evaluateCondition(step.skipCondition, variables)) {
-          console.debug(`Skipping step: ${step.name}`);
-          this.updateStepStatus(step.id, 'skipped');
-          return { skipped: true };
-        }
-      } catch (error) {
-        console.error('Failed to evaluate skip condition:', error);
-        // Continue execution if condition evaluation fails?
-      }
-    }
-    
-    // Get the API endpoint for this step
-    let url = step.url || '';
-    
-    // Replace variables in the URL
-    url = this.variableManager.replaceVariables(url);
-    
-    // Prepare headers with variable substitution
-    const headers: Record<string, string> = {};
-    if (step.headers) {
-      Object.entries(step.headers).forEach(([key, value]) => {
-        headers[key] = this.variableManager.replaceVariables(value);
-      });
-    }
-    
-    // Prepare params with variable substitution
-    const params: Record<string, string> = {};
-    if (step.params) {
-      Object.entries(step.params).forEach(([key, value]) => {
-        params[key] = this.variableManager.replaceVariables(value);
-      });
-    }
-    
-    // Prepare body with variable substitution
-    let body = step.body;
-    if (body && typeof body === 'object') {
-      body = JSON.parse(this.variableManager.replaceVariables(JSON.stringify(body)));
-    }
-    
-    // Create request object
-    const request = {
-      method: step.method || 'GET',
-      url,
-      headers,
-      params,
-      body
-    };
+  private async executeStep(step: FlowStep): Promise<unknown> {
+    let result: unknown;
     
     try {
-      // Show loading indicator
-      this.uiManager.showLoading();
+      switch (step.type) {
+        case StepType.REQUEST:
+          result = await this.executeRequestStep(step);
+          break;
+        case StepType.DELAY:
+          result = await this.executeDelayStep(step);
+          break;
+        case StepType.CONDITION:
+          result = await this.executeConditionStep(step);
+          break;
+        case StepType.LOG:
+          result = await this.executeLogStep(step);
+          break;
+      }
       
-      const startTime = Date.now();
+      return result;
+    } catch (error) {
+      this.updateStepStatus(step.id, 'error');
+      throw error;
+    }
+  }
+  
+  /**
+   * Execute a request step
+   * @param step Request step to execute
+   * @returns Response data
+   */
+  private async executeRequestStep(step: RequestStep): Promise<unknown> {
+    try {
+      // Prepare the request
+      let request: RequestInfo;
       
-      // Execute request
-      const response = await fetch(url, {
-        method: request.method,
-        headers: request.headers,
-        body: request.body ? JSON.stringify(request.body) : undefined
-      });
-      
-      const endTime = Date.now();
-      const responseTime = endTime - startTime;
-      
-      // Parse response
-      const contentType = response.headers.get('content-type');
-      let data;
-      
-      if (contentType && contentType.includes('application/json')) {
-        data = await response.json();
+      if (step.endpointId) {
+        // Get endpoint by ID
+        const endpoint = this.endpointManager.getEndpointById(step.endpointId);
+        if (!endpoint) {
+          throw new Error(`Endpoint with ID ${step.endpointId} not found`);
+        }
+        
+        // Create request from endpoint
+        request = {
+          method: step.method || endpoint.method,
+          url: endpoint.path || endpoint.url || '', // Endpoint might use path instead of url
+          headers: { ...(endpoint.headers || {}), ...(step.headers || {}) },
+          requestBody: step.body, // Just use step body, don't reference endpoint.body
+        };
       } else {
-        data = await response.text();
+        // Create request from direct properties
+        request = {
+          method: step.method || 'GET',
+          url: step.url || '',
+          headers: step.headers || {},
+          requestBody: step.body,
+        };
       }
       
-      // Create response object
-      const responseData = {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
-        data,
-        duration: responseTime
-      };
+      // Process variables in the request
+      request = this.variableManager.processRequest(request) as RequestInfo;
       
-      // Add to history
-      this.historyManager.addEntry(request, responseData);
-      
-      return responseData;
-    } finally {
-      // Hide loading indicator
-      this.uiManager.hideLoading();
-    }
-  }
-  
-  /**
-   * Process the result of a step execution
-   * @param step Flow step
-   * @param result Step result
-   */
-  private processStepResult(step: FlowStep, result: any): void {
-    // Extract variables if specified
-    if (step.extractVariables && Array.isArray(step.extractVariables)) {
-      step.extractVariables.forEach(variable => {
-        // Extract variable using JSONPath or similar
-        // Here we're using a simple version that only supports dot notation
-        const value = this.extractValueByPath(result.data, variable.path);
-        
-        if (value !== undefined) {
-          this.variableManager.setVariable(variable.name, value);
+      // Execute the request
+      const response = await this.apiClient.makeRequest(
+        request.method,
+        request.url,
+        request.requestBody,
+        {
+          headers: request.headers,
         }
-      });
-    }
-  }
-  
-  /**
-   * Extract a value by dot path from an object
-   * @param obj Object to extract from
-   * @param path Dot notation path (e.g., 'data.user.id')
-   * @returns Extracted value or undefined
-   */
-  private extractValueByPath(obj: any, path: string): any {
-    try {
-      return path.split('.').reduce((o, p) => o?.[p], obj);
-    } catch (error) {
-      console.error(`Failed to extract value by path: ${path}`, error);
-      return undefined;
-    }
-  }
-  
-  /**
-   * Evaluate a skip condition expression
-   * @param expression Skip condition expression
-   * @returns Whether to skip the step
-   */
-  private evaluateSkipCondition(expression: string): boolean {
-    try {
-      // Replace variables in the expression
-      const processedExpression = this.variableManager.replaceVariables(expression);
+      );
       
-      // Simple evaluation (warning: use proper validation in production)
-      // This is just a basic example and isn't secure for real-world use
-      return !!eval(processedExpression);
-    } catch (error) {
-      console.error('Failed to evaluate skip condition:', error);
-      return false;
-    }
-  }
-  
-  /**
-   * Generate a unique ID
-   * @returns Unique ID
-   */
-  private generateId(): string {
-    return 'f_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36);
-  }
-  
-  /**
-   * Initialize flows from endpoints
-   * @param endpoints API endpoints
-   */
-  initFlowsFromEndpoints(endpoints: any[]): void {
-    // Create flows from endpoints
-    const generatedFlows: Flow[] = [];
-    
-    // Group endpoints by category/tag
-    const groupedEndpoints: Record<string, any[]> = {};
-    
-    endpoints.forEach(endpoint => {
-      const category = endpoint.category || endpoint.tag || 'General';
-      
-      if (!groupedEndpoints[category]) {
-        groupedEndpoints[category] = [];
+      // Extract variables if specified
+      if (step.extractVariables && step.extractVariables.length > 0) {
+        this.variableManager.extractVariablesFromResponse(response, step.extractVariables);
       }
       
-      groupedEndpoints[category].push(endpoint);
-    });
-    
-    // Create a flow for each category
-    Object.entries(groupedEndpoints).forEach(([category, categoryEndpoints]) => {
-      const flow: Flow = {
-        id: this.generateId(),
-        name: category,
-        description: `Generated flow for ${category} endpoints`,
-        steps: categoryEndpoints.map(endpoint => ({
-          id: this.generateId(),
-          name: endpoint.name || endpoint.path,
-          description: endpoint.description || '',
-          method: endpoint.method || 'GET',
-          url: endpoint.path,
-          endpoint: endpoint.id
-        })),
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        tags: ['generated']
-      };
-      
-      generatedFlows.push(flow);
-    });
-    
-    // Add generated flows
-    this.flows = [...this.flows, ...generatedFlows];
-    
-    // Set first flow as active if none is selected
-    if (!this.activeFlow && this.flows.length > 0) {
-      this.activeFlow = this.flows[0];
+      return response;
+    } catch (error) {
+      this.logger.error(`Error executing request step ${step.id}:`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Execute a delay step
+   * @param step Delay step to execute
+   * @returns A promise that resolves after the delay
+   */
+  private executeDelayStep(step: DelayStep): Promise<void> {
+    const delay = step.delay || 1000; // Default 1 second
+    return new Promise(resolve => setTimeout(resolve, delay));
+  }
+  
+  /**
+   * Execute a condition step
+   * @param step Condition step to execute
+   * @returns The result of the condition
+   */
+  private executeConditionStep(step: ConditionStep): boolean {
+    if (!step.condition) {
+      return true; // No condition means success
     }
     
-    this.saveFlows();
-    this.renderFlows();
+    return this.evaluateStepCondition(step.condition);
   }
-} 
+  
+  /**
+   * Execute a log step
+   * @param step Log step to execute
+   * @returns The log message
+   */
+  private executeLogStep(step: LogStep): string {
+    const message = this.variableManager.processVariables(step.message || '') as string;
+    const level = step.level || 'info';
+    
+    switch (level) {
+      case 'debug':
+        this.logger.debug(message);
+        break;
+      case 'info':
+        this.logger.info(message);
+        break;
+      case 'warn':
+        this.logger.warn(message);
+        break;
+      case 'error':
+        this.logger.error(message);
+        break;
+    }
+    
+    return message;
+  }
+  
+  /**
+   * Evaluates a condition string within the context of current variables.
+   * @param condition The condition expression (e.g., "$status === 200", "$user.id != null")
+   * @returns Boolean result of the evaluation.
+   */
+  private evaluateStepCondition(condition: string): boolean {
+    if (!condition) {
+      return true; // No condition means proceed
+    }
+    
+    // Process variables within the condition string itself first!
+    const processedCondition = this.variableManager.processVariables(condition);
+    
+    try {
+      // Get current variable context
+      const context = this.variableManager.getVariables();
+      
+      // Make sure the condition is a string and context is a record
+      const safeCondition = String(processedCondition);
+      const safeContext = context as Record<string, unknown>;
+      
+      // Create options for the evaluator
+      const options: ConditionEvaluationOptions = {
+        variables: safeContext,
+        debug: false
+      };
+      
+      // Evaluate the condition using the helper
+      return evaluateCondition(safeCondition, options);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Error evaluating condition: "${processedCondition}"`, errorMsg);
+      return false; // Default to false on error
+    }
+  }
+}

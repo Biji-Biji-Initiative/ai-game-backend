@@ -1,6 +1,9 @@
+// Types improved by ts-improve-types
 /**
  * Core Modules Types Definition
  */
+
+import { ApiClient } from '../services/api-client'; // Assuming ApiClient is here
 
 /**
  * Endpoint interface
@@ -14,8 +17,8 @@ export interface Endpoint {
   category: string;
   parameters: EndpointParameter[];
   headers: Record<string, string>;
-  requestBody: any;
-  responseExample: any;
+  requestBody: unknown;
+  responseExample: unknown; // Changed from Event to unknown
   requiresAuth: boolean;
   tags: string[];
   isCustom?: boolean;
@@ -30,16 +33,16 @@ export interface EndpointParameter {
   description?: string;
   required?: boolean;
   type?: string;
-  default?: any;
-  enum?: any[];
+  default?: unknown;
+  enum?: unknown[];
 }
 
 /**
  * EndpointManager Options
  */
 export interface EndpointManagerOptions {
-  apiClient?: any;
-  config?: any;
+  apiClient?: ApiClient;
+  config?: Record<string, unknown>;
   maxRetries?: number;
   retryDelay?: number;
   useLocalEndpoints?: boolean;
@@ -53,7 +56,7 @@ export interface EndpointManagerOptions {
  * BackendLogsManager Options
  */
 export interface BackendLogsManagerOptions {
-  apiClient?: any;
+  apiClient?: ApiClient;
   logsEndpoint?: string;
   maxLogsToFetch?: number;
   refreshInterval?: number | null;
@@ -80,7 +83,7 @@ export interface VariableManagerOptions {
     suffix?: string;
     jsonPathIndicator?: string;
   };
-  initialVariables?: Record<string, any>;
+  initialVariables?: Record<string, unknown>;
 }
 
 /**
@@ -105,4 +108,4 @@ export interface HistoryManagerOptions {
   compressionEnabled?: boolean;
   compressionThreshold?: number;
   storageQuotaWarningThreshold?: number;
-} 
+}

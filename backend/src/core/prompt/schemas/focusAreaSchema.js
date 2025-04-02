@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ValidationError } from "#app/core/infra/repositories/BaseRepository.js";
 'use strict';
 /**
  * User traits schema - defines personality traits and attitudes
@@ -67,25 +68,17 @@ const focusAreaPromptSchema = z.object({
  * Validate focus area prompt parameters
  * @param {Object} params - Parameters to validate
  * @returns {Object} Validated and potentially transformed parameters
- * @throws {Error} If validation fails
+ * @throws {ValidationError} If validation fails
  */
-function validateFocusAreaPromptParams(params) {
-    try {
-        return focusAreaPromptSchema.parse(params);
+export function validateFocusAreaPromptParams(params) {
+    const validationResult = focusAreaPromptSchema.safeParse(params);
+    if (!validationResult.success) {
+        const formattedErrors = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
+        throw new ValidationError(`Focus area prompt parameter validation failed: ${formattedErrors}`);
     }
-    catch (error) {
-        // Transform Zod validation errors to more user-friendly format
-        if (error.errors) {
-            const formattedErrors = error.errors
-                .map(err => `${err.path.join('.')}: ${err.message}`)
-                .join('; ');
-            throw new Error(`Focus area prompt parameter validation failed: ${formattedErrors}`);
-        }
-        throw error;
-    }
+    return validationResult.data;
 }
 export { focusAreaPromptSchema };
-export { validateFocusAreaPromptParams };
 export default {
     focusAreaPromptSchema,
     validateFocusAreaPromptParams

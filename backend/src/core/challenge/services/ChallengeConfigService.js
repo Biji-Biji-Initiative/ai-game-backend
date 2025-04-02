@@ -3,7 +3,8 @@ import challengeErrors from "#app/core/challenge/errors/ChallengeErrors.js";
 import { challengeLogger } from "#app/core/infra/logging/domainLogger.js";
 'use strict';
 const {
-  ChallengeConfigError
+  ChallengeConfigError,
+  ConfigurationError
 } = challengeErrors;
 /**
  * Challenge Config Service class
@@ -26,16 +27,16 @@ class ChallengeConfigService {
     logger
   }) {
     if (!challengeTypeRepository) {
-      throw new Error('challengeTypeRepository is required for ChallengeConfigService');
+      throw new ConfigurationError('challengeTypeRepository is required for ChallengeConfigService');
     }
     if (!formatTypeRepository) {
-      throw new Error('formatTypeRepository is required for ChallengeConfigService');
+      throw new ConfigurationError('formatTypeRepository is required for ChallengeConfigService');
     }
     if (!focusAreaConfigRepository) {
-      throw new Error('focusAreaConfigRepository is required for ChallengeConfigService');
+      throw new ConfigurationError('focusAreaConfigRepository is required for ChallengeConfigService');
     }
     if (!difficultyLevelRepository) {
-      throw new Error('difficultyLevelRepository is required for ChallengeConfigService');
+      throw new ConfigurationError('difficultyLevelRepository is required for ChallengeConfigService');
     }
     this.challengeTypeRepository = challengeTypeRepository;
     this.formatTypeRepository = formatTypeRepository;

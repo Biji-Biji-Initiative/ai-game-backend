@@ -1,3 +1,4 @@
+// Types improved by ts-improve-types
 /**
  * String Utility Functions
  * Various utilities for string manipulation
@@ -32,11 +33,9 @@ export function capitalize(str: string): string {
  */
 export function camelToTitleCase(camelCase: string): string {
   if (!camelCase) return '';
-  
+
   // Add space before capital letters and capitalize first letter
-  return capitalize(
-    camelCase.replace(/([A-Z])/g, ' $1')
-  ).trim();
+  return capitalize(camelCase.replace(/([A-Z])/g, ' $1')).trim();
 }
 
 /**
@@ -46,10 +45,10 @@ export function camelToTitleCase(camelCase: string): string {
  */
 export function toCamelCase(str: string): string {
   if (!str) return '';
-  
+
   // Replace spaces, hyphens and underscores with spaces, then camelCase
   return str
-    .replace(/[-_\s]+(.)?/g, (_, c) => c ? c.toUpperCase() : '')
+    .replace(/[-_\s]+(.)?/g, (_, c) => (c ? c.toUpperCase() : ''))
     .replace(/^[A-Z]/, c => c.toLowerCase());
 }
 
@@ -60,13 +59,13 @@ export function toCamelCase(str: string): string {
  */
 export function toSnakeCase(str: string): string {
   if (!str) return '';
-  
+
   // Handle camelCase
   let result = str.replace(/([a-z])([A-Z])/g, '$1_$2');
-  
+
   // Handle spaces, hyphens, and other separators
   result = result.replace(/[\s-]+/g, '_');
-  
+
   return result.toLowerCase();
 }
 
@@ -77,13 +76,13 @@ export function toSnakeCase(str: string): string {
  */
 export function toKebabCase(str: string): string {
   if (!str) return '';
-  
+
   // Handle camelCase
   let result = str.replace(/([a-z])([A-Z])/g, '$1-$2');
-  
+
   // Handle spaces, underscores, and other separators
   result = result.replace(/[\s_]+/g, '-');
-  
+
   return result.toLowerCase();
 }
 
@@ -94,7 +93,7 @@ export function toKebabCase(str: string): string {
  */
 export function escapeHtml(html: string): string {
   if (!html) return '';
-  
+
   return html
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -110,7 +109,7 @@ export function escapeHtml(html: string): string {
  */
 export function stripHtml(html: string): string {
   if (!html) return '';
-  
+
   // Remove HTML tags using regex
   return html.replace(/<[^>]*>/g, '');
 }
@@ -120,9 +119,9 @@ export function stripHtml(html: string): string {
  * @returns UUID v4 string
  */
 export function generateUuid(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 }
@@ -158,10 +157,10 @@ export function isValidEmail(email: string): boolean {
  */
 export function getFileExtension(filename: string): string {
   if (!filename) return '';
-  
+
   const parts = filename.split('.');
   if (parts.length === 1) return '';
-  
+
   return parts[parts.length - 1].toLowerCase();
 }
 
@@ -171,13 +170,13 @@ export function getFileExtension(filename: string): string {
  * @param decimals Number of decimal places
  * @returns Formatted string (e.g., "1.5 KB")
  */
-export function formatBytes(bytes: number, decimals: number = 2): string {
+export function formatBytes(bytes: number, decimals = 2): string {
   if (bytes === 0) return '0 Bytes';
-  
+
   const k = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
+
   return parseFloat((bytes / Math.pow(k, i)).toFixed(decimals)) + ' ' + sizes[i];
 }
 
@@ -189,14 +188,19 @@ export function formatBytes(bytes: number, decimals: number = 2): string {
  */
 export function pluralize(word: string, count: number): string {
   if (count === 1) return word;
-  
+
   // Very simple English pluralization rules
   if (word.endsWith('y')) {
     return word.slice(0, -1) + 'ies';
-  } else if (word.endsWith('s') || word.endsWith('x') || word.endsWith('z') || 
-             word.endsWith('ch') || word.endsWith('sh')) {
+  } else if (
+    word.endsWith('s') ||
+    word.endsWith('x') ||
+    word.endsWith('z') ||
+    word.endsWith('ch') ||
+    word.endsWith('sh')
+  ) {
     return word + 'es';
   } else {
     return word + 's';
   }
-} 
+}

@@ -1,10 +1,10 @@
 declare module 'tailwindcss' {
-  const plugin: any;
+  const plugin: unknown;
   export default plugin;
 }
 
 declare module 'autoprefixer' {
-  const plugin: any;
+  const plugin: unknown;
   export default plugin;
 }
 
@@ -15,4 +15,4 @@ declare namespace React {
     '@tailwind'?: string;
     '@layer'?: string;
   }
-} 
+}

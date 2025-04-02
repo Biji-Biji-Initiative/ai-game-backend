@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ValidationError } from "#app/core/infra/repositories/BaseRepository.js";
 'use strict';
 /**
  * User schema - subset of fields required for challenge generation
@@ -87,25 +88,17 @@ const challengePromptSchema = z.object({
  * Validate challenge prompt parameters
  * @param {Object} params - Parameters to validate
  * @returns {Object} Validated and potentially transformed parameters
- * @throws {Error} If validation fails
+ * @throws {ValidationError} If validation fails
  */
-function validateChallengePromptParams(params) {
-    try {
-        return challengePromptSchema.parse(params);
+export function validateChallengePromptParams(params) {
+    const validationResult = challengePromptSchema.safeParse(params);
+    if (!validationResult.success) {
+        const formattedErrors = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
+        throw new ValidationError(`Challenge prompt parameter validation failed: ${formattedErrors}`);
     }
-    catch (error) {
-        // Transform Zod validation errors to more user-friendly format
-        if (error.errors) {
-            const formattedErrors = error.errors
-                .map(err => `${err.path.join('.')}: ${err.message}`)
-                .join('; ');
-            throw new Error(`Challenge prompt parameter validation failed: ${formattedErrors}`);
-        }
-        throw error;
-    }
+    return validationResult.data;
 }
 export { challengePromptSchema };
-export { validateChallengePromptParams };
 export default {
     challengePromptSchema,
     validateChallengePromptParams

@@ -1,8 +1,9 @@
+// Types improved by ts-improve-types
 /**
  * Bundled API Endpoints
  * Provides a default set of API endpoints for testing
  */
-import { Endpoint, EndpointParameter } from '../types/modules';
+import { Endpoint } from '../types/modules';
 
 export const bundledEndpoints: Endpoint[] = [
   {
@@ -17,7 +18,7 @@ export const bundledEndpoints: Endpoint[] = [
     requestBody: null,
     responseExample: null,
     requiresAuth: false,
-    tags: ['health', 'system']
+    tags: ['health', 'system'],
   },
   {
     id: 'status',
@@ -31,7 +32,7 @@ export const bundledEndpoints: Endpoint[] = [
     requestBody: null,
     responseExample: null,
     requiresAuth: false,
-    tags: ['system']
+    tags: ['system'],
   },
   {
     id: 'users-list',
@@ -47,7 +48,7 @@ export const bundledEndpoints: Endpoint[] = [
         description: 'Page number',
         required: false,
         type: 'integer',
-        default: 1
+        default: 1,
       },
       {
         name: 'limit',
@@ -55,14 +56,14 @@ export const bundledEndpoints: Endpoint[] = [
         description: 'Number of users per page',
         required: false,
         type: 'integer',
-        default: 10
-      }
+        default: 10,
+      },
     ],
     headers: {},
     requestBody: null,
     responseExample: null,
     requiresAuth: false,
-    tags: ['users']
+    tags: ['users'],
   },
   {
     id: 'users-get',
@@ -77,14 +78,14 @@ export const bundledEndpoints: Endpoint[] = [
         in: 'path',
         description: 'User ID',
         required: true,
-        type: 'string'
-      }
+        type: 'string',
+      },
     ],
     headers: {},
     requestBody: null,
     responseExample: null,
     requiresAuth: false,
-    tags: ['users']
+    tags: ['users'],
   },
   {
     id: 'users-create',
@@ -104,29 +105,29 @@ export const bundledEndpoints: Endpoint[] = [
               name: {
                 type: 'string',
                 description: 'User name',
-                example: 'John Doe'
+                example: 'John Doe',
               },
               email: {
                 type: 'string',
                 description: 'User email',
-                example: 'john@example.com'
+                example: 'john@example.com',
               },
               role: {
                 type: 'string',
                 description: 'User role',
                 enum: ['admin', 'user'],
-                example: 'user'
-              }
+                example: 'user',
+              },
             },
-            required: ['name', 'email']
-          }
-        }
-      }
+            required: ['name', 'email'],
+          },
+        },
+      },
     },
     headers: {},
     responseExample: null,
     requiresAuth: false,
-    tags: ['users']
+    tags: ['users'],
   },
   {
     id: 'products-list',
@@ -142,7 +143,7 @@ export const bundledEndpoints: Endpoint[] = [
         description: 'Page number',
         required: false,
         type: 'integer',
-        default: 1
+        default: 1,
       },
       {
         name: 'limit',
@@ -150,21 +151,21 @@ export const bundledEndpoints: Endpoint[] = [
         description: 'Number of products per page',
         required: false,
         type: 'integer',
-        default: 10
+        default: 10,
       },
       {
         name: 'category',
         in: 'query',
         description: 'Filter by category',
         required: false,
-        type: 'string'
-      }
+        type: 'string',
+      },
     ],
     headers: {},
     requestBody: null,
     responseExample: null,
     requiresAuth: false,
-    tags: ['products']
+    tags: ['products'],
   },
   {
     id: 'products-get',
@@ -179,14 +180,14 @@ export const bundledEndpoints: Endpoint[] = [
         in: 'path',
         description: 'Product ID',
         required: true,
-        type: 'string'
-      }
+        type: 'string',
+      },
     ],
     headers: {},
     requestBody: null,
     responseExample: null,
     requiresAuth: false,
-    tags: ['products']
+    tags: ['products'],
   },
   {
     id: 'products-create',
@@ -206,33 +207,33 @@ export const bundledEndpoints: Endpoint[] = [
               name: {
                 type: 'string',
                 description: 'Product name',
-                example: 'Smartphone X1'
+                example: 'Smartphone X1',
               },
               description: {
                 type: 'string',
                 description: 'Product description',
-                example: 'The latest smartphone with advanced features'
+                example: 'The latest smartphone with advanced features',
               },
               price: {
                 type: 'number',
                 description: 'Product price',
-                example: 999.99
+                example: 999.99,
               },
               category: {
                 type: 'string',
                 description: 'Product category',
-                example: 'Electronics'
-              }
+                example: 'Electronics',
+              },
             },
-            required: ['name', 'price']
-          }
-        }
-      }
+            required: ['name', 'price'],
+          },
+        },
+      },
     },
     headers: {},
     responseExample: null,
     requiresAuth: false,
-    tags: ['products']
+    tags: ['products'],
   },
   {
     id: 'orders-list',
@@ -248,7 +249,7 @@ export const bundledEndpoints: Endpoint[] = [
         description: 'Page number',
         required: false,
         type: 'integer',
-        default: 1
+        default: 1,
       },
       {
         name: 'limit',
@@ -256,14 +257,14 @@ export const bundledEndpoints: Endpoint[] = [
         description: 'Number of orders per page',
         required: false,
         type: 'integer',
-        default: 10
+        default: 10,
       },
       {
         name: 'userId',
         in: 'query',
         description: 'Filter by user ID',
         required: false,
-        type: 'string'
+        type: 'string',
       },
       {
         name: 'status',
@@ -271,14 +272,14 @@ export const bundledEndpoints: Endpoint[] = [
         description: 'Filter by order status',
         required: false,
         type: 'string',
-        enum: ['pending', 'processing', 'shipped', 'delivered', 'cancelled']
-      }
+        enum: ['pending', 'processing', 'shipped', 'delivered', 'cancelled'],
+      },
     ],
     headers: {},
     requestBody: null,
     responseExample: null,
     requiresAuth: false,
-    tags: ['orders']
+    tags: ['orders'],
   },
   {
     id: 'orders-get',
@@ -293,14 +294,14 @@ export const bundledEndpoints: Endpoint[] = [
         in: 'path',
         description: 'Order ID',
         required: true,
-        type: 'string'
-      }
+        type: 'string',
+      },
     ],
     headers: {},
     requestBody: null,
     responseExample: null,
     requiresAuth: false,
-    tags: ['orders']
+    tags: ['orders'],
   },
   {
     id: 'orders-create',
@@ -320,7 +321,7 @@ export const bundledEndpoints: Endpoint[] = [
               userId: {
                 type: 'string',
                 description: 'User ID',
-                example: 'usr_123456'
+                example: 'usr_123456',
               },
               items: {
                 type: 'array',
@@ -331,21 +332,21 @@ export const bundledEndpoints: Endpoint[] = [
                     productId: {
                       type: 'string',
                       description: 'Product ID',
-                      example: 'prod_123456'
+                      example: 'prod_123456',
                     },
                     quantity: {
                       type: 'integer',
                       description: 'Quantity',
-                      example: 1
+                      example: 1,
                     },
                     price: {
                       type: 'number',
                       description: 'Price per unit',
-                      example: 999.99
-                    }
+                      example: 999.99,
+                    },
                   },
-                  required: ['productId', 'quantity']
-                }
+                  required: ['productId', 'quantity'],
+                },
               },
               shippingAddress: {
                 type: 'object',
@@ -354,40 +355,40 @@ export const bundledEndpoints: Endpoint[] = [
                   street: {
                     type: 'string',
                     description: 'Street address',
-                    example: '123 Main St'
+                    example: '123 Main St',
                   },
                   city: {
                     type: 'string',
                     description: 'City',
-                    example: 'San Francisco'
+                    example: 'San Francisco',
                   },
                   state: {
                     type: 'string',
                     description: 'State/Province',
-                    example: 'CA'
+                    example: 'CA',
                   },
                   postalCode: {
                     type: 'string',
                     description: 'Postal code',
-                    example: '94105'
+                    example: '94105',
                   },
                   country: {
                     type: 'string',
                     description: 'Country',
-                    example: 'USA'
-                  }
+                    example: 'USA',
+                  },
                 },
-                required: ['street', 'city', 'country']
-              }
+                required: ['street', 'city', 'country'],
+              },
             },
-            required: ['userId', 'items']
-          }
-        }
-      }
+            required: ['userId', 'items'],
+          },
+        },
+      },
     },
     headers: {},
     responseExample: null,
     requiresAuth: false,
-    tags: ['orders']
-  }
-]; 
+    tags: ['orders'],
+  },
+];

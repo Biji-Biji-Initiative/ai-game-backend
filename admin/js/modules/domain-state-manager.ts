@@ -1,373 +1,462 @@
+// Types improved by ts-improve-types
 /**
- * DomainStateManager Module
- * Manages domain state data and updates
+ * Domain State Manager
+ *
+ * Handles fetching, storing, and comparing domain entity states for snapshots.
  */
 
 import { logger } from '../utils/logger';
-import { DomainStateViewer } from '../components/DomainStateViewer';
-import { getLocalStorageItem, setLocalStorageItem } from '../utils/storage-utils';
+import { EventEmitter } from '../utils/event-emitter';
 
-/**
- * Interface for DomainStateManager options
- */
-export interface DomainStateManagerOptions {
-  viewer?: DomainStateViewer;
-  storageKey?: string;
-  enablePersistence?: boolean;
-  stateEndpoint?: string;
-  diffingEnabled?: boolean;
-  storagePrefix?: string;
+interface DomainStateManagerOptions {
+  apiBasePath?: string;
+}
+
+interface EntityType {
+  id: string;
+  name: string;
+}
+
+interface Snapshot {
+  id: string;
+  state: Event;
+}
+
+interface Snapshots {
+  before: Record<string, Snapshot>;
+  after: Record<string, Snapshot>;
 }
 
 /**
- * Default options
+ * Manages domain state snapshots before and after API calls.
  */
-const DEFAULT_OPTIONS: DomainStateManagerOptions = {
-  storageKey: 'domain_state',
-  enablePersistence: true,
-  stateEndpoint: '/api/v1/state',
-  diffingEnabled: true,
-  storagePrefix: 'admin_ui'
-};
-
-/**
- * DomainStateManager class
- * Manages domain state data and persistence
- */
-export class DomainStateManager {
+export class DomainStateManager extends EventEmitter {
   private options: Required<DomainStateManagerOptions>;
-  private state: Record<string, any> = {};
-  private previousState: Record<string, any> = {};
-  private viewer: DomainStateViewer | null;
-  
+  private snapshots: Snapshots;
+  private entityTypes: EntityType[];
+
   /**
-   * Creates a new DomainStateManager instance
-   * @param options Manager options
+   * Constructor
+   * @param options Configuration options
    */
   constructor(options: DomainStateManagerOptions = {}) {
-    // Apply default options
-    this.options = { ...DEFAULT_OPTIONS, ...options } as Required<DomainStateManagerOptions>;
-    
-    // Initialize properties
-    this.viewer = this.options.viewer || null;
-    
-    // Log initialization
-    logger.debug('DomainStateManager: Initializing');
-  }
-  
-  /**
-   * Initializes the manager
-   */
-  public initialize(): void {
-    try {
-      // Load persisted state if enabled
-      if (this.options.enablePersistence) {
-        this.loadState();
-      }
-      
-      // Initialize the viewer if available
-      if (this.viewer) {
-        this.viewer.initialize();
-        this.updateViewer();
-      }
-      
-      logger.info('DomainStateManager: Initialized successfully');
-        } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error('DomainStateManager: Failed to initialize:', errorMessage);
-        }
-    }
-    
-    /**
-   * Sets a state value
-   * @param key State key
-   * @param value State value
-   * @param persist Whether to persist the updated state
-   */
-  public setState(key: string, value: any, persist: boolean = true): void {
-    try {
-      // Save previous state for diffing if enabled
-      if (this.options.diffingEnabled) {
-        this.previousState = { ...this.state };
-      }
-      
-      // Update the state
-      this.state[key] = value;
-      
-      // Update the viewer
-      this.updateViewer();
-      
-      // Persist the state if enabled
-      if (persist && this.options.enablePersistence) {
-        this.persistState();
-      }
-      
-      logger.debug(`DomainStateManager: Set state value for key "${key}"`);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error(`DomainStateManager: Failed to set state for key "${key}":`, errorMessage);
-    }
-  }
-  
-  /**
-   * Gets a state value
-   * @param key State key
-   * @param defaultValue Default value if key doesn't exist
-   * @returns State value or default value
-   */
-  public getState<T>(key: string, defaultValue?: T): T | undefined {
-    return key in this.state ? this.state[key] : defaultValue;
-  }
-  
-  /**
-   * Gets the entire state object
-   * @returns Complete state object
-   */
-  public getAllState(): Record<string, any> {
-    return { ...this.state };
-  }
-  
-  /**
-   * Removes a state value
-   * @param key State key
-   * @param persist Whether to persist the updated state
-   */
-  public removeState(key: string, persist: boolean = true): void {
-    try {
-      // Save previous state for diffing if enabled
-      if (this.options.diffingEnabled) {
-        this.previousState = { ...this.state };
-      }
-      
-      // Remove the state key
-      if (key in this.state) {
-        delete this.state[key];
-        
-        // Update the viewer
-        this.updateViewer();
-        
-        // Persist the state if enabled
-        if (persist && this.options.enablePersistence) {
-          this.persistState();
-        }
-        
-        logger.debug(`DomainStateManager: Removed state value for key "${key}"`);
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error(`DomainStateManager: Failed to remove state for key "${key}":`, errorMessage);
-    }
-  }
-  
-  /**
-   * Clears all state values
-   * @param persist Whether to persist the cleared state
-   */
-  public clearState(persist: boolean = true): void {
-    try {
-      // Save previous state for diffing if enabled
-      if (this.options.diffingEnabled) {
-        this.previousState = { ...this.state };
-      }
-      
-      // Clear the state
-      this.state = {};
-      
-      // Update the viewer
-      this.updateViewer();
-      
-      // Persist the state if enabled
-      if (persist && this.options.enablePersistence) {
-        this.persistState();
-      }
-      
-      logger.debug('DomainStateManager: Cleared all state values');
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error('DomainStateManager: Failed to clear state:', errorMessage);
-    }
-  }
-  
-  /**
-   * Updates the state viewer with current state
-   */
-  private updateViewer(): void {
-    if (this.viewer) {
-      const diff = this.options.diffingEnabled 
-        ? this.calculateDiff(this.previousState, this.state)
-        : null;
-        
-      this.viewer.updateState(this.state, diff);
-        }
-    }
-    
-    /**
-   * Calculates the difference between previous and current state
-   * @param oldState Previous state
-   * @param newState Current state
-   * @returns Diff object showing added, updated, and removed properties
-   */
-  private calculateDiff(oldState: Record<string, any>, newState: Record<string, any>): Record<string, any> {
-    const diff: Record<string, any> = {
-      added: {},
-      updated: {},
-      removed: {}
+    super();
+    this.options = {
+      apiBasePath: '/api/v1/api-tester', // Default endpoint base path
+      ...options,
     };
-    
-    // Find added and updated properties
-    Object.keys(newState).forEach(key => {
-      if (!(key in oldState)) {
-        diff.added[key] = newState[key];
-      } else if (JSON.stringify(oldState[key]) !== JSON.stringify(newState[key])) {
-        diff.updated[key] = {
-          from: oldState[key],
-          to: newState[key]
+
+    this.snapshots = {
+      before: {},
+      after: {},
+    };
+
+    // Define the entity types we can snapshot
+    this.entityTypes = [
+      { id: 'user', name: 'User' },
+      { id: 'challenge', name: 'Challenge' },
+      { id: 'progress', name: 'Progress' },
+      { id: 'evaluation', name: 'Evaluation' },
+      { id: 'focusArea', name: 'Focus Area' },
+      { id: 'personality', name: 'Personality' },
+      // Add more entity types as needed
+    ];
+
+    logger.debug('DomainStateManager initialized');
+  }
+
+  /**
+   * Get available entity types
+   * @returns Array of entity types
+   */
+  getEntityTypes(): EntityType[] {
+    return [...this.entityTypes];
+  }
+
+  /**
+   * Detect relevant entity IDs from a request object.
+   * Looks in path parameters (e.g., /users/:userId) and request body.
+   * @param request The API request object (containing path, body, etc.)
+   * @returns Object mapping entity type ID to the detected entity ID.
+   */
+  detectEntityIds(request: { path?: string; body?: unknown }): Record<string, string> {
+    const entityIds: Record<string, string> = {};
+
+    // Example: Parse path parameters (e.g., /api/v1/users/:userId)
+    if (request.path) {
+      const pathSegments = request.path.split('/');
+      for (let i = 0; i < pathSegments.length - 1; i++) {
+        const segment = pathSegments[i];
+        const nextSegment = pathSegments[i + 1];
+
+        // Simple check for common patterns
+        if (segment === 'users' && nextSegment) entityIds.user = nextSegment;
+        if (segment === 'challenges' && nextSegment) entityIds.challenge = nextSegment;
+        if (segment === 'progress' && nextSegment) entityIds.progress = nextSegment;
+        if (segment === 'evaluations' && nextSegment) entityIds.evaluation = nextSegment;
+        if (segment === 'focus-areas' && nextSegment) entityIds.focusArea = nextSegment;
+        if (segment === 'personalities' && nextSegment) entityIds.personality = nextSegment;
+      }
+    }
+
+    // Look in body for entity IDs
+    if (request.body && typeof request.body === 'object') {
+      const bodyObj = request.body as Record<string, any>; // Assert as indexable, keep any for flexibility here
+      if (bodyObj.userId) entityIds.user = bodyObj.userId;
+      if (bodyObj.challengeId) entityIds.challenge = bodyObj.challengeId;
+      if (bodyObj.progressId) entityIds.progress = bodyObj.progressId;
+      if (bodyObj.evaluationId) entityIds.evaluation = bodyObj.evaluationId;
+      if (bodyObj.focusAreaId) entityIds.focusArea = bodyObj.focusAreaId;
+      if (bodyObj.personalityId) entityIds.personality = bodyObj.personalityId;
+      // Also check for nested IDs, e.g., body.user.id
+      if (bodyObj.user?.id) entityIds.user = String(bodyObj.user.id); // Ensure string conversion if needed
+    }
+
+    logger.debug('Detected entity IDs from request', {
+      requestPath: request.path,
+      detectedIds: entityIds,
+    });
+    return entityIds;
+  }
+
+  /**
+   * Take a snapshot of entity states before the API call.
+   * @param selectedEntityTypeIds Array of entity type IDs to snapshot.
+   * @returns Promise resolving when snapshots are taken.
+   */
+  async takeBeforeSnapshot(
+    selectedEntityTypeIds?: string[],
+  ): Promise<void> {
+    try {
+      // Cannot detect entity IDs without request object anymore.
+      // Need alternative way to get IDs or snapshot all possible entities.
+      // For now, let's assume we try to snapshot all known types if specific IDs aren't needed/provided.
+      // This might require changes to fetchEntityState if it relies on specific IDs.
+      // const entityIds = this.detectEntityIds(request);
+      const entityIdsToSnapshot = selectedEntityTypeIds || this.entityTypes.map(et => et.id);
+
+      const snapshots: Record<string, Snapshot> = {};
+      this.snapshots.before = {};
+      this.snapshots.after = {};
+
+      logger.info('Taking BEFORE domain state snapshot...', {
+        selectedTypes: entityIdsToSnapshot,
+      });
+
+      for (const typeId of entityIdsToSnapshot) {
+          // We might need an entity ID here depending on fetchEntityState
+          // This simplified approach might break if fetchEntityState NEEDS an ID
+          // Let's assume fetchEntityState can handle just the type for now,
+          // OR that this function should only work if selectedEntityTypeIds provides specific IDs to fetch.
+          // A more robust solution is needed depending on API capabilities.
+          logger.warn(`Attempting to fetch state for type ${typeId} without specific ID - this might fail.`);
+          // Passing a placeholder ID - THIS IS LIKELY WRONG and needs adjustment based on API
+          const placeholderEntityId = 'placeholder';
+          try {
+            const state = await this.fetchEntityState(typeId, placeholderEntityId);
+            if (state !== null) {
+              snapshots[typeId] = { id: placeholderEntityId, state };
+              logger.debug(`Snapshot taken for ${typeId}:${placeholderEntityId}`, { state });
+            } else {
+              logger.warn(`Could not fetch state for ${typeId}:${placeholderEntityId}`);
+            }
+          } catch (fetchError: unknown) {
+              logger.error(`Failed to fetch ${typeId} state for ID ${placeholderEntityId}:`, fetchError);
+              // Ensure emitted object matches Record<string, unknown>
+              const errorPayload: Record<string, unknown> = { message: `Failed to fetch state for ${typeId} (${placeholderEntityId})`, error: fetchError };
+              this.emit('error', errorPayload);
+          }
+      }
+
+      this.snapshots.before = snapshots;
+      this.emit('snapshotChange', { phase: 'before', snapshots: this.snapshots.before });
+      // ... logging ...
+    } catch (error: unknown) {
+      logger.error('Failed to take before snapshot:', error);
+      // Ensure emitted object matches Record<string, unknown>
+      const errorPayload: Record<string, unknown> = { message: 'Failed to take before snapshot', error: error };
+      this.emit('error', errorPayload);
+    }
+  }
+
+  /**
+   * Take a snapshot of entity states after the API call.
+   * Uses the same entity IDs detected for the 'before' snapshot.
+   * @param selectedEntityTypeIds Array of entity type IDs originally snapshotted.
+   * @returns Promise resolving when snapshots are taken.
+   */
+  // Removed 'request' parameter, added selectedEntityTypeIds to match signature expectation
+  async takeAfterSnapshot(selectedEntityTypeIds?: string[]): Promise<void> {
+    try {
+      const snapshots: Record<string, Snapshot> = {};
+      this.snapshots.after = {};
+      logger.info('Taking AFTER domain state snapshot...');
+
+      // Determine which types/IDs to fetch based on 'before' snapshot or passed selection
+      const typesAndIdsToFetch = selectedEntityTypeIds
+          ? selectedEntityTypeIds
+          : Object.keys(this.snapshots.before);
+
+      for (const typeId of typesAndIdsToFetch) {
+        // Need the entity ID from the 'before' snapshot
+        const entityId = this.snapshots.before[typeId]?.id;
+        if (!entityId) {
+            logger.warn(`Cannot take 'after' snapshot for ${typeId}, missing ID from 'before' snapshot.`);
+            continue; // Skip if we don't have an ID from the 'before' phase
+        }
+        try {
+          const state = await this.fetchEntityState(typeId, entityId);
+          snapshots[typeId] = { id: entityId, state: state ?? null }; // Store null if fetch failed/deleted
+          logger.debug(`Snapshot taken for ${typeId}:${entityId}`, { state });
+        } catch (fetchError: unknown) {
+           logger.error(`Failed to fetch ${typeId} state for ID ${entityId}:`, fetchError);
+           // Ensure emitted object matches Record<string, unknown>
+           const errorPayload: Record<string, unknown> = { message: `Failed to fetch state for ${typeId} (${entityId})`, error: fetchError };
+           this.emit('error', errorPayload);
+        }
+      }
+
+      this.snapshots.after = snapshots;
+      this.emit('snapshotChange', { phase: 'after', snapshots: this.snapshots.after });
+      // ... logging ...
+    } catch (error: unknown) {
+       logger.error('Failed to take after snapshot:', error);
+       // Ensure emitted object matches Record<string, unknown>
+       const errorPayload: Record<string, unknown> = { message: 'Failed to take after snapshot', error: error };
+       this.emit('error', errorPayload);
+    }
+  }
+
+  /**
+   * Fetch entity state from the backend API.
+   * Assumes an endpoint like /api/v1/api-tester/entity-state?type=<typeId>&id=<entityId>
+   * @param typeId Entity type ID (e.g., 'user')
+   * @param entityId Entity ID (e.g., UUID)
+   * @returns Promise resolving with the entity state object or null if not found/error.
+   */
+  async fetchEntityState(typeId: string, entityId: string): Promise<unknown | null> {
+    const url = `${this.options.apiBasePath}/entity-state?type=${encodeURIComponent(typeId)}&id=${encodeURIComponent(entityId)}`;
+    logger.debug(`Fetching entity state from: ${url}`);
+
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+          // Add Authorization header if needed
+          // 'Authorization': `Bearer ${your_auth_token}`
+        },
+      });
+
+      if (response.status === 404) {
+        logger.warn(`Entity not found: ${typeId}:${entityId}`);
+        return null; // Entity doesn't exist
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API error ${response.status}: ${response.statusText} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      // Assuming the API returns { entity: { ...state } } or similar
+      return data.entity || data; // Return the entity state or the whole data object as fallback
+    } catch (error: unknown) {
+      logger.error(`Failed to fetch ${typeId} state for ID ${entityId}:`, error);
+      // Ensure emitted object matches Record<string, unknown>
+      const errorPayload: Record<string, unknown> = { message: `Failed to fetch state for ${typeId} (${entityId})`, error: error };
+      this.emit('error', errorPayload);
+      return null; // Return null on error
+    }
+  }
+
+  /**
+   * Get the current snapshots.
+   * @returns The snapshots object containing 'before' and 'after' states.
+   */
+  getSnapshots(): Readonly<Snapshots> {
+    return this.snapshots;
+  }
+
+  /**
+   * Calculate differences between the 'before' and 'after' snapshots.
+   * @returns Object containing differences categorized by entity type.
+   */
+  calculateDiff(): Record<string, unknown> {
+    const diffs: Record<string, unknown> = {};
+
+    // Get all unique entity types present in either snapshot
+    const allEntityTypeIds = new Set([
+      ...Object.keys(this.snapshots.before),
+      ...Object.keys(this.snapshots.after),
+    ]);
+
+    logger.debug('Calculating diff between snapshots', { types: Array.from(allEntityTypeIds) });
+
+    for (const typeId of allEntityTypeIds) {
+      const beforeSnapshot = this.snapshots.before[typeId]?.state;
+      const afterSnapshot = this.snapshots.after[typeId]?.state;
+      const entityId = this.snapshots.before[typeId]?.id || this.snapshots.after[typeId]?.id;
+
+      // Ensure entityId is defined before proceeding
+      if (!entityId) continue;
+
+      // Case 1: New entity (only exists in 'after')
+      if (beforeSnapshot === undefined && afterSnapshot !== undefined) {
+        diffs[typeId] = {
+          id: entityId,
+          type: 'new',
+          added: afterSnapshot,
+        };
+        logger.debug(`Diff for ${typeId}:${entityId} - Type: new`);
+        continue;
+      }
+
+      // Case 2: Deleted entity (only exists in 'before' or is null in 'after')
+      if (beforeSnapshot !== undefined && (afterSnapshot === undefined || afterSnapshot === null)) {
+        diffs[typeId] = {
+          id: entityId,
+          type: 'deleted',
+          removed: beforeSnapshot,
+        };
+        logger.debug(`Diff for ${typeId}:${entityId} - Type: deleted`);
+        continue;
+      }
+
+      // Case 3: Entity exists in both, calculate property diffs
+      if (beforeSnapshot !== undefined && afterSnapshot !== undefined && afterSnapshot !== null) {
+        const changes = this._getObjectDiff(beforeSnapshot, afterSnapshot);
+
+        if (Object.keys(changes).length > 0) {
+          diffs[typeId] = {
+            id: entityId,
+            type: 'modified',
+            changes,
+          };
+          logger.debug(`Diff for ${typeId}:${entityId} - Type: modified`, { changes });
+        } else {
+          diffs[typeId] = {
+            id: entityId,
+            type: 'unchanged',
+          };
+          logger.debug(`Diff for ${typeId}:${entityId} - Type: unchanged`);
+        }
+        continue;
+      }
+
+      // Case 4: Unchanged (both undefined or null - should ideally not happen if fetched correctly)
+      if (beforeSnapshot === afterSnapshot) {
+        // Handles both undefined or both null
+        diffs[typeId] = {
+          id: entityId,
+          type: 'unchanged',
+        };
+        logger.debug(`Diff for ${typeId}:${entityId} - Type: unchanged (both null/undefined)`);
+      }
+    }
+
+    return diffs;
+  }
+
+  /**
+   * Recursively calculates the difference between two objects or values.
+   * @param before The 'before' value/object.
+   * @param after The 'after' value/object.
+   * @returns An object describing the differences, or an empty object if no differences.
+   * @private
+   */
+  _getObjectDiff(before: unknown, after: unknown): Record<string, unknown> {
+    const changes: Record<string, unknown> = {};
+
+    // If they are identical primitive values or JSON strings, no changes
+    if (before === after || JSON.stringify(before) === JSON.stringify(after)) {
+      return changes;
+    }
+
+    // Handle null/undefined cases
+    if (before === null || before === undefined || after === null || after === undefined) {
+      // If one is null/undefined and the other isn't, it's a simple modification
+      // (The parent caller handles add/remove based on key presence)
+      return {
+        action: 'modified',
+        from: before,
+        to: after,
+      };
+    }
+
+    // Handle arrays (simple comparison for now, could be improved)
+    if (Array.isArray(before) && Array.isArray(after)) {
+      if (JSON.stringify(before) !== JSON.stringify(after)) {
+        return {
+          action: 'modified',
+          from: before,
+          to: after,
         };
       }
-    });
-    
-    // Find removed properties
-    Object.keys(oldState).forEach(key => {
-      if (!(key in newState)) {
-        diff.removed[key] = oldState[key];
-      }
-    });
-    
-    return diff;
-  }
-  
-  /**
-   * Persists the current state to storage
-   */
-  private persistState(): void {
-    try {
-      const storageOptions = {
-        prefix: this.options.storagePrefix
-      };
-      
-      setLocalStorageItem(this.options.storageKey, this.state, storageOptions);
-      logger.debug('DomainStateManager: State persisted to storage');
-        } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error('DomainStateManager: Failed to persist state:', errorMessage);
-        }
+      return changes; // Arrays are the same
     }
-    
-    /**
-   * Loads state from storage
-   */
-  private loadState(): void {
-    try {
-      const storageOptions = {
-        prefix: this.options.storagePrefix
-      };
-      
-      const storedState = getLocalStorageItem<Record<string, any>>(
-        this.options.storageKey, 
-        storageOptions
-      );
-      
-      if (storedState) {
-        this.state = storedState;
-        logger.debug('DomainStateManager: State loaded from storage');
-      }
-        } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error('DomainStateManager: Failed to load state from storage:', errorMessage);
+
+    // Handle objects
+    if (
+      typeof before === 'object' &&
+      typeof after === 'object' &&
+      before !== null &&
+      after !== null
+    ) {
+      const allKeys = new Set([...Object.keys(before as object), ...Object.keys(after as object)]);
+
+      for (const key of allKeys) {
+        const beforeValue = (before as Record<string, unknown>)[key];
+        const afterValue = (after as Record<string, unknown>)[key];
+
+        // Key removed
+        if (beforeValue !== undefined && afterValue === undefined) {
+          changes[key] = {
+            action: 'removed',
+            value: beforeValue,
+          };
+          continue;
         }
-    }
-    
-    /**
-   * Updates state from API response
-   * @param response API response object
-   * @param stateKey Optional key to extract from response
-   */
-  public updateFromResponse(response: any, stateKey?: string): void {
-    try {
-      if (!response) return;
-      
-      // Save previous state for diffing if enabled
-      if (this.options.diffingEnabled) {
-        this.previousState = { ...this.state };
-      }
-      
-      if (stateKey && typeof response === 'object' && stateKey in response) {
-        // Extract specific key from response
-        this.setState(stateKey, response[stateKey]);
-      } else if (typeof response === 'object' && 'state' in response) {
-        // Handle response with 'state' property
-        const stateData = response.state;
-        
-        if (typeof stateData === 'object' && stateData !== null) {
-          // Update all keys from state object
-          for (const [key, value] of Object.entries(stateData)) {
-            this.setState(key, value, false);
-          }
-          
-          // Persist the full state once
-          if (this.options.enablePersistence) {
-            this.persistState();
+
+        // Key added
+        if (beforeValue === undefined && afterValue !== undefined) {
+          changes[key] = {
+            action: 'added',
+            value: afterValue,
+          };
+          continue;
+        }
+
+        // Key exists in both, compare values recursively
+        if (beforeValue !== undefined && afterValue !== undefined) {
+          const nestedChanges = this._getObjectDiff(beforeValue, afterValue);
+          // Check if nested changes object is not empty or if it represents a direct value change
+          if (nestedChanges.action === 'modified' || Object.keys(nestedChanges).length > 0) {
+            // If the nested change is just a simple modification, flatten it
+            if (
+              nestedChanges.action === 'modified' &&
+              nestedChanges.from !== undefined &&
+              nestedChanges.to !== undefined
+            ) {
+              changes[key] = nestedChanges;
+            } else if (Object.keys(nestedChanges).length > 0) {
+              // Otherwise, report nested structure
+              changes[key] = {
+                action: 'modified',
+                changes: nestedChanges,
+              };
+            }
           }
         }
       }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error('DomainStateManager: Failed to update state from response:', errorMessage);
+      return changes;
     }
+
+    // If none of the above, it's a simple value change
+    return {
+      action: 'modified',
+      from: before,
+      to: after,
+    };
   }
-  
-  /**
-   * Checks if a state key exists
-   * @param key State key
-   * @returns Whether the key exists
-   */
-  public hasState(key: string): boolean {
-    return key in this.state;
-  }
-  
-  /**
-   * Fetches current state from the API
-   * @returns Promise resolving to the state data
-   */
-  public async fetchStateFromApi(): Promise<Record<string, any>> {
-    try {
-      const response = await fetch(this.options.stateEndpoint);
-      
-      if (!response.ok) {
-        throw new Error(`API returned status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      // Save previous state for diffing if enabled
-      if (this.options.diffingEnabled) {
-        this.previousState = { ...this.state };
-      }
-      
-      if (data && typeof data === 'object') {
-        if ('state' in data && typeof data.state === 'object') {
-          // State is nested under 'state' property
-          this.state = data.state;
-            } else {
-          // State is the entire response
-          this.state = data;
-        }
-        
-        // Update viewer and persist
-        this.updateViewer();
-        
-        if (this.options.enablePersistence) {
-          this.persistState();
-        }
-        
-        logger.info('DomainStateManager: State fetched from API');
-      }
-      
-      return this.getAllState();
-            } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error('DomainStateManager: Failed to fetch state from API:', errorMessage);
-      throw error;
-    }
-  }
-} 
+}

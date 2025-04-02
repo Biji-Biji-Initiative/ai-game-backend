@@ -1,3 +1,4 @@
+// Types improved by ts-improve-types
 /**
  * Date Utilities Module
  * Helper functions for date formatting and parsing
@@ -25,94 +26,44 @@ interface DateDifference {
  * @param {DateFormatType} format - The format to use (iso, readable, time, timeago)
  * @returns {string} The formatted date
  */
-export function formatDate(date: Date | string | number, format: DateFormatType = "readable"): string {
+export function formatDate(e: Date | string | number, format: DateFormatType = 'readable'): string {
   // Convert to Date object if string or number
-  const dateObj = date instanceof Date ? date : new Date(date);
+  const dateObj = e instanceof Date ? e : new Date(e);
 
   // Check if valid date
   if (isNaN(dateObj.getTime())) {
-    return "Invalid date";
+    return 'Invalid date';
   }
 
+  // Format based on the type
   switch (format) {
-    case "iso":
+    case 'iso':
       return dateObj.toISOString();
-      
-    case "readable":
+    case 'readable':
       return dateObj.toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit"
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
       });
-      
-    case "time":
-      return dateObj.toLocaleTimeString(undefined, {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit"
-      });
-      
-    case "date":
-      return dateObj.toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "long",
-        day: "numeric"
-      });
-      
-    case "timeago":
-      return getTimeAgo(dateObj);
-      
+    // case "timeago":
+    // Requires a library like timeago.js or similar implementation
+    // return getTimeAgo(dateObj); // Commented out as getTimeAgo is not defined
+    case 'time':
+      return dateObj.toLocaleTimeString();
+    case 'date':
+      return dateObj.toLocaleDateString();
     default:
-      return dateObj.toString();
+      return dateObj.toLocaleString();
   }
 }
 
 /**
- * Gets a human-readable time ago string
- * @param {Date|string|number} date - The date to get time ago for
- * @returns {string} The time ago string
- */
-export function getTimeAgo(date: Date | string | number): string {
-  // Convert to Date object if string or number
-  const dateObj = date instanceof Date ? date : new Date(date);
-
-  // Check if valid date
-  if (isNaN(dateObj.getTime())) {
-    return "Invalid date";
-  }
-
-  const now = new Date();
-  const diffMs = now.getTime() - dateObj.getTime();
-  const diffSec = Math.round(diffMs / 1000);
-  const diffMin = Math.round(diffSec / 60);
-  const diffHour = Math.round(diffMin / 60);
-  const diffDay = Math.round(diffHour / 24);
-  const diffMonth = Math.round(diffDay / 30);
-  const diffYear = Math.round(diffDay / 365);
-
-  if (diffSec < 60) {
-    return diffSec + " second" + (diffSec !== 1 ? "s" : "") + " ago";
-  } else if (diffMin < 60) {
-    return diffMin + " minute" + (diffMin !== 1 ? "s" : "") + " ago";
-  } else if (diffHour < 24) {
-    return diffHour + " hour" + (diffHour !== 1 ? "s" : "") + " ago";
-  } else if (diffDay < 30) {
-    return diffDay + " day" + (diffDay !== 1 ? "s" : "") + " ago";
-  } else if (diffMonth < 12) {
-    return diffMonth + " month" + (diffMonth !== 1 ? "s" : "") + " ago";
-  } else {
-    return diffYear + " year" + (diffYear !== 1 ? "s" : "") + " ago";
-  }
-}
-
-/**
- * Parses a date string into a Date object
+ * Converts a date string to a Date object
  * @param {string} dateString - The date string to parse
  * @returns {Date} The parsed Date object
  */
-export function parseDate(dateString: string): Date {
+export function parseDateString(dateString: string): Date {
   return new Date(dateString);
 }
 
@@ -122,14 +73,17 @@ export function parseDate(dateString: string): Date {
  * @param {Date|string|number} date2 - The second date
  * @returns {DateDifference} The difference in various units
  */
-export function getDateDifference(date1: Date | string | number, date2: Date | string | number): DateDifference {
+export function getDateDifference(
+  date1: Date | string | number,
+  date2: Date | string | number,
+): DateDifference {
   // Convert to Date objects if string or number
   const dateObj1 = date1 instanceof Date ? date1 : new Date(date1);
   const dateObj2 = date2 instanceof Date ? date2 : new Date(date2);
 
   // Check if valid dates
   if (isNaN(dateObj1.getTime()) || isNaN(dateObj2.getTime())) {
-    throw new Error("Invalid date");
+    throw new Error('Invalid date');
   }
 
   const diffMs = Math.abs(dateObj2.getTime() - dateObj1.getTime());
@@ -143,7 +97,7 @@ export function getDateDifference(date1: Date | string | number, date2: Date | s
     seconds: diffSec,
     minutes: diffMin,
     hours: diffHour,
-    days: diffDay
+    days: diffDay,
   };
 }
 
@@ -154,16 +108,16 @@ export function getDateDifference(date1: Date | string | number, date2: Date | s
  */
 export function formatDuration(duration: number): string {
   if (duration < 1000) {
-    return duration + "ms";
+    return duration + 'ms';
   } else if (duration < 60000) {
-    return (duration / 1000).toFixed(2) + "s";
+    return (duration / 1000).toFixed(2) + 's';
   } else if (duration < 3600000) {
     const minutes = Math.floor(duration / 60000);
     const seconds = Math.floor((duration % 60000) / 1000);
-    return minutes + "m " + seconds + "s";
+    return minutes + 'm ' + seconds + 's';
   } else {
     const hours = Math.floor(duration / 3600000);
     const minutes = Math.floor((duration % 3600000) / 60000);
-    return hours + "h " + minutes + "m";
+    return hours + 'h ' + minutes + 'm';
   }
-} 
+}

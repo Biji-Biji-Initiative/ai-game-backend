@@ -1,4 +1,5 @@
 import Entity from "#app/core/common/models/Entity.js";
+import { AdaptiveValidationError } from "#app/core/adaptive/errors/adaptiveErrors.js";
 'use strict';
 /**
  * Class representing a recommendation for user learning
@@ -63,7 +64,7 @@ class Recommendation extends Entity {
      */
     setRecommendedFocusAreas(focusAreas) {
         if (!Array.isArray(focusAreas)) {
-            throw new Error('Focus areas must be an array');
+            throw new AdaptiveValidationError('Focus areas must be an array');
         }
         this.recommendedFocusAreas = focusAreas;
         // Add domain event instead of directly publishing
@@ -83,7 +84,7 @@ class Recommendation extends Entity {
      */
     setRecommendedChallengeTypes(challengeTypes) {
         if (!Array.isArray(challengeTypes)) {
-            throw new Error('Challenge types must be an array');
+            throw new AdaptiveValidationError('Challenge types must be an array');
         }
         this.recommendedChallengeTypes = challengeTypes;
         // Add domain event instead of directly publishing
@@ -103,7 +104,7 @@ class Recommendation extends Entity {
      */
     setSuggestedLearningResources(resources) {
         if (!Array.isArray(resources)) {
-            throw new Error('Learning resources must be an array');
+            throw new AdaptiveValidationError('Learning resources must be an array');
         }
         this.suggestedLearningResources = resources;
     }
@@ -116,7 +117,7 @@ class Recommendation extends Entity {
      */
     setChallengeParameters(parameters) {
         if (!parameters || typeof parameters !== 'object') {
-            throw new Error('Challenge parameters must be an object');
+            throw new AdaptiveValidationError('Challenge parameters must be an object');
         }
         this.challengeParameters = parameters;
         // Add domain event instead of directly publishing
@@ -137,10 +138,10 @@ class Recommendation extends Entity {
      */
     setStrengthsAndWeaknesses(strengths, weaknesses) {
         if (strengths && !Array.isArray(strengths)) {
-            throw new Error('Strengths must be an array');
+            throw new AdaptiveValidationError('Strengths must be an array');
         }
         if (weaknesses && !Array.isArray(weaknesses)) {
-            throw new Error('Weaknesses must be an array');
+            throw new AdaptiveValidationError('Weaknesses must be an array');
         }
         this.strengths = strengths || [];
         this.weaknesses = weaknesses || [];
@@ -155,7 +156,7 @@ class Recommendation extends Entity {
      */
     addMetadata(key, value) {
         if (!key) {
-            throw new Error('Metadata key is required');
+            throw new AdaptiveValidationError('Metadata key is required');
         }
         this.metadata[key] = value;
     }

@@ -10,7 +10,6 @@
 import { createServer } from 'http';
 import app from "#app/app.js";
 import { logger } from "#app/core/infra/logging/logger.js";
-import { initializeSupabase } from "#app/core/infra/db/databaseConnection.js";
 import config from "#app/config/config.js";
 
 /**
@@ -30,8 +29,8 @@ export async function startServer(port) {
   }
   
   try {
-    // Initialize database connection
-    await initializeSupabase();
+    // // Initialize database connection (REMOVED - Handled by DI container setup)
+    // await initializeSupabase(); 
     
     // Security check for production environments
     if (process.env.NODE_ENV === 'production' && 

@@ -1,172 +1,89 @@
-# Admin UI
+# AI Backend Game - Admin UI
 
-The Admin UI provides a powerful interface for monitoring and interacting with the API server. It allows you to visualize domain state, test API endpoints, and monitor logs in real-time.
+The Admin UI is a powerful tool for managing and testing the AI Backend Game. It provides two modes to accommodate both developers and non-technical users.
+
+## Quick Start Guide
+
+1. **Start the server**:
+   ```bash
+   cd admin
+   npm install
+   npm start
+   ```
+
+2. **Access the UI**:
+   Open your browser and go to: http://localhost:8080
+
+3. **Switch to Simple Mode**:
+   Click the "Switch to Simple Mode" button in the header.
+   
+4. **Choose a Category and Flow**:
+   - Select a category from the sidebar (e.g., "Authentication")
+   - Pick a pre-configured flow 
+   - Follow the step-by-step instructions
 
 ## Features
 
-- **API Status Monitoring**: Real-time monitoring of API health and connectivity
-- **Domain State Visualization**: Interactive view of the application's domain state with change tracking
-- **Request Builder**: Build and test API requests with a user-friendly interface
-- **Response Inspector**: Analyze API responses with syntax highlighting and formatting
-- **Variable Extraction**: Extract and manage variables from API responses for use in subsequent requests
-- **Log Viewer**: Filter and search application logs by level and content
-- **Flow Management**: Create, edit, and run sequences of API requests as flows
-- **Dark/Light Theme**: Switch between dark and light mode for comfortable viewing
-
-## Architecture
-
-The Admin UI is built using a modular architecture with these key components:
-
-### Core Modules
-
-- **StatusManager**: Monitors API health and connectivity
-- **DomainStateManager**: Manages the application's domain state
-- **RequestManager**: Handles API requests and responses
-- **LogManager**: Collects and manages application logs
-
-### Components
-
-- **DomainStateViewer**: Visualizes application state with change tracking
-- **RequestBuilder**: Interface for building API requests
-- **ResponseViewer**: Displays and formats API responses
-- **FlowEditor**: Manages sequences of API requests
-- **LogViewer**: Displays and filters application logs
-
-### Utilities
-
-- **logger**: Consistent logging throughout the application
-- **storage-utils**: Utilities for working with browser storage
-- **dom-utils**: Helper functions for DOM manipulation
-
-## File Structure
-
-```
-admin/
-├── css/
-│   ├── components.css     # Component-specific styles
-│   ├── json-formatter.css # Styles for JSON formatter
-│   └── output.css         # Compiled Tailwind CSS
-├── js/
-│   ├── components/        # UI components
-│   ├── modules/           # Core modules
-│   ├── utils/             # Utility functions
-│   ├── vendor/            # Third-party libraries
-│   ├── main.js            # Main entry point
-│   └── bundle.js          # Bundled JavaScript (compiled)
-├── index.html             # Main HTML file
-├── style.css              # Main stylesheet
-└── README.md              # This file
-```
-
-## Module Details
-
-### StatusManager
-
-The StatusManager module monitors the health and status of the API server. It periodically checks the API health endpoint and updates the UI to reflect the current status.
-
-```typescript
-// Example usage
-const statusManager = new StatusManager({
-  statusEndpoint: '/api/health',
-  containerId: 'api-status',
-  updateInterval: 10000 // Check every 10 seconds
-});
-
-statusManager.start();
-```
-
-### DomainStateManager
-
-The DomainStateManager module manages the application's domain state. It provides methods for getting, setting, and removing state values, and can persist state to localStorage.
-
-```typescript
-// Example usage
-const stateManager = new DomainStateManager({
-  viewer: stateViewer,
-  storageKey: 'domain_state',
-  stateEndpoint: '/api/v1/state'
-});
-
-stateManager.initialize();
-```
-
-### Storage Utilities
-
-The storage utilities provide a consistent interface for working with localStorage and sessionStorage, with support for namespacing, expiration, and other features.
-
-```typescript
-// Example usage
-import { setLocalStorageItem, getLocalStorageItem } from './utils/storage-utils';
-
-// Store with expiration
-setLocalStorageItem('user', userData, { 
-  expires: 3600000, // 1 hour
-  prefix: 'admin_ui'
-});
-
-// Retrieve
-const userData = getLocalStorageItem('user', { prefix: 'admin_ui' });
-```
+- **Developer Mode**: Advanced interface with full control over API calls, request formatting, and raw response viewing
+- **Simple Mode**: User-friendly interface with guided flows, step-by-step instructions, and simplified forms
+- **Status Monitoring**: Visual indicators for system health and dependencies
+- **Log Viewing**: Detailed frontend and backend logs with filtering capabilities
+- **Variable Management**: Ability to extract and reuse variables from API responses
 
 ## Getting Started
 
-To use the Admin UI, follow these steps:
+1. Navigate to the admin directory
+2. Install dependencies: `npm install`
+3. Start the server: `npm start`
+4. Open your browser at `http://localhost:8080`
 
-1. **Install dependencies**:
-   ```bash
-   npm install
-   ```
+## Using Developer Mode
 
-2. **Build the CSS**:
-   ```bash
-   npm run build:css
-   ```
+Developer Mode provides full control and visibility into the API:
 
-3. **Build the JavaScript bundle**:
-   ```bash
-   npm run build:js
-   ```
+- **Flow Management**: Create, edit, and organize complex API request flows
+- **Request Builder**: Manually construct requests with headers, params, and JSON body
+- **Response Viewer**: Inspect raw responses with detailed headers and status codes
+- **Domain State**: Examine the complete application state
 
-4. **Start the development server**:
-   ```bash
-   npm run dev
-   ```
+This mode is intended for developers who need detailed control and understanding of the API.
 
-5. **Access the UI** at http://localhost:3000/admin/
+## Using Simple Mode
+
+Simple Mode provides a guided, user-friendly experience:
+
+- **Step-by-Step Flows**: Pre-configured sequences of API calls organized by category
+- **Simplified Forms**: Easy-to-understand input fields with helpful descriptions
+- **Guided Testing**: Clear instructions for each step of the testing process
+- **User-Friendly Error Messages**: Helpful explanations when something goes wrong
+
+To switch to Simple Mode, click the "Switch to Simple Mode" button in the top-right corner of the interface.
+
+### Flow Categories
+
+The Simple Mode organizes flows into logical categories:
+
+- **Authentication**: User registration, login, and token management
+- **User Management**: Creating and managing user profiles
+- **Challenges**: Working with game challenges and puzzles
+- **Game Flow**: Game progression and state management
+- **System**: System health, status, and configuration
 
 ## Development
 
-### Adding New Components
+If you need to extend or modify the Admin UI, the codebase is organized as follows:
 
-1. Create the component file in `js/components/`
-2. Add related styles in `css/components.css`
-3. Import and initialize the component in `main.js`
+- `/js/controllers`: Core application controllers
+- `/js/modules`: Functional modules for different aspects of the app
+- `/js/components`: UI components and renderers
+- `/js/utils`: Utility functions
+- `/js/types`: TypeScript type definitions
 
-### Building for Production
+The user-friendly interface is implemented using:
 
-```bash
-npm run build
-```
-
-This will create optimized CSS and JavaScript files for production use.
-
-## Browser Support
-
-The Admin UI supports all modern browsers:
-
-- Chrome (latest)
-- Firefox (latest)
-- Safari (latest)
-- Edge (latest)
+- `UserFriendlyFlowManager`: Manages categorized flows for non-technical users
+- `UserFriendlyUI`: Renders the simplified UI components
 
 ## Contributing
 
-If you'd like to contribute to the Admin UI, please follow these guidelines:
-
-1. Follow the existing code style and organization
-2. Add appropriate documentation for new features
-3. Test your changes thoroughly before submitting a pull request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details. 
+If you're adding new features, please ensure they work in both Developer and Simple modes, providing appropriate interfaces for each user type. 

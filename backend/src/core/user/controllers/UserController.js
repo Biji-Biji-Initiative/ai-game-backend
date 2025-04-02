@@ -4,6 +4,8 @@ import { userLogger } from "#app/core/infra/logging/domainLogger.js";
 import { UserNotFoundError, UserUpdateError, UserValidationError, FocusAreaError, UserError } from "#app/core/user/errors/UserErrors.js";
 import { withControllerErrorHandling } from "#app/core/infra/errors/errorStandardization.js";
 import { UserDTOMapper } from "#app/core/user/dtos/UserDTO.js";
+import { updateUserSchema } from "#app/core/user/schemas/userApiSchemas.js"; // Import validation schema
+import { preferencesSchema, validatePreferenceCategory, isValidPreferenceCategory } from "#app/core/user/schemas/preferencesSchema.js"; // Import preference schemas/validators
 /**
  * User Controller (Refactored with Standardized Error Handling)
  *
@@ -145,48 +147,44 @@ class UserController {
    * Create a new user (testing purposes only)
    */
   async createUser(req, res, _next) {
-    // Convert request to domain parameters
-    const params = UserDTOMapper.fromRequest(req.body);
-    if (!params.email) {
+    // Validate request body (Assume a schema exists or add basic checks)
+    const { email, password, firstName, lastName, fullName } = req.body;
+    if (!email) {
       throw new UserValidationError('Email is required');
     }
-    this.logger.debug('Creating test user', {
-      email: params.email
-    });
-    // Check if user already exists
-    const existingUser = await this.userRepository.findByEmail(params.email);
+    // Password validation/hashing should happen in service/auth layer ideally
+
+    this.logger.debug('Creating user via controller', { email });
+    
+    // Use UserService to create the user
+    const userData = {
+      email,
+      password: password || 'password123', // Handle password securely in service
+      fullName: fullName || (firstName && lastName ? `${firstName} ${lastName}` : 'Test User')
+      // Add other fields as needed
+    };
+    
+    // Check if user exists first via service
+    const existingUser = await this.userService.getUserByEmail(email);
     if (existingUser) {
-      this.logger.info('User already exists, returning existing user', {
-        email: params.email
-      });
-      // Convert domain entity to DTO
+      this.logger.info('User already exists, returning existing user', { email });
       const userDto = UserDTOMapper.toDTO(existingUser);
       return res.status(200).json({
         status: 'success',
-        data: {
-          user: userDto
-        },
+        data: { user: userDto },
         message: 'User already exists'
       });
     }
-    // Create a new test user
-    const userData = {
-      email: params.email,
-      fullName: params.firstName && params.lastName ? `${params.firstName} ${params.lastName}` : 'Test User',
-      // In a real app, we'd hash the password
-      password: req.body.password || 'password123'
-    };
-    const newUser = await this.userRepository.createUser(userData);
+    
+    // Call service to create
+    const newUser = await this.userService.createUser(userData);
+    
     // Convert domain entity to DTO
     const userDto = UserDTOMapper.toDTO(newUser);
-    this.logger.info('Created new test user', {
-      email: params.email
-    });
+    this.logger.info('Created new user via controller', { email });
     return res.status(201).json({
       status: 'success',
-      data: {
-        user: userDto
-      },
+      data: { user: userDto },
       message: 'User created successfully'
     });
   }
@@ -194,16 +192,14 @@ class UserController {
    * Get a user by email (testing purposes only)
    */
   async getUserByEmail(req, res, _next) {
-    const {
-      email
-    } = req.params;
+    const { email } = req.params;
     if (!email) {
       throw new UserValidationError('Email is required');
     }
-    this.logger.debug('Getting user by email', {
-      email
-    });
-    const user = await this.userRepository.findByEmail(email);
+    this.logger.debug('Getting user by email via controller', { email });
+    
+    // Use UserService
+    const user = await this.userService.getUserByEmail(email);
     if (!user) {
       throw new UserNotFoundError(email);
     }
@@ -211,9 +207,7 @@ class UserController {
     const userDto = UserDTOMapper.toDTO(user);
     return res.status(200).json({
       status: 'success',
-      data: {
-        user: userDto
-      },
+      data: { user: userDto },
       message: 'User retrieved successfully'
     });
   }
@@ -221,44 +215,47 @@ class UserController {
    * Get the currently authenticated user
    */
   async getCurrentUser(req, res, _next) {
-    const {
-      email
-    } = req.user;
-    this.logger.debug('Getting current user profile', {
-      email
-    });
-    const user = await this.userRepository.findByEmail(email);
+    const { email } = req.user; // Assumes auth middleware sets req.user.email
+    this.logger.debug('Getting current user profile via controller', { email });
+    
+    // Use UserService
+    const user = await this.userService.getUserByEmail(email);
     if (!user) {
+      // Should not happen if authentication middleware worked correctly
+      this.logger.error('Authenticated user not found in DB', { email });
       throw new UserNotFoundError(email);
     }
     // Convert domain entity to DTO
     const userDto = UserDTOMapper.toDTO(user);
-    return res.success({
-      user: userDto
-    }, 'User profile retrieved successfully');
+    return res.success({ user: userDto }, 'User profile retrieved successfully');
   }
   /**
    * Update the currently authenticated user
    */
   async updateCurrentUser(req, res, _next) {
-    const {
-      email
-    } = req.user;
-    // Convert request to domain parameters
-    const updateData = UserDTOMapper.fromRequest(req.body);
-    this.logger.debug('Updating user profile', {
-      email
-    });
+    const { email } = req.user;
+    
+    // Validate request body using Zod schema
+    const validationResult = updateUserSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      const formattedErrors = validationResult.error.flatten().fieldErrors;
+      throw new UserValidationError('Invalid update data', { validationErrors: formattedErrors });
+    }
+    
+    // Use validated data
+    const updateData = validationResult.data;
+    
+    this.logger.debug('Updating user profile', { email });
+    
     // Delegate to the UserService for update logic
     const updatedUser = await this.userService.updateUser(email, updateData);
+    
     // Convert domain entity to DTO
     const userDto = UserDTOMapper.toDTO(updatedUser);
-    this.logger.info('User profile updated', {
-      email
-    });
-    return res.success({
-      user: userDto
-    }, 'User profile updated successfully');
+    
+    this.logger.info('User profile updated', { email });
+    
+    return res.success({ user: userDto }, 'User profile updated successfully');
   }
   /**
    * Set the focus area for the current user
@@ -294,30 +291,47 @@ class UserController {
    * Get a user by ID (admin only)
    */
   async getUserById(req, res, _next) {
-    const {
-      id
-    } = req.params;
-    this.logger.debug('Getting user by ID', {
-      userId: id
-    });
-    const user = await this.userRepository.findById(id, true);
+    const { id } = req.params;
+    if (!id) {
+      throw new UserValidationError('User ID is required');
+    }
+    this.logger.debug('Getting user by ID via controller', { userId: id });
+    
+    // Use UserService
+    const user = await this.userService.getUserById(id); // Assuming service throws if not found
+    if (!user) { // Double-check in case service returns null
+      throw new UserNotFoundError(id);
+    }
+    
     // Convert domain entity to DTO
     const userDto = UserDTOMapper.toDTO(user);
-    return res.success({
-      user: userDto
-    }, 'User retrieved successfully');
+    return res.success({ user: userDto }, 'User retrieved successfully');
   }
   /**
    * List all users (admin only)
    */
   async listUsers(req, res, _next) {
-    this.logger.debug('Listing all users');
-    const users = await this.userRepository.findAll();
+    this.logger.debug('Listing all users via controller');
+    
+    // Use UserService to list users
+    const { limit, offset, status /* other filters/sort */ } = req.query;
+    const options = {
+        limit: limit ? parseInt(limit, 10) : undefined,
+        offset: offset ? parseInt(offset, 10) : undefined,
+        status: status
+        // Add sortBy, sortDir if needed by service/repo
+    };
+    
+    const result = await this.userService.listUsers(options);
+    const users = result.users || [];
+    const total = result.total || users.length;
+    
     // Convert domain entities to DTOs
     const userDtos = UserDTOMapper.toDTOCollection(users);
-    this.logger.info(`Retrieved ${users.length} users`);
+    this.logger.info(`Retrieved ${users.length} users (total: ${total})`);
     return res.success({
-      users: userDtos
+        users: userDtos,
+        pagination: { total: total, limit: options.limit || users.length, offset: options.offset || 0 } 
     }, `Retrieved ${users.length} users successfully`);
   }
 
@@ -357,12 +371,18 @@ class UserController {
     const { id } = req.user;
     const { preferences } = req.body;
     
-    this.logger.debug('Updating user preferences', { userId: id });
-    const updatedPreferences = await this.userPreferencesManager.updateUserPreferences(id, preferences);
+    // Validate request body using Zod schema
+    const validationResult = preferencesSchema.safeParse(preferences);
+    if (!validationResult.success) {
+        const formattedErrors = validationResult.error.flatten().fieldErrors;
+        throw new UserValidationError('Invalid preferences data', { validationErrors: formattedErrors });
+    }
+    const validatedPreferences = validationResult.data;
     
-    return res.success({
-      preferences: updatedPreferences
-    }, 'User preferences updated successfully');
+    this.logger.debug('Updating user preferences', { userId: id });
+    const updatedPreferences = await this.userPreferencesManager.updateUserPreferences(id, validatedPreferences);
+    
+    return res.success({ preferences: updatedPreferences }, 'User preferences updated successfully');
   }
 
   /**
@@ -373,14 +393,29 @@ class UserController {
     const { category } = req.params;
     const categoryPreferences = req.body;
     
-    this.logger.debug('Updating user preferences by category', { userId: id, category });
-    const updatedPreferences = await this.userPreferencesManager.updateUserPreferencesByCategory(
-      id, category, categoryPreferences
-    );
+    // Validate category name first
+    if (!isValidPreferenceCategory(category)) {
+      throw new UserValidationError(`Invalid preference category: ${category}`);
+    }
     
-    return res.success({
-      [category]: updatedPreferences
-    }, `${category} preferences updated successfully`);
+    try {
+        // Validate the specific category data
+        const validatedCategoryPrefs = validatePreferenceCategory(category, categoryPreferences);
+        
+        this.logger.debug('Updating user preferences by category', { userId: id, category });
+        const updatedPreferences = await this.userPreferencesManager.updateUserPreferencesByCategory(
+            id, category, validatedCategoryPrefs // Use validated data
+        );
+        
+        return res.success({ [category]: updatedPreferences }, `${category} preferences updated successfully`);
+    } catch (error) {
+        // Catch validation errors from validatePreferenceCategory
+        if (error.errors) { // Assuming Zod error structure
+            const formattedErrors = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
+            throw new UserValidationError(`Invalid ${category} preferences: ${formattedErrors}`);
+        } 
+        throw error; // Re-throw other errors
+    }
   }
 
   /**
@@ -391,12 +426,20 @@ class UserController {
     const { key } = req.params;
     const { value } = req.body;
     
+    // Basic validation (more complex validation happens in the service)
+    if (!key || typeof key !== 'string') {
+        throw new UserValidationError('Preference key (param) is required and must be a string');
+    }
+    if (value === undefined) { // Allow null/false/0
+        throw new UserValidationError('Preference value is required in the request body');
+    }
+
     this.logger.debug('Updating single user preference', { userId: id, key });
+    
+    // Delegate to the service which handles nested key validation and type checking
     const updatedPreferences = await this.userPreferencesManager.setUserPreference(id, key, value);
     
-    return res.success({
-      preferences: updatedPreferences
-    }, `Preference ${key} updated successfully`);
+    return res.success({ preferences: updatedPreferences }, `Preference ${key} updated successfully`);
   }
 
   /**
@@ -421,36 +464,38 @@ class UserController {
   async getUserProfile(req, res, _next) {
     const { email, id } = req.user;
     
-    this.logger.debug('Getting user profile data', { userId: id, email });
+    this.logger.debug('Getting user profile data via controller', { userId: id, email });
     
-    // Get the user from the repository
-    const user = await this.userRepository.findByEmail(email);
+    // Get the user using UserService
+    const user = await this.userService.getUserByEmail(email);
     
     if (!user) {
+      this.logger.error('Authenticated user not found in DB for profile', { email });
       throw new UserNotFoundError(email);
     }
     
     // Create a profile object with all the necessary information
+    // Using DTO mapper is cleaner here
+    const userDto = UserDTOMapper.toDTO(user);
+    // Construct profile DTO from user DTO if needed, or enhance UserDTO
     const profileData = {
-      id: user.id,
-      email: user.email,
-      name: user.fullName || user.displayName,
-      displayName: user.displayName,
-      skillLevel: user.skillLevel || 'intermediate',
-      profession: user.profession || user.title,
-      focusAreas: user.focusAreas || [],
-      learningGoals: user.learningGoals || [],
-      preferredLearningStyle: user.preferredLearningStyle,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt
+      id: userDto.id,
+      email: userDto.email,
+      name: userDto.fullName || userDto.displayName,
+      displayName: userDto.displayName,
+      skillLevel: userDto.preferences?.general?.skillLevel || 'intermediate', // Example access
+      profession: userDto.professionalTitle,
+      focusAreas: userDto.focusAreas || [],
+      // learningGoals: userDto.learningGoals || [], // Add if needed
+      // preferredLearningStyle: userDto.preferences?.learning?.style, // Example access
+      createdAt: userDto.createdAt,
+      updatedAt: userDto.updatedAt
     };
     
     this.logger.info('User profile retrieved successfully', { userId: id });
     
     // Return the profile data
-    return res.success({
-      profile: profileData
-    }, 'User profile retrieved successfully');
+    return res.success({ profile: profileData }, 'User profile retrieved successfully');
   }
 
   /**
@@ -458,7 +503,16 @@ class UserController {
    */
   async updateUser(req, res, _next) {
     const { id } = req.params;
-    const updateData = UserDTOMapper.fromRequest(req.body);
+    
+    // Validate request body using Zod schema
+    const validationResult = updateUserSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      const formattedErrors = validationResult.error.flatten().fieldErrors;
+      throw new UserValidationError('Invalid update data', { validationErrors: formattedErrors });
+    }
+    
+    // Use validated data
+    const updateData = validationResult.data;
     
     this.logger.debug('Updating user by ID', { userId: id });
     
@@ -470,16 +524,15 @@ class UserController {
     }
     
     // Delegate to the UserService for update logic
-    const updatedUser = await this.userService.updateUser(user.email, updateData);
+    // Use user.id or user.email depending on what userService.updateUser expects
+    const updatedUser = await this.userService.updateUser(user.id, updateData);
     
     // Convert domain entity to DTO
     const userDto = UserDTOMapper.toDTO(updatedUser);
     
     this.logger.info('User updated by ID', { userId: id });
     
-    return res.success({
-      user: userDto
-    }, 'User updated successfully');
+    return res.success({ user: userDto }, 'User updated successfully');
   }
 
   /**
@@ -487,71 +540,24 @@ class UserController {
    */
   async deleteUser(req, res, _next) {
     const { id } = req.params;
-    
-    this.logger.debug('Deleting user by ID', { userId: id });
-    
-    // Check if user exists first
-    const user = await this.userRepository.findById(id, true);
-    
-    if (!user) {
-      throw new UserNotFoundError(id);
+    if (!id) {
+      throw new UserValidationError('User ID is required');
     }
+    this.logger.debug('Deleting user by ID via controller', { userId: id });
     
-    // Delete the user
-    await this.userRepository.delete(id);
+    // Use UserService to delete the user
+    // Service handles existence check and cache invalidation
+    const deleted = await this.userService.deleteUser(id);
+    
+    if (!deleted) {
+        // This might happen if the service's findById check fails just before delete,
+        // or if repo.delete doesn't return the expected structure. Service logs warning.
+         throw new UserError('User deletion failed or could not be confirmed');
+    }
     
     this.logger.info('User deleted', { userId: id });
     
-    return res.success({
-      deleted: true,
-      userId: id
-    }, 'User deleted successfully');
-  }
-
-  /**
-   * Update user profile - Placeholder
-   */
-  async updateUserProfile(req, res, next) {
-    this.logger.info('[UserController] updateUserProfile called (Placeholder)');
-    // TODO: Implement profile update logic using userService
-    // const userId = req.user.id; 
-    // const profileData = req.body;
-    try {
-      // const updatedUser = await this.userService.updateProfile(userId, profileData);
-      res.status(501).json({ message: 'updateUserProfile not implemented', userId: req.user?.id });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  /**
-   * List users (Admin) - Placeholder
-   */
-  async listUsers(req, res, next) {
-    this.logger.info('[UserController] listUsers called (Placeholder)');
-    // TODO: Implement user listing logic using userService (with pagination?)
-    try {
-      // const users = await this.userService.listAllUsers(req.query); 
-      res.status(501).json({ message: 'listUsers not implemented' });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  /**
-   * Get user by ID (Admin) - Placeholder
-   */
-  async getUserById(req, res, next) {
-    this.logger.info('[UserController] getUserById called (Placeholder)', { requestedUserId: req.params.userId });
-    // TODO: Implement logic using userService
-    // const userIdToFetch = req.params.userId;
-    try {
-      // const user = await this.userService.findById(userIdToFetch);
-      // if (!user) return res.status(404).json({ message: 'User not found'});
-      res.status(501).json({ message: 'getUserById not implemented', userId: req.params.userId });
-    } catch (error) {
-      next(error);
-    }
+    return res.success({ deleted: true, userId: id }, 'User deleted successfully');
   }
 }
 export default UserController;

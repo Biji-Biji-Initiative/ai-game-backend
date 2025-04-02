@@ -1,13 +1,19 @@
+// Types improved by ts-improve-types
 /**
  * Variable extraction and management types
  */
+
+// Assuming necessary imports
+import { ResponseViewer } from '../ui/response-viewer';
+import { DomainStateManager } from '../modules/domain-state-manager';
+import { ApiClient } from '../services/api-client';
 
 /**
  * Variable definition
  */
 export interface Variable {
   name: string;
-  value: any;
+  value: string;
   type?: string;
   description?: string;
   scope?: string;
@@ -20,7 +26,7 @@ export interface Variable {
  */
 export interface VariableSuggestion {
   name: string;
-  value: any;
+  value: string;
   path: string;
   confidence: number;
   source: 'response' | 'domain-state' | 'manual';
@@ -31,13 +37,14 @@ export interface VariableSuggestion {
  */
 export interface VariableExtractorOptions {
   containerId?: string;
-  responseViewer?: any;
-  domainStateManager?: any;
-  apiClient?: any;
+  responseViewer?: ResponseViewer;
+  domainStateManager?: DomainStateManager;
+  apiClient?: ApiClient;
   variablePrefix?: string;
   suggestionsEnabled?: boolean;
   autoExtract?: boolean;
   maxSuggestions?: number;
+  suggestionLimit?: number;
 }
 
 /**
@@ -56,23 +63,29 @@ export interface VariableManagerOptions {
  */
 export interface IVariableExtractor {
   // Core methods
-  extractVariables(response: any): Variable[];
+  extractVariables(respons: Event): Variable[];
   getVariables(): Variable[];
-  
+
   // Extraction helper methods
-  extractFromJson(json: any, path?: string): Variable[];
-  extractFromText(text: string): Variable[];
-  extractFromHeaders(headers: Record<string, string>): Variable[];
-  
+  extractFromJson(jso: unknown, path?: string): Variable[];
+  extractFromText(tex: string): Variable[];
+  extractFromHeaders(header: Record<string, string>): Variable[];
+
   // Suggestion methods
-  suggestVariables(response: any): VariableSuggestion[];
-  renderSuggestions(suggestions: VariableSuggestion[]): void;
-  
+  suggestVariables(respons: Event): VariableSuggestion[];
+  renderSuggestions(suggestion: VariableSuggestion[]): void;
+
   // UI methods
   render(): void;
   clear(): void;
-  
+
   // Events
-  addEventListener(event: string, handler: (data: any) => void): void;
-  removeEventListener(event: string, handler: (data: any) => void): void;
-} 
+  addEventListener(
+    even: string,
+    handler: (data: unknown[] | Record<string, unknown>) => void,
+  ): void;
+  removeEventListener(
+    even: string,
+    handler: (data: unknown[] | Record<string, unknown>) => void,
+  ): void;
+}

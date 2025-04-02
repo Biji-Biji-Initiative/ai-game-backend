@@ -21,6 +21,10 @@ import { PROMPT_TYPES } from "#app/core/prompt/promptTypes.js";
 import messageFormatter from "#app/core/infra/openai/messageFormatter.js";
 import { MissingParameterError } from "#app/core/infra/errors/MissingParameterError.js";
 import { challengeLogger } from "#app/core/infra/logging/domainLogger.js";
+import { EventTypes } from "#app/core/common/events/eventTypes.js";
+import Evaluation from "#app/core/evaluation/models/Evaluation.js";
+import AppError from "#app/core/infra/errors/AppError.js";
+import { logger as appLogger } from "#app/core/infra/logging/logger.js";
 
 /**
  * Application service for handling challenge response evaluations
@@ -85,20 +89,20 @@ class ChallengeEvaluationService {
    */
   async evaluateResponses(challenge, responses, options = {}) {
     if (!challenge) {
-      throw new Error('Challenge is required for evaluation');
+      throw new AppError('Challenge is required for evaluation', 400, { errorCode: 'VALIDATION_FAILED' });
     }
     
     if (!Array.isArray(responses) || responses.length === 0) {
-      throw new Error('Responses are required for evaluation');
+      throw new AppError('Responses are required for evaluation', 400, { errorCode: 'VALIDATION_FAILED' });
     }
     
     const threadId = options.threadId;
     if (!threadId) {
-      throw new Error('Thread ID is required for evaluation');
+      throw new AppError('Thread ID is required for evaluation', 400, { errorCode: 'VALIDATION_FAILED' });
     }
     
     if (!challenge.userId) {
-      throw new Error('Challenge must have a valid userId');
+      throw new AppError('Challenge must have a valid userId', 400, { errorCode: 'VALIDATION_FAILED' });
     }
     
     // Get or create a conversation state for this evaluation using aiStateManager
@@ -221,24 +225,24 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`
    */
   async streamEvaluation(challenge, responses, callbacks, options = {}) {
     if (!challenge) {
-      throw new Error('Challenge is required for evaluation');
+      throw new AppError('Challenge is required for evaluation', 400, { errorCode: 'VALIDATION_FAILED' });
     }
     
     if (!Array.isArray(responses) || responses.length === 0) {
-      throw new Error('Responses are required for evaluation');
+      throw new AppError('Responses are required for evaluation', 400, { errorCode: 'VALIDATION_FAILED' });
     }
     
     if (!callbacks || typeof callbacks.onChunk !== 'function') {
-      throw new Error('onChunk callback is required for streaming evaluations');
+      throw new AppError('onChunk callback is required for streaming evaluations', 400, { errorCode: 'VALIDATION_FAILED' });
     }
     
     const threadId = options.threadId;
     if (!threadId) {
-      throw new Error('Thread ID is required for evaluation');
+      throw new AppError('Thread ID is required for evaluation', 400, { errorCode: 'VALIDATION_FAILED' });
     }
     
     if (!challenge.userId) {
-      throw new Error('Challenge must have a valid userId');
+      throw new AppError('Challenge must have a valid userId', 400, { errorCode: 'VALIDATION_FAILED' });
     }
     
     // Get or create a conversation state for this evaluation using aiStateManager

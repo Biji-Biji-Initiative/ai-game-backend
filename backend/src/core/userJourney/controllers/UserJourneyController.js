@@ -3,6 +3,7 @@ import { UserJourneyError, UserJourneyNotFoundError, UserJourneyValidationError,
 import { UserJourneyDTOMapper } from "#app/core/userJourney/dtos/UserJourneyDTO.js";
 import AppError from "#app/core/infra/errors/AppError.js";
 import { withControllerErrorHandling } from "#app/core/infra/errors/errorStandardization.js";
+// import { trackEventSchema } from "#app/core/userJourney/schemas/userJourneyApiSchemas.js"; // Incorrect path
 'use strict';
 /**
  * User Journey Controller
@@ -36,15 +37,20 @@ class UserJourneyController {
    * Create a new UserJourneyController
    * @param {Object} dependencies - Injected dependencies
    * @param {Object} dependencies.userJourneyCoordinator - Coordinator for user journey operations
-   * @param {Object} dependencies.userRepository - Repository for user operations
+   * @param {Object} dependencies.userService - User Service (Changed from Repository)
    */
   constructor({
     userJourneyCoordinator,
-    userRepository
+    userService,
+    logger
   }) {
+    if (!userService) throw new Error('userService is required');
+    if (!userJourneyCoordinator) throw new Error('userJourneyCoordinator is required');
+    
     this.userJourneyCoordinator = userJourneyCoordinator;
-    this.userRepository = userRepository;
-    this.logger = logger;
+    this.userService = userService;
+    this.logger = logger || userJourneyLogger;
+    
     // Apply error handling to controller methods using withControllerErrorHandling
     this.trackEvent = withControllerErrorHandling(
       this.trackEvent.bind(this),
@@ -135,18 +141,16 @@ class UserJourneyController {
    * @param {Response} res - Express response object
    */
   async trackEvent(req, res) {
-    // Convert request to domain parameters
-    const params = UserJourneyDTOMapper.fromRequest(req.body);
-    if (!params.userEmail) {
-      throw new AppError('User email is required', 400);
+    // TEMPORARY: Use req.body directly
+    const params = req.body;
+    if (!params || !params.userEmail || !params.eventType) { // Basic check
+        throw new UserJourneyValidationError('Missing required fields (userEmail, eventType)');
     }
-    if (!params.eventType) {
-      throw new AppError('Event type is required', 400);
-    }
-    // Check if user exists
-    const user = await this.userRepository.findByEmail(params.userEmail);
+    
+    // Check if user exists using UserService
+    const user = await this.userService.getUserByEmail(params.userEmail);
     if (!user) {
-      throw new AppError('User not found', 404);
+      throw new UserJourneyNotFoundError(`User not found: ${params.userEmail}`); 
     }
     // Record the event
     const event = await this.userJourneyCoordinator.recordUserEvent(
@@ -180,12 +184,12 @@ class UserJourneyController {
       limit
     } = req.query;
     if (!email) {
-      throw new AppError('User email is required', 400);
+      throw new UserJourneyValidationError('User email is required');
     }
-    // Check if user exists
-    const user = await this.userRepository.findByEmail(email);
+    // Check if user exists using UserService
+    const user = await this.userService.getUserByEmail(email);
     if (!user) {
-      throw new AppError('User not found', 404);
+      throw new UserJourneyNotFoundError(`User not found: ${email}`);
     }
     // Get events with optional filters
     const events = await this.userJourneyCoordinator.getUserEvents(email, {
@@ -217,12 +221,12 @@ class UserJourneyController {
       timeframe
     } = req.query;
     if (!email) {
-      throw new AppError('User email is required', 400);
+      throw new UserJourneyValidationError('User email is required');
     }
-    // Check if user exists
-    const user = await this.userRepository.findByEmail(email);
+    // Check if user exists using UserService
+    const user = await this.userService.getUserByEmail(email);
     if (!user) {
-      throw new AppError('User not found', 404);
+      throw new UserJourneyNotFoundError(`User not found: ${email}`);
     }
     // Get activity summary
     const summary = await this.userJourneyCoordinator.getUserActivitySummary(email, timeframe || 'week');
@@ -245,12 +249,12 @@ class UserJourneyController {
       email
     } = req.params;
     if (!email) {
-      throw new AppError('User email is required', 400);
+      throw new UserJourneyValidationError('User email is required');
     }
-    // Check if user exists
-    const user = await this.userRepository.findByEmail(email);
+    // Check if user exists using UserService
+    const user = await this.userService.getUserByEmail(email);
     if (!user) {
-      throw new AppError('User not found', 404);
+      throw new UserJourneyNotFoundError(`User not found: ${email}`);
     }
     // Get engagement metrics
     const metrics = await this.userJourneyCoordinator.getUserEngagementMetrics(email);
@@ -271,10 +275,10 @@ class UserJourneyController {
   async getUserJourneyEvents(req, res) {
     const userId = req.user.id;
     
-    // Get the user email from the repository
-    const user = await this.userRepository.findById(userId);
+    // Get the user email using UserService
+    const user = await this.userService.getUserById(userId);
     if (!user) {
-      throw new AppError('User not found', 404);
+      throw new UserJourneyNotFoundError(`User not found: ${userId}`);
     }
     
     // Get events for the current user
@@ -303,19 +307,19 @@ class UserJourneyController {
     const userId = req.user.id;
     
     if (!journeyId) {
-      throw new AppError('Journey ID is required', 400);
+      throw new UserJourneyValidationError('Journey ID is required');
     }
     
-    // Check if user exists
-    const user = await this.userRepository.findById(userId);
+    // Check if user exists using UserService
+    const user = await this.userService.getUserById(userId);
     if (!user) {
-      throw new AppError('User not found', 404);
+      throw new UserJourneyNotFoundError(`User not found: ${userId}`);
     }
     
     // Get journey by ID
     const journey = await this.userJourneyCoordinator.getJourneyById(journeyId, userId);
     if (!journey) {
-      throw new AppError('Journey not found', 404);
+      throw new UserJourneyNotFoundError('Journey not found'); // Use specific error
     }
     
     // Convert to DTO
@@ -338,19 +342,19 @@ class UserJourneyController {
     const userId = req.user.id;
     
     if (!eventId) {
-      throw new AppError('Event ID is required', 400);
+      throw new UserJourneyValidationError('Event ID is required');
     }
     
-    // Check if user exists
-    const user = await this.userRepository.findById(userId);
+    // Check if user exists using UserService
+    const user = await this.userService.getUserById(userId);
     if (!user) {
-      throw new AppError('User not found', 404);
+      throw new UserJourneyNotFoundError(`User not found: ${userId}`);
     }
     
     // Get event by ID
     const event = await this.userJourneyCoordinator.getEventById(eventId, userId);
     if (!event) {
-      throw new AppError('Event not found', 404);
+      throw new UserJourneyNotFoundError('Event not found'); // Use specific error
     }
     
     // Convert to DTO
@@ -374,13 +378,13 @@ class UserJourneyController {
     const { limit } = req.query;
     
     if (!type) {
-      throw new AppError('Event type is required', 400);
+      throw new UserJourneyValidationError('Event type is required');
     }
     
-    // Check if user exists
-    const user = await this.userRepository.findById(userId);
+    // Check if user exists using UserService
+    const user = await this.userService.getUserById(userId);
     if (!user) {
-      throw new AppError('User not found', 404);
+      throw new UserJourneyNotFoundError(`User not found: ${userId}`);
     }
     
     // Get events by type
@@ -409,10 +413,10 @@ class UserJourneyController {
     const userId = req.user.id;
     const { startDate, endDate, limit } = req.query;
     
-    // Check if user exists
-    const user = await this.userRepository.findById(userId);
+    // Check if user exists using UserService
+    const user = await this.userService.getUserById(userId);
     if (!user) {
-      throw new AppError('User not found', 404);
+      throw new UserJourneyNotFoundError(`User not found: ${userId}`);
     }
     
     // Get all events for timeline, sorted by date

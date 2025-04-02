@@ -3,7 +3,6 @@
 import FocusArea from "#app/core/challenge/models/config/FocusArea.js";
 import focusAreaMapper from "#app/core/challenge/mappers/FocusAreaMapper.js";
 import { challengeLogger } from "#app/core/infra/logging/domainLogger.js";
-import { supabaseClient } from "#app/core/infra/db/supabaseClient.js";
 import { ValidationError, DatabaseError, EntityNotFoundError } from "#app/core/infra/repositories/BaseRepository.js";
 import { withRepositoryErrorHandling, createErrorMapper } from "#app/core/infra/errors/errorStandardization.js";
 import challengeErrors from "#app/core/challenge/errors/ChallengeErrors.js";
@@ -35,16 +34,25 @@ const CACHE_TTL = {
 class FocusAreaConfigRepository {
     /**
      * Create a new FocusAreaConfigRepository
-     * @param {Object} supabase - Supabase client instance for database operations
-     * @param {Object} logger - Logger instance for recording repository operations
-     * @param {Object} cache - Optional cache instance for caching repository results
+     * @param {Object} options - Repository options
+     * @param {Object} options.db - Supabase client instance for database operations
+     * @param {Object} options.logger - Logger instance for recording repository operations
+     * @param {Object} options.cache - Optional cache instance for caching repository results
      */
-    constructor(supabase, logger, cache) {
-        this.supabase = supabase || supabaseClient;
+    constructor(options = {}) {
+        this.supabase = options.db;
         this.tableName = 'challenge_focus_areas';
-        this.logger = logger || challengeLogger.child({ component: 'repository:focusAreaConfig' });
+        this.logger = options.logger || challengeLogger.child({ component: 'repository:focusAreaConfig' });
         this.domainName = 'challenge:focusAreaConfig';
-        this.cache = cache;
+        this.cache = options.cache;
+        
+        // Log if dependencies are missing
+        if (!this.supabase) {
+            this.logger.warn('No database client provided to FocusAreaConfigRepository');
+        }
+        if (!this.cache) {
+            this.logger.warn('No cache service provided to FocusAreaConfigRepository');
+        }
         
         // Apply repository error handling with standardized pattern
         this.findAll = withRepositoryErrorHandling(

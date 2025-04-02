@@ -3,8 +3,18 @@ import InsightGenerator from "#app/core/personality/ports/InsightGenerator.js";
 import AIClient from "#app/core/ai/ports/AIClient.js"; // Import AIClient port
 import PersonalityPromptBuilder from "#app/core/prompt/builders/PersonalityPromptBuilder.js"; // Import the builder
 import { ResponseFormat } from "#app/core/infra/openai/types.js"; // Import response format enum
-import { OpenAIResponseHandlingError } from "#app/core/infra/openai/errors.js"; // Correct error type
+import { OpenAIResponseHandlingError, OpenAIRequestError } from "#app/core/infra/openai/errors.js"; // Use OpenAIRequestError instead of AIClientError
+import { z } from 'zod'; // Import Zod
 'use strict';
+
+// Define the Zod schema for expected insights structure
+const personalityInsightsSchema = z.object({
+  strengths: z.array(z.string()).describe("List of user's strengths"),
+  focus_areas: z.array(z.string()).describe("List of areas for user focus/improvement"),
+  recommendations: z.array(z.string()).describe("Actionable recommendations for the user"),
+  traits: z.record(z.string(), z.any()).describe("Key-value pairs of personality traits (e.g., { openness: 0.8 })"),
+}).strict(); // Use strict to disallow extra fields
+
 /**
  * OpenAI Insight Generator
  *
@@ -83,22 +93,34 @@ class OpenAIInsightGenerator extends InsightGenerator {
             }
             const insights = response.data; // Already parsed by sendJsonMessage
 
-            // TODO: Add validation using a Zod schema or similar to ensure 
-            //       insights object has { strengths, focus_areas, recommendations, traits }
-            // Example (needs schema definition):
-            // const validationResult = personalityInsightsSchema.safeParse(insights);
-            // if (!validationResult.success) {
-            //    throw new OpenAIResponseError('AI response data failed validation', { errors: validationResult.error });
-            // }
+            // Validate the insights structure using Zod
+            const validationResult = personalityInsightsSchema.safeParse(insights);
+            if (!validationResult.success) {
+                const errorMessage = 'AI response data failed validation';
+                this.logger.error(errorMessage, { 
+                    errors: validationResult.error.flatten(), 
+                    responseId: response?.responseId,
+                    userId: profile.userId,
+                    rawData: insights // Log the raw data for debugging
+                });
+               throw new OpenAIResponseHandlingError(errorMessage, { 
+                   validationErrors: validationResult.error.flatten(), 
+                   responseId: response?.responseId 
+                });
+            }
+            
+            // Use the validated data
+            const validatedInsights = validationResult.data;
             
             this.logger.info(`Successfully generated insights for user: ${profile.userId}`);
-            return insights; // Return the validated/parsed insights object
+            return validatedInsights; // Return the validated insights object
 
         } catch (error) {
             this.logger.error(`Failed to generate personality insights for user: ${profile.userId}`, {
                  error: error.message,
                  stack: error.stack,
-                 isApiClientError: error instanceof AIClientError // Check specific error type if applicable
+                 isApiClientError: error instanceof OpenAIRequestError,
+                 isResponseHandlingError: error instanceof OpenAIResponseHandlingError
             });
             // Depending on production requirements, either throw the error 
             // or return a default/empty structure

@@ -1,5 +1,5 @@
 import { createErrorMapper, withServiceErrorHandling } from "#app/core/infra/errors/errorStandardization.js";
-import { ChallengeError } from "#app/core/challenge/errors/ChallengeErrors.js";
+import { ChallengeError, ChallengeValidationError, ChallengeProcessingError } from "#app/core/challenge/errors/ChallengeErrors.js";
 'use strict';
 /**
  * Service for handling challenge performance analysis
@@ -14,14 +14,14 @@ class ChallengePerformanceService {
     constructor(dependencies = {}) {
         const { challengeRepository, logger } = dependencies;
         if (!challengeRepository) {
-            throw new Error('challengeRepository is required for ChallengePerformanceService');
+            throw new ChallengeValidationError('challengeRepository is required for ChallengePerformanceService');
         }
         this.challengeRepository = challengeRepository;
         this.logger = logger || console;
         // Create error mapper for standardized error handling
         const errorMapper = createErrorMapper({
-            'Error': ChallengeError
-        }, ChallengeError);
+            'Error': ChallengeProcessingError
+        }, ChallengeProcessingError);
         // Apply standardized error handling to methods
         this.calculatePerformanceMetrics = withServiceErrorHandling(this.calculatePerformanceMetrics.bind(this), { methodName: 'calculatePerformanceMetrics', domainName: 'challenge', logger: this.logger, errorMapper });
         this.analyzeProgressTrend = withServiceErrorHandling(this.analyzeProgressTrend.bind(this), { methodName: 'analyzeProgressTrend', domainName: 'challenge', logger: this.logger, errorMapper });
@@ -33,7 +33,7 @@ class ChallengePerformanceService {
      */
     async calculatePerformanceMetrics(userId) {
         if (!userId) {
-            throw new Error('User ID is required for performance metrics calculation');
+            throw new ChallengeValidationError('User ID is required for performance metrics calculation');
         }
         // Get user's challenge history
         const challengeHistory = await this.challengeRepository.getUserChallengeHistory(userId);
@@ -140,7 +140,7 @@ class ChallengePerformanceService {
      */
     async analyzeProgressTrend(userId, timeWindow = 30) {
         if (!userId) {
-            throw new Error('User ID is required for progress trend analysis');
+            throw new ChallengeValidationError('User ID is required for progress trend analysis');
         }
         // Get user's challenge history
         const challengeHistory = await this.challengeRepository.getUserChallengeHistory(userId);

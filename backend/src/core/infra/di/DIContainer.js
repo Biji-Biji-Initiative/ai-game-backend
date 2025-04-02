@@ -19,6 +19,7 @@ class DIContainer {
         this.services = new Map();
         this.factories = new Map();
         this.singletons = new Map();
+        this.logger = console; // Assuming console as default logger
     }
     /**
      * Register a service factory
@@ -90,22 +91,64 @@ class DIContainer {
      */
     get(name) {
         const normalizedName = name.toLowerCase();
-        // Return cached instance if available
+
+        // 1. Check for pre-registered instance FIRST
         if (this.services.has(normalizedName)) {
+            this.logger.debug(`[DIContainer] Returning pre-registered instance for '${normalizedName}'`);
             return this.services.get(normalizedName);
         }
-        // Check if factory exists
-        if (!this.factories.has(normalizedName)) {
+
+        // 2. Check for a factory registration
+        const registration = this.factories.get(normalizedName);
+        if (!registration) {
+            // Log available factories AND instances for better debugging
+            const availableFactories = Array.from(this.factories.keys());
+            const availableInstances = Array.from(this.services.keys());
+            this.logger.error(`[DIContainer] Service '${name}' not found. Factories:`, availableFactories, "Instances:", availableInstances);
             throw new Error(`Service '${name}' not registered`);
         }
-        // Create new instance
-        const factory = this.factories.get(normalizedName);
-        const instance = factory(this);
-        // Cache if singleton
-        if (this.singletons.get(normalizedName)) {
-            this.services.set(normalizedName, instance);
+
+        // Handle aliases (assuming alias target is registered via factory or instance)
+        if (registration.isAlias) {
+            this.logger.debug(`[DIContainer] Resolving alias '${name}' -> '${registration.target}'`);
+            return this.get(registration.target); // Recursively resolve the target
         }
-        return instance;
+
+        // 3. Handle singleton creation (if factory exists but instance doesn't)
+        if (this.singletons.get(normalizedName)) {
+             // Instance should have been checked already, but double-check factory logic
+            if (!this.services.has(normalizedName)) { 
+                this.logger.debug(`[DIContainer] Creating SINGLETON instance for '${name}' via factory`);
+                try {
+                    const instance = registration(this); // Execute the factory
+                    if (!instance) {
+                        this.logger.error(`[DIContainer] Factory for SINGLETON '${name}' returned null or undefined!`);
+                        throw new Error(`Factory for SINGLETON '${name}' returned null or undefined`);
+                    }
+                    this.services.set(normalizedName, instance); // Cache the new instance
+                    return instance;
+                } catch (error) {
+                    this.logger.error(`[DIContainer] Error creating SINGLETON instance for '${name}'`, { error: error.message, stack: error.stack });
+                    throw error; // Re-throw to propagate the failure
+                }
+            }
+             // This case should theoretically be handled by step 1, but kept for safety
+             return this.services.get(normalizedName); 
+        }
+
+        // 4. Handle transient creation (or other lifetimes)
+        this.logger.debug(`[DIContainer] Creating TRANSIENT instance for '${name}'`);
+        try {
+            const instance = registration(this); // Execute the factory
+             if (!instance) {
+                this.logger.error(`[DIContainer] Factory for TRANSIENT '${name}' returned null or undefined!`);
+                 throw new Error(`Factory for TRANSIENT '${name}' returned null or undefined`);
+             }
+            return instance;
+        } catch (error) {
+             this.logger.error(`[DIContainer] Error creating TRANSIENT instance for '${name}'`, { error: error.message, stack: error.stack });
+             throw error; // Re-throw
+        }
     }
     /**
      * Alias for get() to maintain backward compatibility

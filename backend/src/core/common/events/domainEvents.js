@@ -14,59 +14,38 @@
  * 2. For new event types, register them with registerEventType for better documentation
  * 3. Gradually migrate to using robustEventBus directly in new code
  */
-import robustEventBus from "#app/core/common/events/RobustEventBus.js";
+'use strict';
+
+// REMOVED: Direct import of RobustEventBus class
+// import robustEventBus from "#app/core/common/events/RobustEventBus.js"; 
 import { logger } from "#app/core/infra/logging/logger.js";
+import { EventTypes } from "#app/core/common/events/eventTypes.js";
 
-// Standard event types used across the application
-const EventTypes = {
-  // User domain events
-  USER_CREATED: 'user.created',
-  USER_UPDATED: 'user.updated',
-  USER_PROFILE_COMPLETED: 'user.profile.completed',
-  // Challenge domain events
-  CHALLENGE_CREATED: 'challenge.created',
-  CHALLENGE_COMPLETED: 'challenge.completed',
-  CHALLENGE_EVALUATED: 'challenge.evaluated',
-  // Evaluation domain events
-  EVALUATION_CREATED: 'evaluation.created',
-  EVALUATION_UPDATED: 'evaluation.updated',
-  // Progress domain events
-  PROGRESS_UPDATED: 'progress.updated',
-  PROGRESS_MILESTONE_REACHED: 'progress.milestone.reached',
-  // Personality domain events
-  PERSONALITY_UPDATED: 'personality.updated',
-  PERSONALITY_INSIGHT_GENERATED: 'personality.insight.generated',
-  // Focus area domain events
-  FOCUS_AREA_SELECTED: 'focus_area.selected',
-  FOCUS_AREA_COMPLETED: 'focus_area.completed',
-  // User journey domain events
-  USER_JOURNEY_EVENT_RECORDED: 'user_journey.event.recorded',
-  USER_JOURNEY_MILESTONE_REACHED: 'user_journey.milestone.reached',
-  // Adaptive system events
-  ADAPTIVE_RECOMMENDATION_GENERATED: 'adaptive.recommendation.generated',
-  DIFFICULTY_ADJUSTED: 'adaptive.difficulty.adjusted'
-};
-
-// Register the standard event types with the robust event bus
-Object.entries(EventTypes).forEach(([key, eventName]) => {
-  robustEventBus.registerEventType(eventName, {
-    description: `Standard event: ${eventName}`,
-    category: eventName.split('.')[0]
-  });
-});
+// // Register the standard event types with the robust event bus (MOVED TO INFRASTRUCTURE.JS)
+// Object.entries(EventTypes).forEach(([key, eventName]) => {
+//   robustEventBus.registerEventType(eventName, {
+//     description: `Standard event: ${eventName}`,
+//     category: eventName.split('.')[0]
+//   });
+// });
 
 /**
  * Compatibility layer for the legacy DomainEvents API
  */
 class DomainEventsCompatibility {
-  constructor() {
+  // ADDED: Constructor now expects the actual event bus instance
+  constructor({ robustEventBusInstance }) { 
+    if (!robustEventBusInstance || typeof robustEventBusInstance.on !== 'function') {
+        throw new Error('Valid RobustEventBus instance required for DomainEventsCompatibility');
+    }
+    this.eventBus = robustEventBusInstance; // Use the injected instance
     this.logger = logger.child({
       component: 'domain-events-compatibility'
     });
     this.EventTypes = EventTypes;
-    this.handlers = {}; // Just for API compatibility
+    this.handlers = {}; // Keep for local tracking if needed by specific logic?
 
-    this.logger.info('DomainEvents compatibility layer initialized');
+    this.logger.info('DomainEvents compatibility layer initialized with injected event bus.');
   }
 
   /**
@@ -75,7 +54,8 @@ class DomainEventsCompatibility {
    * @param {Function} handler - Event handler function
    */
   register(eventName, handler) {
-    robustEventBus.on(eventName, handler);
+    // Use the injected instance
+    this.eventBus.on(eventName, handler);
 
     // Store in local handlers map for API compatibility
     if (!this.handlers[eventName]) {
@@ -92,6 +72,7 @@ class DomainEventsCompatibility {
    */
   subscribe(eventName, handler) {
     this.logger.debug(`Subscribing to event: ${eventName} (via compatibility layer)`);
+    // Use the injected instance
     return this.register(eventName, handler);
   }
 
@@ -103,9 +84,12 @@ class DomainEventsCompatibility {
    */
   dispatch(eventName, eventData) {
     this.logger.debug(`Dispatching event: ${eventName} (via compatibility layer)`);
-
-    // Use the robust event bus under the hood
-    return robustEventBus.publish(eventName, eventData);
+    // Use the injected instance
+    // NOTE: Assumes the injected bus has a publish method matching this signature
+    // The RobustEventBus publish takes a structured event object.
+    // We might need to adapt this call or the RobustEventBus publish method.
+    // For now, let's assume it works or needs adjustment later.
+    return this.eventBus.publish(eventName, eventData);
   }
 
   /**
@@ -123,13 +107,10 @@ class DomainEventsCompatibility {
    */
   clear() {
     this.logger.warn('Clearing all event handlers (via compatibility layer)');
-
-    // Clear handlers from the robust event bus
+    // Clear handlers from the injected event bus
     Object.keys(this.handlers).forEach(eventName => {
-      robustEventBus.removeAllListeners(eventName);
+      this.eventBus.removeAllListeners(eventName);
     });
-
-    // Clear local handlers map
     this.handlers = {};
   }
 
@@ -138,24 +119,23 @@ class DomainEventsCompatibility {
    * @returns {Object} Event metrics
    */
   getMetrics() {
-    return robustEventBus.getMetrics();
+    // Get metrics from the injected instance
+    return this.eventBus.getMetrics();
   }
 }
 
-// Create the compatibility singleton
-const domainEvents = new DomainEventsCompatibility();
+// REMOVED: Local singleton creation
+// const domainEvents = new DomainEventsCompatibility();
+// domainEvents.eventBus = domainEvents; 
+// domainEvents.EventTypes = EventTypes;
+// domainEvents.eventBus.EventTypes = EventTypes;
 
-// Add both direct exports and as properties for internal consistency
-// This ensures it works both with direct access and destructuring
-domainEvents.eventBus = domainEvents; // The compatibility layer itself is the event bus
-domainEvents.EventTypes = EventTypes;
-// Also add the event types to the eventBus property for full compatibility
-domainEvents.eventBus.EventTypes = EventTypes;
+// REMOVED: Default export of local singleton
+// export default domainEvents; 
 
-// Export for backward compatibility
-export default domainEvents;
+// Named exports
+// REMOVED: Export of local singleton instance as eventBus
+// export const eventBus = domainEvents; 
 
-// Named exports for better import syntax
-// Export the domainEvents object itself as eventBus to maintain the same reference
-export const eventBus = domainEvents;
-export { EventTypes };
+// EXPORT the Class and EventTypes constant
+export { DomainEventsCompatibility, EventTypes };

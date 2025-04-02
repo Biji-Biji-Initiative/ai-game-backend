@@ -1,23 +1,21 @@
 import { validate as uuidValidate } from "uuid";
+import { ChallengeValidationError } from "#app/core/challenge/errors/ChallengeErrors.js";
 'use strict';
 /**
- *
+ * Challenge ID Value Object
  */
 class ChallengeId {
     /**
      * Create a new ChallengeId value object
-     * @param {string} value - Challenge identifier
-     * @throws {Error} If the challenge ID is invalid
-     */
-    /**
-     * Method constructor
+     * @param {string} value - The challenge ID value
+     * @throws {ChallengeValidationError} If the value is empty or not a valid UUID
      */
     constructor(value) {
         if (!value) {
-            throw new Error('ChallengeId cannot be empty');
+            throw new ChallengeValidationError('ChallengeId cannot be empty');
         }
         if (!ChallengeId.isValid(value)) {
-            throw new Error(`Invalid ChallengeId format: ${value}`);
+            throw new ChallengeValidationError(`Invalid ChallengeId format: ${value}`);
         }
         this._value = value;
         this._isUuid = uuidValidate(value);
@@ -41,9 +39,6 @@ class ChallengeId {
      * Check if two ChallengeId objects are equal
      * @param {ChallengeId} other - Another ChallengeId object to compare
      * @returns {boolean} True if IDs are equal
-     */
-    /**
-     * Method equals
      */
     equals(other) {
         if (!(other instanceof ChallengeId)) {
@@ -85,18 +80,12 @@ class ChallengeId {
      * Convert to string representation
      * @returns {string} String representation
      */
-    /**
-     * Method toString
-     */
     toString() {
         return this._value;
     }
     /**
      * Convert to primitive value when serializing
      * @returns {string} The challenge ID value
-     */
-    /**
-     * Method toJSON
      */
     toJSON() {
         return this._value;

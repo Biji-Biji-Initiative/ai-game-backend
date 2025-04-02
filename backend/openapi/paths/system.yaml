@@ -1,7 +1,7 @@
 health:
   get:
     summary: Health check endpoint
-    description: Returns the health status of the API
+    description: Returns detailed health status of the API including database and OpenAI service availability
     tags: [System]
     parameters:
       - name: format
@@ -21,7 +21,176 @@ health:
               properties:
                 status:
                   type: string
-                  example: ok
-                mode:
+                  example: success
+                  enum: [success, error]
+                message:
                   type: string
-                  example: development 
+                  example: Server is healthy
+                timestamp:
+                  type: string
+                  format: date-time
+                  example: "2023-04-01T10:00:00Z"
+                uptime:
+                  type: number
+                  description: Server uptime in seconds
+                  example: 3600
+                dependencies:
+                  type: object
+                  properties:
+                    database:
+                      type: object
+                      properties:
+                        status:
+                          type: string
+                          enum: [healthy, unhealthy, error, unknown]
+                          example: healthy
+                        message:
+                          type: string
+                          example: Database connection successful
+                    openai:
+                      type: object
+                      properties:
+                        status:
+                          type: string
+                          enum: [healthy, unhealthy, error, unknown]
+                          example: healthy
+                        message:
+                          type: string
+                          example: OpenAI service is available
+      '503':
+        description: API is unhealthy
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: error
+                message:
+                  type: string
+                  example: Server is unhealthy
+                timestamp:
+                  type: string
+                  format: date-time
+                dependencies:
+                  type: object
+                  properties:
+                    database:
+                      type: object
+                      properties:
+                        status:
+                          type: string
+                          example: unhealthy
+                        message:
+                          type: string
+                          example: Database connection failed
+                    openai:
+                      type: object
+      '500':
+        description: Error during health check
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: error
+                message:
+                  type: string
+                  example: Server is error
+
+logs:
+  get:
+    summary: Get system logs
+    description: Retrieves recent system logs from the server log files. Requires admin privileges.
+    tags: [System]
+    security:
+      - bearerAuth: []
+    parameters:
+      - name: limit
+        in: query
+        description: Maximum number of log entries to return
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 500
+          default: 100
+      - name: level
+        in: query
+        description: Filter logs by level (e.g., ERROR, WARN, INFO, DEBUG)
+        required: false
+        schema:
+          type: string
+          enum: [ERROR, WARN, INFO, DEBUG]
+    responses:
+      '200':
+        description: Logs retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: Logs retrieved successfully
+                data:
+                  type: object
+                  properties:
+                    logs:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          level:
+                            type: string
+                            example: INFO
+                          message:
+                            type: string
+                            example: User logged in successfully
+                          timestamp:
+                            type: string
+                            format: date-time
+                            example: "2023-04-01T10:00:00Z"
+                          metadata:
+                            type: object
+                            additionalProperties: true
+                    total:
+                      type: integer
+                      example: 150
+                    limit:
+                      type: integer
+                      example: 100
+                    logFile:
+                      type: string
+                      example: combined.log
+                    stats:
+                      type: object
+                      properties:
+                        linesProcessed:
+                          type: integer
+                          example: 2500
+      '401':
+        $ref: '../components/responses/common.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/common.yaml#/ForbiddenError'
+      '404':
+        description: Log file not found
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: false
+                message:
+                  type: string
+                  example: Log file not found in expected locations
+      '500':
+        $ref: '../components/responses/common.yaml#/InternalServerError' 

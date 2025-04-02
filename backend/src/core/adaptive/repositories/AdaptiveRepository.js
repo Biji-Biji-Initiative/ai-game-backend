@@ -1,13 +1,13 @@
+'use strict';
+
 import Recommendation from "#app/core/adaptive/models/Recommendation.js";
 import recommendationMapper from "#app/core/adaptive/mappers/RecommendationMapper.js";
-import { supabaseClient } from "#app/core/infra/db/supabaseClient.js";
 import { v4 as uuidv4 } from "uuid";
 import { RecommendationDatabaseSchema } from "#app/core/adaptive/schemas/RecommendationSchema.js";
 import { BaseRepository, ValidationError, DatabaseError } from "#app/core/infra/repositories/BaseRepository.js";
 import { AdaptiveNotFoundError, AdaptiveValidationError, AdaptiveRepositoryError } from "#app/core/adaptive/errors/adaptiveErrors.js";
 import { withRepositoryErrorHandling, createErrorMapper, createErrorCollector } from "#app/core/infra/errors/errorStandardization.js";
-import domainEvents from "#app/core/common/events/domainEvents.js";
-'use strict';
+import { EventTypes } from "#app/core/common/events/eventTypes.js";
 
 // Create an error mapper for repositories
 const adaptiveRepositoryErrorMapper = createErrorMapper({
@@ -29,12 +29,17 @@ class AdaptiveRepository extends BaseRepository {
      */
     constructor(options = {}) {
         super({
-            db: options.db || supabaseClient,
+            db: options.db,
             tableName: 'user_recommendations',
             domainName: 'adaptive',
             logger: options.logger,
             maxRetries: 3
         });
+        
+        // Log if db is missing
+        if (!this.db) {
+            this.logger?.warn('No database client provided to AdaptiveRepository');
+        }
         
         // Apply standardized error handling to methods
         this.findById = withRepositoryErrorHandling(
@@ -96,6 +101,9 @@ class AdaptiveRepository extends BaseRepository {
                 errorMapper: adaptiveRepositoryErrorMapper
             }
         );
+
+        this.eventBus = options.eventBus;
+        this.validateUuids = true;
     }
     /**
      * Find a recommendation by ID
@@ -322,7 +330,7 @@ class AdaptiveRepository extends BaseRepository {
             };
         }, {
             publishEvents: true,
-            eventBus: domainEvents
+            eventBus: this.eventBus
         });
     }
     /**
@@ -391,7 +399,7 @@ class AdaptiveRepository extends BaseRepository {
             };
         }, {
             publishEvents: true,
-            eventBus: domainEvents
+            eventBus: this.eventBus
         });
     }
     /**
@@ -463,14 +471,12 @@ class AdaptiveRepository extends BaseRepository {
             };
         }, {
             publishEvents: true,
-            eventBus: domainEvents
+            eventBus: this.eventBus
         });
     }
 }
-// Export class and a default instance
-const adaptiveRepository = new AdaptiveRepository();
 
 // Fix exports to ensure proper constructor import
-export { AdaptiveRepository, adaptiveRepository, AdaptiveRepositoryError };
+export { AdaptiveRepository, AdaptiveRepositoryError }; 
 export default AdaptiveRepository;
 

@@ -1,3 +1,4 @@
+// Types improved by ts-improve-types
 /**
  * Template Utility Functions
  * Utilities for processing templates and dynamic content
@@ -5,14 +6,14 @@
 
 /**
  * Parses a template string with variable substitution using {{variable}} syntax
- * @param template Template string with {{variable}} placeholders 
+ * @param template Template string with {{variable}} placeholders
  * @param variables Object containing variable values
  * @returns String with variables replaced
  */
-export function parseTemplate(template: string, variables: Record<string, any>): string {
+export function parseTemplateSimple(template: string, variables: Record<string, unknown>): string {
   if (!template) return '';
-  
-  return template.replace(/\{\{([^}]+)\}\}/g, (match, variableName) => {
+
+  return template.replace(/\{\{([^}]+)\}\}/g, (match: string, variableName: string) => {
     const name = variableName.trim();
     return variables[name] !== undefined ? String(variables[name]) : match;
   });
@@ -25,10 +26,10 @@ export function parseTemplate(template: string, variables: Record<string, any>):
  * @param context Object containing context values
  * @returns String with expressions evaluated and replaced
  */
-export function parseExpressionTemplate(template: string, context: Record<string, any>): string {
+export function parseTemplateAdvanced(template: string, context: Record<string, unknown>): string {
   if (!template) return '';
-  
-  return template.replace(/\${([^}]+)}/g, (match, expression) => {
+
+  return template.replace(/\${([^}]+)}/g, (match: string, expression: string) => {
     try {
       // Create a safe evaluation context with only the provided variables
       const evaluator = new Function(...Object.keys(context), `return ${expression.trim()};`);
@@ -46,8 +47,9 @@ export function parseExpressionTemplate(template: string, context: Record<string
  * @param html HTML template string with placeholders
  * @returns Function that accepts data and returns rendered HTML
  */
-export function createTemplateFunction(html: string): (data: Record<string, any>) => string {
-  return (data: Record<string, any>) => parseTemplate(html, data);
+export function createTemplateFunction(html: string): (data: Record<string, unknown>) => string {
+  // Use parseTemplateSimple for {{variable}} syntax
+  return (data: Record<string, unknown>) => parseTemplateSimple(html, data);
 }
 
 /**
@@ -56,15 +58,16 @@ export function createTemplateFunction(html: string): (data: Record<string, any>
  * @param data Data to render the template with
  * @returns Rendered HTML string
  */
-export function renderTemplate(templateId: string, data: Record<string, any>): string {
+export function renderTemplateById(templateId: string, data: Record<string, unknown>): string {
   const templateElement = document.getElementById(templateId) as HTMLTemplateElement;
   if (!templateElement || !templateElement.innerHTML) {
     console.error(`Template with ID "${templateId}" not found`);
     return '';
   }
-  
+
   const template = templateElement.innerHTML;
-  return parseTemplate(template, data);
+  // Use parseTemplateSimple for {{variable}} syntax
+  return parseTemplateSimple(template, data);
 }
 
 /**
@@ -74,13 +77,13 @@ export function renderTemplate(templateId: string, data: Record<string, any>): s
  * @param data Data to render the template with
  */
 export function renderTemplateToContainer(
-  templateId: string, 
-  containerId: string, 
-  data: Record<string, any>
+  templateId: string,
+  containerId: string,
+  data: Record<string, unknown>,
 ): void {
-  const rendered = renderTemplate(templateId, data);
+  const rendered = renderTemplateById(templateId, data);
   const container = document.getElementById(containerId);
-  
+
   if (container) {
     container.innerHTML = rendered;
   } else {
@@ -93,7 +96,7 @@ export function renderTemplateToContainer(
  * @param html HTML string
  * @returns DocumentFragment
  */
-export function createFragmentFromHTML(html: string): DocumentFragment {
+export function createFragment(html: string): DocumentFragment {
   const template = document.createElement('template');
   template.innerHTML = html.trim();
   return template.content;
@@ -111,11 +114,12 @@ export function conditionalRender(
   condition: boolean,
   trueTemplate: string,
   falseTemplate: string,
-  data: Record<string, any>
+  data: Record<string, unknown>,
 ): string {
-  return condition 
-    ? parseTemplate(trueTemplate, data)
-    : parseTemplate(falseTemplate, data);
+  // Use parseTemplateSimple for {{variable}} syntax
+  return condition
+    ? parseTemplateSimple(trueTemplate, data)
+    : parseTemplateSimple(falseTemplate, data);
 }
 
 /**
@@ -124,10 +128,7 @@ export function conditionalRender(
  * @param templateFn Function that returns HTML for each item
  * @returns Combined HTML string
  */
-export function renderList<T>(
-  items: T[],
-  templateFn: (item: T, index: number) => string
-): string {
+export function renderList<T>(items: T[], templateFn: (item: T, index: number) => string): string {
   return items.map((item, index) => templateFn(item, index)).join('');
 }
 
@@ -138,7 +139,7 @@ export function renderList<T>(
  */
 export function escapeAttribute(value: string): string {
   if (!value) return '';
-  
+
   return String(value)
     .replace(/&/g, '&amp;')
     .replace(/"/g, '&quot;')
@@ -153,36 +154,50 @@ export function escapeAttribute(value: string): string {
  * @param data Data object to bind
  * @param path Path to the property in the data object (dot notation)
  */
-export function bindData(element: HTMLElement, data: Record<string, any>, path: string): void {
+export function bindDataToElement(
+  element: HTMLElement,
+  data: Record<string, unknown>,
+  path: string,
+): void {
   // Get initial value from the data object
-  const getValue = (obj: Record<string, any>, path: string): any => {
-    return path.split('.').reduce((o, p) => (o ? o[p] : undefined), obj);
+  const getValue = (obj: Record<string, unknown>, path: string): unknown => {
+    return path
+      .split('.')
+      .reduce(
+        (o: unknown, p: string) =>
+          o && typeof o === 'object' ? (o as Record<string, unknown>)[p] : undefined,
+        obj as unknown,
+      );
   };
-  
-  const setValue = (obj: Record<string, any>, path: string, value: any): void => {
+
+  const setValue = (obj: Record<string, unknown>, path: string, value: string): void => {
     const parts = path.split('.');
     const last = parts.pop();
-    const target = parts.reduce((o, p) => (o[p] = o[p] || {}), obj);
-    
+    // Assert o[p] as Record when creating nested objects
+    const target = parts.reduce(
+      (o: Record<string, unknown>, p: string) => (o[p] = (o[p] as Record<string, unknown>) || {}),
+      obj,
+    );
+
     if (last) {
       target[last] = value;
     }
   };
-  
+
   // Set initial value
   const value = getValue(data, path);
-  
+
   if (element instanceof HTMLInputElement) {
     if (element.type === 'checkbox') {
       element.checked = Boolean(value);
-      
+
       // Add event listener to update data when checkbox changes
       element.addEventListener('change', () => {
-        setValue(data, path, element.checked);
+        setValue(data, path, String(element.checked));
       });
     } else {
       element.value = value !== undefined ? String(value) : '';
-      
+
       // Add event listener to update data when input changes
       element.addEventListener('input', () => {
         setValue(data, path, element.value);
@@ -190,14 +205,14 @@ export function bindData(element: HTMLElement, data: Record<string, any>, path: 
     }
   } else if (element instanceof HTMLSelectElement) {
     element.value = value !== undefined ? String(value) : '';
-    
+
     // Add event listener to update data when select changes
     element.addEventListener('change', () => {
       setValue(data, path, element.value);
     });
   } else if (element instanceof HTMLTextAreaElement) {
     element.value = value !== undefined ? String(value) : '';
-    
+
     // Add event listener to update data when textarea changes
     element.addEventListener('input', () => {
       setValue(data, path, element.value);
@@ -206,4 +221,4 @@ export function bindData(element: HTMLElement, data: Record<string, any>, path: 
     // For other elements, update the textContent
     element.textContent = value !== undefined ? String(value) : '';
   }
-} 
+}

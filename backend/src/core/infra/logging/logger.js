@@ -4,6 +4,13 @@ import { AsyncLocalStorage } from "async_hooks";
 import fs from 'fs';
 import path from 'path';
 
+// Simple console wrapper for bootstrapping the logger itself
+const bootstrapLogger = {
+  log: (message) => console.log(`[LOGGER BOOTSTRAP] ${message}`),
+  warn: (message) => console.warn(`[LOGGER BOOTSTRAP] ${message}`),
+  error: (message, error) => console.error(`[LOGGER BOOTSTRAP] ${message}`, error)
+};
+
 // Default config if config.js module is not available
 const defaultConfig = {
     logging: {
@@ -19,11 +26,11 @@ try {
   
   // Check if directory exists, create it if it doesn't
   if (!fs.existsSync(logsDir)) {
-    console.log(`Creating logs directory at: ${logsDir}`);
+    bootstrapLogger.log(`Creating logs directory at: ${logsDir}`);
     fs.mkdirSync(logsDir, { recursive: true });
   }
 } catch (error) {
-  console.error(`Error ensuring logs directory exists: ${error.message}`);
+  bootstrapLogger.error(`Error ensuring logs directory exists:`, error);
   // Continue anyway - the winston transports will handle file errors
 }
 
@@ -39,7 +46,7 @@ let config = defaultConfig;
     
     // If we got a config but it doesn't have logging settings, apply defaults
     if (!loadedConfig || !loadedConfig.logging) {
-      console.warn('Config loaded but missing logging section, using defaults');
+      bootstrapLogger.warn('Config loaded but missing logging section, using defaults');
       config = {
         ...loadedConfig,
         logging: defaultConfig.logging
@@ -58,11 +65,11 @@ let config = defaultConfig;
     }
   }
   catch (error) {
-    console.warn(`Could not load config.js, using default logging config: ${error.message}`);
+    bootstrapLogger.warn(`Could not load config.js, using default logging config: ${error.message}`);
     // Already using default config, no need to update
   }
 })().catch(err => {
-  console.error("Error initializing logger config:", err);
+  bootstrapLogger.error("Error initializing logger config:", err);
   // Already using default config, no need to update
 });
 

@@ -8,6 +8,7 @@ import EvaluationController from "#app/core/evaluation/controllers/EvaluationCon
 import FocusAreaController from "#app/core/focusArea/controllers/FocusAreaController.js";
 import UserJourneyController from "#app/core/userJourney/controllers/UserJourneyController.js";
 import HealthCheckController from "#app/core/infra/health/HealthCheckController.js";
+import SystemController from "#app/core/system/controllers/SystemController.js";
 // Note: AiChatController and AiAnalysisController are not yet implemented
 // These imports will be added once the controllers are created
 // import AiChatController from "../../controllers/ai/AiChatController.js";
@@ -31,116 +32,98 @@ import HealthCheckController from "#app/core/infra/health/HealthCheckController.
  * @param {DIContainer} container - The DI container
  */
 function registerControllerComponents(container) {
-    // Register domain controllers
-    container.register('userController', c => {
-        return new UserController({
+    const controllerLogger = container.get('logger').child({ context: 'DI-Controllers' });
+    controllerLogger.info('[DI Controllers] Starting controller registration...');
+
+    // Register domain controllers using the custom DIContainer format
+    // Controllers are typically singletons as they are stateless
+
+    controllerLogger.info('[DI Controllers] Registering userController...');
+    container.register('userController', c => new UserController({
             userService: c.get('userService'),
             userRepository: c.get('userRepository'),
-            focusAreaCoordinator: c.get('focusAreaCoordinator'),
+            focusAreaCoordinator: c.get('focusAreaManagementCoordinator'),
             userPreferencesManager: c.get('userPreferencesManager'),
-            logger: c.get('userLogger'),
-        });
-    }, true // Singleton: YES - stateless controller
-    );
+        logger: c.get('userLogger')
+    }), true);
     
-    // Register auth controller
-    container.register('authController', c => {
-        return new AuthController({
+    controllerLogger.info('[DI Controllers] Registering authController...');
+    container.register('authController', c => new AuthController({
             userRepository: c.get('userRepository'),
-            supabase: c.get('supabase'),
-            logger: c.get('userLogger'), // Auth is related to user management
-        });
-    }, true // Singleton: YES - stateless controller
-    );
+            supabase: c.get('db'),
+        logger: c.get('userLogger')
+    }), true);
 
-    container.register('personalityController', c => {
-        return new PersonalityController({
+    controllerLogger.info('[DI Controllers] Registering personalityController...');
+    container.register('personalityController', c => new PersonalityController({
             personalityService: c.get('personalityService'),
-            logger: c.get('personalityLogger'),
-        });
-    }, true // Singleton: YES - stateless controller
-    );
+        logger: c.get('personalityLogger')
+    }), true);
     
-    // Use ProgressController directly
-    container.register('progressController', c => {
-        return new ProgressController({
+    controllerLogger.info('[DI Controllers] Registering progressController...');
+    container.register('progressController', c => new ProgressController({
             progressService: c.get('progressService'),
-            logger: c.get('progressLogger'),
-        });
-    }, true // Singleton: YES - stateless controller
-    );
+        logger: c.get('progressLogger')
+    }), true);
     
-    container.register('adaptiveController', c => {
-        return new AdaptiveController({
+    controllerLogger.info('[DI Controllers] Registering adaptiveController...');
+    container.register('adaptiveController', c => new AdaptiveController({
             adaptiveService: c.get('adaptiveService'),
-            logger: c.get('adaptiveLogger'),
-        });
-    }, true // Singleton: YES - stateless controller
-    );
-    container.register('focusAreaController', c => {
-        return new FocusAreaController({
-            focusAreaCoordinator: c.get('focusAreaCoordinator'),
-            logger: c.get('focusAreaLogger'),
-        });
-    }, true // Singleton: YES - stateless controller
-    );
-    container.register('challengeController', c => {
-        return new ChallengeController({
-            challengeService: c.get('challengeService'),
-            logger: c.get('challengeLogger'),
-        });
-    }, true // Singleton: YES - stateless controller
-    );
-    container.register('evaluationController', c => {
-        return new EvaluationController({
+        logger: c.get('adaptiveLogger')
+    }), true);
+
+    controllerLogger.info('[DI Controllers] Registering focusAreaController...');
+    container.register('focusAreaController', c => new FocusAreaController({
+            focusAreaManagementCoordinator: c.get('focusAreaManagementCoordinator'),
+            focusAreaGenerationCoordinator: c.get('focusAreaGenerationCoordinator'),
+        logger: c.get('focusAreaLogger')
+    }), true);
+
+    controllerLogger.info('[DI Controllers] Registering challengeController...');
+    container.register('challengeController', c => new ChallengeController({
+            challengeCoordinator: c.get('challengeCoordinator'),
+            progressCoordinator: c.get('progressCoordinator'),
+        logger: c.get('challengeLogger')
+    }), true);
+
+    controllerLogger.info('[DI Controllers] Registering evaluationController...');
+    container.register('evaluationController', c => new EvaluationController({
             evaluationService: c.get('evaluationService'),
-            logger: c.get('evaluationLogger'),
-        });
-    }, true // Singleton: YES - stateless controller
-    );
-    container.register('userJourneyController', c => {
-        return new UserJourneyController({
-            userJourneyService: c.get('userJourneyService'),
-            logger: c.get('userJourneyLogger'),
-        });
-    }, true // Singleton: YES - stateless controller
-    );
-    // AI-related controllers
-    // container.register('aiChatController', c => {
-    //     return new AiChatController({
-    //         aiChatService: c.get('aiChatService'),
-    //         logger: c.get('apiLogger'),
-    //     });
-    // }, true // Singleton: YES - stateless controller
-    // );
-    // container.register('aiAnalysisController', c => {
-    //     return new AiAnalysisController({
-    //         aiAnalysisService: c.get('aiAnalysisService'),
-    //         logger: c.get('apiLogger'),
-    //     });
-    // }, true // Singleton: YES - stateless controller
-    // );
-    // Register health check controller
-    container.register('healthCheckController', c => {
-        return new HealthCheckController({
+        logger: c.get('evaluationLogger')
+    }), true);
+
+    controllerLogger.info('[DI Controllers] Registering userJourneyController...');
+    container.register('userJourneyController', c => new UserJourneyController({
+            userJourneyCoordinator: c.get('userJourneyCoordinator'),
+            userService: c.get('userService'),
+            logger: c.get('userJourneyLogger')
+    }), true);
+
+    controllerLogger.info('[DI Controllers] Registering healthCheckController...');
+    container.register('healthCheckController', c => new HealthCheckController({
             healthCheckService: c.get('healthCheckService'),
             logger: c.get('infraLogger')
+    }), true);
+
+    // Add registration for SystemController
+    controllerLogger.info('[DI Controllers] Registering systemController...');
+    container.register('systemController', c => {
+        return new SystemController({
+            logService: c.get('logService'), // Assuming logService is registered
+            logger: c.get('infraLogger').child({ component: 'SystemController' })
         });
-    }, true // Singleton: YES - stateless controller
-    );
+    }, true);
 
     // Placeholder for EventBusController
+    controllerLogger.info('[DI Controllers] Registering eventBusController (Mock)...');
     container.register('eventBusController', c => {
-        console.warn('[DI] Registering MOCK eventBusController');
-        // Return a mock object that satisfies RouteFactory's check
-        return {
-             handleEvent: async (req, res) => {
-                 res.status(501).json({ message: 'Event bus endpoint not implemented' });
-             }
-             // Add other methods if RouteFactory expects them
-        };
-    }, true); // Singleton
+        controllerLogger.warn('[DI Controllers] Registering MOCK eventBusController');
+        return { handleEvent: async (req, res) => { res.status(501).json({ message: 'Event bus endpoint not implemented' }); } };
+    }, true); 
+    
+    controllerLogger.info('[DI Controllers] Controller registration complete.');
 }
+
 export { registerControllerComponents };
 export default {
     registerControllerComponents

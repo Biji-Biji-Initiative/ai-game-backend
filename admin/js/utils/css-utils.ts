@@ -1,3 +1,4 @@
+// Types improved by ts-improve-types
 /**
  * CSS Utilities Module
  * Helper functions for CSS manipulation and theme handling
@@ -91,7 +92,7 @@ export function applyTheme(themeName) {
   document.dispatchEvent(
     new CustomEvent('themechange', {
       detail: { theme: themeName },
-    })
+    }),
   );
 }
 

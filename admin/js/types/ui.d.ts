@@ -1,8 +1,9 @@
+// Types improved by ts-improve-types
 /**
  * UI Components Types Definition
  */
 
-import { VariableManager } from "../modules/variable-manager";
+import { VariableManager } from '../modules/variable-manager';
 
 /**
  * ResponseViewer Options
@@ -31,7 +32,7 @@ export interface VariableExtractorOptions {
  */
 export interface DomainStateViewerOptions {
   container: HTMLElement;
-  onRequestNeeded?: () => any;
+  onRequestNeeded?: () => unknown;
   autoFetchEntityTypes?: boolean;
   showBeforeAfterComparison?: boolean;
-} 
+}

@@ -1,6 +1,5 @@
 import { EventEmitter } from 'events';
 import { logger } from "#app/core/infra/logging/logger.js";
-import { deadLetterQueueService } from "#app/core/common/events/DeadLetterQueueService.js";
 import { standardizeEvent } from "#app/core/common/events/eventUtils.js";
 
 /**
@@ -29,7 +28,7 @@ class RobustEventBus {
    * @param {boolean} options.recordHistory - Whether to record event history
    * @param {number} options.historyLimit - Maximum number of events to keep in history
    * @param {boolean} options.useDLQ - Whether to use the Dead Letter Queue for failed events
-   * @param {Object} options.dlqService - Dead Letter Queue service to use
+   * @param {Object} options.dlqService - Dead Letter Queue service instance (required if useDLQ is true)
    */
   constructor(options = {}) {
     this.logger = options.logger || logger.child({
@@ -67,7 +66,15 @@ class RobustEventBus {
     
     // Dead Letter Queue configuration
     this.useDLQ = options.useDLQ !== false;
-    this.dlqService = options.dlqService || deadLetterQueueService;
+    this.dlqService = options.dlqService;
+
+    if (this.useDLQ && !this.dlqService) {
+        // Log a warning or throw an error if DLQ is enabled but no service provided
+        this.logger.error('RobustEventBus configured to use DLQ, but no dlqService instance was provided.');
+        // Optionally throw: throw new Error('dlqService is required when useDLQ is true');
+        this.useDLQ = false; // Disable DLQ if service is missing
+    }
+    this.logger.info(`RobustEventBus initialized. DLQ Enabled: ${this.useDLQ}`);
   }
 
   /**
@@ -133,7 +140,7 @@ class RobustEventBus {
           duration: Date.now() - startTime
         });
 
-        // Store failed event in dead letter queue if enabled
+        // Store failed event in dead letter queue if enabled AND service exists
         if (this.useDLQ && this.dlqService) {
           try {
             await this.dlqService.storeFailedEvent({
@@ -152,6 +159,8 @@ class RobustEventBus {
               originalError: error.message
             });
           }
+        } else if (this.useDLQ && !this.dlqService) {
+             this.logger.warn('DLQ is enabled but dlqService is unavailable. Cannot store failed event.', { eventId: eventData.id });
         }
 
         // Re-emit the error but don't crash
@@ -334,7 +343,7 @@ class RobustEventBus {
    */
   async retryFromDLQ(dlqEntryId) {
     if (!this.useDLQ || !this.dlqService) {
-      this.logger.warn('Dead letter queue is not enabled, cannot retry event');
+      this.logger.warn('Dead letter queue is not enabled or service not available, cannot retry event');
       return false;
     }
     
@@ -348,7 +357,7 @@ class RobustEventBus {
    */
   async retryFailedEvents(options = {}) {
     if (!this.useDLQ || !this.dlqService) {
-      this.logger.warn('Dead letter queue is not enabled, cannot retry events');
+      this.logger.warn('Dead letter queue is not enabled or service not available, cannot retry events');
       return { total: 0, successful: 0, failed: 0, details: [] };
     }
     
@@ -362,7 +371,7 @@ class RobustEventBus {
    */
   async getFailedEvents(options = {}) {
     if (!this.useDLQ || !this.dlqService) {
-      this.logger.warn('Dead letter queue is not enabled, cannot get failed events');
+      this.logger.warn('Dead letter queue is not enabled or service not available, cannot get failed events');
       return [];
     }
     
@@ -383,11 +392,6 @@ class RobustEventBus {
   }
 }
 
-// Create a singleton instance with DLQ enabled
-const robustEventBus = new RobustEventBus({
-  useDLQ: true,
-  recordHistory: true
-});
-
-export { robustEventBus };
-export default robustEventBus;
+// Export the class so it can be instantiated by the DI container
+export { RobustEventBus };
+export default RobustEventBus;

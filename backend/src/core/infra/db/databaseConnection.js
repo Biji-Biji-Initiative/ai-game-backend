@@ -1,78 +1,60 @@
 'use strict';
 
-import { supabaseClient } from "#app/core/infra/db/supabaseClient.js";
-import { logger } from "#app/core/infra/logging/logger.js";
+// This module provides utility functions for database interactions.
+// It does NOT initialize or hold the client instance itself.
+// The client is expected to be initialized and managed by the DI container.
 
-console.log('[databaseConnection.js] Module evaluation START'); // Log start
+import { logger } from "#app/core/infra/logging/logger.js";
+// We don't import initializeSupabaseClient here anymore.
+
+logger.debug('[databaseConnection.js] Module evaluation START');
 
 /**
- * Initialize Supabase connection
+ * Check the database connection using a provided client instance.
+ * @param {import('@supabase/supabase-js').SupabaseClient} client - The initialized Supabase client.
  * @returns {Promise<boolean>} True if connection successful
  */
-async function initializeSupabase() {
-  try {
-    logger.info('Initializing Supabase connection...');
-    // Perform a simple query to test the connection
-    const {
-      data: _data,
-      error
-    } = await supabaseClient.from('users').select('count', {
-      count: 'exact'
-    }) // Changed to use count for consistency with previous implementation
-    .limit(1);
-    if (error) {
-      throw new Error(`Failed to connect to Supabase: ${error.message}`);
-    }
-    logger.info('Supabase connection initialized successfully');
-    return true;
-  } catch (error) {
-    logger.error('Failed to initialize Supabase connection', {
-      error: error.message
-    });
+async function checkConnection(client) {
+  if (!client) {
+    logger.error('checkConnection called without a valid Supabase client');
     return false;
   }
-}
-/**
- * Check the database connection
- * @returns {Promise<boolean>} True if connection successful
- */
-async function checkConnection() {
   try {
     logger.info('Checking database connection...');
     // Perform a simple query to test the connection
-    const {
-      error
-    } = await supabaseClient.from('users').select('id').limit(1);
+    const { error } = await client.from('users').select('id').limit(1);
     if (error) {
       throw new Error(`Failed to connect to database: ${error.message}`);
     }
     logger.info('Database connection is healthy');
     return true;
   } catch (error) {
-    logger.error('Database connection check failed', {
-      error: error.message
-    });
+    logger.error('Database connection check failed', { error: error.message });
     return false;
   }
 }
+
 /**
- * Run a health check on the database connection
+ * Run a health check on the database connection using a provided client instance.
+ * @param {import('@supabase/supabase-js').SupabaseClient} client - The initialized Supabase client.
  * @returns {Promise<Object>} Health check results with status, message, and response time
  */
-async function runDatabaseHealthCheck() {
+async function runDatabaseHealthCheck(client) {
+  const startTime = Date.now();
+  if (!client) {
+    logger.error('runDatabaseHealthCheck called without a valid Supabase client');
+    return {
+        status: 'error',
+        message: 'Supabase client not provided for health check',
+        responseTime: Date.now() - startTime
+    };
+  }
   try {
     logger.debug('Running database health check...');
-    const startTime = Date.now();
     
-    // Perform a lightweight query on a guaranteed table (e.g., auth.users if using Supabase Auth)
-    // Or simply check function execution like rpc('get_status') if you have one.
-    // Using 'users' table count as a reliable check:
-    const {
-      count,
-      error
-    } = await supabaseClient
-        .from('users') // Assuming 'users' table exists (common in Supabase setups)
-        .select('*' , { count: 'exact', head: true }); // head: true makes it faster
+    const { count, error } = await client
+        .from('users')
+        .select('*' , { count: 'exact', head: true });
         
     const responseTime = Date.now() - startTime;
 
@@ -85,14 +67,11 @@ async function runDatabaseHealthCheck() {
       };
     }
     
-    // If count is returned (even if 0), the connection and table access are working.
     logger.debug('Database health check successful', { responseTime, userCount: count });
     return {
       status: 'healthy',
       message: 'Database connection is healthy',
       responseTime: responseTime,
-      // Optionally add more details like user count if relevant
-      // details: { userTableAccessible: true, approxUserCount: count }
     };
 
   } catch (error) {
@@ -104,25 +83,23 @@ async function runDatabaseHealthCheck() {
       status: 'error',
       message: `Failed to perform database health check: ${error.message}`,
       error: error.message,
-      responseTime: Date.now() - (startTime || Date.now()) // Ensure responseTime exists
+      responseTime: Date.now() - startTime
     };
   }
 }
 
-console.log('[databaseConnection.js] runDatabaseHealthCheck function defined:', typeof runDatabaseHealthCheck); // Log definition
+logger.debug('[databaseConnection.js] runDatabaseHealthCheck function defined');
 
-export { initializeSupabase };
+// Export the utility functions
+// We no longer export initializeSupabase from here
 export { checkConnection };
 export { runDatabaseHealthCheck };
-export { supabaseClient };
 
-console.log('[databaseConnection.js] Exports defined'); // Log exports
+logger.debug('[databaseConnection.js] Exports defined');
 
 export default {
-  initializeSupabase,
   checkConnection,
   runDatabaseHealthCheck,
-  supabaseClient
 };
 
-console.log('[databaseConnection.js] Module evaluation END'); // Log end
+logger.debug('[databaseConnection.js] Module evaluation END');

@@ -1,619 +1,681 @@
+// Types improved by ts-improve-types
 /**
- * VariableExtractor Component
- * Extracts variables from API response data using path expressions
+ * Variable Extractor Component
+ *
+ * UI component for extracting variables from API responses
  */
 
-import { getValueByPath } from '../utils/json-utils';
 import { logger } from '../utils/logger';
+import { VariableManager } from '../modules/variable-manager';
+import { ComponentBase, ComponentOptions } from '../types/component-base';
 
-// Define variable extraction pattern
-export interface VariableExtractionPattern {
+// Extend ComponentOptions
+interface VariableExtractorOptions extends ComponentOptions {
+  container: HTMLElement | null;
+  variableManager: VariableManager;
+  onExtract?: (variables: Map<string, unknown>) => void;
+}
+
+// Define ExtractionRule interface locally
+interface ExtractionRule {
   name: string;
   path: string;
-  description?: string;
-  required?: boolean;
   defaultValue?: any;
 }
 
-// Options for variable extractor
-export interface VariableExtractorOptions {
-  onVariableExtracted?: (name: string, value: any) => void;
-  onExtractionComplete?: (variables: Record<string, any>) => void;
-  onExtractionError?: (error: Error, pattern: VariableExtractionPattern) => void;
-}
-
 /**
- * Class for extracting variables from response data
+ * Variable Extractor Component
+ * Provides a UI for extracting variables from API responses
  */
-export class VariableExtractor {
-  private options: VariableExtractorOptions;
-  private extractionPatterns: VariableExtractionPattern[];
-  private extractedVariables: Record<string, any>;
-  
-  /**
-   * Creates a new variable extractor
-   * @param options Options for the extractor
-   */
-  constructor(options: VariableExtractorOptions = {}) {
+export class VariableExtractor extends ComponentBase {
+  // Use protected for options to match base class expectation
+  protected options: VariableExtractorOptions;
+  private variableManager: VariableManager;
+  private extractionRules: ExtractionRule[] = [];
+  // Declare missing properties
+  private container: HTMLElement | null;
+  private rulesContainer: HTMLElement | null = null;
+  private addRuleButton: HTMLElement | null = null;
+  private variableList: HTMLElement | null = null;
+  private extractionModal: HTMLElement | null = null;
+  private extractionRulesContainer: HTMLElement | null = null;
+  private currentResponseData: unknown = null;
+
+  constructor(options: VariableExtractorOptions) {
+    // Pass base options correctly
+    super({ containerId: undefined, debug: options.debug });
+
+    // Validate required options
+    if (!options.container) {
+      throw new Error('Container element is required for VariableExtractor');
+    }
+    if (!options.variableManager) {
+      throw new Error('VariableManager is required for VariableExtractor');
+    }
+
+    // Assign options and declared properties
     this.options = options;
-    this.extractionPatterns = [];
-    this.extractedVariables = {};
+    this.container = this.options.container;
+    this.variableManager = this.options.variableManager;
+
+    this.initialize(); // Call initialize after properties are set
   }
-  
+
   /**
-   * Adds an extraction pattern
-   * @param pattern Extraction pattern to add
-   * @returns This instance for chaining
+   * Initializes the component
+   * Needs to be public/protected to match base class
    */
-  addPattern(pattern: VariableExtractionPattern): VariableExtractor {
-    this.extractionPatterns.push(pattern);
-    return this;
-  }
-  
-  /**
-   * Adds multiple extraction patterns
-   * @param patterns Extraction patterns to add
-   * @returns This instance for chaining
-   */
-  addPatterns(patterns: VariableExtractionPattern[]): VariableExtractor {
-    this.extractionPatterns.push(...patterns);
-    return this;
-  }
-  
-  /**
-   * Removes an extraction pattern by name
-   * @param name Name of the pattern to remove
-   * @returns This instance for chaining
-   */
-  removePattern(name: string): VariableExtractor {
-    this.extractionPatterns = this.extractionPatterns.filter(pattern => pattern.name !== name);
-    return this;
-  }
-  
-  /**
-   * Clears all extraction patterns
-   * @returns This instance for chaining
-   */
-  clearPatterns(): VariableExtractor {
-    this.extractionPatterns = [];
-    return this;
-  }
-  
-  /**
-   * Gets all extraction patterns
-   * @returns Array of extraction patterns
-   */
-  getPatterns(): VariableExtractionPattern[] {
-    return [...this.extractionPatterns];
-  }
-  
-  /**
-   * Gets a specific extraction pattern by name
-   * @param name Name of the pattern to get
-   * @returns The pattern or undefined if not found
-   */
-  getPattern(name: string): VariableExtractionPattern | undefined {
-    return this.extractionPatterns.find(pattern => pattern.name === name);
-  }
-  
-  /**
-   * Extracts variables from response data
-   * @param data Response data to extract from
-   * @param clearExisting Whether to clear existing extracted variables
-   * @returns Object containing extracted variables
-   */
-  extract(data: any, clearExisting: boolean = true): Record<string, any> {
-    // Clear existing variables if needed
-    if (clearExisting) {
-      this.extractedVariables = {};
-    }
-    
-    // Extract variables based on patterns
-    for (const pattern of this.extractionPatterns) {
-      try {
-        // Extract the value using the path
-        const value = getValueByPath(data, pattern.path, pattern.defaultValue);
+  public initialize(): void {
+    // Create the basic UI structure
+    this.container.innerHTML = `
+      <div class="variables-panel">
+        <div class="variables-header">
+          <h3>Variables</h3>
+          <div class="variables-actions">
+            <button type="button" id="extract-variables-btn" class="btn btn-sm btn-secondary">
+              Extract from Response
+            </button>
+            <button type="button" id="clear-variables-btn" class="btn btn-sm">
+              Clear All
+            </button>
+          </div>
+        </div>
         
-        // Handle required fields
-        if (pattern.required && (value === undefined || value === null)) {
-          throw new Error(`Required variable '${pattern.name}' not found at path '${pattern.path}'`);
-        }
-        
-        // Store the extracted variable
-        this.extractedVariables[pattern.name] = value;
-        
-        // Call the variable extracted callback
-        if (this.options.onVariableExtracted) {
-          this.options.onVariableExtracted(pattern.name, value);
-        }
-      } catch (error) {
-        // Handle extraction errors
-        const extractionError = error instanceof Error ? error : new Error(String(error));
-        
-        logger.warn(`Error extracting variable '${pattern.name}': ${extractionError.message}`);
-        
-        // Call the error callback if provided
-        if (this.options.onExtractionError) {
-          this.options.onExtractionError(extractionError, pattern);
-        }
-        
-        // Use default value if provided
-        if (pattern.defaultValue !== undefined) {
-          this.extractedVariables[pattern.name] = pattern.defaultValue;
-        }
-      }
-    }
-    
-    // Call the extraction complete callback
-    if (this.options.onExtractionComplete) {
-      this.options.onExtractionComplete({ ...this.extractedVariables });
-    }
-    
-    return { ...this.extractedVariables };
-  }
-  
-  /**
-   * Gets all extracted variables
-   * @returns Object containing all extracted variables
-   */
-  getVariables(): Record<string, any> {
-    return { ...this.extractedVariables };
-  }
-  
-  /**
-   * Gets a specific variable value
-   * @param name Name of the variable
-   * @returns Variable value or undefined if not found
-   */
-  getVariable(name: string): any {
-    return this.extractedVariables[name];
-  }
-  
-  /**
-   * Sets a variable value manually
-   * @param name Name of the variable
-   * @param value Value to set
-   * @returns This instance for chaining
-   */
-  setVariable(name: string, value: any): VariableExtractor {
-    this.extractedVariables[name] = value;
-    
-    // Call the variable extracted callback
-    if (this.options.onVariableExtracted) {
-      this.options.onVariableExtracted(name, value);
-    }
-    
-    return this;
-  }
-  
-  /**
-   * Clears all extracted variables
-   * @returns This instance for chaining
-   */
-  clearVariables(): VariableExtractor {
-    this.extractedVariables = {};
-    return this;
-  }
-  
-  /**
-   * Extracts variables from a JSON response string
-   * @param jsonString JSON string to extract from
-   * @param clearExisting Whether to clear existing extracted variables
-   * @returns Object containing extracted variables
-   */
-  extractFromJson(jsonString: string, clearExisting: boolean = true): Record<string, any> {
-    try {
-      const data = JSON.parse(jsonString);
-      return this.extract(data, clearExisting);
-    } catch (error) {
-      const parseError = error instanceof Error ? error : new Error(String(error));
-      logger.error('Error parsing JSON:', parseError.message);
-      
-      if (clearExisting) {
-        this.extractedVariables = {};
-      }
-      
-      return { ...this.extractedVariables };
-    }
-  }
-  
-  /**
-   * Parses a response and extracts variables based on content type
-   * @param response Response object
-   * @param contentType Content type of the response
-   * @param clearExisting Whether to clear existing extracted variables
-   * @returns Object containing extracted variables
-   */
-  extractFromResponse(
-    response: Response | any, 
-    contentType?: string, 
-    clearExisting: boolean = true
-  ): Promise<Record<string, any>> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        // If it's a fetch Response object
-        if (response instanceof Response) {
-          // Determine content type
-          const responseContentType = contentType || response.headers.get('content-type') || '';
+        <div class="variables-content">
+          <div class="variable-list" id="variable-list">
+            <div class="empty-message">No variables defined. Extract from response or add manually.</div>
+          </div>
           
-          // Handle different content types
-          if (responseContentType.includes('application/json')) {
-            const jsonData = await response.json();
-            const variables = this.extract(jsonData, clearExisting);
-            resolve(variables);
-          } else if (responseContentType.includes('text/')) {
-            const textData = await response.text();
+          <div class="variable-form">
+            <div class="input-group">
+              <input type="text" id="new-variable-name" placeholder="Variable name" class="form-control">
+              <input type="text" id="new-variable-value" placeholder="Value or JSONPath (e.g. $.data.id)" class="form-control">
+              <button type="button" id="add-variable-btn" class="btn btn-sm btn-primary">Add</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div id="extraction-modal" class="modal hidden">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h4>Extract Variables from Response</h4>
+            <button type="button" id="close-extraction-modal" class="close-btn">&times;</button>
+          </div>
+          
+          <div class="modal-body">
+            <p>Specify paths to extract values from the API response. Use $.data.id syntax to extract specific fields.</p>
             
-            // Try to parse as JSON anyway
-            try {
-              const jsonData = JSON.parse(textData);
-              const variables = this.extract(jsonData, clearExisting);
-              resolve(variables);
-            } catch {
-              // Not JSON, just extract from the raw text
-              const variables = this.extract({ text: textData }, clearExisting);
-              resolve(variables);
-            }
-          } else {
-            // Unknown content type, use the response object as is
-            const variables = this.extract(response, clearExisting);
-            resolve(variables);
-          }
-        } else {
-          // Not a Response object, use as is
-          const variables = this.extract(response, clearExisting);
-          resolve(variables);
-        }
-      } catch (error) {
-        const extractionError = error instanceof Error ? error : new Error(String(error));
-        logger.error('Error extracting variables from response:', extractionError.message);
-        reject(extractionError);
-      }
+            <div id="extraction-rules" class="extraction-rules">
+              <!-- Extraction rules will be added here -->
+            </div>
+            
+            <div class="modal-actions">
+              <button type="button" id="add-extraction-rule" class="btn btn-secondary">Add Rule</button>
+              <button type="button" id="apply-extraction-rules" class="btn btn-primary">Extract Variables</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Get references to DOM elements
+    this.variableList = this.container.querySelector('#variable-list'); // Property added
+    this.extractionModal = document.getElementById('extraction-modal'); // Property added
+    this.extractionRulesContainer = document.getElementById('extraction-rules'); // Property added
+
+    // Add event listeners
+    const extractBtn = this.container.querySelector('#extract-variables-btn');
+    if (extractBtn) {
+      extractBtn.addEventListener('click', () => this.showExtractionModal());
+    }
+
+    const clearBtn = this.container.querySelector('#clear-variables-btn');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => this.clearVariables());
+    }
+
+    const addBtn = this.container.querySelector('#add-variable-btn');
+    if (addBtn) {
+      addBtn.addEventListener('click', () => this.addVariable());
+    }
+
+    const closeModalBtn = document.getElementById('close-extraction-modal');
+    if (closeModalBtn) {
+      closeModalBtn.addEventListener('click', () => this.hideExtractionModal());
+    }
+
+    const addRuleBtn = document.getElementById('add-extraction-rule');
+    if (addRuleBtn) {
+      addRuleBtn.addEventListener('click', () => this.addExtractionRule());
+    }
+
+    const applyRulesBtn = document.getElementById('apply-extraction-rules');
+    if (applyRulesBtn) {
+      applyRulesBtn.addEventListener('click', () => this.applyExtractionRules());
+    }
+
+    // Listen for variable changes
+    this.variableManager.on('variable:set', () => this.renderVariables());
+    this.variableManager.on('variable:deleted', () => this.renderVariables());
+    this.variableManager.on('variables:cleared', () => this.renderVariables());
+    this.variableManager.on('variables:loaded', () => this.renderVariables());
+
+    // Initial render
+    this.renderVariables();
+  }
+
+  /**
+   * Set the current response to extract variables from
+   * @param response API response
+   */
+  setResponse(respons: Event): void {
+    this.currentResponseData = respons; // Property added
+    logger.debug('Response set for variable extraction', {
+      hasResponse: !!respons,
+      responseType: respons ? typeof respons : 'none',
     });
   }
 
   /**
-   * Shows the variable extraction modal
-   * @param responseData Response data to extract variables from
+   * Show the extraction modal
    */
-  showExtractionModal(responseData: any): void {
-    // Create modal if it doesn't exist
-    this.createModal();
-    
-    // Store response data for extraction
-    this._responseData = responseData;
-    
-    // Populate the path input with suggestions if possible
-    this.suggestPaths(responseData);
-    
-    // Show the modal
-    const modal = document.getElementById('variable-extractor-modal');
-    if (modal) {
-      modal.classList.remove('hidden');
+  private showExtractionModal(): void {
+    if (!this.currentResponseData) {
+      this.showNotification('No response available for extraction', 'warning');
+      return;
+    }
+
+    if (this.extractionModal && this.extractionRulesContainer) {
+      // Clear existing rules
+      this.extractionRulesContainer.innerHTML = '';
+
+      // Add default rule
+      this.addExtractionRule();
+
+      // Show modal
+      this.extractionModal.classList.remove('hidden');
+
+      // Add path suggestions
+      this.addPathSuggestions();
     }
   }
 
   /**
-   * Creates the variable extraction modal
+   * Hide the extraction modal
    */
-  private createModal(): void {
-    // Check if modal already exists
-    if (document.getElementById('variable-extractor-modal')) {
+  private hideExtractionModal(): void {
+    if (this.extractionModal) {
+      this.extractionModal.classList.add('hidden');
+    }
+  }
+
+  /**
+   * Add a new extraction rule
+   */
+  private addExtractionRule(): void {
+    if (!this.extractionRulesContainer) return;
+
+    const ruleId = `rule-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+    const ruleEl = document.createElement('div');
+    ruleEl.className = 'extraction-rule';
+    (ruleEl as HTMLElement).dataset.ruleId = ruleId;
+
+    ruleEl.innerHTML = `
+      <div class="rule-inputs">
+        <input type="text" class="form-control rule-name" placeholder="Variable name">
+        <input type="text" class="form-control rule-path" placeholder="JSONPath (e.g. $.data.id)">
+        <input type="text" class="form-control rule-default" placeholder="Default value (optional)">
+      </div>
+      <button type="button" class="btn btn-sm btn-icon remove-rule">🗑️</button>
+      <div class="path-validation-result"></div>
+    `;
+
+    // Add event for removing the rule
+    const removeBtn = ruleEl.querySelector('.remove-rule');
+    if (removeBtn) {
+      removeBtn.addEventListener('click', () => ruleEl.remove());
+    }
+
+    // Add event for validating path
+    const pathInput = ruleEl.querySelector('.rule-path');
+    const validationEl = ruleEl.querySelector('.path-validation-result');
+
+    if (pathInput && validationEl) {
+      pathInput.addEventListener('input', () => {
+        this.validateJsonPath((pathInput as HTMLInputElement).value, validationEl as HTMLElement);
+      });
+
+      pathInput.addEventListener('blur', () => {
+        if ((pathInput as HTMLInputElement).value && this.currentResponseData) {
+          this.testJsonPathExtraction(
+            (pathInput as HTMLInputElement).value,
+            validationEl as HTMLElement,
+          );
+        }
+      });
+    }
+
+    this.extractionRulesContainer.appendChild(ruleEl);
+
+    this.extractionRules.push({ name: '', path: '', defaultValue: undefined });
+    this.renderExtractionRules();
+
+    // Clear input fields
+    if (pathInput) pathInput.value = '';
+    if (validationEl) validationEl.innerHTML = '';
+  }
+
+  /**
+   * Validate if a string is a proper JSONPath
+   * @param path Path to validate
+   * @param validationElement Element to show validation result
+   */
+  private validateJsonPath(path: string, validationElement: HTMLElement): void {
+    if (!path) {
+      validationElement.innerHTML = '';
       return;
     }
-    
-    // Create modal element
-    const modal = document.createElement('div');
-    modal.id = 'variable-extractor-modal';
-    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden';
-    
-    // Create modal content
-    modal.innerHTML = `
-      <div class="bg-bg-card p-6 rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-auto">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-lg font-bold">Extract Variables</h2>
-          <button id="close-extractor-modal" class="text-text-muted hover:text-text">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg>
-          </button>
-        </div>
-        
-        <div class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium mb-1">Variable Name</label>
-            <input id="variable-name-input" type="text" class="w-full px-3 py-2 border border-border rounded bg-bg text-sm" placeholder="e.g. userId">
+
+    // Basic validation for JSONPath pattern
+    const jsonPathIndicator = '$.';
+
+    if (!path.startsWith(jsonPathIndicator)) {
+      validationElement.innerHTML = `<small class="text-warning">Should start with ${jsonPathIndicator}</small>`;
+      return;
+    }
+
+    // Check for common syntax issues
+    if (path.includes('..') || path.includes('//')) {
+      validationElement.innerHTML = '<small class="text-danger">Invalid path syntax</small>';
+      return;
+    }
+
+    validationElement.innerHTML = '<small class="text-success">Valid syntax</small>';
+
+    if (path) {
+      const input = document.querySelector(`input[value="${path}"]`) as HTMLInputElement | null;
+      if (input) {
+        if (input.type === 'checkbox') {
+          input.checked = Boolean(path);
+        } else {
+          input.value = String(path);
+        }
+      }
+    }
+  }
+
+  /**
+   * Test if a JSONPath actually extracts a value from the current response
+   * @param path Path to test
+   * @param validationElement Element to show validation result
+   */
+  private testJsonPathExtraction(path: string, validationElement: HTMLElement): void {
+    if (!this.currentResponseData || !path) return;
+
+    try {
+      const extractedValue = this.variableManager.extractValueFromResponse(
+        this.currentResponseData,
+        path,
+      );
+
+      if (extractedValue !== undefined) {
+        const displayValue =
+          typeof extractedValue === 'object'
+            ? JSON.stringify(extractedValue).substring(0, 30) +
+              (JSON.stringify(extractedValue).length > 30 ? '...' : '')
+            : String(extractedValue);
+
+        validationElement.innerHTML = `<small class="text-success">Found: ${displayValue}</small>`;
+      } else {
+        validationElement.innerHTML =
+          '<small class="text-danger">No value found at this path</small>';
+      }
+    } catch (error) {
+      validationElement.innerHTML = `<small class="text-danger">Error: ${error instanceof Error ? error.message : 'Unknown error'}</small>`;
+    }
+  }
+
+  /**
+   * Apply extraction rules to extract variables from the current response
+   */
+  private applyExtractionRules(): void {
+    if (!this.currentResponseData || !this.extractionRulesContainer) {
+      return;
+    }
+
+    const rules: ExtractionRule[] = [];
+    const ruleElements = this.extractionRulesContainer.querySelectorAll('.extraction-rule');
+
+    ruleElements.forEach(ruleElement => {
+      // Cast using angle bracket syntax
+      const nameInput = ruleElement.querySelector('.rule-name');
+      const pathInput = ruleElement.querySelector('.rule-path');
+      const defaultInput = ruleElement.querySelector('.rule-default');
+
+      const nameValue = nameInput ? (<HTMLInputElement>nameInput).value : null;
+      const pathValue = pathInput ? (<HTMLInputElement>pathInput).value : null;
+      const defaultValue = defaultInput ? (<HTMLInputElement>defaultInput).value : null;
+
+      if (nameValue && pathValue) {
+        const rule: ExtractionRule = {
+          name: nameValue,
+          path: pathValue,
+        };
+        if (defaultValue !== null) {
+          try {
+            rule.defaultValue = JSON.parse(defaultValue);
+          } catch {
+            rule.defaultValue = defaultValue;
+          }
+        }
+        rules.push(rule);
+      }
+    });
+
+    if (rules.length > 0) {
+      logger.debug('Applying extraction rules:', rules);
+      const extracted = this.variableManager.extractVariablesFromResponse(
+        this.currentResponseData,
+        rules,
+      );
+      this.showNotification(`${extracted.size} variables extracted/updated.`, 'success');
+      if (this.options.onExtract) {
+        this.options.onExtract(extracted);
+      }
+    }
+
+    this.hideExtractionModal();
+  }
+
+  /**
+   * Add a variable manually from the form
+   */
+  private addVariable(): void {
+    const nameInputElement = this.container?.querySelector('#new-variable-name');
+    const valueInputElement = this.container?.querySelector('#new-variable-value');
+
+    const nameValue = nameInputElement ? (<HTMLInputElement>nameInputElement).value : null;
+    const valueValue = valueInputElement ? (<HTMLInputElement>valueInputElement).value : null;
+
+    if (nameValue && valueValue !== null) {
+      // Check value is not null (can be empty string)
+      const name = nameValue.trim();
+      let value: string = valueValue;
+
+      const jsonPathIndicator = '$.';
+      const isJsonPath = value.startsWith(jsonPathIndicator);
+
+      if (isJsonPath && this.currentResponseData) {
+        try {
+          value = this.variableManager.extractValueFromResponse(this.currentResponseData, value);
+          if (value === undefined) {
+            this.showNotification(`Could not extract value for path: ${valueValue}`, 'warning');
+            return;
+          }
+        } catch (err) {
+          logger.error('Error extracting value via JSONPath:', err);
+          this.showNotification(
+            `Error extracting value: ${err instanceof Error ? err.message : String(err)}`,
+            'error',
+          );
+          return;
+        }
+      } else if (isJsonPath && !this.currentResponseData) {
+        this.showNotification(
+          'Cannot extract from JSONPath: No response data available.',
+          'warning',
+        );
+        return;
+      } else {
+        try {
+          if (
+            (value.startsWith('{') && value.endsWith('}')) ||
+            (value.startsWith('[') && value.endsWith(']'))
+          ) {
+            value = JSON.parse(value);
+          }
+        } catch (e) {
+          /* Ignore */
+        }
+      }
+
+      this.variableManager.setVariable(name, value);
+
+      // Clear inputs after successful add
+      if (nameInputElement) (<HTMLInputElement>nameInputElement).value = '';
+      if (valueInputElement) (<HTMLInputElement>valueInputElement).value = '';
+
+      this.showNotification(`Variable '${name}' added/updated.`, 'success');
+    }
+  }
+
+  /**
+   * Render variables in the UI
+   */
+  private renderVariables(): void {
+    if (!this.variableList) return;
+
+    const variables = this.variableManager.getVariables();
+    const variableNames = Object.keys(variables);
+
+    if (variableNames.length === 0) {
+      this.variableList.innerHTML =
+        '<div class="empty-message text-text-muted italic">No variables defined.</div>';
+      return;
+    }
+
+    this.variableList.innerHTML = variableNames
+      .map(name => {
+        const value = variables[name];
+        // Hardcode variable reference format
+        const variableReference = `$${name}`;
+        return `
+        <div class="variable-item flex items-center justify-between p-1 border-b border-border last:border-0">
+          <div class="variable-info">
+            <span class="variable-name font-medium text-sm">${name}</span>:
+            <code class="variable-value text-xs ml-1">${this.formatValuePreview(value)}</code>
           </div>
-          
-          <div>
-            <label class="block text-sm font-medium mb-1">JSON Path</label>
-            <div class="flex">
-              <input id="variable-path-input" type="text" class="flex-1 px-3 py-2 border border-border rounded-l bg-bg text-sm" placeholder="e.g. data.user.id">
-              <button id="test-path-btn" class="px-3 py-2 bg-primary-600 text-white rounded-r">Test</button>
-            </div>
-            <div id="path-suggestion-container" class="mt-1 text-xs text-text-muted"></div>
-          </div>
-          
-          <div>
-            <label class="block text-sm font-medium mb-1">Description (optional)</label>
-            <input id="variable-description-input" type="text" class="w-full px-3 py-2 border border-border rounded bg-bg text-sm" placeholder="Optional description">
-          </div>
-          
-          <div class="flex items-center">
-            <input id="variable-required-checkbox" type="checkbox" class="mr-2">
-            <label for="variable-required-checkbox" class="text-sm">Required (extraction fails if not found)</label>
-          </div>
-          
-          <div>
-            <label class="block text-sm font-medium mb-1">Default Value (optional)</label>
-            <input id="variable-default-input" type="text" class="w-full px-3 py-2 border border-border rounded bg-bg text-sm" placeholder="Default value if not found">
-          </div>
-          
-          <div id="test-result-container" class="mt-2 p-3 border border-border rounded bg-bg-sidebar hidden">
-            <div class="text-sm font-medium mb-1">Test Result:</div>
-            <div id="test-result" class="text-sm font-mono break-all"></div>
-          </div>
-        </div>
-        
-        <div class="flex justify-end mt-6 space-x-2">
-          <button id="cancel-extraction-btn" class="px-4 py-2 border border-border rounded text-text-muted hover:bg-bg-sidebar">
-            Cancel
-          </button>
-          <button id="add-extraction-btn" class="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700">
-            Add Variable
-          </button>
+          <div class="variable-actions flex gap-1">
+             <button title="Copy Reference (${variableReference})" class="copy-var-btn text-xs p-1 hover:bg-bg-sidebar rounded" data-var-ref="${variableReference}">📄</button>
+             <button title="Delete Variable" class="delete-var-btn text-xs p-1 text-red-500 hover:bg-bg-sidebar rounded" data-var-name="${name}">🗑️</button>
         </div>
       </div>
     `;
-    
-    // Add modal to body
-    document.body.appendChild(modal);
-    
-    // Set up event listeners
-    this.setupModalEventListeners();
-  }
+      })
+      .join('');
 
-  /**
-   * Sets up event listeners for the variable extraction modal
-   */
-  private setupModalEventListeners(): void {
-    // Close button
-    const closeBtn = document.getElementById('close-extractor-modal');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', () => this.hideModal());
-    }
-    
-    // Cancel button
-    const cancelBtn = document.getElementById('cancel-extraction-btn');
-    if (cancelBtn) {
-      cancelBtn.addEventListener('click', () => this.hideModal());
-    }
-    
-    // Test path button
-    const testPathBtn = document.getElementById('test-path-btn');
-    if (testPathBtn) {
-      testPathBtn.addEventListener('click', () => this.testPath());
-    }
-    
-    // Add variable button
-    const addBtn = document.getElementById('add-extraction-btn');
-    if (addBtn) {
-      addBtn.addEventListener('click', () => this.addVariableFromModal());
-    }
-    
-    // Path input (test on Enter key)
-    const pathInput = document.getElementById('variable-path-input');
-    if (pathInput) {
-      pathInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-          this.testPath();
+    // Add event listeners to delete/copy buttons
+    this.variableList.querySelectorAll('.delete-var-btn').forEach(button => {
+      button.addEventListener('click', e => {
+        const target = e.currentTarget as HTMLElement;
+        const varName = (target as HTMLElement).dataset.varName;
+        if (varName) {
+          this.variableManager.deleteVariable(varName);
         }
       });
-    }
-  }
-
-  /**
-   * Hides the variable extraction modal
-   */
-  private hideModal(): void {
-    const modal = document.getElementById('variable-extractor-modal');
-    if (modal) {
-      modal.classList.add('hidden');
-    }
-  }
-
-  /**
-   * Tests the current path against the response data
-   */
-  private testPath(): void {
-    if (!this._responseData) {
-      this.showTestResult('No response data available', false);
-      return;
-    }
-    
-    const pathInput = document.getElementById('variable-path-input') as HTMLInputElement;
-    if (!pathInput) return;
-    
-    const path = pathInput.value.trim();
-    if (!path) {
-      this.showTestResult('Please enter a path', false);
-      return;
-    }
-    
-    try {
-      const value = getValueByPath(this._responseData, path, undefined);
-      if (value === undefined) {
-        this.showTestResult('Path not found in response data', false);
-      } else {
-        this.showTestResult(typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value), true);
-      }
-    } catch (error) {
-      this.showTestResult(`Error: ${error instanceof Error ? error.message : String(error)}`, false);
-    }
-  }
-
-  /**
-   * Shows the test result
-   * @param result Result to show
-   * @param success Whether the test was successful
-   */
-  private showTestResult(result: string, success: boolean): void {
-    const resultContainer = document.getElementById('test-result-container');
-    const resultElement = document.getElementById('test-result');
-    
-    if (resultContainer && resultElement) {
-      resultContainer.classList.remove('hidden');
-      resultContainer.classList.toggle('border-green-500', success);
-      resultContainer.classList.toggle('border-red-500', !success);
-      resultContainer.classList.toggle('bg-green-50', success);
-      resultContainer.classList.toggle('bg-red-50', !success);
-      
-      resultElement.textContent = result;
-    }
-  }
-
-  /**
-   * Adds a variable from the modal inputs
-   */
-  private addVariableFromModal(): void {
-    // Get input values
-    const nameInput = document.getElementById('variable-name-input') as HTMLInputElement;
-    const pathInput = document.getElementById('variable-path-input') as HTMLInputElement;
-    const descriptionInput = document.getElementById('variable-description-input') as HTMLInputElement;
-    const requiredCheckbox = document.getElementById('variable-required-checkbox') as HTMLInputElement;
-    const defaultInput = document.getElementById('variable-default-input') as HTMLInputElement;
-    
-    if (!nameInput || !pathInput) return;
-    
-    const name = nameInput.value.trim();
-    const path = pathInput.value.trim();
-    
-    // Validate inputs
-    if (!name) {
-      this.showTestResult('Please enter a variable name', false);
-      return;
-    }
-    
-    if (!path) {
-      this.showTestResult('Please enter a JSON path', false);
-      return;
-    }
-    
-    // Create extraction pattern
-    const pattern: VariableExtractionPattern = {
-      name,
-      path,
-      description: descriptionInput?.value.trim() || undefined,
-      required: requiredCheckbox?.checked || false,
-      defaultValue: defaultInput?.value.trim() || undefined
-    };
-    
-    // Add pattern
-    this.addPattern(pattern);
-    
-    // Extract variable if response data is available
-    if (this._responseData) {
-      try {
-        const value = getValueByPath(this._responseData, path, pattern.defaultValue);
-        this.setVariable(name, value);
-        
-        // Show success message
-        this.showTestResult(`Variable '${name}' extracted successfully`, true);
-        
-        // Hide modal after a short delay
-        setTimeout(() => this.hideModal(), 1000);
-      } catch (error) {
-        this.showTestResult(`Error extracting variable: ${error instanceof Error ? error.message : String(error)}`, false);
-      }
-    } else {
-      // No response data, just add the pattern
-      this.showTestResult(`Pattern added, but no response data to extract from`, true);
-      
-      // Hide modal after a short delay
-      setTimeout(() => this.hideModal(), 1000);
-    }
-  }
-
-  /**
-   * Suggests paths based on response data
-   * @param data Response data to suggest paths from
-   */
-  private suggestPaths(data: any): void {
-    if (!data || typeof data !== 'object') return;
-    
-    const suggestionsContainer = document.getElementById('path-suggestion-container');
-    if (!suggestionsContainer) return;
-    
-    // Find common or important paths
-    const suggestions: string[] = [];
-    
-    // Helper function to recursively find paths up to a certain depth
-    const findPaths = (obj: any, currentPath: string = '', depth: number = 0) => {
-      if (depth > 3 || typeof obj !== 'object' || obj === null) return;
-      
-      // Add primitive values or arrays with primitives
-      if (Array.isArray(obj)) {
-        if (obj.length > 0 && typeof obj[0] !== 'object') {
-          suggestions.push(`${currentPath}[0]`);
-        } else if (obj.length > 0) {
-          // Check first array item for common fields
-          findPaths(obj[0], `${currentPath}[0]`, depth + 1);
+    });
+    this.variableList.querySelectorAll('.copy-var-btn').forEach(button => {
+      button.addEventListener('click', e => {
+        const target = e.currentTarget as HTMLElement;
+        const varRef = (target as HTMLElement).dataset.varRef;
+        if (varRef) {
+          navigator.clipboard
+            .writeText(varRef)
+            .then(() => this.showNotification(`Copied ${varRef} to clipboard`, 'info'))
+            .catch(err => this.showNotification(`Failed to copy: ${err}`, 'error'));
         }
-        return;
-      }
-      
-      // Check each property
-      for (const key of Object.keys(obj)) {
-        const path = currentPath ? `${currentPath}.${key}` : key;
-        
-        // Add this path if it's a primitive or empty object
-        if (typeof obj[key] !== 'object' || obj[key] === null) {
-          suggestions.push(path);
-        } else {
-          // Recursively search deeper
-          findPaths(obj[key], path, depth + 1);
-        }
-        
-        // Limit suggestions to 10
-        if (suggestions.length >= 10) return;
-      }
-    };
-    
-    // Find paths
-    findPaths(data);
-    
-    // Display suggestions
-    if (suggestions.length > 0) {
-      const html = `
-        <div class="text-xs mb-1">Suggested paths:</div>
-        <div class="flex flex-wrap gap-1">
-          ${suggestions.map(path => `
-            <span class="cursor-pointer px-1 py-0.5 bg-bg-sidebar hover:bg-primary-100 rounded text-xs path-suggestion" data-path="${path}">
-              ${path}
-            </span>
-          `).join('')}
-        </div>
-      `;
-      
-      suggestionsContainer.innerHTML = html;
-      
-      // Add event listeners to suggestion spans
-      const suggestionSpans = suggestionsContainer.querySelectorAll('.path-suggestion');
-      suggestionSpans.forEach(span => {
-        span.addEventListener('click', () => {
-          const path = span.getAttribute('data-path');
-          const pathInput = document.getElementById('variable-path-input') as HTMLInputElement;
-          if (pathInput && path) {
-            pathInput.value = path;
-            this.testPath();
+      });
+    });
+  }
+
+  /**
+   * Clear all variables
+   */
+  private clearVariables(): void {
+    if (confirm('Are you sure you want to clear all variables?')) {
+      this.variableManager.clearVariables();
+      this.showNotification('All variables cleared', 'success');
+    }
+  }
+
+  /**
+   * Add path suggestions based on the current response
+   */
+  private addPathSuggestions(): void {
+    if (
+      !this.currentResponseData ||
+      typeof this.currentResponseData !== 'object' ||
+      this.currentResponseData === null
+    ) {
+      return;
+    }
+
+    const suggestionsContainer = document.createElement('div');
+    suggestionsContainer.className = 'path-suggestions mt-4 p-2 border-t border-border';
+    suggestionsContainer.innerHTML = '<h5 class="text-sm font-medium mb-2">Suggested Paths:</h5>';
+
+    const suggestionList = document.createElement('ul');
+    suggestionList.className = 'space-y-1';
+
+    const paths = this.findJsonPaths(this.currentResponseData);
+    // Hardcode JSON path indicator
+    const jsonPathPrefix = '$.';
+
+    paths.slice(0, 15).forEach(pathInfo => {
+      const fullPath = `${jsonPathPrefix}${pathInfo.path}`;
+      const li = document.createElement('li');
+      li.className =
+        'suggestion-item flex items-center justify-between text-xs p-1 hover:bg-bg-sidebar rounded';
+      li.innerHTML = `
+            <code class="suggestion-path font-mono text-primary-600" title="${fullPath}">${fullPath}</code>
+            <span class="suggestion-value truncate ml-2 text-text-muted">(${pathInfo.type}: ${this.formatValuePreview(pathInfo.value)})</span>
+            <button type="button" class="btn btn-xs btn-secondary ml-2 use-path-btn">Use</button>
+        `;
+
+      const useButton = li.querySelector('.use-path-btn');
+      if (useButton) {
+        useButton.addEventListener('click', () => {
+          const firstEmptyPath =
+            (this.extractionRulesContainer?.querySelector(
+              '.variable-path:placeholder-shown',
+            ) as HTMLInputElement | null) ||
+            (this.extractionRulesContainer?.querySelector(
+              '.variable-path',
+            ) as HTMLInputElement | null);
+          if (firstEmptyPath) {
+            firstEmptyPath.value = fullPath;
           }
         });
-      });
+      }
+      suggestionList.appendChild(li);
+    });
+
+    if (paths.length > 0) {
+      suggestionsContainer.appendChild(suggestionList);
+      this.extractionModal?.querySelector('.modal-body')?.appendChild(suggestionsContainer);
     } else {
-      suggestionsContainer.innerHTML = '';
+      suggestionsContainer.innerHTML +=
+        '<p class="text-xs text-text-muted italic">No paths found in response.</p>';
+      this.extractionModal?.querySelector('.modal-body')?.appendChild(suggestionsContainer);
     }
   }
 
-  // Store response data for extraction
-  private _responseData: any = null;
-} 
+  /**
+   * Show a notification
+   * @param message Message to display
+   * @param type Notification type (success, error, warning, info)
+   */
+  private showNotification(
+    message: string,
+    type: 'success' | 'error' | 'warning' | 'info' = 'info',
+  ): void {
+    // Assuming a toast/notification mechanism exists, possibly via uiManager if available
+    console.log(`[${type.toUpperCase()}] ${message}`); // Basic console log fallback
+    // Example using a potential uiManager:
+    // if (this.options.uiManager) {
+    //     this.options.uiManager.showToast({ message, type });
+    // }
+  }
+
+  /**
+   * Finds all possible JSON paths within an object.
+   * @param obj The object to analyze.
+   * @param currentPath The current path prefix.
+   * @param paths Array to store the results.
+   * @returns Array of objects containing path, value, and type.
+   */
+  private findJsonPaths(
+    obj: unknown,
+    currentPath = '',
+    paths: { path: string; value: string; type: string }[] = [],
+  ): { path: string; value: string; type: string }[] {
+    if (obj === null || typeof obj !== 'object') {
+      return paths;
+    }
+
+    if (Array.isArray(obj)) {
+      if (obj.length > 0) {
+        const arrayPath = `${currentPath}[0]`;
+        paths.push({ path: arrayPath, value: this.formatValuePreview(obj[0]), type: 'array_element' });
+        this.findJsonPaths(obj[0], arrayPath, paths);
+      }
+    } else {
+      const recordObj = obj as Record<string, unknown>;
+      for (const key in recordObj) {
+        if (Object.prototype.hasOwnProperty.call(recordObj, key)) {
+          const value = recordObj[key];
+          const newPath = currentPath ? `${currentPath}.${key}` : key;
+          const valueType = typeof value;
+          paths.push({ path: newPath, value: this.formatValuePreview(value), type: valueType });
+          if (typeof value === 'object' && value !== null) {
+            this.findJsonPaths(value, newPath, paths);
+          }
+        }
+      }
+    }
+    return paths;
+  }
+
+  /**
+   * Formats a value for preview display.
+   * @param value The value to format.
+   * @returns A string representation for preview.
+   */
+  private formatValuePreview(value: unknown): string {
+    if (value === undefined) return 'undefined';
+    if (value === null) return 'null';
+    if (typeof value === 'string') {
+      return `"${value.substring(0, 20)}${value.length > 20 ? '...' : ''}"`;
+    }
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    if (Array.isArray(value)) return `[Array(${value.length})]`;
+    if (typeof value === 'object') return '{...}';
+    return String(value);
+  }
+
+  /**
+   * Extracts a variable value from a response object based on a JSONPath
+   * @param response - The response object
+   * @param name - Variable name
+   * @param path - The JSONPath string
+   * @returns The extracted value, or null if extraction fails
+   */
+  extractVariable(response: unknown, name: string, path: string): unknown | null {
+    // Implementation...
+    // Use a JSONPath library or manual traversal with type checks
+    try {
+        const parts = path.split('.');
+        let current: unknown = response;
+        for (const part of parts) {
+            if (current === null || typeof current !== 'object') return null;
+            current = (current as Record<string, unknown>)[part];
+        }
+        return current;
+    } catch (e) {
+        logger.error(`Failed to extract variable ${name} with path ${path}`, e);
+        return null;
+    }
+  }
+}

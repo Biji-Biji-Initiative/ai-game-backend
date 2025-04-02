@@ -1,8 +1,12 @@
+// Types improved by ts-improve-types
 /**
  * Common application types
  */
 
 import { Flow, Step } from '../controllers/FlowController';
+import { RequestInfo } from './app-types';
+import { IVariableExtractor } from './variables';
+import { ResponseViewer } from '../ui/response-viewer';
 
 /**
  * Log Entry Interface
@@ -12,13 +16,13 @@ export interface LogEntry {
   message: string;
   timestamp: Date | string;
   correlationId?: string;
-  meta?: Record<string, any>;
-  context?: Record<string, any>;
+  meta?: Record<string, unknown>;
+  context?: Record<string, unknown>;
   service?: string;
   filename?: string;
   hostname?: string;
-  data?: any;
-  args?: any[];
+  data?: Record<string, unknown> | unknown[] | string | number | boolean | null;
+  args?: unknown[];
 }
 
 /**
@@ -30,15 +34,15 @@ export interface AppState {
   steps: Step[];
   currentStep: Step | null;
   authToken: string | null;
-  stepResults: Record<string, any>;
+  stepResults: Record<string, unknown>;
   logs: LogEntry[];
   backendLogs: LogEntry[];
   activeLogsTab: 'frontend' | 'backend';
   currentCorrelationId: string | null;
-  currentResponse: any | null;
-  currentRequest: any | null;
-  variableExtractor?: any;
-  responseViewer?: any;
+  currentResponse: Event | null;
+  currentRequest: RequestInfo | null;
+  variableExtractor?: IVariableExtractor;
+  responseViewer?: ResponseViewer;
 }
 
 /**
@@ -66,4 +70,4 @@ export interface DOMElements {
   logsList: HTMLElement | null;
   clearLogsBtn: HTMLElement | null;
   [key: string]: HTMLElement | null;
-} 
+}

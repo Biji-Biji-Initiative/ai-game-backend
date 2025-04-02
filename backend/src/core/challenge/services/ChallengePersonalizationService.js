@@ -40,10 +40,10 @@ class ChallengePersonalizationService {
     constructor(dependencies = {}) {
         const { challengeTypeRepository, focusAreaConfigRepository, logger } = dependencies;
         if (!challengeTypeRepository) {
-            throw new Error('challengeTypeRepository is required for ChallengePersonalizationService');
+            throw new ChallengeValidationError('challengeTypeRepository is required for ChallengePersonalizationService');
         }
         if (!logger) {
-            throw new Error('logger is required for ChallengePersonalizationService');
+            throw new ConfigurationError('logger is required for ChallengePersonalizationService');
         }
         this.challengeTypeRepository = challengeTypeRepository;
         this.focusAreaConfigRepository = focusAreaConfigRepository;
@@ -69,25 +69,25 @@ class ChallengePersonalizationService {
     async selectChallengeType(dominantTraits, focusAreas) {
         // Validate inputs
         if (!dominantTraits || !Array.isArray(dominantTraits)) {
-            throw new Error('Dominant traits must be provided as an array');
+            throw new ChallengeValidationError('Dominant traits must be provided as an array');
         }
         if (!focusAreas || !Array.isArray(focusAreas)) {
-            throw new Error('Focus areas must be provided as an array');
+            throw new ChallengeValidationError('Focus areas must be provided as an array');
         }
         this.logger.debug('Selecting challenge type', { dominantTraits, focusAreas });
         // Get all challenge types from the repository
         const challengeTypes = await this.challengeTypeRepository.getChallengeTypes();
         if (!challengeTypes || challengeTypes.length === 0) {
-            throw new Error('No challenge types found in the repository');
+            throw new ChallengeProcessingError('No challenge types found in the repository');
         }
         // Get trait and focus area mappings from repository
         const traitMappings = await this.challengeTypeRepository.getTraitMappings();
         const focusAreaMappings = await this.challengeTypeRepository.getFocusAreaMappings();
         if (!traitMappings) {
-            throw new Error('Failed to retrieve trait mappings from repository');
+            throw new ChallengeProcessingError('Failed to retrieve trait mappings from repository');
         }
         if (!focusAreaMappings) {
-            throw new Error('Failed to retrieve focus area mappings from repository');
+            throw new ChallengeProcessingError('Failed to retrieve focus area mappings from repository');
         }
         // Get all valid challenge type codes
         const allChallengeTypeCodes = challengeTypes.map(type => type.code);
@@ -119,12 +119,12 @@ class ChallengePersonalizationService {
             selectedTypeCode = allChallengeTypeCodes[0];
         }
         if (!selectedTypeCode) {
-            throw new Error('Failed to select a valid challenge type');
+            throw new ChallengeProcessingError('Failed to select a valid challenge type based on inputs');
         }
         // Find the selected type from the repository
         const selectedType = challengeTypes.find(type => type.code === selectedTypeCode);
         if (!selectedType) {
-            throw new Error(`Could not find challenge type with code ${selectedTypeCode}`);
+            throw new ChallengeNotFoundError(`Could not find challenge type with code ${selectedTypeCode}`);
         }
         return selectedType;
     }

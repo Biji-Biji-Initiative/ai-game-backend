@@ -1,7 +1,7 @@
-import domainEvents from "#app/core/common/events/domainEvents.js";
 import { v4 as uuidv4 } from "uuid";
 import { focusAreaSchema, validate } from "#app/core/focusArea/schemas/focusAreaValidation.js";
 import Entity from "#app/core/common/models/Entity.js";
+import { EventTypes } from "#app/core/common/events/eventTypes.js";
 'use strict';
 /**
  * Focus Area Model
@@ -13,7 +13,6 @@ import Entity from "#app/core/common/models/Entity.js";
  * @module FocusArea
  */
 // const Entity = require('../../common/models/Entity');
-const { EventTypes } = domainEvents;
 /**
  * Focus Area class representing a communication focus area
  */
@@ -28,9 +27,13 @@ class FocusArea extends Entity {
      * @param {boolean} [params.active=true] Whether this focus area is active
      * @param {number} [params.priority=1] Priority level (1-5, where 1 is highest)
      * @param {Object} [params.metadata={}] Additional metadata
+     * @param {Object} options - Additional options
+     * @param {Object} options.EventTypes - EventTypes constant object (optional)
      */
-    constructor({ id = uuidv4(), userId, name, description = '', active = true, priority = 1, metadata = {}, }) {
+    constructor({ id = uuidv4(), userId, name, description = '', active = true, priority = 1, metadata = {} }, options = {}) {
         super(id);
+        // Store EventTypes if provided
+        this.EventTypes = options.EventTypes;
         // Validate using Zod schema
         const validatedData = validate({
             id,
@@ -50,49 +53,61 @@ class FocusArea extends Entity {
         this.createdAt = new Date().toISOString();
         this.updatedAt = this.createdAt;
         // Add domain event for creation (to be published after persistence)
-        this.addDomainEvent(EventTypes.FOCUS_AREA_CREATED, {
-            userId: this.userId,
-            name: this.name,
-            priority: this.priority,
-        });
-    }
-    /**
-     * Deactivate this focus area
-     */
-    /**
-     * Method deactivate
-     */
-    deactivate() {
-        if (this.active === false) {
-            return;
-        } // No-op if already inactive
-        this.active = false;
-        this.updatedAt = new Date().toISOString();
-        // Add domain event for update (to be published after persistence)
-        this.addDomainEvent(EventTypes.FOCUS_AREA_UPDATED, {
-            userId: this.userId,
-            name: this.name,
-            active: this.active,
-        });
+        if (this.EventTypes) {
+            this.addDomainEvent(this.EventTypes.FOCUS_AREA_CREATED, {
+                userId: this.userId,
+                name: this.name,
+                priority: this.priority,
+            });
+        }
     }
     /**
      * Activate this focus area
+     * @returns {boolean} Success status
      */
     /**
      * Method activate
      */
     activate() {
-        if (this.active === true) {
-            return;
-        } // No-op if already active
+        if (this.active) {
+            return false; // Already active
+        }
         this.active = true;
         this.updatedAt = new Date().toISOString();
-        // Add domain event for update (to be published after persistence)
-        this.addDomainEvent(EventTypes.FOCUS_AREA_UPDATED, {
-            userId: this.userId,
-            name: this.name,
-            active: this.active,
-        });
+        // Add domain event for activation
+        if (this.EventTypes) {
+            this.addDomainEvent(this.EventTypes.FOCUS_AREA_UPDATED, {
+                userId: this.userId,
+                name: this.name,
+                active: true,
+                action: 'activated',
+            });
+        }
+        return true;
+    }
+    /**
+     * Deactivate this focus area
+     * @returns {boolean} Success status
+     */
+    /**
+     * Method deactivate
+     */
+    deactivate() {
+        if (!this.active) {
+            return false; // Already inactive
+        }
+        this.active = false;
+        this.updatedAt = new Date().toISOString();
+        // Add domain event for deactivation
+        if (this.EventTypes) {
+            this.addDomainEvent(this.EventTypes.FOCUS_AREA_UPDATED, {
+                userId: this.userId,
+                name: this.name,
+                active: false,
+                action: 'deactivated',
+            });
+        }
+        return true;
     }
     /**
      * Update focus area properties
@@ -118,11 +133,13 @@ class FocusArea extends Entity {
             });
             this.updatedAt = new Date().toISOString();
             // Add domain event for update (to be published after persistence)
-            this.addDomainEvent(EventTypes.FOCUS_AREA_UPDATED, {
-                userId: this.userId,
-                name: this.name,
-                ...validUpdates,
-            });
+            if (this.EventTypes) {
+                this.addDomainEvent(this.EventTypes.FOCUS_AREA_UPDATED, {
+                    userId: this.userId,
+                    name: this.name,
+                    ...validUpdates,
+                });
+            }
         }
     }
     /**
@@ -145,21 +162,12 @@ class FocusArea extends Entity {
             updatedAt: this.updatedAt,
         };
     }
-    /**
-     * Create focus area from database record
-     * @param {Object} record Database record
-     * @returns {FocusArea} Focus area instance
-     */
-    static fromDatabase(record) {
-        return new FocusArea({
-            id: record.id,
-            userId: record.user_id,
-            name: record.name,
-            description: record.description || '',
-            active: record.active === undefined ? true : record.active,
-            priority: record.priority || 1,
-            metadata: record.metadata || {},
-        });
+    // Ensure addDomainEvent uses this.EventTypes
+    addDomainEvent(eventType, eventData) {
+        if (!this.EventTypes || !this.EventTypes[eventType]) {
+           console.warn(`[FocusArea Model] Unknown eventType constant used: ${eventType}. Cannot validate.`);
+        }
+        super.addDomainEvent(eventType, eventData);
     }
 }
 export default FocusArea;

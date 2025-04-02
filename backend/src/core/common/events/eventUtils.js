@@ -12,7 +12,7 @@ import { logger } from "#app/core/infra/logging/logger.js";
 import AppError from "#app/core/infra/errors/AppError.js";
 import { v4 as uuidv4 } from "uuid";
 import { StandardErrorCodes } from "#app/core/infra/errors/errorHandler.js";
-import { EventTypes } from "#app/core/common/events/domainEvents.js";
+import { EventTypes } from "#app/core/common/events/eventTypes.js";
 
 /**
  * Standardize an event to ensure it follows the expected structure

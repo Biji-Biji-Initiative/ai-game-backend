@@ -22,43 +22,25 @@ import * as express from "express";
  * @param {DIContainer} container - The DI container
  */
 function registerRouteComponents(container) {
-    // Register route modules
-    container.register('userRoutes', c => {
-        return userRoutes(c.get('userController'));
-    }, true);
-    container.register('personalityRoutes', c => {
-        return personalityRoutes(c.get('personalityController'));
-    }, true);
-    container.register('progressRoutes', c => {
-        return progressRoutes(c.get('progressController'));
-    }, true);
-    container.register('adaptiveRoutes', c => {
-        return adaptiveRoutes(c.get('adaptiveController'));
-    }, true);
-    container.register('focusAreaRoutes', c => {
-        return focusAreaRoutes(c.get('focusAreaController'));
-    }, true);
-    container.register('challengeRoutes', c => {
-        return challengeRoutes(c.get('challengeController'));
-    }, true);
-    container.register('evaluationRoutes', c => {
-        return evaluationRoutes(c.get('evaluationController'));
-    }, true);
-    container.register('userJourneyRoutes', c => {
-        return userJourneyRoutes(c.get('userJourneyController'));
-    }, true);
-    container.register('systemRoutes', () => {
-        return systemRoutes();
-    }, true);
-    // AI-related routes
-    // container.register('aiChatRoutes', c => {
-    //     return aiChatRoutes(c.get('aiChatController'));
-    // }, true);
-    // container.register('aiAnalysisRoutes', c => {
-    //     return aiAnalysisRoutes(c.get('aiAnalysisController'));
-    // }, true);
-    // Register root routes that consolidate all route modules
+    const routeLogger = container.get('logger').child({ context: 'DI-Routes' });
+    routeLogger.info('[DI Routes] Starting route registration...');
+
+    routeLogger.info('[DI Routes] Registering individual route modules...');
+    container.register('userRoutes', c => userRoutes(c.get('userController')), true);
+    container.register('personalityRoutes', c => personalityRoutes(c.get('personalityController')), true);
+    container.register('progressRoutes', c => progressRoutes(c.get('progressController')), true);
+    container.register('adaptiveRoutes', c => adaptiveRoutes(c.get('adaptiveController')), true);
+    container.register('focusAreaRoutes', c => focusAreaRoutes(c.get('focusAreaController')), true);
+    container.register('challengeRoutes', c => challengeRoutes(c.get('challengeController')), true);
+    container.register('evaluationRoutes', c => evaluationRoutes(c.get('evaluationController')), true);
+    container.register('userJourneyRoutes', c => userJourneyRoutes(c.get('userJourneyController')), true);
+    container.register('systemRoutes', () => systemRoutes(), true);
+    routeLogger.info('[DI Routes] Individual route modules registered.');
+
+    // Register root router that consolidates all route modules
+    routeLogger.info('[DI Routes] Registering consolidated apiRoutes...');
     container.register('apiRoutes', c => {
+        routeLogger.info('[DI Routes] Factory for apiRoutes executing...');
         const router = express.Router();
         // Mount domain-specific routes
         router.use('/users', c.get('userRoutes'));
@@ -70,12 +52,16 @@ function registerRouteComponents(container) {
         router.use('/evaluations', c.get('evaluationRoutes'));
         router.use('/user-journey', c.get('userJourneyRoutes'));
         router.use('/system', c.get('systemRoutes'));
-        // Mount AI-related routes
-        // router.use('/ai/chat', c.get('aiChatRoutes'));
-        // router.use('/ai/analysis', c.get('aiAnalysisRoutes'));
+        // Mount AI-related routes (if enabled)
+        // ...
+        routeLogger.info('[DI Routes] Consolidated apiRoutes router created.');
         return router;
     }, true);
+    routeLogger.info('[DI Routes] Consolidated apiRoutes registered.');
+    
+    routeLogger.info('[DI Routes] Route registration complete.');
 }
+
 export { registerRouteComponents };
 export default {
     registerRouteComponents

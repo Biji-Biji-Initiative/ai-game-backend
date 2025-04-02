@@ -1,0 +1,31 @@
+{
+  "name": "ai-backend-game",
+  "version": "1.0.0",
+  "description": "AI Backend Game Testing Tool",
+  "main": "index.js",
+  "scripts": {
+    "start": "cd api-tester-ui && node server.js",
+    "dev": "cd api-tester-ui && node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "cd admin && tsc"
+  },
+  "keywords": [
+    "ai",
+    "game",
+    "api",
+    "testing"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "http-proxy-middleware": "^3.0.3"
+  },
+  "devDependencies": {
+    "typescript": "^4.5.5"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

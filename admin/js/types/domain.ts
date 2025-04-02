@@ -1,3 +1,4 @@
+// Types improved by ts-improve-types
 /**
  * Domain state management types
  */
@@ -23,7 +24,7 @@ export interface EntityProperty {
   displayName?: string;
   description?: string;
   required?: boolean;
-  defaultValue?: any;
+  defaultValue?: unknown;
   referenceType?: string; // If type is 'reference', this is the entity type it references
 }
 
@@ -33,7 +34,7 @@ export interface EntityProperty {
 export interface EntitySnapshot {
   id: string;
   type: string;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
   timestamp: number;
   version?: number;
 }
@@ -45,8 +46,8 @@ export interface StateDiff {
   entityId: string;
   entityType: string;
   path: string;
-  oldValue: any;
-  newValue: any;
+  oldValue: unknown;
+  newValue: unknown;
   changeType: 'add' | 'update' | 'delete' | 'move';
 }
 
@@ -66,28 +67,34 @@ export interface StateSnapshot {
  */
 export interface IDomainStateManager {
   // State management
-  loadState(state: any): void;
+  loadState(stat: Event): void;
   saveState(): void;
-  getState(): any;
+  getState(): unknown;
   clearState(): void;
-  
+
   // Entity operations
-  addEntity(type: string, data: any): string;
-  updateEntity(id: string, data: any): boolean;
-  deleteEntity(id: string): boolean;
-  getEntity(id: string): EntitySnapshot | null;
-  getEntitiesByType(type: string): EntitySnapshot[];
-  
+  addEntity(typ: string, data: unknown[] | Record<string, unknown>): string;
+  updateEntity(i: string, data: unknown[] | Record<string, unknown>): boolean;
+  deleteEntity(i: string): boolean;
+  getEntity(i: string): EntitySnapshot | null;
+  getEntitiesByType(typ: string): EntitySnapshot[];
+
   // Snapshot operations
   takeBeforeSnapshot(entityTypes?: string[]): string;
   takeAfterSnapshot(entityTypes?: string[]): string;
-  getSnapshot(id: string): StateSnapshot | null;
+  getSnapshot(i: string): StateSnapshot | null;
   getLatestSnapshot(): StateSnapshot | null;
-  getDiffs(beforeId: string, afterId: string): StateDiff[];
-  
+  getDiffs(beforeI?: string, afterId?: string): StateDiff[];
+
   // Events
-  addEventListener(event: string, handler: (data: any) => void): void;
-  removeEventListener(event: string, handler: (data: any) => void): void;
+  addEventListener(
+    even: string,
+    handler: (data: unknown[] | Record<string, unknown>) => void,
+  ): void;
+  removeEventListener(
+    even: string,
+    handler: (data: unknown[] | Record<string, unknown>) => void,
+  ): void;
 }
 
 /**
@@ -98,35 +105,41 @@ export interface IDomainStateViewer {
   render(): void;
   clear(): void;
   refresh(): void;
-  
+
   // Filters and settings
-  setEntityTypes(types: string[]): void;
+  setEntityTypes(type: string[]): void;
   getEntityTypes(): string[];
-  setFilter(filter: string): void;
+  setFilter(filte: string): void;
   clearFilter(): void;
-  
+
   // Selection
-  selectEntity(id: string): void;
+  selectEntity(i: string): void;
   deselectEntity(): void;
   getSelectedEntity(): string | null;
-  getSelectedEntityData(): any | null;
-  
+  getSelectedEntityData(): unknown | null;
+
   // Properties for integration with DomainStateManager
   selectedEntityTypes: string[];
-  
+
   // Events
-  addEventListener(event: string, handler: (data: any) => void): void;
-  removeEventListener(event: string, handler: (data: any) => void): void;
+  addEventListener(
+    even: string,
+    handler: (data: unknown[] | Record<string, unknown>) => void,
+  ): void;
+  removeEventListener(
+    even: string,
+    handler: (data: unknown[] | Record<string, unknown>) => void,
+  ): void;
 }
 
 /**
  * Domain State Manager Options
  */
 export interface DomainStateManagerOptions {
-  apiClient?: any;
+  apiClient?: unknown;
   localStorageKey?: string;
   autoSave?: boolean;
   diffingEnabled?: boolean;
   snapshotLimit?: number;
   debug?: boolean;
-} 
+}

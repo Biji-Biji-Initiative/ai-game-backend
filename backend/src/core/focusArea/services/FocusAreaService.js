@@ -82,15 +82,10 @@ class FocusAreaService {
       userId,
       count: focusAreas?.length
     });
-    const savedAreas = await this.focusAreaRepository.save(userId, focusAreas);
-    // Publish an event if there's an event bus
-    if (this.eventBus && this.eventTypes) {
-      await this.eventBus.publish(this.eventTypes.FOCUS_AREAS_SAVED, {
-        userId,
-        count: savedAreas.length,
-        focusAreaIds: savedAreas.map(area => area.id)
-      });
-    }
+    
+    // The repository's save/saveBatch method (via withTransaction) handles event publishing
+    const savedAreas = await this.focusAreaRepository.saveBatch(userId, focusAreas);
+    
     return savedAreas;
   }
   /**
@@ -102,14 +97,10 @@ class FocusAreaService {
     this.logger.debug('Deleting all focus areas for user', {
       userId
     });
+    
+    // The repository's delete method (via withTransaction) handles event publishing
     const success = await this.focusAreaRepository.deleteAllForUser(userId);
-    // Publish an event if there's an event bus
-    if (this.eventBus && this.eventTypes && success) {
-      await this.eventBus.publish(this.eventTypes.FOCUS_AREAS_DELETED, {
-        userId,
-        allDeleted: true
-      });
-    }
+    
     return success;
   }
 }

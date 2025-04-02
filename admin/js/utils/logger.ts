@@ -1,229 +1,150 @@
+// Types improved by ts-improve-types
 /**
  * Logger Utility
- * Provides consistent logging throughout the application
+ * Provides standardized logging functionality
  */
 
-/**
- * Log level type
- */
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-
-/**
- * Logger configuration interface
- */
-export interface LoggerConfig {
-  level: LogLevel;
-  enableConsole: boolean;
-  maxEntries: number;
-  prefix: string;
+export interface LogOptions {
+  timestamp?: boolean;
+  source?: string;
+  context?: Record<string, unknown>;
+  level?: LogLevel;
+  prefix?: string;
 }
 
-/**
- * Log entry interface
- */
-export interface LogEntry {
-  level: LogLevel;
-  message: string;
-  timestamp: string;
-  data?: any;
+export enum LogLevel {
+  DEBUG = 'DEBUG',
+  INFO = 'INFO',
+  WARN = 'WARNING',
+  ERROR = 'ERROR',
 }
-
-/**
- * Default logger configuration
- */
-const DEFAULT_CONFIG: LoggerConfig = {
-  level: 'info',
-  enableConsole: true,
-  maxEntries: 1000,
-  prefix: '[Admin UI]'
-};
-
-/**
- * Level priority map (higher number = higher priority)
- */
-const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
-  debug: 0,
-  info: 1,
-  warn: 2,
-  error: 3
-};
 
 /**
  * Logger class
  */
-class Logger {
-  private config: LoggerConfig;
-  private entries: LogEntry[] = [];
-  private listeners: Set<(entry: LogEntry) => void> = new Set();
+export class Logger {
+  private static instance: Logger;
+  private level: LogLevel;
+  private prefix: string;
+  private context: string | null = null;
 
-  /**
-   * Create a new Logger instance
-   * @param config Logger configuration
-   */
-  constructor(config: Partial<LoggerConfig> = {}) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
+  private constructor(options?: LogOptions) {
+    this.level = options?.level || LogLevel.INFO;
+    this.prefix = options?.prefix || '';
   }
 
   /**
-   * Log a message at debug level
-   * @param message Log message
-   * @param data Optional data to log
+   * Get logger instance (singleton)
    */
-  public debug(message: string, data?: any): void {
-    this.log('debug', message, data);
-  }
-
-  /**
-   * Log a message at info level
-   * @param message Log message
-   * @param data Optional data to log
-   */
-  public info(message: string, data?: any): void {
-    this.log('info', message, data);
-  }
-
-  /**
-   * Log a message at warn level
-   * @param message Log message
-   * @param data Optional data to log
-   */
-  public warn(message: string, data?: any): void {
-    this.log('warn', message, data);
-  }
-
-  /**
-   * Log a message at error level
-   * @param message Log message
-   * @param data Optional data to log
-   */
-  public error(message: string, data?: any): void {
-    this.log('error', message, data);
-  }
-
-  /**
-   * Log a message at the specified level
-   * @param level Log level
-   * @param message Log message
-   * @param data Optional data to log
-   */
-  private log(level: LogLevel, message: string, data?: any): void {
-    // Check if this level should be logged
-    if (LOG_LEVEL_PRIORITY[level] < LOG_LEVEL_PRIORITY[this.config.level]) {
-      return;
+  public static getInstance(): Logger {
+    if (!Logger.instance) {
+      Logger.instance = new Logger();
     }
-
-    // Create log entry
-    const entry: LogEntry = {
-      level,
-      message: `${this.config.prefix} ${message}`,
-      timestamp: new Date().toISOString(),
-      data
-    };
-
-    // Add to entries
-    this.entries.push(entry);
-
-    // Trim entries if needed
-    if (this.entries.length > this.config.maxEntries) {
-      this.entries = this.entries.slice(-this.config.maxEntries);
-    }
-
-    // Console output if enabled
-    if (this.config.enableConsole) {
-      this.outputToConsole(entry);
-    }
-
-    // Notify listeners
-    this.notifyListeners(entry);
+    return Logger.instance;
   }
 
   /**
-   * Output a log entry to the console
-   * @param entry Log entry to output
+   * Set context for all logs
+   * @param context Context name
    */
-  private outputToConsole(entry: LogEntry): void {
-    const timestamp = new Date(entry.timestamp).toLocaleTimeString();
-    const prefix = `[${timestamp}]${entry.message}`;
-
-    switch (entry.level) {
-      case 'debug':
-        console.debug(prefix, entry.data || '');
-        break;
-      case 'info':
-        console.info(prefix, entry.data || '');
-        break;
-      case 'warn':
-        console.warn(prefix, entry.data || '');
-        break;
-      case 'error':
-        console.error(prefix, entry.data || '');
-        break;
-    }
+  setContext(context: string): void {
+    this.context = context;
   }
 
   /**
-   * Get all log entries
-   * @returns Array of log entries
+   * Log a debug message
+   * @param message Message to log
+   * @param data Additional data
+   * @param options Log options
    */
-  public getEntries(): LogEntry[] {
-    return [...this.entries];
+  debug(message: string, data?: unknown, options?: LogOptions): void {
+    this.log(LogLevel.DEBUG, message, data, options);
   }
 
   /**
-   * Get log entries filtered by level
-   * @param level Minimum log level to include
-   * @returns Filtered log entries
+   * Log an info message
+   * @param message Message to log
+   * @param data Additional data
+   * @param options Log options
    */
-  public getEntriesByLevel(level: LogLevel): LogEntry[] {
-    const levelPriority = LOG_LEVEL_PRIORITY[level];
-    return this.entries.filter(entry => LOG_LEVEL_PRIORITY[entry.level] >= levelPriority);
+  info(message: string, data?: unknown, options?: LogOptions): void {
+    this.log(LogLevel.INFO, message, data, options);
   }
 
   /**
-   * Clear all log entries
+   * Log a warning message
+   * @param message Message to log
+   * @param data Additional data
+   * @param options Log options
    */
-  public clearEntries(): void {
-    this.entries = [];
+  warn(message: string, data?: unknown, options?: LogOptions): void {
+    this.log(LogLevel.WARN, message, data, options);
   }
 
   /**
-   * Update logger configuration
-   * @param config New configuration (partial)
+   * Log an error message
+   * @param message Message to log
+   * @param data Additional data
+   * @param options Log options
    */
-  public updateConfig(config: Partial<LoggerConfig>): void {
-    this.config = { ...this.config, ...config };
+  error(message: string, data?: unknown, options?: LogOptions): void {
+    this.log(LogLevel.ERROR, message, data, options);
   }
 
-  /**
-   * Add a log entry listener
-   * @param listener Function to call when a new log entry is added
-   */
-  public addListener(listener: (entry: LogEntry) => void): void {
-    this.listeners.add(listener);
-  }
+  // Core log method
+  private log(level: LogLevel, message: string, data?: unknown, options?: LogOptions): void {
+    if (level >= this.level) {
+      const logContext = options?.context || this.context || '';
+      const logPrefix = this.prefix ? `[${this.prefix}]` : '';
+      const fullPrefix = `${logPrefix}${logContext ? `[${logContext}]` : ''}`;
+      const timestamp = new Date().toISOString();
 
-  /**
-   * Remove a log entry listener
-   * @param listener Listener to remove
-   */
-  public removeListener(listener: (entry: LogEntry) => void): void {
-    this.listeners.delete(listener);
-  }
+      const logArgs: unknown[] = [
+        `%c${timestamp} %c${LogLevel[level as keyof typeof LogLevel]}%c ${fullPrefix} ${message}`,
+        'color: gray',
+        `color: ${this.getColor(level)}`,
+        'color: inherit',
+      ];
 
-  /**
-   * Notify all listeners of a new log entry
-   * @param entry Log entry to notify about
-   */
-  private notifyListeners(entry: LogEntry): void {
-    this.listeners.forEach(listener => {
-      try {
-        listener(entry);
-      } catch (error) {
-        console.error('Error in log listener:', error);
+      if (data !== undefined) {
+        logArgs.push(data);
       }
-    });
+
+      // Use appropriate console method
+      switch (level) {
+        case LogLevel.DEBUG:
+          console.debug(...logArgs);
+          break;
+        case LogLevel.INFO:
+          console.info(...logArgs);
+          break;
+        case LogLevel.WARN:
+          console.warn(...logArgs);
+          break;
+        case LogLevel.ERROR:
+          console.error(...logArgs);
+          break;
+        default:
+          console.log(...logArgs);
+      }
+    }
+  }
+
+  private getColor(level: LogLevel): string {
+    switch (level) {
+      case LogLevel.DEBUG:
+        return '#909090'; // Gray
+      case LogLevel.INFO:
+        return '#2196F3'; // Blue
+      case LogLevel.WARN:
+        return '#FFC107'; // Amber
+      case LogLevel.ERROR:
+        return '#F44336'; // Red
+      default:
+        return 'inherit';
+    }
   }
 }
 
-// Export singleton logger instance
-export const logger = new Logger();
+// Export singleton instance
+export const logger = Logger.getInstance();

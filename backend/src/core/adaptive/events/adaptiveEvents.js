@@ -1,8 +1,9 @@
 'use strict';
 
-import domainEvents from "#app/core/common/events/domainEvents.js";
+import { EventTypes } from "#app/core/common/events/eventTypes.js";
 import { logger } from "#app/core/infra/logging/logger.js";
-import { AdaptiveRepository } from "#app/core/adaptive/repositories/AdaptiveRepository.js";
+// REMOVED: Direct import of repository class is unnecessary if resolved via container later
+// import { AdaptiveRepository } from '#app/core/adaptive/repositories/AdaptiveRepository.js';
 
 /**
  * Adaptive Domain Events
@@ -11,14 +12,24 @@ import { AdaptiveRepository } from "#app/core/adaptive/repositories/AdaptiveRepo
  * Following DDD principles, these events are used to communicate changes
  * in the domain to other domains.
  */
-const {
-  EventTypes,
-  eventBus,
-  DomainEvent
-} = domainEvents;
 
-// Create repository instance
-const adaptiveRepository = new AdaptiveRepository();
+/**
+ * Get the AdaptiveRepository instance from the container.
+ * @param {DIContainer} container - The DI container instance.
+ * @returns {AdaptiveRepository}
+ */
+function getRepo(container) {
+    if (!container) {
+        logger.error('[adaptiveEvents] Container not provided to getRepo!');
+        throw new Error('DI container is required to get AdaptiveRepository');
+    }
+    try {
+        return container.get('adaptiveRepository');
+    } catch (error) {
+        logger.error('[adaptiveEvents] Failed to get AdaptiveRepository from container', { error: error.message });
+        throw error;
+    }
+}
 
 /**
  * Publish an event when an adaptive recommendation is generated
@@ -27,111 +38,85 @@ const adaptiveRepository = new AdaptiveRepository();
  * @param {string} source - Source of the recommendations (e.g., performance, traits)
  * @returns {Promise<void>}
  */
-async function publishRecommendationGenerated(userEmail, recommendations, source, adaptiveId) {
-  try {
-    // Get entity to add domain event
-    const entity = await adaptiveRepository.findById(adaptiveId);
-    if (entity) {
-      // Add domain event to entity
-      entity.addDomainEvent(EventTypes.ADAPTIVE_RECOMMENDATION_GENERATED, {
-        userEmail,
-        recommendations,
-        source
-      });
-      
-      // Save entity which will publish the event
-      await adaptiveRepository.save(entity);
-    } else {
-      // Fallback to direct event publishing if entity not found
-      console.warn(`Entity with ID ${adaptiveId} not found for event ADAPTIVE_RECOMMENDATION_GENERATED. Using direct event publishing.`);
-      await eventBus.publishEvent(EventTypes.ADAPTIVE_RECOMMENDATION_GENERATED, {
-        userEmail,
-        recommendations,
-        source
-      });
-    }
-    
-    logger.debug('Published adaptive recommendation generated event', {
-      userEmail,
-      recommendationCount: recommendations.length
-    });
-  } catch (error) {
-    logger.error('Error publishing adaptive recommendation generated event', {
-      error: error.message,
-      userEmail
-    });
-  }
-}
+// REMOVED: This function's logic should be moved to the service layer
+// async function publishRecommendationGenerated(userEmail, recommendations, source, adaptiveId) { ... }
 
 /**
- * Set up adaptive event subscriptions
+ * Set up adaptive event subscriptions.
+ * Handlers should resolve dependencies from the container when the event occurs.
+ * @param {DIContainer} container - The DI container instance.
  */
-async function registerAdaptiveEventHandlers() {
-  // Subscribe to personality profile updated events
-  eventBus.subscribe(EventTypes.PERSONALITY_PROFILE_UPDATED, async event => {
-    logger.debug('Handling personality profile updated event for adaptive recommendations', {
-      userEmail: event.payload.userEmail
-    });
-    // In a real implementation, we would generate personalized recommendations based on the profile
-    // For now, we just log the event
-    const userId = event.payload.userId;
-    const updateType = event.payload.updateType;
-    // Handle different update types safely
-    if (updateType === 'traits' && event.payload.traits) {
-      logger.info('Would generate adaptive recommendations based on personality traits', {
-        userId,
-        traits: event.payload.traits
-      });
-    } else if (updateType === 'attitudes' && event.payload.aiAttitudes) {
-      logger.info('Would generate adaptive recommendations based on AI attitudes', {
-        userId,
-        aiAttitudes: event.payload.aiAttitudes
-      });
-    } else if (updateType === 'insights' && event.payload.insights) {
-      logger.info('Would generate adaptive recommendations based on personality insights', {
-        userId,
-        hasInsights: !!event.payload.insights
-      });
-    } else {
-      logger.info('Received personality update with unknown or incomplete data', {
-        userId,
-        updateType
-      });
+export function registerAdaptiveEventHandlers(container) {
+    if (!container) {
+        throw new Error('Container is required to register adaptive event handlers');
     }
-  });
-  
-  // Subscribe to progress updated events
-  eventBus.subscribe(EventTypes.PROGRESS_UPDATED, async event => {
-    logger.debug('Handling progress updated event for adaptive recommendations', {
-      userEmail: event.payload.userEmail
+
+    const eventBus = container.get('eventBus');
+    if (!eventBus) {
+        throw new Error('EventBus not found in container');
+    }
+
+    // Subscribe to personality profile updated events
+    eventBus.on(EventTypes.PERSONALITY_PROFILE_UPDATED, async event => {
+        logger.debug('Handling personality profile updated event for adaptive recommendations', {
+            userEmail: event.payload.userEmail
+        });
+        // In a real implementation, we would generate personalized recommendations based on the profile
+        // For now, we just log the event
+        const userId = event.payload.userId;
+        const updateType = event.payload.updateType;
+        // Handle different update types safely
+        if (updateType === 'traits' && event.payload.traits) {
+            logger.info('Would generate adaptive recommendations based on personality traits', {
+                userId,
+                traits: event.payload.traits
+            });
+        } else if (updateType === 'attitudes' && event.payload.aiAttitudes) {
+            logger.info('Would generate adaptive recommendations based on AI attitudes', {
+                userId,
+                aiAttitudes: event.payload.aiAttitudes
+            });
+        } else if (updateType === 'insights' && event.payload.insights) {
+            logger.info('Would generate adaptive recommendations based on personality insights', {
+                userId,
+                hasInsights: !!event.payload.insights
+            });
+        } else {
+            logger.info('Received personality update with unknown or incomplete data', {
+                userId,
+                updateType
+            });
+        }
     });
-    // In a real implementation, we would adjust recommendations based on progress
-    // For now, we just log the event
-    logger.info('Would adjust adaptive recommendations based on progress', {
-      userEmail: event.payload.userEmail,
-      area: event.payload.area,
-      value: event.payload.value
+
+    // Subscribe to progress updated events
+    eventBus.on(EventTypes.PROGRESS_UPDATED, async event => {
+        logger.debug('Handling progress updated event for adaptive recommendations', {
+            userEmail: event.payload.userEmail
+        });
+        // In a real implementation, we would adjust recommendations based on progress
+        // For now, we just log the event
+        logger.info('Would adjust adaptive recommendations based on progress', {
+            userEmail: event.payload.userEmail,
+            area: event.payload.area,
+            value: event.payload.value
+        });
     });
-  });
-  
-  // Subscribe to achievement unlocked events
-  eventBus.subscribe(EventTypes.ACHIEVEMENT_UNLOCKED, async event => {
-    logger.debug('Handling achievement unlocked event for adaptive recommendations', {
-      userEmail: event.payload.userEmail
+
+    // Subscribe to achievement unlocked events
+    eventBus.on(EventTypes.ACHIEVEMENT_UNLOCKED, async event => {
+        logger.debug('Handling achievement unlocked event for adaptive recommendations', {
+            userEmail: event.payload.userEmail
+        });
+        // In a real implementation, we might generate new challenges based on achievements
+        // For now, we just log the event
+        logger.info('Would generate new challenge recommendations based on achievement', {
+            userEmail: event.payload.userEmail,
+            achievementName: event.payload.achievement.name
+        });
     });
-    // In a real implementation, we might generate new challenges based on achievements
-    // For now, we just log the event
-    logger.info('Would generate new challenge recommendations based on achievement', {
-      userEmail: event.payload.userEmail,
-      achievementName: event.payload.achievement.name
-    });
-  });
 }
 
-export { publishRecommendationGenerated };
-export { registerAdaptiveEventHandlers };
-
 export default {
-  publishRecommendationGenerated,
   registerAdaptiveEventHandlers
 };

@@ -1,6 +1,5 @@
 import express from 'express';
-import ProgressController from "#app/core/progress/controllers/ProgressController.js";
-import { authenticateUser } from "#app/core/infra/http/middleware/auth.js";
+// import { authenticateUser } from "#app/core/infra/http/middleware/auth.js"; // Removed as auth is applied at a higher level
 'use strict';
 
 /**
@@ -16,22 +15,22 @@ const router = express.Router();
  */
 export default function progressRoutes(progressController) {
     // Get current user's overall progress
-    router.get('/', authenticateUser, (req, res) => progressController.getUserProgress(req, res));
+    router.get('/', (req, res) => progressController.getUserProgress(req, res));
     
     // Get all progress records for current user
-    router.get('/all', authenticateUser, (req, res) => progressController.getAllUserProgress(req, res));
+    router.get('/all', (req, res) => progressController.getAllUserProgress(req, res));
     
     // Get progress for a specific challenge
-    router.get('/challenge/:challengeId', authenticateUser, (req, res) => progressController.getChallengeProgress(req, res));
+    router.get('/challenge/:challengeId', (req, res) => progressController.getChallengeProgress(req, res));
     
     // Record a challenge completion
-    router.post('/complete', authenticateUser, (req, res) => progressController.recordChallengeCompletion(req, res));
+    router.post('/complete', (req, res) => progressController.recordChallengeCompletion(req, res));
     
     // Update skill levels
-    router.put('/skills', authenticateUser, (req, res) => progressController.updateSkillLevels(req, res));
+    router.put('/skills', (req, res) => progressController.updateSkillLevels(req, res));
     
     // Set focus area
-    router.put('/focus-area', authenticateUser, (req, res) => progressController.setFocusArea(req, res));
+    router.put('/focus-area', (req, res) => progressController.setFocusArea(req, res));
     
     return router;
 }

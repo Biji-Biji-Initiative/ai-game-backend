@@ -1,6 +1,7 @@
 import { createErrorMapper, withServiceErrorHandling } from "#app/core/infra/errors/errorStandardization.js";
 import { ProgressError } from "#app/core/progress/errors/progressErrors.js";
 import ConfigurationError from "#app/core/infra/errors/ConfigurationError.js";
+import { ProgressValidationError } from "#app/core/progress/errors/progressErrors.js";
 'use strict';
 /**
  * Service for handling progress-related operations
@@ -47,7 +48,7 @@ class ProgressService {
      */
     async getProgress(userId) {
         if (!userId) {
-            throw new Error('User ID is required to get progress');
+            throw new ProgressValidationError('User ID is required to get progress');
         }
         // Check cache first if available
         if (this.cache) {
@@ -73,7 +74,7 @@ class ProgressService {
      */
     async getOrCreateProgress(userId) {
         if (!userId) {
-            throw new Error('User ID is required to get or create progress');
+            throw new ProgressValidationError('User ID is required to get or create progress');
         }
         let progress = await this.getProgress(userId);
         if (!progress) {
@@ -107,13 +108,13 @@ class ProgressService {
      */
     async recordChallengeCompletion(userId, challengeId, score, completionTime, evaluationData = {}) {
         if (!userId) {
-            throw new Error('User ID is required');
+            throw new ProgressValidationError('User ID is required');
         }
         if (!challengeId) {
-            throw new Error('Challenge ID is required');
+            throw new ProgressValidationError('Challenge ID is required');
         }
         if (typeof score !== 'number' || score < 0 || score > 100) {
-            throw new Error('Score must be a number between 0 and 100');
+            throw new ProgressValidationError('Score must be a number between 0 and 100');
         }
         // Get user progress
         const progress = await this.getOrCreateProgress(userId);
@@ -140,10 +141,10 @@ class ProgressService {
      */
     async updateSkillLevels(userId, skillLevels) {
         if (!userId) {
-            throw new Error('User ID is required');
+            throw new ProgressValidationError('User ID is required');
         }
         if (!skillLevels || typeof skillLevels !== 'object') {
-            throw new Error('Skill levels must be provided as an object');
+            throw new ProgressValidationError('Skill levels must be provided as an object');
         }
         // Get user progress
         const progress = await this.getOrCreateProgress(userId);
@@ -265,7 +266,7 @@ class ProgressService {
      */
     async getProgressWithChallenges(userId) {
         if (!userId) {
-            throw new Error('User ID is required to get progress with challenges');
+            throw new ProgressValidationError('User ID is required to get progress with challenges');
         }
         
         // Check cache first if available

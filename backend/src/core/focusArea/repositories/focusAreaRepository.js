@@ -2,15 +2,13 @@
 
 import FocusArea from "#app/core/focusArea/models/FocusArea.js";
 import { FocusAreaNotFoundError, FocusAreaPersistenceError, FocusAreaValidationError, FocusAreaError } from "#app/core/focusArea/errors/focusAreaErrors.js";
-import domainEvents from "#app/core/common/events/domainEvents.js";
-import { supabaseClient } from "#app/core/infra/db/supabaseClient.js";
 import { BaseRepository, EntityNotFoundError, ValidationError, DatabaseError } from "#app/core/infra/repositories/BaseRepository.js";
 // Importing but not using directly - needed for schema definitions
 // import { focusAreaSchema } from "../schemas/focusAreaValidation.js";
 import { withRepositoryErrorHandling, createErrorMapper, createErrorCollector } from "#app/core/infra/errors/errorStandardization.js";
 import { v4 as uuidv4 } from "uuid";
-
-const { eventBus, EventTypes } = domainEvents;
+import focusAreaMapper from "#app/core/focusArea/mappers/FocusAreaMapper.js";
+import { EventTypes } from "#app/core/common/events/eventTypes.js";
 
 // Create an error mapper for the focus area domain
 const focusAreaErrorMapper = createErrorMapper({
@@ -33,14 +31,19 @@ class FocusAreaRepository extends BaseRepository {
      */
     constructor(options = {}) {
         super({
-            db: options.db || supabaseClient,
+            db: options.db,
             tableName: 'focus_areas',
             domainName: 'focusArea',
             logger: options.logger,
             maxRetries: 3
         });
-        this.eventBus = options.eventBus || eventBus;
+        this.eventBus = options.eventBus;
         this.validateUuids = true;
+        
+        // Log if db is missing (optional, can be removed if not needed)
+        if (!this.db) {
+            this.logger?.warn('No database client provided to FocusAreaRepository');
+        }
         
         // Apply standardized error handling to methods
         this.findById = withRepositoryErrorHandling(
@@ -154,7 +157,9 @@ class FocusAreaRepository extends BaseRepository {
                 return null;
             }
             
-            return FocusArea.fromDatabase(data);
+            // Use mapper to convert database record to domain object
+            data.EventTypes = EventTypes;
+            return focusAreaMapper.toDomain(data);
         }, 'findById', { id });
     }
 
@@ -175,8 +180,13 @@ class FocusAreaRepository extends BaseRepository {
             // Use the base repository implementation to get raw data
             const records = await super.findByIds(ids);
             
-            // Map database records to domain objects
-            const focusAreas = records.map(record => FocusArea.fromDatabase(record));
+            // Add EventTypes to each record
+            records.forEach(record => {
+                record.EventTypes = EventTypes;
+            });
+            
+            // Map database records to domain objects using mapper
+            const focusAreas = focusAreaMapper.toDomainCollection(records);
             
             // If include options are specified, handle eager loading
             if (options.include && Array.isArray(options.include) && options.include.length > 0) {
@@ -222,10 +232,19 @@ class FocusAreaRepository extends BaseRepository {
                     const userIds = [...new Set(focusAreas.map(fa => fa.userId).filter(id => !!id))];
                     
                     if (userIds.length > 0) {
-                        // Get the repository from container or directly
-                        const challengeRepo = this.container ? 
-                            this.container.get('challengeRepository') : 
-                            require('../../challenge/repositories/challengeRepository').default;
+                        if (!this.container) {
+                            this.logger?.warn('Cannot load related entities (challenges) - DI container not provided', {
+                                method: '_loadRelatedEntities',
+                                relationshipType: 'challenges'
+                            });
+                            // Set empty challenges array and skip loading
+                            focusAreas.forEach(focusArea => {
+                                focusArea.challenges = [];
+                            });
+                            break;
+                        }
+                        
+                        const challengeRepo = this.container.get('challengeRepository');
                         
                         // Get all challenges for these focus areas (will need to be filtered)
                         const allChallenges = [];
@@ -304,8 +323,17 @@ class FocusAreaRepository extends BaseRepository {
                 });
             }
             
-            // Map database records to domain objects
-            return (data || []).map(record => FocusArea.fromDatabase(record));
+            if (!data || data.length === 0) {
+                return [];
+            }
+            
+            // Add EventTypes to each record
+            data.forEach(record => {
+                record.EventTypes = EventTypes;
+            });
+            
+            // Map database records to domain objects using mapper
+            return focusAreaMapper.toDomainCollection(data);
         }, 'findByUserId', { userId, options });
     }
 
@@ -338,8 +366,17 @@ class FocusAreaRepository extends BaseRepository {
                 });
             }
             
-            // Map database records to domain objects
-            return (data || []).map(record => FocusArea.fromDatabase(record));
+            if (!data || data.length === 0) {
+                return [];
+            }
+            
+            // Add EventTypes to each record
+            data.forEach(record => {
+                record.EventTypes = EventTypes;
+            });
+            
+            // Map database records to domain objects using mapper
+            return focusAreaMapper.toDomainCollection(data);
         }, 'findAll', { options });
     }
 
@@ -355,13 +392,7 @@ class FocusAreaRepository extends BaseRepository {
         this._validateRequiredParams(focusAreaData, ['userId', 'name']);
         
         // Create a focus area domain object (this will validate the data)
-        const focusArea = new FocusArea({
-            userId: focusAreaData.userId,
-            name: focusAreaData.name,
-            description: focusAreaData.description || '',
-            priority: focusAreaData.priority || 1,
-            metadata: focusAreaData.metadata || {}
-        });
+        const focusArea = new FocusArea(focusAreaData, { EventTypes: EventTypes });
         
         // Save to database
         return this.save(focusArea);
@@ -388,20 +419,16 @@ class FocusAreaRepository extends BaseRepository {
             });
         }
         
+        // Ensure entity has EventTypes
+        if (!focusArea.EventTypes) {
+            focusArea.EventTypes = EventTypes;
+        }
+        
         // Collect domain events before saving
         const domainEvents = focusArea.getDomainEvents();
         
-        // Convert focus area to database format
-        const focusAreaData = {
-            id: focusArea.id,
-            user_id: focusArea.userId,
-            name: focusArea.name,
-            description: focusArea.description || '',
-            priority: focusArea.priority || 1,
-            metadata: focusArea.metadata || {},
-            created_at: focusArea.createdAt || new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        };
+        // Convert focus area to database format using mapper
+        const focusAreaData = focusAreaMapper.toPersistence(focusArea);
         
         return this.withTransaction(async (transaction) => {
             // Check if this is a new focus area or an update
@@ -454,8 +481,11 @@ class FocusAreaRepository extends BaseRepository {
                 name: focusArea.name
             });
             
-            // Create domain object from database result
-            const savedFocusArea = FocusArea.fromDatabase(result);
+            // Add EventTypes to the result
+            result.EventTypes = EventTypes;
+            
+            // Create domain object from database result using mapper
+            const savedFocusArea = focusAreaMapper.toDomain(result);
             
             // Clear domain events from the original entity since they will be published
             focusArea.clearDomainEvents();
@@ -513,7 +543,7 @@ class FocusAreaRepository extends BaseRepository {
                 metadata: data.metadata || {},
                 createdAt: data.createdAt || new Date().toISOString(),
                 updatedAt: new Date().toISOString()
-            });
+            }, { EventTypes: EventTypes });
         });
         
         // eslint-disable-next-line no-unused-vars
@@ -532,17 +562,8 @@ class FocusAreaRepository extends BaseRepository {
                     // Clear events from the entity so they don't get published twice
                     focusArea.clearDomainEvents();
                     
-                    // Save focus area using the transaction
-                    const dbData = {
-                        id: focusArea.id,
-                        user_id: focusArea.userId,
-                        name: focusArea.name,
-                        description: focusArea.description || '',
-                        priority: focusArea.priority || 1,
-                        metadata: focusArea.metadata || {},
-                        created_at: focusArea.createdAt || new Date().toISOString(),
-                        updated_at: new Date().toISOString()
-                    };
+                    // Convert focus area to database format using mapper
+                    const dbData = focusAreaMapper.toPersistence(focusArea);
                     
                     const { data, error } = await transaction
                         .from(this.tableName)
@@ -559,8 +580,11 @@ class FocusAreaRepository extends BaseRepository {
                         });
                     }
                     
-                    // Create domain object from database result
-                    const savedArea = FocusArea.fromDatabase(data);
+                    // Add EventTypes to the data
+                    data.EventTypes = EventTypes;
+                    
+                    // Create domain object from database result using mapper
+                    const savedArea = focusAreaMapper.toDomain(data);
                     savedAreas.push(savedArea);
                 }
                 catch (error) {
@@ -638,8 +662,11 @@ class FocusAreaRepository extends BaseRepository {
                 });
             }
             
-            // Convert to domain entity to collect events
-            const focusArea = FocusArea.fromDatabase(focusAreaRecord);
+            // Add EventTypes to the record
+            focusAreaRecord.EventTypes = EventTypes;
+            
+            // Convert to domain entity using mapper
+            const focusArea = focusAreaMapper.toDomain(focusAreaRecord);
             
             // Add domain event for deletion
             focusArea.addDomainEvent(EventTypes.FOCUS_AREA_DELETED, {
@@ -693,16 +720,7 @@ class FocusAreaRepository extends BaseRepository {
     }
 }
 
-// Use lazy initialization for the singleton
-let _instance = null;
-function getRepositoryInstance() {
-    if (!_instance) {
-        _instance = new FocusAreaRepository();
-    }
-    return _instance;
-}
-
 // Exports
-export { FocusAreaRepository };
-export const focusAreaRepository = getRepositoryInstance();
+// Export the class for DI registration.
+export { FocusAreaRepository }; // Corrected: Only export defined symbols
 export default FocusAreaRepository;

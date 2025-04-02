@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticateUser, requireAdmin } from "#app/core/infra/http/middleware/auth.js";
+import { requireAdmin } from "#app/core/infra/http/middleware/auth.js";
 import { robustEventBus } from "#app/core/common/events/RobustEventBus.js";
 import { deadLetterQueueService } from "#app/core/common/events/DeadLetterQueueService.js";
 import { logger } from "#app/core/infra/logging/logger.js";
@@ -35,7 +35,6 @@ export default function eventBusRoutes() {
   const router = express.Router();
   
   // Apply authentication and admin middleware to all routes
-  router.use(authenticateUser);
   router.use(requireAdmin);
   
   /**

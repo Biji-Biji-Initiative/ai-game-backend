@@ -1,8 +1,8 @@
-import domainEvents from "#app/core/common/events/domainEvents.js";
 import { v4 as uuidv4 } from "uuid";
 import { personalitySchema } from "#app/core/personality/schemas/personalitySchema.js";
 import { TraitsValidationError, AttitudesValidationError } from "#app/core/personality/errors/PersonalityErrors.js";
 import Entity from "#app/core/common/models/Entity.js";
+import { EventTypes } from "#app/core/common/events/eventTypes.js";
 'use strict';
 /**
  * Personality Domain Model
@@ -11,7 +11,6 @@ import Entity from "#app/core/common/models/Entity.js";
  * AI attitudes, and insights in the system.
  * Uses Zod for data validation to ensure integrity.
  */
-const { EventTypes } = domainEvents;
 /**
  * Personality class
  * Represents a user's personality traits, AI attitudes, and insights
@@ -20,11 +19,10 @@ class Personality extends Entity {
     /**
      * Create a personality instance
      * @param {Object} data - Personality data
+     * @param {Object} options - Additional options
+     * @param {Object} options.EventTypes - EventTypes constant object (optional)
      */
-    /**
-     * Method constructor
-     */
-    constructor(data = {}) {
+    constructor(data = {}, options = {}) {
         // Call Entity constructor with the id
         super(data.id);
         
@@ -51,13 +49,13 @@ class Personality extends Entity {
             Object.assign(this, personalityData);
             console.warn('Personality data validation warning:', result.error.message);
         }
+        
+        // Store EventTypes if provided (needed for addDomainEvent)
+        this.EventTypes = options.EventTypes; 
     }
     /**
      * Validate the personality model
      * @returns {Object} Validation result with isValid and errors properties
-     */
-    /**
-     * Method validate
      */
     validate() {
         const result = personalitySchema.safeParse(this);
@@ -80,9 +78,6 @@ class Personality extends Entity {
      * Update personality traits
      * @param {Object} traits - New personality traits to merge with existing ones
      */
-    /**
-     * Method updateTraits
-     */
     updateTraits(traits) {
         // Create a copy for validation
         const traitsToValidate = { ...traits };
@@ -98,8 +93,8 @@ class Personality extends Entity {
         };
         this.updatedAt = new Date().toISOString();
         // Add domain event instead of directly publishing
-        if (this.userId) {
-            this.addDomainEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
+        if (this.userId && this.EventTypes) {
+            this.addDomainEvent(this.EventTypes.PERSONALITY_PROFILE_UPDATED, {
                 userId: this.userId,
                 personalityId: this.id,
                 traits: this.personalityTraits,
@@ -110,9 +105,6 @@ class Personality extends Entity {
     /**
      * Update AI attitudes
      * @param {Object} attitudes - New AI attitudes to merge with existing ones
-     */
-    /**
-     * Method updateAttitudes
      */
     updateAttitudes(attitudes) {
         // Create a copy for validation
@@ -129,8 +121,8 @@ class Personality extends Entity {
         };
         this.updatedAt = new Date().toISOString();
         // Add domain event instead of directly publishing
-        if (this.userId) {
-            this.addDomainEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
+        if (this.userId && this.EventTypes) {
+            this.addDomainEvent(this.EventTypes.PERSONALITY_PROFILE_UPDATED, {
                 userId: this.userId,
                 personalityId: this.id,
                 aiAttitudes: this.aiAttitudes,
@@ -142,9 +134,6 @@ class Personality extends Entity {
      * Set dominant traits based on personality analysis
      * @param {Array} dominantTraits - Array of dominant trait objects
      */
-    /**
-     * Method setDominantTraits
-     */
     setDominantTraits(dominantTraits) {
         this.dominantTraits = dominantTraits;
         this.updatedAt = new Date().toISOString();
@@ -152,9 +141,6 @@ class Personality extends Entity {
     /**
      * Set trait clusters based on personality analysis
      * @param {Object} traitClusters - Categorized trait clusters
-     */
-    /**
-     * Method setTraitClusters
      */
     setTraitClusters(traitClusters) {
         this.traitClusters = traitClusters;
@@ -164,9 +150,6 @@ class Personality extends Entity {
      * Set AI attitude profile
      * @param {Object} aiAttitudeProfile - Categorized AI attitude profile
      */
-    /**
-     * Method setAIAttitudeProfile
-     */
     setAIAttitudeProfile(aiAttitudeProfile) {
         this.aiAttitudeProfile = aiAttitudeProfile;
         this.updatedAt = new Date().toISOString();
@@ -175,15 +158,12 @@ class Personality extends Entity {
      * Set insights generated from personality analysis
      * @param {Object} insights - Generated insights
      */
-    /**
-     * Method setInsights
-     */
     setInsights(insights) {
         this.insights = insights;
         this.updatedAt = new Date().toISOString();
         // Add domain event instead of directly publishing
-        if (this.userId) {
-            this.addDomainEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
+        if (this.userId && this.EventTypes) {
+            this.addDomainEvent(this.EventTypes.PERSONALITY_PROFILE_UPDATED, {
                 userId: this.userId,
                 personalityId: this.id,
                 updateType: 'insights',
@@ -193,9 +173,6 @@ class Personality extends Entity {
     /**
      * Set the conversation thread ID for personality analysis
      * @param {string} threadId - Conversation thread ID
-     */
-    /**
-     * Method setThreadId
      */
     setThreadId(threadId) {
         this.threadId = threadId;

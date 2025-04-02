@@ -1,3 +1,4 @@
+// Types improved by ts-improve-types
 /**
  * Global configuration types
  */
@@ -18,4 +19,4 @@ export interface Config {
     stateTracking?: boolean;
     authentication?: boolean;
   };
-} 
+}

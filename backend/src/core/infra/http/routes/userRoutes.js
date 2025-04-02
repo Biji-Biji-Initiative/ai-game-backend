@@ -1,8 +1,9 @@
 import express from 'express';
 import userApiSchemas from "#app/core/user/schemas/userApiSchemas.js";
-import { authenticateUser, requireAdmin } from "#app/core/infra/http/middleware/auth.js";
+import { requireAdmin } from "#app/core/infra/http/middleware/auth.js";
 import { authorizeUserSpecificResource } from "#app/core/infra/http/middleware/resourceAuth.js";
 import { createValidationMiddleware } from "#app/core/infra/http/middleware/validationFactory.js";
+import { logger as appLogger } from '#app/core/infra/logging/logger.js';
 'use strict';
 
 /**
@@ -18,13 +19,14 @@ import { createValidationMiddleware } from "#app/core/infra/http/middleware/vali
  */
 export default function userRoutes(options) {
   const router = express.Router();
+  const logger = appLogger.child({ component: 'UserRoutes' });
   
   // Extract userController from options - handles both direct controller and object param
   const userController = options.userController ? options.userController : options;
   
   // Check if we have a valid controller
   if (!userController || typeof userController.createUser !== 'function') {
-    console.error('Invalid userController provided to userRoutes');
+    logger.error('Invalid userController provided to userRoutes');
     return router;
   }
 
@@ -72,7 +74,6 @@ export default function userRoutes(options) {
   
   // Get user by email (admin only)
   router.get('/email/:email', 
-    authenticateUser, 
     requireAdmin,
     ...createValidationMiddleware({ params: userApiSchemas.emailParamSchema }),
     userController.getUserByEmail.bind(userController)
@@ -80,26 +81,22 @@ export default function userRoutes(options) {
   
   // Current user profile endpoints
   router.get('/me', 
-    authenticateUser, 
     userController.getCurrentUser.bind(userController)
   );
   
   // Get user profile
   router.get('/profile', 
-    authenticateUser,
     userController.getUserProfile.bind(userController)
   );
   
   // Update current user profile
   router.put('/me', 
-    authenticateUser,
     ...createValidationMiddleware({ body: userApiSchemas.updateUserSchema }),
     userController.updateCurrentUser.bind(userController)
   );
   
   // Update current user focus area
   router.put('/me/focus-area', 
-    authenticateUser,
     ...createValidationMiddleware({ body: userApiSchemas.updateFocusAreaSchema }),
     userController.setFocusArea.bind(userController)
   );
@@ -109,7 +106,6 @@ export default function userRoutes(options) {
    * Get all preferences for the current user
    */
   router.get('/me/preferences',
-    authenticateUser,
     userController.getUserPreferences.bind(userController)
   );
 
@@ -117,7 +113,6 @@ export default function userRoutes(options) {
    * Get preferences for a specific category for the current user
    */
   router.get('/me/preferences/:category',
-    authenticateUser,
     ...createValidationMiddleware({ params: userApiSchemas.preferencesCategoryParamSchema }),
     userController.getUserPreferencesByCategory.bind(userController)
   );
@@ -126,7 +121,6 @@ export default function userRoutes(options) {
    * Update all preferences for the current user
    */
   router.put('/me/preferences',
-    authenticateUser,
     ...createValidationMiddleware({ body: userApiSchemas.preferencesUpdateSchema }),
     userController.updateUserPreferences.bind(userController)
   );
@@ -135,7 +129,6 @@ export default function userRoutes(options) {
    * Update preferences for a specific category for the current user
    */
   router.put('/me/preferences/:category',
-    authenticateUser,
     ...createValidationMiddleware({ 
       params: userApiSchemas.preferencesCategoryParamSchema,
       body: userApiSchemas.preferencesCategoryUpdateSchema 
@@ -147,7 +140,6 @@ export default function userRoutes(options) {
    * Update a single preference for the current user
    */
   router.patch('/me/preferences/:key',
-    authenticateUser,
     ...createValidationMiddleware({ 
       params: userApiSchemas.preferencesKeyParamSchema,
       body: userApiSchemas.preferenceValueSchema 
@@ -159,14 +151,12 @@ export default function userRoutes(options) {
    * Reset a preference to its default value for the current user
    */
   router.delete('/me/preferences/:key',
-    authenticateUser,
     ...createValidationMiddleware({ params: userApiSchemas.preferencesKeyParamSchema }),
     userController.resetPreference.bind(userController)
   );
   
   // Get a specific user by ID (only if admin or same user)
   router.get('/:id', 
-    authenticateUser,
     authorizeUserSpecificResource('id'),
     ...createValidationMiddleware({ params: userApiSchemas.userIdSchema }),
     userController.getUserById.bind(userController)
@@ -175,7 +165,6 @@ export default function userRoutes(options) {
   // Update a specific user (only if admin or same user)
   if (typeof userController.updateUser === 'function') {
     router.put('/:id', 
-      authenticateUser,
       authorizeUserSpecificResource('id'),
       ...createValidationMiddleware({ 
         params: userApiSchemas.userIdSchema,
@@ -187,7 +176,6 @@ export default function userRoutes(options) {
   
   // List all users (admin only)
   router.get('/', 
-    authenticateUser, 
     requireAdmin, 
     ...createValidationMiddleware({ query: userApiSchemas.listUsersQuerySchema }),
     userController.listUsers.bind(userController)
@@ -196,7 +184,6 @@ export default function userRoutes(options) {
   // Delete a user (admin only)
   if (typeof userController.deleteUser === 'function') {
     router.delete('/:id',
-      authenticateUser,
       requireAdmin,
       ...createValidationMiddleware({ params: userApiSchemas.userIdSchema }),
       userController.deleteUser.bind(userController)

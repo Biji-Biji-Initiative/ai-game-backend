@@ -1,7 +1,6 @@
 import FormatType from "#app/core/challenge/models/config/FormatType.js";
 import formatTypeMapper from "#app/core/challenge/mappers/FormatTypeMapper.js";
 import { challengeLogger } from "#app/core/infra/logging/domainLogger.js";
-import { supabaseClient } from "#app/core/infra/db/supabaseClient.js";
 import { BaseRepository, ValidationError, DatabaseError, EntityNotFoundError } from "#app/core/infra/repositories/BaseRepository.js";
 import { withRepositoryErrorHandling, createErrorMapper } from "#app/core/infra/errors/errorStandardization.js";
 import challengeErrors from "#app/core/challenge/errors/ChallengeErrors.js";
@@ -39,7 +38,7 @@ class FormatTypeRepository extends BaseRepository {
    */
   constructor(options = {}) {
     super({
-      db: options.db || supabaseClient,
+      db: options.db,
       tableName: 'format_types',
       domainName: 'challenge:format',
       logger: options.logger || challengeLogger.child({
@@ -48,6 +47,15 @@ class FormatTypeRepository extends BaseRepository {
       maxRetries: 3
     });
     this.cache = options.cache;
+
+    // Log if dependencies are missing
+    if (!this.db) {
+      this.logger.warn('No database client provided to FormatTypeRepository');
+    }
+    if (!this.cache) {
+      this.logger.warn('No cache service provided to FormatTypeRepository');
+    }
+    
     // Apply standardized error handling to methods
     this.findAll = withRepositoryErrorHandling(
       this.findAll.bind(this),
@@ -496,10 +504,7 @@ class FormatTypeRepository extends BaseRepository {
     }
   }
 }
-// Create singleton instance
-const formatTypeRepository = new FormatTypeRepository();
 
 // Fix exports to ensure the class is properly exported
 export default FormatTypeRepository;
 export { FormatTypeRepository };
-export { formatTypeRepository };

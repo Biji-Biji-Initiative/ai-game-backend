@@ -1,4 +1,3 @@
-import { supabaseClient } from "#app/core/infra/db/supabaseClient.js";
 import { applyRepositoryErrorHandling, createErrorMapper } from "#app/core/infra/errors/errorStandardization.js";
 import { EntityNotFoundError, ValidationError, DatabaseError } from "#app/core/infra/repositories/BaseRepository.js";
 import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationRepositoryError } from "#app/core/evaluation/errors/EvaluationErrors.js";
@@ -23,13 +22,13 @@ class EvaluationCategoryRepository {
      * Method constructor
      */
     constructor(dependencies = {}) {
-        if (!dependencies.supabase && !supabaseClient) {
+        if (!dependencies.supabase) {
             throw new ValidationError('Supabase client is required for EvaluationCategoryRepository');
         }
         if (!dependencies.logger) {
             throw new ValidationError('Logger is required for EvaluationCategoryRepository');
         }
-        this.supabase = dependencies.supabase || supabaseClient;
+        this.supabase = dependencies.supabase;
         this.logger = dependencies.logger;
         
         // Apply error handling to each method individually

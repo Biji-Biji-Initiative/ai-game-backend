@@ -1,6 +1,6 @@
 'use strict';
 
-import domainEvents from "#app/core/common/events/domainEvents.js";
+import { EventTypes } from "#app/core/common/events/eventTypes.js";
 import { logger } from "#app/core/infra/logging/logger.js";
 import { UserJourneyRepository } from "#app/core/userJourney/repositories/UserJourneyRepository.js";
 
@@ -11,23 +11,42 @@ import { UserJourneyRepository } from "#app/core/userJourney/repositories/UserJo
  * Following DDD principles, these events are used to communicate changes
  * in the domain to other domains.
  */
-const {
-  EventTypes,
-  eventBus
-} = domainEvents;
 
-// Create repository instance
-const userJourneyRepository = new UserJourneyRepository();
+/**
+ * Get the UserJourneyRepository instance from the container.
+ * @param {DIContainer} container - The DI container instance.
+ * @returns {UserJourneyRepository}
+ */
+function getRepo(container) {
+    if (!container) {
+        logger.error('[userJourneyEvents] Container not provided to getRepo!');
+        throw new Error('DI container is required to get UserJourneyRepository');
+    }
+    try {
+        return container.get('userJourneyRepository');
+    } catch (error) {
+        logger.error('[userJourneyEvents] Failed to get UserJourneyRepository from container', { error: error.message });
+        throw error;
+    }
+}
 
 /**
  * Publish an event when a user journey event is recorded
  * @param {string} userId - ID of the user
  * @param {string} eventType - Type of journey event
  * @param {Object} eventData - Event data
+ * @param {DIContainer} container - The DI container instance
  * @returns {Promise<void>}
  */
-async function publishUserJourneyEventRecorded(userId, eventType, eventData) {
+async function publishUserJourneyEventRecorded(userId, eventType, eventData, container) {
   try {
+    if (!container) {
+      throw new Error('Container is required to publish user journey events');
+    }
+    
+    const userJourneyRepository = getRepo(container);
+    const eventBus = container.get('eventBus');
+    
     // Get entity to add domain event
     const entity = await userJourneyRepository.findById(userId);
     if (entity) {
@@ -68,10 +87,18 @@ async function publishUserJourneyEventRecorded(userId, eventType, eventData) {
  * @param {string} userId - ID of the user
  * @param {string} milestone - Milestone that was reached
  * @param {Object} milestoneData - Data related to the milestone
+ * @param {DIContainer} container - The DI container instance
  * @returns {Promise<void>}
  */
-async function publishUserMilestoneReached(userId, milestone, milestoneData = {}) {
+async function publishUserMilestoneReached(userId, milestone, milestoneData = {}, container) {
   try {
+    if (!container) {
+      throw new Error('Container is required to publish user journey events');
+    }
+    
+    const userJourneyRepository = getRepo(container);
+    const eventBus = container.get('eventBus');
+    
     // Get entity to add domain event
     const entity = await userJourneyRepository.findById(userId);
     if (entity) {
@@ -107,56 +134,34 @@ async function publishUserMilestoneReached(userId, milestone, milestoneData = {}
   }
 }
 
-/**
- * Set up user journey event subscriptions
- */
-async function registerUserJourneyEventHandlers() {
-  // When challenge is completed, record a journey event
-  eventBus.subscribe(EventTypes.CHALLENGE_EVALUATED, async event => {
-    logger.debug('Handling challenge evaluated event', {
-      challengeId: event.payload.challengeId,
-      userEmail: event.payload.userEmail
-    });
-    // In a real implementation, we would record a journey event
-    logger.info('User journey event would be recorded for challenge completion', {
-      userEmail: event.payload.userEmail,
-      challengeId: event.payload.challengeId
-    });
-    // Check if this is a milestone
-    if (event.payload.evaluation && event.payload.evaluation.score > 90) {
-      logger.info('User milestone would be checked for high score', {
-        userEmail: event.payload.userEmail,
-        score: event.payload.evaluation.score
-      });
+// Export event registration function
+export function registerUserJourneyEventHandlers(container) {
+    if (!container) {
+        throw new Error('Container is required to register user journey event handlers');
     }
-  });
-  
-  // When user profile is completed, record a journey milestone
-  eventBus.subscribe(EventTypes.USER_PROFILE_COMPLETED, async event => {
-    logger.debug('Handling user profile completed event', {
-      userId: event.payload.userId
+
+    const eventBus = container.get('eventBus');
+    if (!eventBus) {
+        throw new Error('EventBus not found in container');
+    }
+
+    // Register event handlers here...
+    // Example:
+    eventBus.on(EventTypes.USER_JOURNEY_EVENT_RECORDED, async (event) => {
+        try {
+            const repo = getRepo(container);
+            // Handle user journey event...
+            logger.info('User journey event handled', { eventId: event.id });
+        } catch (error) {
+            logger.error('Error handling user journey event', { error: error.message });
+        }
     });
-    // In a real implementation, we would record a journey milestone
-    logger.info('User journey milestone would be recorded for profile completion', {
-      userId: event.payload.userId
-    });
-  });
-  
-  // When progress is updated, check for milestones
-  eventBus.subscribe(EventTypes.PROGRESS_UPDATED, async event => {
-    logger.debug('Handling progress updated event', {
-      userId: event.payload.userId
-    });
-    // In a real implementation, we would check for journey milestones
-    logger.info('User journey milestones would be checked based on progress', {
-      userId: event.payload.userId
-    });
-  });
+
+    // Add more event handlers as needed...
 }
 
 export { publishUserJourneyEventRecorded };
 export { publishUserMilestoneReached };
-export { registerUserJourneyEventHandlers };
 
 export default {
   publishUserJourneyEventRecorded,

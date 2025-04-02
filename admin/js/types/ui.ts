@@ -1,7 +1,14 @@
+// Types improved by ts-improve-types
 /**
  * UI Component Types
  * Interfaces and types for UI components
  */
+
+// Add necessary imports
+import { ResponseViewer } from '../ui/response-viewer';
+import { DomainStateManager } from '../modules/domain-state-manager';
+import { APIClient } from '../api/api-client';
+import { DomainStateViewer } from '../components/DomainStateViewer';
 
 // UI Manager types
 export interface IUIManager {
@@ -10,32 +17,32 @@ export interface IUIManager {
   toastContainer: HTMLElement | null;
   loadingOverlay: HTMLElement | null;
   modalContainer: HTMLElement | null;
-  
+
   // Initialization methods
   initElements(): void;
   initializeUI(): void;
-  
+
   // Toast notifications
-  showToast(options: ToastOptions): void;
-  showSuccess(title: string, message: string, duration?: number): void;
-  showError(title: string, message: string, duration?: number): void;
-  showWarning(title: string, message: string, duration?: number): void;
-  showInfo(title: string, message: string, duration?: number): void;
-  
+  showToast(option: ToastOptions): void;
+  showSuccess(titl: string, message: string, duration?: number): void;
+  showError(titl: string, message: string, duration?: number): void;
+  showWarning(titl: string, message: string, duration?: number): void;
+  showInfo(titl: string, message: string, duration?: number): void;
+
   // Loading indicators
   showLoading(message?: string): void;
   hideLoading(): void;
-  
+
   // Modal dialogs
-  showModal(options: ModalOptions): HTMLElement;
-  closeModal(modalEl: HTMLElement): void;
+  showModal(option: ModalOptions): HTMLElement;
+  closeModal(modalE: HTMLElement): void;
   closeAllModals(): void;
-  
+
   // Confirmation dialogs
-  confirm(title: string, message: string, onConfirm: () => void, onCancel?: () => void): void;
-  
+  confirm(titl: string, message: string, onConfirm: () => void, onCancel?: () => void): void;
+
   // Theme and styling
-  setTheme(theme: string): void;
+  setTheme(them: string): void;
   getTheme(): string;
 }
 
@@ -47,10 +54,11 @@ export interface UIManagerOptions {
   toastContainerId?: string;
   loadingOverlayId?: string;
   modalContainerId?: string;
-  responseViewer?: any;
+  responseViewer?: ResponseViewer | null;
+  domainStateViewer?: DomainStateViewer | null;
   showLoadingIndicator?: (show: boolean, message?: string) => void;
   onUiReady?: () => void;
-  config?: any;
+  config?: Record<string, unknown>;
   debug?: boolean;
 }
 
@@ -60,7 +68,13 @@ export interface ToastOptions {
   type?: 'success' | 'error' | 'warning' | 'info';
   duration?: number;
   title?: string;
-  position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'top-center' | 'bottom-center';
+  position?:
+    | 'top-right'
+    | 'top-left'
+    | 'bottom-right'
+    | 'bottom-left'
+    | 'top-center'
+    | 'bottom-center';
   closable?: boolean;
   onClose?: () => void;
   dismissable?: boolean;
@@ -83,7 +97,7 @@ export interface ModalOptions {
 export interface ModalButton {
   text: string;
   type?: 'primary' | 'secondary' | 'danger' | 'success' | 'info' | 'warning';
-  onClick?: (modal: any) => void;
+  onClick?: (modal) => void;
   closeOnClick?: boolean;
 }
 
@@ -97,13 +111,18 @@ export interface ResponseViewerOptions {
   syntaxHighlighting?: boolean;
   collapsibleSections?: boolean;
   maxDepth?: number;
-  formatter?: any;
+  formatter?: Window['JSONFormatter'];
+  showCopyButton?: boolean;
+  showDownloadButton?: boolean;
+  showToggleFormat?: boolean;
+  enableVirtualization?: boolean;
+  maxHeight?: string;
 }
 
 // DomainStateViewer types
 export interface DomainStateViewerOptions {
   containerId: string;
-  stateManager: any;
+  stateManager: DomainStateManager;
   showFilters?: boolean;
   showTimeline?: boolean;
   selectedEntityTypes?: string[];
@@ -117,9 +136,9 @@ export interface DomainStateViewerOptions {
 // VariableExtractor types
 export interface VariableExtractorOptions {
   containerId: string;
-  responseViewer: any;
-  domainStateManager: any;
-  apiClient?: any;
+  responseViewer: ResponseViewer;
+  domainStateManager: DomainStateManager;
+  apiClient?: APIClient;
   variablePrefix?: string;
   suggestionsEnabled?: boolean;
   autoExtract?: boolean;
@@ -136,4 +155,4 @@ export interface HistoryManagerOptions {
   compressionThreshold?: number;
   storageQuotaWarningThreshold?: number;
   maxItems?: number;
-} 
+}

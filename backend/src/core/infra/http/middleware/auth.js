@@ -1,4 +1,3 @@
-import { supabaseClient } from "#app/core/infra/db/supabaseClient.js";
 import { logger } from "#app/core/infra/logging/logger.js";
 import { UserNotFoundError } from "#app/core/user/errors/UserErrors.js";
 import { v4 as uuidv4 } from "uuid";
@@ -63,9 +62,9 @@ const authErrorMapper = createErrorMapper({
 /**
  * The actual authentication logic separated from the middleware wrapper
  * @param {Request} req - Express request object
- * @param {Response} res - Express response object
+ * @param {Object} supabase - The initialized Supabase client instance
  */
-const performAuthentication = async req => {
+const performAuthentication = async (req, supabase) => {
   // TESTING ONLY: For endpoints that don't need authentication in development
   if (process.env.NODE_ENV === 'development' && process.env.BYPASS_AUTH === 'true') {
     logger.info('BYPASS MODE: Authentication bypassed in development mode');
@@ -94,8 +93,11 @@ const performAuthentication = async req => {
   logger.debug('Processing authentication request', {
     tokenPrefix: token.substring(0, 10)
   });
-  // 2. Use the centralized Supabase client from infrastructure layer
-  const supabase = supabaseClient;
+  // 2. Use the PROVIDED Supabase client
+  if (!supabase) {
+    logger.error('Supabase client was not provided to performAuthentication');
+    throw new AuthError('Authentication configuration error', 500);
+  }
   // 3. Verify the token with Supabase Auth
   const {
     data: userData,
@@ -148,22 +150,33 @@ const performAuthentication = async req => {
   });
 };
 /**
- * Authenticate user from request - wrapped with standardized error handling
- * @param {Request} req - Express request object
- * @param {Response} res - Express response object
- * @param {Function} next - Express next function
+ * Factory function to create the authentication middleware.
+ * @param {Object} supabase - The initialized Supabase client instance.
+ * @returns {Function} Express middleware function.
  */
-const authenticateUser = async (req, res, next) => {
-  try {
-    await performAuthentication(req);
-    next();
-  } catch (error) {
-    const mappedError = authErrorMapper(error, {
-      methodName: 'authenticateUser',
-      domainName: 'auth'
-    });
-    next(mappedError);
-  }
+const createAuthMiddleware = (supabase) => {
+    if (!supabase) {
+        logger.error('CRITICAL: Supabase client was not provided to createAuthMiddleware factory.');
+        // Return a middleware that immediately fails if supabase is missing during setup
+        return (req, res, next) => {
+            next(new AuthError('Server authentication setup error - Supabase client missing', 500));
+        };
+    }
+    
+    // Return the actual middleware function
+    return async (req, res, next) => {
+        try {
+            // Use the supabase client passed into the factory
+            await performAuthentication(req, supabase);
+            next();
+        } catch (error) {
+            const mappedError = authErrorMapper(error, {
+                methodName: 'authenticateUser', // Keep original name for logging context
+                domainName: 'auth'
+            });
+            next(mappedError);
+        }
+    };
 };
 /**
  * Middleware to require admin role
@@ -190,14 +203,14 @@ const addRequestId = (req, res, next) => {
   req.id = uuidv4();
   next();
 };
-export { authenticateUser };
+export { createAuthMiddleware };
 export { requireAdmin };
 export { addRequestId };
 export { AuthError };
 export { TokenError };
 export { PermissionError };
 export default {
-  authenticateUser,
+  createAuthMiddleware,
   requireAdmin,
   addRequestId,
   AuthError,

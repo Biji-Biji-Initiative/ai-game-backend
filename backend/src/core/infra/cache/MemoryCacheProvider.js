@@ -7,7 +7,7 @@ try {
   // Try to load NodeCache dynamically
   NodeCache = (await import('node-cache')).default;
 } catch (error) {
-  console.error('Failed to import NodeCache:', error);
+  logger.error('Failed to import NodeCache:', { error: error.message, stack: error.stack });
   // Create a simple in-memory cache implementation as fallback
   NodeCache = class SimpleCache {
     constructor() {

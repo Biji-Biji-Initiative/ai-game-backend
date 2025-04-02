@@ -132,4 +132,30 @@ register:
                   example: false
                 message:
                   type: string
-                  example: User with this email already exists 
+                  example: User with this email already exists
+
+status:
+  get:
+    summary: Auth service status
+    description: Returns the status of the authentication service
+    operationId: getAuthStatus
+    tags:
+      - Auth
+    responses:
+      '200':
+        description: Auth service status check
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: success
+                message:
+                  type: string
+                  example: Auth service is running
+                authenticated:
+                  type: boolean
+                  example: false
+                  description: Indicates if the request includes valid authentication 

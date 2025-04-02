@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import { ChallengeValidationError } from "#app/core/challenge/errors/ChallengeErrors.js";
 import { ChallengeSchema } from "#app/core/challenge/schemas/ChallengeSchema.js";
 import { Email, ChallengeId, FocusArea, DifficultyLevel, createEmail, createChallengeId, createFocusArea, createDifficultyLevel } from "#app/core/common/valueObjects/index.js";
+import { EventTypes } from "#app/core/common/events/eventTypes.js";
 'use strict';
 /**
  * @swagger
@@ -112,6 +113,8 @@ class Challenge {
     /**
      * Create a new Challenge instance
      * @param {Object} data - Challenge data
+     * @param {Object} options - Additional options
+     * @param {Object} options.EventTypes - Event type constants
      * @param {string} data.title - Title of the challenge
      * @param {Object|string} data.content - The challenge content/question
      * @param {string|Email} [data.userEmail] - Email of the user the challenge is for
@@ -125,17 +128,31 @@ class Challenge {
      * @param {Date|string} [data.updatedAt] - When the challenge was last updated
      * @throws {ChallengeValidationError} When required fields are missing or validation fails
      */
-    constructor({ id, content, userEmail, userId, focusArea, focusAreaId, challengeType, formatType, difficulty, status = 'pending', createdAt = new Date(), updatedAt = new Date(), responses = [], evaluation = null, score = 0, title = '', description = '', instructions = '', evaluationCriteria = [] }) {
+    constructor(data = {}, options = {}) {
+        this.id = data.id || uuidv4();
+        this.userId = data.userId;
+        this.name = data.name;
+        this.description = data.description || '';
+        this.type = data.type;
+        this.status = data.status || 'pending';
+        this.metadata = data.metadata || {};
+        this.createdAt = data.createdAt || new Date().toISOString();
+        this.updatedAt = data.updatedAt || new Date().toISOString();
+        this._domainEvents = [];
+        
+        // Store EventTypes from options
+        this.EventTypes = options.EventTypes || EventTypes;
+        
         // Convert id to ChallengeId value object if needed
-        this._idVO = id ? (id instanceof ChallengeId ? id : createChallengeId(id || uuidv4())) : createChallengeId(uuidv4());
+        this._idVO = data.id ? (data.id instanceof ChallengeId ? data.id : createChallengeId(data.id || uuidv4())) : createChallengeId(uuidv4());
         if (!this._idVO) {
             throw new ChallengeValidationError('Invalid challenge ID format');
         }
         
         // Convert userEmail to Email value object if provided and not already a VO
         this._emailVO = null;
-        if (userEmail) {
-            this._emailVO = userEmail instanceof Email ? userEmail : createEmail(userEmail);
+        if (data.userEmail) {
+            this._emailVO = data.userEmail instanceof Email ? data.userEmail : createEmail(data.userEmail);
             if (!this._emailVO) {
                 throw new ChallengeValidationError('Invalid email format');
             }
@@ -143,8 +160,8 @@ class Challenge {
         
         // Convert focusArea to FocusArea value object if needed
         this._focusAreaVO = null;
-        if (focusArea) {
-            this._focusAreaVO = focusArea instanceof FocusArea ? focusArea : createFocusArea(focusArea);
+        if (data.focusArea) {
+            this._focusAreaVO = data.focusArea instanceof FocusArea ? data.focusArea : createFocusArea(data.focusArea);
             if (!this._focusAreaVO) {
                 throw new ChallengeValidationError('Invalid focus area format');
             }
@@ -152,8 +169,8 @@ class Challenge {
         
         // Convert difficulty to DifficultyLevel value object if needed
         this._difficultyVO = null;
-        if (difficulty) {
-            this._difficultyVO = difficulty instanceof DifficultyLevel ? difficulty : createDifficultyLevel(difficulty);
+        if (data.difficulty) {
+            this._difficultyVO = data.difficulty instanceof DifficultyLevel ? data.difficulty : createDifficultyLevel(data.difficulty);
             if (!this._difficultyVO) {
                 throw new ChallengeValidationError('Invalid difficulty level');
             }
@@ -162,23 +179,23 @@ class Challenge {
         // Create a data object to validate
         const challengeData = {
             id: this._idVO.value,
-            title,
-            description,
-            content: typeof content === 'string' ? { instructions: content } : content,
-            userEmail: this._emailVO ? this._emailVO.value : userEmail,
-            userId,
-            focusArea: this._focusAreaVO ? this._focusAreaVO.value : focusArea,
-            focusAreaId,
-            challengeType,
-            formatType,
-            difficulty: this._difficultyVO ? this._difficultyVO.value : difficulty,
-            status,
-            responses,
-            evaluation,
-            score,
-            createdAt: createdAt instanceof Date ? createdAt.toISOString() : createdAt,
-            updatedAt: updatedAt instanceof Date ? updatedAt.toISOString() : updatedAt,
-            evaluationCriteria
+            title: data.title,
+            description: this.description,
+            content: typeof data.content === 'string' ? { instructions: data.content } : data.content,
+            userEmail: this._emailVO ? this._emailVO.value : data.userEmail,
+            userId: this.userId,
+            focusArea: this._focusAreaVO ? this._focusAreaVO.value : data.focusArea,
+            focusAreaId: data.focusAreaId,
+            challengeType: data.challengeType,
+            formatType: data.formatType,
+            difficulty: this._difficultyVO ? this._difficultyVO.value : data.difficulty,
+            status: this.status,
+            responses: data.responses || [],
+            evaluation: data.evaluation,
+            score: data.score || 0,
+            createdAt: this.createdAt,
+            updatedAt: this.updatedAt,
+            evaluationCriteria: data.evaluationCriteria || []
         };
         
         // Validate with Zod schema
@@ -214,9 +231,6 @@ class Challenge {
         // Handle date formats - convert ISO strings back to Date objects
         this.createdAt = new Date(validData.createdAt);
         this.updatedAt = new Date(validData.updatedAt);
-        
-        // Domain events collection to track events raised by this entity
-        this._domainEvents = [];
     }
     /**
      * Get the challenge ID as a value object
@@ -321,22 +335,33 @@ class Challenge {
     }
     /**
      * Add a domain event
-     * @param {string} eventType - Type of the event
+     * @param {string} eventType - Type of the event from EventTypes
      * @param {Object} eventData - Event data
      */
-    addDomainEvent(eventType, eventData) {
+    addDomainEvent(eventType, eventData = {}) {
         if (!this._domainEvents) {
             this._domainEvents = [];
         }
-        this._domainEvents.push({
-            eventType,
-            eventData,
-            timestamp: new Date(),
-        });
+
+        // Create standardized event structure
+        const event = {
+            type: eventType,
+            data: {
+                ...eventData,
+                entityId: this.id,
+                entityType: 'Challenge'
+            },
+            metadata: {
+                timestamp: new Date().toISOString(),
+                correlationId: `challenge-${this.id}-${Date.now()}`
+            }
+        };
+        
+        this._domainEvents.push(event);
     }
     /**
      * Get all domain events
-     * @returns {Array} Collection of domain events
+     * @returns {Array} Array of domain events
      */
     getDomainEvents() {
         return this._domainEvents || [];
@@ -367,7 +392,6 @@ class Challenge {
             updatedAt: this.updatedAt,
             title: this.title,
             description: this.description,
-            instructions: this.instructions,
             evaluationCriteria: this.evaluationCriteria,
             responses: this.responses,
             evaluation: this.evaluation,

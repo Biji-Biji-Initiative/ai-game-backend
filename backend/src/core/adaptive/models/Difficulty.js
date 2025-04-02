@@ -1,4 +1,5 @@
 import { LEVEL_THRESHOLDS, ADJUSTMENT, TRAIT_MODIFIERS, TIME_ALLOCATION, VALID_LEVELS } from "#app/core/adaptive/config/difficultyConfig.js";
+import { AdaptiveValidationError } from "#app/core/adaptive/errors/adaptiveErrors.js";
 'use strict';
 /**
  *
@@ -60,7 +61,7 @@ class Difficulty {
      */
     increase(percentage = 10) {
         if (percentage < 0 || percentage > 100) {
-            throw new Error('Percentage must be between 0 and 100');
+            throw new AdaptiveValidationError('Percentage must be between 0 and 100');
         }
         const factor = percentage / 100;
         // Increase complexity and depth
@@ -80,7 +81,7 @@ class Difficulty {
      */
     decrease(percentage = 10) {
         if (percentage < 0 || percentage > 100) {
-            throw new Error('Percentage must be between 0 and 100');
+            throw new AdaptiveValidationError('Percentage must be between 0 and 100');
         }
         const factor = percentage / 100;
         // Decrease complexity and depth
@@ -146,7 +147,7 @@ class Difficulty {
      */
     adjustBasedOnScore(score) {
         if (score < 0 || score > 100) {
-            throw new Error('Score must be between 0 and 100');
+            throw new AdaptiveValidationError('Score must be between 0 and 100');
         }
         // Calculate adjustment percentage based on score
         let adjustmentPercentage = 0;
@@ -178,6 +179,31 @@ class Difficulty {
             timeAllocation: Math.round(this.timeAllocation),
             adaptiveFactor: this.adaptiveFactor,
         };
+    }
+    /**
+     * Set the difficulty score percentage
+     * @param {number} percentage - Difficulty score percentage (0-100)
+     * @throws {AdaptiveValidationError} If percentage is out of range
+     */
+    setPercentage(percentage) {
+        if (percentage < 0 || percentage > 100) {
+            throw new AdaptiveValidationError('Percentage must be between 0 and 100');
+        }
+        this.percentage = percentage;
+        this.code = this._calculateCodeFromPercentage(percentage);
+    }
+
+    /**
+     * Set the difficulty score percentage based on an absolute score
+     * @param {number} score - Absolute score (0-100)
+     * @throws {AdaptiveValidationError} If score is out of range
+     */
+    setFromAbsoluteScore(score) {
+        if (score < 0 || score > 100) {
+            throw new AdaptiveValidationError('Score must be between 0 and 100');
+        }
+        // Assuming a linear mapping for now
+        this.setPercentage(score);
     }
 }
 export default Difficulty;

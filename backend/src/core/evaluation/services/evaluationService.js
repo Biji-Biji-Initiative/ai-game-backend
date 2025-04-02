@@ -151,19 +151,19 @@ class EvaluationService {
      */
     async evaluateResponse(challenge, userResponse, options = {}) {
         if (!challenge) {
-            throw new Error('Challenge is required for evaluation');
+            throw new EvaluationValidationError('Challenge is required for evaluation');
         }
         if (!userResponse) {
-            throw new Error('User response is required for evaluation');
+            throw new EvaluationValidationError('User response is required for evaluation');
         }
         const threadId = options.threadId;
         if (!threadId) {
-            throw new Error('Thread ID is required for evaluation');
+            throw new EvaluationValidationError('Thread ID is required for evaluation');
         }
         // Extract user ID from challenge or options
-        const userId = challenge.userEmail || challenge.userId || options.user?.email || options.user?.id;
+        const userId = challenge.userId || options.user?.id; // Prefer userId if available on challenge
         if (!userId) {
-            throw new Error('User ID or email is required for evaluation');
+            throw new EvaluationValidationError('User ID is required for evaluation');
         }
         // Get or create a conversation state for this evaluation thread
         const conversationState = await this.aiStateManager.findOrCreateConversationState(userId, `evaluation_${threadId}`, { createdAt: new Date().toISOString() });
@@ -232,7 +232,8 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`);
         await this.aiStateManager.updateLastResponseId(conversationState.id, response.responseId);
         // Validate and process the response
         if (!response || !response.data) {
-            throw new Error('Invalid evaluation response format from AI service');
+            // Use ProcessingError for infra/external service issues
+            throw new EvaluationProcessingError('Invalid evaluation response format from AI service'); 
         }
         // Extract evaluation data from response
         const evaluationData = response.data;
@@ -241,13 +242,24 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`);
             id: uuidv4(),
             challengeId: challenge.id,
             userId: userId,
-            overallScore: evaluationData.overallScore || evaluationData.score,
-            feedback: evaluationData.feedback,
-            strengths: evaluationData.strengths,
-            improvements: evaluationData.improvements,
-            categoryScores: evaluationData.categoryScores,
-            insights: evaluationData.insights,
+            // Use data from the AI response, mapping keys if needed
+            score: evaluationData.overallScore || evaluationData.score || 0,
+            categoryScores: evaluationData.categoryScores || {},
+            overallFeedback: evaluationData.feedback || evaluationData.overallFeedback || '',
+            strengths: evaluationData.strengths || [],
+            areasForImprovement: evaluationData.improvements || evaluationData.areasForImprovement || [],
+            // Add other relevant fields from evaluationData
+            strengthAnalysis: evaluationData.strengthAnalysis || [],
+            improvementPlans: evaluationData.improvementPlans || [],
+            nextSteps: evaluationData.nextSteps || '',
+            recommendedResources: evaluationData.recommendedResources || [],
+            recommendedChallenges: evaluationData.recommendedChallenges || [],
+            userContext: evaluationData.userContext || options.user || {}, // Pass user context used
+            challengeContext: evaluationData.challengeContext || { title: challenge.title, type: challenge.challengeType /*...*/ }, // Pass challenge context used
+            growthMetrics: evaluationData.growthMetrics || {}, // From AI or calculated later?
+            relevantCategories: evaluationData.relevantCategories || [], // From AI or calculated later?
             createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
             metadata: {
                 promptOptions,
                 model: apiOptions.model,
@@ -255,8 +267,19 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`);
                 responseId: response.responseId,
                 conversationId: conversationState.id
             }
-        });
-        // Publish evaluation created event
+        }, { EventTypes: EventTypes }); // Pass EventTypes constant
+        
+        // Ensure the evaluation object adds the CREATED event within its constructor or a method
+        // evaluation.addDomainEvent(EventTypes.EVALUATION_CREATED, { ... });
+
+        // Persist the evaluation using the repository
+        // The repository's save method (using withTransaction) will handle event publishing
+        this.logger.info('Saving evaluation', { evaluationId: evaluation.id, userId: userId });
+        const savedEvaluation = await this.evaluationRepository.save(evaluation);
+        this.logger.info('Evaluation saved successfully', { evaluationId: savedEvaluation.id });
+        
+        // REMOVE direct event publishing
+        /*
         if (this.eventBus) {
             this.eventBus.publish('evaluation.created', {
                 evaluation,
@@ -264,7 +287,9 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`);
                 userResponse
             });
         }
-        return evaluation;
+        */
+        
+        return savedEvaluation; // Return the saved entity
     }
     /**
      * Stream an evaluation response with real-time updates
@@ -272,19 +297,37 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`);
      * @param {string|Array} userResponse - User's response to evaluate
      * @param {Object} options - Additional options
      * @param {Function} onChunk - Callback for each chunk of streamed content
+     * @param {Function} onComplete - Callback for when streaming is complete
+     * @param {Function} onError - Callback for errors during streaming
      * @returns {Promise<void>} - Resolves when streaming completes
      */
-    async streamEvaluation(challenge, userResponse, options = {}, onChunk) {
+    async streamEvaluation(challenge, userResponse, options = {}, callbacks) { 
+        // Destructure callbacks for clarity
+        const { onChunk, onComplete, onError } = callbacks || {};
+        
         if (!challenge) {
-            throw new Error('Challenge is required for evaluation');
+            throw new EvaluationValidationError('Challenge is required for evaluation');
         }
         if (!userResponse) {
-            throw new Error('User response is required for evaluation');
+            throw new EvaluationValidationError('User response is required for evaluation');
         }
         if (typeof onChunk !== 'function') {
-            throw new Error('onChunk callback is required for streaming evaluations');
+            throw new EvaluationValidationError('onChunk callback is required for streaming evaluations');
         }
+        // Ensure onComplete and onError are functions if provided
+        if (onComplete && typeof onComplete !== 'function') {
+            throw new EvaluationValidationError('onComplete callback must be a function if provided');
+        }
+        if (onError && typeof onError !== 'function') {
+            throw new EvaluationValidationError('onError callback must be a function if provided');
+        }
+        
         const threadId = options.threadId || uuidv4();
+        const userId = challenge.userId || options.user?.id;
+        if (!userId) {
+             throw new EvaluationValidationError('User ID is required for evaluation');
+        }
+
         // Prepare messages similarly to evaluateResponse
         const promptOptions = {
             challengeTypeName: challenge.challengeTypeCode || 'standard',
@@ -298,30 +341,104 @@ ${promptOptions.formatMetadata.evaluationNote || ''}`);
             options: promptOptions
         });
         const messages = formatForResponsesApi(prompt, `You are an AI evaluation expert specializing in providing personalized feedback.`);
+
         // Configure streaming options
         const streamOptions = {
             model: options.model || 'gpt-4o',
             temperature: options.temperature || 0.4,
             onEvent: (eventType, data) => {
-                if (eventType === 'content') {
-                    onChunk(data.content);
-                }
-                else if (eventType === 'error') {
-                    this.logger.error('Error streaming evaluation', { error: data });
-                    throw new Error(data.message || 'Error streaming evaluation');
+                try {
+                    if (eventType === 'content') {
+                        onChunk(data.content);
+                    } else if (eventType === 'error') {
+                        this.logger.error('Error streaming evaluation', { error: data });
+                        const streamError = new EvaluationProcessingError(data.message || 'Error streaming evaluation', { cause: data });
+                        if (onError) {
+                            onError(streamError);
+                        } else {
+                            // If no specific error handler, rethrow to be caught by the main try/catch
+                            throw streamError; 
+                        }
+                    } else if (eventType === 'complete') {
+                        // Handle completion if needed (though onComplete callback is preferred)
+                    }
+                } catch (handlerError) {
+                    // Catch errors within the onEvent handlers themselves
+                    this.logger.error('Error in stream onEvent handler', { handlerError: handlerError.message });
+                    if (onError) onError(handlerError);
                 }
             }
         };
+
         // Start streaming
-        this.logger.debug('Starting evaluation stream', {
-            challengeId: challenge.id,
-            threadId
-        });
-        await this.aiClient.streamMessage(messages, streamOptions);
-        this.logger.debug('Completed evaluation stream', {
-            challengeId: challenge.id,
-            threadId
-        });
+        this.logger.debug('Starting evaluation stream', { challengeId: challenge.id, threadId });
+        try {
+            const fullText = await this.aiClient.streamMessage(messages, streamOptions);
+            this.logger.debug('Completed evaluation stream', { challengeId: challenge.id, threadId });
+            // Call the onComplete handler if provided
+            if (onComplete) {
+                await onComplete(fullText);
+            }
+        } catch (streamError) {
+             this.logger.error('Error during AI stream execution', { streamError: streamError.message, threadId });
+             const processingError = new EvaluationProcessingError('AI stream failed', { cause: streamError });
+             if (onError) {
+                 onError(processingError);
+             } else {
+                 throw processingError; // Rethrow if no specific handler
+             }
+        }
+    }
+    /**
+     * Process evaluation data received from a stream.
+     * This method assumes the full JSON evaluation text is available.
+     * @param {string} userId - User ID
+     * @param {string} challengeId - Challenge ID
+     * @param {string} evaluationText - Full JSON string from the stream
+     * @param {string} threadId - Conversation thread ID
+     * @returns {Promise<Evaluation>} The processed and saved evaluation
+     */
+    async processStreamedEvaluation(userId, challengeId, evaluationText, threadId) {
+        this.logger.debug('Processing streamed evaluation text', { userId, challengeId, threadId });
+        let evaluationData;
+        try {
+            evaluationData = JSON.parse(evaluationText);
+        } catch (error) {
+            this.logger.error('Failed to parse streamed evaluation JSON', { error: error.message, threadId });
+            throw new EvaluationProcessingError('Invalid evaluation format received from stream', { cause: error });
+        }
+
+        // Create Evaluation domain object
+        const evaluation = new Evaluation({
+            id: uuidv4(),
+            challengeId: challengeId,
+            userId: userId,
+            score: evaluationData.overallScore || evaluationData.score || 0,
+            categoryScores: evaluationData.categoryScores || {},
+            overallFeedback: evaluationData.feedback || evaluationData.overallFeedback || '',
+            strengths: evaluationData.strengths || [],
+            areasForImprovement: evaluationData.improvements || evaluationData.areasForImprovement || [],
+            // Add other relevant fields
+            strengthAnalysis: evaluationData.strengthAnalysis || [],
+            improvementPlans: evaluationData.improvementPlans || [],
+            nextSteps: evaluationData.nextSteps || '',
+            recommendedResources: evaluationData.recommendedResources || [],
+            recommendedChallenges: evaluationData.recommendedChallenges || [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            metadata: {
+                model: evaluationData.metadata?.model, // Get metadata if provided by AI
+                streamed: true,
+                threadId: threadId,
+            }
+        }, { EventTypes: EventTypes });
+
+        // Persist using the repository (which handles event publishing)
+        this.logger.info('Saving streamed evaluation', { evaluationId: evaluation.id, userId: userId });
+        const savedEvaluation = await this.evaluationRepository.save(evaluation);
+        this.logger.info('Streamed evaluation saved successfully', { evaluationId: savedEvaluation.id });
+        
+        return savedEvaluation;
     }
 }
 export default EvaluationService;

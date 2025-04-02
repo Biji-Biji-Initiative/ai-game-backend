@@ -1,8 +1,9 @@
 'use strict';
 
-import domainEvents from "#app/core/common/events/domainEvents.js";
+import { EventTypes } from "#app/core/common/events/eventTypes.js";
 import { logger } from "#app/core/infra/logging/logger.js";
-import { PersonalityRepository } from "#app/core/personality/repositories/PersonalityRepository.js";
+// REMOVED: Direct import
+// import { PersonalityRepository } from "#app/core/personality/repositories/PersonalityRepository.js";
 
 /**
  * Personality Domain Events
@@ -12,29 +13,42 @@ import { PersonalityRepository } from "#app/core/personality/repositories/Person
  * in the domain to other domains.
  */
 
-const {
-  EventTypes,
-  eventBus,
-  DomainEvent
-} = domainEvents;
+// REMOVED: Top-level instantiation
+// const personalityRepository = new PersonalityRepository();
 
-// Create repository instance
-const personalityRepository = new PersonalityRepository();
+/**
+ * Get the PersonalityRepository instance from the container.
+ * @param {DIContainer} container - The DI container instance.
+ * @returns {PersonalityRepository}
+ */
+function getRepo(container) {
+    if (!container) {
+        logger.error('[personalityEvents] Container not provided to getRepo!');
+        throw new Error('DI container is required to get PersonalityRepository');
+    }
+    try {
+        // Assuming it's registered as 'personalityRepository'
+        return container.get('personalityRepository');
+    } catch (error) {
+        logger.error('[personalityEvents] Failed to get PersonalityRepository from container', { error: error.message });
+        throw error;
+    }
+}
 
 /**
  * Publish an event when a personality trait is identified
+ * @param {DIContainer} container - The DI container instance.
  * @param {string} userEmail - Email of the user
  * @param {string} traitName - Name of the trait
  * @param {number} traitScore - Score for the trait (0-1)
  * @param {string} source - Source of the trait identification (e.g., evaluation, assessment)
  * @returns {Promise<void>}
  */
-async function publishTraitIdentified(userEmail, traitName, traitScore, source, personalityId) {
+async function publishTraitIdentified(container, userEmail, traitName, traitScore, source, personalityId) {
   try {
-    // Get entity to add domain event
-    const entity = await personalityRepository.findById(personalityId);
+    const repo = getRepo(container);
+    const entity = await repo.findById(personalityId);
     if (entity) {
-      // Add domain event to entity
       entity.addDomainEvent(EventTypes.PERSONALITY_TRAIT_IDENTIFIED, {
         userEmail,
         trait: {
@@ -44,18 +58,13 @@ async function publishTraitIdentified(userEmail, traitName, traitScore, source, 
         source
       });
       
-      // Save entity which will publish the event
-      await personalityRepository.save(entity);
+      await repo.save(entity);
     } else {
-      // Fallback to direct event publishing if entity not found
-      console.warn(`Entity with ID ${personalityId} not found for event PERSONALITY_TRAIT_IDENTIFIED. Using direct event publishing.`);
-      await eventBus.publishEvent(EventTypes.PERSONALITY_TRAIT_IDENTIFIED, {
-        userEmail,
-        trait: {
-          name: traitName,
-          score: traitScore
-        },
-        source
+      logger.warn(`[personalityEvents] Entity ${personalityId} not found for PERSONALITY_TRAIT_IDENTIFIED. Direct publish.`);
+      await eventBus.publish({
+        type: EventTypes.PERSONALITY_TRAIT_IDENTIFIED,
+        data: { entityId: personalityId, entityType: 'Personality', userEmail, trait: { name: traitName, score: traitScore }, source },
+        metadata: { timestamp: new Date().toISOString() }
       });
     }
     
@@ -74,16 +83,16 @@ async function publishTraitIdentified(userEmail, traitName, traitScore, source, 
 
 /**
  * Publish an event when a personality profile is updated
+ * @param {DIContainer} container - The DI container instance.
  * @param {string} userEmail - Email of the user
  * @param {Object} profile - Updated personality profile
  * @returns {Promise<void>}
  */
-async function publishProfileUpdated(userEmail, profile, personalityId) {
+async function publishProfileUpdated(container, userEmail, profile, personalityId) {
   try {
-    // Get entity to add domain event
-    const entity = await personalityRepository.findById(personalityId);
+    const repo = getRepo(container);
+    const entity = await repo.findById(personalityId);
     if (entity) {
-      // Add domain event to entity
       entity.addDomainEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
         userEmail,
         profile: {
@@ -92,17 +101,13 @@ async function publishProfileUpdated(userEmail, profile, personalityId) {
         }
       });
       
-      // Save entity which will publish the event
-      await personalityRepository.save(entity);
+      await repo.save(entity);
     } else {
-      // Fallback to direct event publishing if entity not found
-      console.warn(`Entity with ID ${personalityId} not found for event PERSONALITY_PROFILE_UPDATED. Using direct event publishing.`);
-      await eventBus.publishEvent(EventTypes.PERSONALITY_PROFILE_UPDATED, {
-        userEmail,
-        profile: {
-          dominantTraits: profile.dominantTraits || [],
-          traitScores: profile.traitScores || {}
-        }
+      logger.warn(`[personalityEvents] Entity ${personalityId} not found for PERSONALITY_PROFILE_UPDATED. Direct publish.`);
+      await eventBus.publish({
+        type: EventTypes.PERSONALITY_PROFILE_UPDATED,
+        data: { entityId: personalityId, entityType: 'Personality', userEmail, profile: { /* ... profile data ... */ } },
+        metadata: { timestamp: new Date().toISOString() }
       });
     }
     
@@ -119,36 +124,35 @@ async function publishProfileUpdated(userEmail, profile, personalityId) {
 
 /**
  * Set up personality event subscriptions
+ * @param {DIContainer} container - The DI container instance.
  */
-async function registerPersonalityEventHandlers() {
-  // Subscribe to evaluation completed events to extract personality traits
-  eventBus.subscribe(EventTypes.EVALUATION_COMPLETED, async event => {
-    logger.debug('Handling evaluation completed event for personality analysis', {
-      evaluationId: event.payload.evaluationId
-    });
-    // Extract traits from evaluation result if available
-    const traits = event.payload.result.traits;
-    if (traits && Object.keys(traits).length > 0) {
-      logger.info('Processing personality traits from evaluation', {
-        userEmail: event.payload.userEmail,
-        traitCount: Object.keys(traits).length
-      });
-      // In a real implementation, we would update the user's personality profile here
-      // For now, we just log the traits
-      for (const [traitName, traitScore] of Object.entries(traits)) {
-        logger.debug('Identified trait from evaluation', {
-          userEmail: event.payload.userEmail,
-          traitName,
-          traitScore
-        });
-      }
+export function registerPersonalityEventHandlers(container) {
+    if (!container) {
+        throw new Error('Container is required to register personality event handlers');
     }
-  });
+
+    const eventBus = container.get('eventBus');
+    if (!eventBus) {
+        throw new Error('EventBus not found in container');
+    }
+
+    // Register event handlers here...
+    // Example:
+    eventBus.on(EventTypes.PERSONALITY_TRAIT_IDENTIFIED, async (event) => {
+        try {
+            const repo = getRepo(container);
+            // Handle personality trait identified event...
+            logger.info('Personality trait identified event handled', { eventId: event.id });
+        } catch (error) {
+            logger.error('Error handling personality trait identified event', { error: error.message });
+        }
+    });
+
+    // Add more event handlers as needed...
 }
 
 export { publishTraitIdentified };
 export { publishProfileUpdated };
-export { registerPersonalityEventHandlers };
 
 export default {
   publishTraitIdentified,

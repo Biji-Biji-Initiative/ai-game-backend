@@ -1,104 +1,124 @@
-import UserJourneyEvent from "#app/core/userJourney/models/UserJourneyEvent.js";
 'use strict';
+
+import { UserJourney, ENGAGEMENT_LEVELS } from "#app/core/userJourney/models/UserJourney.js";
+import UserJourneyEvent from "#app/core/userJourney/models/UserJourneyEvent.js";
+import { logger } from "#app/core/infra/logging/logger.js";
+
 /**
  * UserJourneyMapper class
- * Responsible for mapping between UserJourney domain objects and database representation
+ * Maps between UserJourney domain aggregate and database representation.
  */
 class UserJourneyMapper {
+    constructor() {
+        this.logger = logger.child({ component: 'UserJourneyMapper' });
+    }
     /**
-     * Convert a database record to a UserJourney domain entity
-     * @param {Object} data - Database user journey record
-     * @returns {UserJourneyEvent} UserJourneyEvent domain entity
+     * Convert database record to UserJourney domain aggregate.
+     * NOTE: This typically does NOT load all events by default.
+     * Events should be loaded separately if needed by specific use cases.
+     * @param {Object} dbRecord - Database record from user_journeys table.
+     * @param {Object} [options={}] - Additional options (e.g., EventTypes).
+     * @returns {UserJourney|null} UserJourney domain aggregate.
      */
-    toDomain(data) {
-        if (!data) {
+    toDomain(dbRecord, options = {}) {
+        if (!dbRecord) {
             return null;
         }
-        // Convert string dates to Date objects if needed
-        const timestamp = data.timestamp instanceof Date ? data.timestamp : new Date(data.timestamp);
-        const createdAt = data.created_at instanceof Date
-            ? data.created_at
-            : new Date(data.created_at || data.createdAt);
-        // Convert event data from string to object if needed
-        let eventData = data.event_data || data.eventData || {};
-        if (typeof eventData === 'string') {
-            try {
-                eventData = JSON.parse(eventData);
-            }
-            catch {
-                eventData = {};
-            }
+
+        // Parse JSON fields
+        let metrics = {};
+        if (typeof dbRecord.metrics === 'string') {
+            try { metrics = JSON.parse(dbRecord.metrics); } catch (e) { this.logger.error('Failed to parse metrics JSON', { error: e.message, recordId: dbRecord.id }); }
+        } else if (typeof dbRecord.metrics === 'object' && dbRecord.metrics !== null) {
+            metrics = dbRecord.metrics;
         }
-        // Convert from snake_case database format to camelCase domain format
+
+        let metadata = {};
+        if (typeof dbRecord.metadata === 'string') {
+            try { metadata = JSON.parse(dbRecord.metadata); } catch (e) { this.logger.error('Failed to parse metadata JSON', { error: e.message, recordId: dbRecord.id }); }
+        } else if (typeof dbRecord.metadata === 'object' && dbRecord.metadata !== null) {
+            metadata = dbRecord.metadata;
+        }
+        
         const journeyData = {
-            id: data.id,
-            userId: data.user_id || data.userId,
-            userEmail: data.user_email || data.userEmail,
-            eventType: data.event_type || data.eventType,
-            eventData,
-            timestamp,
-            sessionId: data.session_id || data.sessionId,
-            deviceInfo: data.device_info || data.deviceInfo,
-            clientVersion: data.client_version || data.clientVersion,
-            createdAt,
+            id: dbRecord.id,
+            userId: dbRecord.user_id,
+            lastActivity: dbRecord.last_activity,
+            sessionCount: dbRecord.session_count,
+            currentSessionStartedAt: dbRecord.current_session_started_at,
+            engagementLevel: dbRecord.engagement_level || ENGAGEMENT_LEVELS.NEW,
+            metrics: metrics,
+            metadata: metadata,
+            createdAt: dbRecord.created_at,
+            updatedAt: dbRecord.updated_at,
+            // IMPORTANT: Events are typically NOT loaded here by default for performance.
+            // They would be fetched by the repository/service on demand if needed.
+            events: [] 
         };
-        // Create and return a new UserJourneyEvent domain entity
-        return new UserJourneyEvent(journeyData);
+        
+        try {
+            return new UserJourney(journeyData, options);
+        } catch (error) {
+            this.logger.error('Error creating UserJourney instance in mapper', {
+                 error: error.message, 
+                 recordId: dbRecord.id,
+                 userId: dbRecord.user_id 
+            });
+            return null; // Return null if mapping/instantiation fails
+        }
     }
+
     /**
-     * Convert a UserJourneyEvent domain entity to database format
-     * @param {UserJourneyEvent} userJourney - UserJourneyEvent domain entity
-     * @returns {Object} Database-ready object
+     * Convert UserJourney domain aggregate to database record format.
+     * NOTE: This typically does NOT include the full events array.
+     * @param {UserJourney} journey - UserJourney domain aggregate.
+     * @returns {Object|null} Database-ready object for user_journeys table.
      */
-    toPersistence(userJourney) {
-        if (!userJourney) {
+    toPersistence(journey) {
+        if (!journey || !(journey instanceof UserJourney)) {
             return null;
         }
-        // Handle objects that need to be stored as strings or JSON
-        const eventData = typeof userJourney.eventData === 'object'
-            ? userJourney.eventData
-            : userJourney.eventData
-                ? JSON.parse(userJourney.eventData)
-                : {};
-        // Convert from domain entity to database format (camelCase to snake_case)
+
         return {
-            id: userJourney.id,
-            user_id: userJourney.userId,
-            user_email: userJourney.userEmail,
-            event_type: userJourney.eventType,
-            event_data: eventData,
-            timestamp: userJourney.timestamp instanceof Date
-                ? userJourney.timestamp.toISOString()
-                : userJourney.timestamp,
-            session_id: userJourney.sessionId,
-            device_info: userJourney.deviceInfo,
-            client_version: userJourney.clientVersion,
-            created_at: userJourney.createdAt instanceof Date
-                ? userJourney.createdAt.toISOString()
-                : userJourney.createdAt,
+            id: journey.id,
+            user_id: journey.userId,
+            last_activity: journey.lastActivity instanceof Date ? journey.lastActivity.toISOString() : journey.lastActivity,
+            session_count: journey.sessionCount,
+            current_session_started_at: journey.currentSessionStartedAt instanceof Date ? journey.currentSessionStartedAt.toISOString() : journey.currentSessionStartedAt,
+            engagement_level: journey.engagementLevel,
+            metrics: journey.metrics, // Assumes DB column is JSONB or similar
+            metadata: journey.metadata, // Assumes DB column is JSONB or similar
+            created_at: journey.createdAt instanceof Date ? journey.createdAt.toISOString() : journey.createdAt,
+            updated_at: journey.updatedAt instanceof Date ? journey.updatedAt.toISOString() : journey.updatedAt,
         };
     }
+    
     /**
-     * Convert an array of database records to UserJourneyEvent domain entities
-     * @param {Array<Object>} dataArray - Array of database records
-     * @returns {Array<UserJourneyEvent>} Array of UserJourneyEvent domain entities
+     * Convert a collection of database records to UserJourney domain aggregates.
+     * @param {Array<Object>} dbRecords - Array of database records.
+     * @param {Object} [options={}] - Additional options.
+     * @returns {Array<UserJourney>} Array of UserJourney aggregates.
      */
-    toDomainCollection(dataArray) {
-        if (!Array.isArray(dataArray)) {
+    toDomainCollection(dbRecords, options = {}) {
+        if (!Array.isArray(dbRecords)) {
             return [];
         }
-        return dataArray.map(data => this.toDomain(data));
+        return dbRecords.map(record => this.toDomain(record, options)).filter(Boolean);
     }
+    
     /**
-     * Convert an array of UserJourneyEvent domain entities to database format
-     * @param {Array<UserJourneyEvent>} journeyItems - Array of UserJourneyEvent domain entities
+     * Convert an array of UserJourney domain entities to database format
+     * @param {Array<UserJourney>} journeys - Array of UserJourney domain entities
      * @returns {Array<Object>} Array of database-ready objects
      */
-    toPersistenceCollection(journeyItems) {
-        if (!Array.isArray(journeyItems)) {
+    toPersistenceCollection(journeys) {
+        if (!Array.isArray(journeys)) {
             return [];
         }
-        return journeyItems.map(journey => this.toPersistence(journey));
+        return journeys.map(journey => this.toPersistence(journey)).filter(data => data !== null);
     }
 }
-export default new UserJourneyMapper();
+
+// Export singleton instance
+const userJourneyMapper = new UserJourneyMapper();
+export default userJourneyMapper;

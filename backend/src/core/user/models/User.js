@@ -1,7 +1,8 @@
-import domainEvents from "#app/core/common/events/domainEvents.js";
-import { userSchema } from "#app/core/user/schemas/userSchema.js";
+import { userSchema, difficultyLevelSchema } from "#app/core/user/schemas/userSchema.js";
 import { Email, FocusArea } from "#app/core/common/valueObjects/index.js";
 import { UserValidationError, UserInvalidStateError } from "#app/core/user/errors/UserErrors.js";
+import Entity from "#app/core/common/models/Entity.js";
+import { v4 as uuidv4 } from 'uuid';
 'use strict';
 /**
  * User domain model
@@ -10,38 +11,48 @@ import { UserValidationError, UserInvalidStateError } from "#app/core/user/error
  * Uses Zod for data validation to ensure integrity.
  * Personality data is now managed by the personality domain.
  */
-const { EventTypes } = domainEvents;
 /**
  * User domain entity
  */
-class User {
+class User extends Entity {
     /**
      * Create a user instance
      * @param {Object} data - User data including id, email, fullName, and other user properties
+     * @param {Object} options - Additional options (e.g., injected eventBus)
+     * @param {Object} options.eventBus - The event bus instance (optional for adding events)
+     * @param {Object} options.EventTypes - The EventTypes constant (optional for adding events)
      * @throws {UserValidationError} If the provided data fails validation
      */
-    constructor(data = {}) {
+    constructor(data = {}, options = {}) {
+        super(data.id || uuidv4());
+
         const userData = {
-            id: data.id || null,
+            id: this.id,
             email: data.email || '',
-            fullName: data.full_name || data.fullName || '',
-            professionalTitle: data.professional_title || data.professionalTitle || '',
+            fullName: data.fullName || '',
+            firstName: data.firstName || '',
+            lastName: data.lastName || '',
+            displayName: data.displayName || '',
+            profileImageUrl: data.profileImageUrl || null,
+            professionalTitle: data.professionalTitle || '',
             location: data.location || '',
             country: data.country || '',
-            focusArea: data.focus_area || data.focusArea || '',
-            lastActive: data.last_active || data.lastActive || null,
-            createdAt: data.created_at || data.createdAt || new Date().toISOString(),
-            updatedAt: data.updated_at || data.updatedAt || new Date().toISOString(),
-            focusAreaThreadId: data.focus_area_thread_id || data.focusAreaThreadId || '',
-            challengeThreadId: data.challenge_thread_id || data.challengeThreadId || '',
-            evaluationThreadId: data.evaluation_thread_id || data.evaluationThreadId || '',
-            personalityThreadId: data.personality_thread_id || data.personalityThreadId || '',
+            focusArea: data.focusArea || '',
+            focusAreaThreadId: data.focusAreaThreadId || '',
+            challengeThreadId: data.challengeThreadId || '',
+            evaluationThreadId: data.evaluationThreadId || '',
+            personalityThreadId: data.personalityThreadId || '',
+            lastActive: data.lastActive ? new Date(data.lastActive) : null,
+            createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
+            updatedAt: data.updatedAt ? new Date(data.updatedAt) : new Date(),
             preferences: data.preferences || {},
             status: data.status || 'active',
-            roles: data.roles || ['user'],
-            onboardingCompleted: data.onboarding_completed || data.onboardingCompleted || false,
-            lastLoginAt: data.last_login_at || data.lastLoginAt || null,
+            roles: Array.isArray(data.roles) ? data.roles : ['user'],
+            onboardingCompleted: data.onboardingCompleted || false,
+            lastLoginAt: data.lastLoginAt ? new Date(data.lastLoginAt) : null,
+            difficultyLevel: data.difficultyLevel || null,
         };
+        
         // Parse and validate with zod, using safeParse to handle errors
         const result = userSchema.safeParse(userData);
         if (result.success) {
@@ -50,8 +61,11 @@ class User {
         else {
             // Throw validation error with details
             const errorMessage = `User data validation failed: ${result.error.message}`;
-            throw new UserValidationError(errorMessage);
+            throw new UserValidationError(errorMessage, {
+                validationErrors: result.error.flatten(),
+            });
         }
+        
         // Convert email to Email value object if valid
         if (this.email && Email.isValid(this.email)) {
             this._emailVO = new Email(this.email);
@@ -60,6 +74,9 @@ class User {
         if (this.focusArea && FocusArea.isValid(this.focusArea)) {
             this._focusAreaVO = new FocusArea(this.focusArea);
         }
+        // Store event bus instance if provided
+        this.eventBus = options.eventBus;
+        this.EventTypes = options.EventTypes;
         // Initialize domain events array
         this._domainEvents = [];
         // Enforce invariants on creation
@@ -67,10 +84,26 @@ class User {
     }
     /**
      * Add a domain event to be published later
-     * @param {string} eventType - Event type from EventTypes enum
-     * @param {Object} eventData - Event data payload associated with the event
+     * @param {string} eventType - Event type string
+     * @param {Object} eventData - Event data payload
      */
     addDomainEvent(eventType, eventData) {
+        // Use EventTypes passed via constructor/options if available
+        if (!this.EventTypes || !this.EventTypes[eventType]) {
+            // Attempt to dynamically get EventTypes if not passed initially
+            // This is a fallback and not ideal - better to ensure it's passed.
+            try {
+                const { EventTypes: dynamicEventTypes } = require("#app/core/common/events/eventTypes.js");
+                this.EventTypes = dynamicEventTypes;
+                if (!this.EventTypes || !this.EventTypes[eventType]) {
+                   console.warn(`[User Model] Unknown eventType constant used: ${eventType}. Cannot validate.`);
+                   // Proceed without validation if type constant unknown, or throw error?
+                }
+            } catch (err) {
+                 console.error(`[User Model] Failed to dynamically load EventTypes for validation`, err);
+            }
+        }
+        
         if (!this._domainEvents) {
             this._domainEvents = [];
         }
@@ -219,8 +252,8 @@ class User {
         this.onboardingCompleted = true;
         this.updatedAt = new Date().toISOString();
         // Record domain event for onboarding completion
-        if (this.id) {
-            this.addDomainEvent(EventTypes.USER_ONBOARDING_COMPLETED, {
+        if (this.id && this.EventTypes) {
+            this.addDomainEvent(this.EventTypes.USER_ONBOARDING_COMPLETED, {
                 userId: this.id,
                 timestamp: this.updatedAt,
             });
@@ -252,8 +285,8 @@ class User {
             this.roles.push(role);
             this.updatedAt = new Date().toISOString();
             // Record domain event for role assignment
-            if (this.id) {
-                this.addDomainEvent(EventTypes.USER_ROLE_ASSIGNED, {
+            if (this.id && this.EventTypes) {
+                this.addDomainEvent(this.EventTypes.USER_ROLE_ASSIGNED, {
                     userId: this.id,
                     role,
                     timestamp: this.updatedAt,
@@ -280,8 +313,8 @@ class User {
             this.roles = this.roles.filter(r => r !== role);
             this.updatedAt = new Date().toISOString();
             // Record domain event for role removal
-            if (this.id) {
-                this.addDomainEvent(EventTypes.USER_ROLE_REMOVED, {
+            if (this.id && this.EventTypes) {
+                this.addDomainEvent(this.EventTypes.USER_ROLE_REMOVED, {
                     userId: this.id,
                     role,
                     timestamp: this.updatedAt,
@@ -307,8 +340,8 @@ class User {
             this.status = 'active';
             this.updatedAt = new Date().toISOString();
             // Record domain event for account activation
-            if (this.id) {
-                this.addDomainEvent(EventTypes.USER_ACTIVATED, {
+            if (this.id && this.EventTypes) {
+                this.addDomainEvent(this.EventTypes.USER_ACTIVATED, {
                     userId: this.id,
                     previousStatus,
                     timestamp: this.updatedAt,
@@ -329,8 +362,8 @@ class User {
             this.status = 'inactive';
             this.updatedAt = new Date().toISOString();
             // Record domain event for account deactivation
-            if (this.id) {
-                this.addDomainEvent(EventTypes.USER_DEACTIVATED, {
+            if (this.id && this.EventTypes) {
+                this.addDomainEvent(this.EventTypes.USER_DEACTIVATED, {
                     userId: this.id,
                     previousStatus,
                     timestamp: this.updatedAt,
@@ -355,8 +388,8 @@ class User {
         this.lastActive = this.lastLoginAt;
         this.updatedAt = this.lastLoginAt;
         // Record domain event for user login
-        if (this.id) {
-            this.addDomainEvent(EventTypes.USER_LOGGED_IN, {
+        if (this.id && this.EventTypes) {
+            this.addDomainEvent(this.EventTypes.USER_LOGGED_IN, {
                 userId: this.id,
                 timestamp: this.lastLoginAt,
             });
@@ -380,8 +413,8 @@ class User {
         this.preferences[key] = value;
         this.updatedAt = new Date().toISOString();
         // Record domain event for preference update
-        if (this.id) {
-            this.addDomainEvent(EventTypes.USER_PREFERENCES_UPDATED, {
+        if (this.id && this.EventTypes) {
+            this.addDomainEvent(this.EventTypes.USER_PREFERENCES_UPDATED, {
                 userId: this.id,
                 key,
                 timestamp: this.updatedAt,
@@ -423,8 +456,8 @@ class User {
         };
         this.updatedAt = new Date().toISOString();
         // Record domain event for AI preferences update
-        if (this.id) {
-            this.addDomainEvent(EventTypes.USER_AI_PREFERENCES_UPDATED, {
+        if (this.id && this.EventTypes) {
+            this.addDomainEvent(this.EventTypes.USER_AI_PREFERENCES_UPDATED, {
                 userId: this.id,
                 timestamp: this.updatedAt,
             });
@@ -461,8 +494,8 @@ class User {
             }
             this.updatedAt = new Date().toISOString();
             // Record domain event for focus area change
-            if (this.id && this.focusArea !== previousFocusArea) {
-                this.addDomainEvent(EventTypes.USER_FOCUS_AREA_CHANGED, {
+            if (this.id && this.focusArea !== previousFocusArea && this.EventTypes) {
+                this.addDomainEvent(this.EventTypes.USER_FOCUS_AREA_CHANGED, {
                     userId: this.id,
                     previousFocusArea,
                     newFocusArea: this.focusArea,
@@ -494,8 +527,8 @@ class User {
         if (hasChanges) {
             this.updatedAt = new Date().toISOString();
             // Record domain event for profile update
-            if (this.id) {
-                this.addDomainEvent(EventTypes.USER_PROFILE_UPDATED, {
+            if (this.id && this.EventTypes) {
+                this.addDomainEvent(this.EventTypes.USER_PROFILE_UPDATED, {
                     userId: this.id,
                     updatedFields: Object.keys(updates).filter(k => allowedUpdates.includes(k)),
                     timestamp: this.updatedAt,
@@ -505,16 +538,33 @@ class User {
         return this;
     }
     /**
-     * Create a User instance from database data
-     * @param {Object} data - User data from database
-     * @returns {User} User instance
-     * @throws {UserValidationError} If data is invalid
+     * Set the user's difficulty level
+     * @param {string} level - The new difficulty level code (e.g., 'beginner', 'intermediate', 'advanced')
+     * @returns {User} This user instance for chaining
+     * @throws {UserValidationError} If the level is invalid
      */
-    static fromDatabase(data) {
-        if (!data) {
-            throw new UserValidationError('Database data is required to create User instance');
+    setDifficultyLevel(level) {
+        // Validate the level against the allowed schema
+        const validationResult = difficultyLevelSchema.safeParse(level);
+        if (!validationResult.success) {
+            throw new UserValidationError(`Invalid difficulty level: ${level}. Must be one of ${difficultyLevelSchema.options.join(', ')}`);
         }
-        return new User(data);
+
+        const previousLevel = this.difficultyLevel;
+        if (previousLevel !== level) {
+            this.difficultyLevel = level;
+            this.updatedAt = new Date().toISOString();
+            // Record domain event for difficulty change
+            if (this.id && this.EventTypes) {
+                this.addDomainEvent(this.EventTypes.USER_DIFFICULTY_CHANGED, {
+                    userId: this.id,
+                    previousLevel: previousLevel,
+                    newLevel: level,
+                    timestamp: this.updatedAt,
+                });
+            }
+        }
+        return this;
     }
 }
 export default User;

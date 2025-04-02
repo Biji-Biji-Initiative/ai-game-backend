@@ -1,0 +1,995 @@
+strict digraph "dependency-cruiser output"{
+    rankdir="LR" splines="true" overlap="false" nodesep="0.16" ranksep="0.18" fontname="Helvetica-bold" fontsize="9" style="rounded,bold,filled" fillcolor="#ffffff" compound="true"
+    node [shape="box" style="rounded, filled" height="0.2" color="black" fillcolor="#ffffcc" fontcolor="black" fontname="Helvetica" fontsize="9"]
+    edge [arrowhead="normal" arrowsize="0.6" penwidth="2.0" color="#00000033" fontname="Helvetica" fontsize="9"]
+
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/api" {label="api" subgraph "cluster_src/api/v1" {label="v1" subgraph "cluster_src/api/v1/api-tester" {label="api-tester" "src/api/v1/api-tester/entity-state.js" [label=<entity-state.js> tooltip="entity-state.js" URL="src/api/v1/api-tester/entity-state.js" ] } } } }
+    "src/api/v1/api-tester/entity-state.js" -> "src/core/repositories.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/api" {label="api" subgraph "cluster_src/api/v1" {label="v1" subgraph "cluster_src/api/v1/api-tester" {label="api-tester" "src/api/v1/api-tester/index.js" [label=<index.js> tooltip="index.js" URL="src/api/v1/api-tester/index.js" ] } } } }
+    "src/api/v1/api-tester/index.js" -> "src/api/v1/api-tester/entity-state.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/api" {label="api" subgraph "cluster_src/api/v1" {label="v1" "src/api/v1/index.js" [label=<index.js> tooltip="index.js" URL="src/api/v1/index.js" ] } } }
+    "src/api/v1/index.js" -> "src/api/v1/api-tester/index.js"
+    subgraph "cluster_src" {label="src" "src/app.js" [label=<app.js> tooltip="app.js" URL="src/app.js" ] }
+    "src/app.js" -> "src/application/EventHandlers.js"
+    "src/app.js" -> "src/config/container.js"
+    "src/app.js" -> "src/config/swaggerSetup.js"
+    "src/app.js" -> "src/core/infra/db/databaseConnection.js"
+    "src/app.js" -> "src/core/infra/errors/ErrorHandler.js"
+    "src/app.js" -> "src/core/infra/events/eventSetup.js"
+    "src/app.js" -> "src/core/infra/http/middleware/rateLimit.js"
+    "src/app.js" -> "src/core/infra/http/responseFormatter.js"
+    "src/app.js" -> "src/core/infra/http/routes/apiTesterRoutes.js"
+    "src/app.js" -> "src/core/infra/http/routes/healthRoutes.js"
+    "src/app.js" -> "src/core/infra/http/routes/RouteFactory.js"
+    "src/app.js" -> "src/core/infra/logging/domainLogger.js"
+    "src/app.js" -> "src/core/infra/logging/logger.js"
+    "src/app.js" -> "src/core/infra/memory/MemoryMonitor.js"
+    "src/app.js" -> "src/core/infra/openai/healthCheck.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/application" {label="application" "src/application/BaseCoordinator.js" [label=<BaseCoordinator.js> tooltip="BaseCoordinator.js" URL="src/application/BaseCoordinator.js" ] } }
+    "src/application/BaseCoordinator.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/application" {label="application" "src/application/EventHandlers.js" [label=<EventHandlers.js> tooltip="EventHandlers.js" URL="src/application/EventHandlers.js" ] } }
+    "src/application/EventHandlers.js" -> "src/core/common/events/domainEvents.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/application" {label="application" "src/application/PersonalityCoordinator.js" [label=<PersonalityCoordinator.js> tooltip="PersonalityCoordinator.js" URL="src/application/PersonalityCoordinator.js" ] } }
+    "src/application/PersonalityCoordinator.js" -> "src/application/BaseCoordinator.js"
+    "src/application/PersonalityCoordinator.js" -> "src/core/personality/config/attitudeMappingConfig.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/application" {label="application" subgraph "cluster_src/application/challenge" {label="challenge" "src/application/challenge/ChallengeEvaluationService.js" [label=<ChallengeEvaluationService.js> tooltip="ChallengeEvaluationService.js" URL="src/application/challenge/ChallengeEvaluationService.js" ] } } }
+    "src/application/challenge/ChallengeEvaluationService.js" -> "src/core/challenge/errors/ChallengeErrors.js"
+    "src/application/challenge/ChallengeEvaluationService.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/application/challenge/ChallengeEvaluationService.js" -> "src/core/infra/errors/MissingParameterError.js"
+    "src/application/challenge/ChallengeEvaluationService.js" -> "src/core/infra/logging/domainLogger.js"
+    "src/application/challenge/ChallengeEvaluationService.js" -> "src/core/infra/openai/messageFormatter.js"
+    "src/application/challenge/ChallengeEvaluationService.js" -> "src/core/prompt/promptBuilder.js"
+    "src/application/challenge/ChallengeEvaluationService.js" -> "src/core/prompt/promptTypes.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/application" {label="application" subgraph "cluster_src/application/challenge" {label="challenge" "src/application/challenge/ChallengeGenerationService.js" [label=<ChallengeGenerationService.js> tooltip="ChallengeGenerationService.js" URL="src/application/challenge/ChallengeGenerationService.js" ] } } }
+    "src/application/challenge/ChallengeGenerationService.js" -> "src/core/challenge/errors/ChallengeErrors.js"
+    "src/application/challenge/ChallengeGenerationService.js" -> "src/core/challenge/models/Challenge.js"
+    "src/application/challenge/ChallengeGenerationService.js" -> "src/core/infra/logging/domainLogger.js"
+    "src/application/challenge/ChallengeGenerationService.js" -> "src/core/infra/openai/messageFormatter.js"
+    "src/application/challenge/ChallengeGenerationService.js" -> "src/core/prompt/promptBuilder.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/application" {label="application" "src/application/challengeCoordinator.js" [label=<challengeCoordinator.js> tooltip="challengeCoordinator.js" URL="src/application/challengeCoordinator.js" ] } }
+    "src/application/challengeCoordinator.js" -> "src/application/BaseCoordinator.js"
+    "src/application/challengeCoordinator.js" -> "src/core/challenge/errors/ChallengeErrors.js"
+    "src/application/challengeCoordinator.js" -> "src/core/challenge/models/Challenge.js"
+    "src/application/challengeCoordinator.js" -> "src/core/common/valueObjects/index.js"
+    "src/application/challengeCoordinator.js" -> "src/core/infra/logging/domainLogger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/application" {label="application" subgraph "cluster_src/application/controllers" {label="controllers" "src/application/controllers/HealthCheckController.js" [label=<HealthCheckController.js> tooltip="HealthCheckController.js" URL="src/application/controllers/HealthCheckController.js" ] } } }
+    "src/application/controllers/HealthCheckController.js" -> "src/core/infra/logging/domainLogger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/application" {label="application" subgraph "cluster_src/application/controllers" {label="controllers" "src/application/controllers/SystemController.old.js" [label=<SystemController.old.js> tooltip="SystemController.old.js" URL="src/application/controllers/SystemController.old.js" ] } } }
+    "src/application/controllers/SystemController.old.js" -> "src/core/infra/logging/domainLogger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/application" {label="application" subgraph "cluster_src/application/evaluation" {label="evaluation" "src/application/evaluation/UserContextService.js" [label=<UserContextService.js> tooltip="UserContextService.js" URL="src/application/evaluation/UserContextService.js" ] } } }
+    "src/application/evaluation/UserContextService.js" -> "src/application/evaluation/config/evaluationConfig.js"
+    "src/application/evaluation/UserContextService.js" -> "src/core/evaluation/errors/EvaluationErrors.js"
+    "src/application/evaluation/UserContextService.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/application/evaluation/UserContextService.js" -> "src/core/infra/logging/domainLogger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/application" {label="application" subgraph "cluster_src/application/evaluation" {label="evaluation" subgraph "cluster_src/application/evaluation/config" {label="config" "src/application/evaluation/config/evaluationConfig.js" [label=<evaluationConfig.js> tooltip="evaluationConfig.js" URL="src/application/evaluation/config/evaluationConfig.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/application" {label="application" subgraph "cluster_src/application/events" {label="events" "src/application/events/CacheInvalidationEventHandlers.js" [label=<CacheInvalidationEventHandlers.js> tooltip="CacheInvalidationEventHandlers.js" URL="src/application/events/CacheInvalidationEventHandlers.js" ] } } }
+    "src/application/events/CacheInvalidationEventHandlers.js" -> "src/core/common/events/domainEvents.js"
+    "src/application/events/CacheInvalidationEventHandlers.js" -> "src/core/common/events/eventUtils.js"
+    "src/application/events/CacheInvalidationEventHandlers.js" -> "src/core/infra/cache/cacheFactory.js"
+    "src/application/events/CacheInvalidationEventHandlers.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/application" {label="application" subgraph "cluster_src/application/focusArea" {label="focusArea" "src/application/focusArea/FocusAreaCoordinatorFacade.js" [label=<FocusAreaCoordinatorFacade.js> tooltip="FocusAreaCoordinatorFacade.js" URL="src/application/focusArea/FocusAreaCoordinatorFacade.js" ] } } }
+    "src/application/focusArea/FocusAreaCoordinatorFacade.js" -> "src/application/BaseCoordinator.js"
+    "src/application/focusArea/FocusAreaCoordinatorFacade.js" -> "src/application/focusArea/FocusAreaGenerationCoordinator.js"
+    "src/application/focusArea/FocusAreaCoordinatorFacade.js" -> "src/application/focusArea/FocusAreaManagementCoordinator.js"
+    "src/application/focusArea/FocusAreaCoordinatorFacade.js" -> "src/core/focusArea/errors/focusAreaErrors.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/application" {label="application" subgraph "cluster_src/application/focusArea" {label="focusArea" "src/application/focusArea/FocusAreaGenerationCoordinator.js" [label=<FocusAreaGenerationCoordinator.js> tooltip="FocusAreaGenerationCoordinator.js" URL="src/application/focusArea/FocusAreaGenerationCoordinator.js" ] } } }
+    "src/application/focusArea/FocusAreaGenerationCoordinator.js" -> "src/application/BaseCoordinator.js"
+    "src/application/focusArea/FocusAreaGenerationCoordinator.js" -> "src/core/focusArea/errors/focusAreaErrors.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/application" {label="application" subgraph "cluster_src/application/focusArea" {label="focusArea" "src/application/focusArea/FocusAreaGenerationService.js" [label=<FocusAreaGenerationService.js> tooltip="FocusAreaGenerationService.js" URL="src/application/focusArea/FocusAreaGenerationService.js" ] } } }
+    "src/application/focusArea/FocusAreaGenerationService.js" -> "src/core/focusArea/errors/focusAreaErrors.js"
+    "src/application/focusArea/FocusAreaGenerationService.js" -> "src/core/focusArea/models/FocusArea.js"
+    "src/application/focusArea/FocusAreaGenerationService.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/application/focusArea/FocusAreaGenerationService.js" -> "src/core/infra/logging/domainLogger.js"
+    "src/application/focusArea/FocusAreaGenerationService.js" -> "src/core/infra/openai/responseHandler.js"
+    "src/application/focusArea/FocusAreaGenerationService.js" -> "src/core/prompt/promptBuilder.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/application" {label="application" subgraph "cluster_src/application/focusArea" {label="focusArea" "src/application/focusArea/FocusAreaManagementCoordinator.js" [label=<FocusAreaManagementCoordinator.js> tooltip="FocusAreaManagementCoordinator.js" URL="src/application/focusArea/FocusAreaManagementCoordinator.js" ] } } }
+    "src/application/focusArea/FocusAreaManagementCoordinator.js" -> "src/application/BaseCoordinator.js"
+    "src/application/focusArea/FocusAreaManagementCoordinator.js" -> "src/core/common/valueObjects/index.js"
+    "src/application/focusArea/FocusAreaManagementCoordinator.js" -> "src/core/focusArea/errors/focusAreaErrors.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/application" {label="application" subgraph "cluster_src/application/focusArea" {label="focusArea" subgraph "cluster_src/application/focusArea/services" {label="services" "src/application/focusArea/services/FocusAreaThreadService.js" [label=<FocusAreaThreadService.js> tooltip="FocusAreaThreadService.js" URL="src/application/focusArea/services/FocusAreaThreadService.js" ] } } } }
+    "src/application/focusArea/services/FocusAreaThreadService.js" -> "src/core/focusArea/errors/focusAreaErrors.js"
+    "src/application/focusArea/services/FocusAreaThreadService.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/application/focusArea/services/FocusAreaThreadService.js" -> "src/core/infra/logging/domainLogger.js"
+    "src/application/focusArea/services/FocusAreaThreadService.js" -> "src/core/shared/utils/serviceUtils.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/application" {label="application" subgraph "cluster_src/application/progress" {label="progress" "src/application/progress/ProgressCoordinator.js" [label=<ProgressCoordinator.js> tooltip="ProgressCoordinator.js" URL="src/application/progress/ProgressCoordinator.js" ] } } }
+    "src/application/progress/ProgressCoordinator.js" -> "src/application/BaseCoordinator.js"
+    "src/application/progress/ProgressCoordinator.js" -> "src/core/common/valueObjects/index.js"
+    "src/application/progress/ProgressCoordinator.js" -> "src/core/infra/errors/AppError.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/application" {label="application" subgraph "cluster_src/application/user" {label="user" subgraph "cluster_src/application/user/mappers" {label="mappers" "src/application/user/mappers/UserProfileDTOMapper.js" [label=<UserProfileDTOMapper.js> tooltip="no-orphans" URL="src/application/user/mappers/UserProfileDTOMapper.js" fillcolor="#ccffcc" fontcolor="orange" color="orange"] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/application" {label="application" "src/application/userJourneyCoordinator.js" [label=<userJourneyCoordinator.js> tooltip="userJourneyCoordinator.js" URL="src/application/userJourneyCoordinator.js" ] } }
+    "src/application/userJourneyCoordinator.js" -> "src/application/BaseCoordinator.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/config" {label="config" "src/config/config.js" [label=<config.js> tooltip="config.js" URL="src/config/config.js" ] } }
+    "src/config/config.js" -> "src/core/personality/config/personalityConfig.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/config" {label="config" "src/config/container.js" [label=<container.js> tooltip="container.js" URL="src/config/container.js" ] } }
+    "src/config/container.js" -> "src/config/container/index.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/config" {label="config" subgraph "cluster_src/config/container" {label="container" "src/config/container/ai.js" [label=<ai.js> tooltip="ai.js" URL="src/config/container/ai.js" ] } } }
+    "src/config/container/ai.js" -> "src/config/env.js"
+    "src/config/container/ai.js" -> "src/core/ai/adapters/OpenAIClientAdapter.js"
+    "src/config/container/ai.js" -> "src/core/ai/adapters/OpenAIStateManagerAdapter.js"
+    "src/config/container/ai.js" -> "src/core/infra/openai/adapters/FocusAreaThreadStateAdapter.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/config" {label="config" subgraph "cluster_src/config/container" {label="container" "src/config/container/constants.js" [label=<constants.js> tooltip="constants.js" URL="src/config/container/constants.js" ] } } }
+    "src/config/container/constants.js" -> "src/core/infra/openai/types.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/config" {label="config" subgraph "cluster_src/config/container" {label="container" "src/config/container/controllers.js" [label=<controllers.js> tooltip="controllers.js" URL="src/config/container/controllers.js" ] } } }
+    "src/config/container/controllers.js" -> "src/core/adaptive/controllers/AdaptiveController.js"
+    "src/config/container/controllers.js" -> "src/core/auth/controllers/AuthController.js"
+    "src/config/container/controllers.js" -> "src/core/challenge/controllers/ChallengeController.js"
+    "src/config/container/controllers.js" -> "src/core/evaluation/controllers/EvaluationController.js"
+    "src/config/container/controllers.js" -> "src/core/focusArea/controllers/FocusAreaController.js"
+    "src/config/container/controllers.js" -> "src/core/infra/health/HealthCheckController.js"
+    "src/config/container/controllers.js" -> "src/core/personality/controllers/PersonalityController.js"
+    "src/config/container/controllers.js" -> "src/core/progress/controllers/ProgressController.js"
+    "src/config/container/controllers.js" -> "src/core/system/controllers/SystemController.js"
+    "src/config/container/controllers.js" -> "src/core/system/services/LogService.js"
+    "src/config/container/controllers.js" -> "src/core/user/controllers/UserController.js"
+    "src/config/container/controllers.js" -> "src/core/userJourney/controllers/UserJourneyController.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/config" {label="config" subgraph "cluster_src/config/container" {label="container" "src/config/container/coordinators.js" [label=<coordinators.js> tooltip="coordinators.js" URL="src/config/container/coordinators.js" ] } } }
+    "src/config/container/coordinators.js" -> "src/application/challengeCoordinator.js"
+    "src/config/container/coordinators.js" -> "src/application/EventHandlers.js"
+    "src/config/container/coordinators.js" -> "src/application/focusArea/FocusAreaCoordinatorFacade.js"
+    "src/config/container/coordinators.js" -> "src/application/focusArea/FocusAreaGenerationCoordinator.js"
+    "src/config/container/coordinators.js" -> "src/application/focusArea/FocusAreaManagementCoordinator.js"
+    "src/config/container/coordinators.js" -> "src/application/PersonalityCoordinator.js"
+    "src/config/container/coordinators.js" -> "src/application/progress/ProgressCoordinator.js"
+    "src/config/container/coordinators.js" -> "src/application/userJourneyCoordinator.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/config" {label="config" subgraph "cluster_src/config/container" {label="container" "src/config/container/index.js" [label=<index.js> tooltip="index.js" URL="src/config/container/index.js" ] } } }
+    "src/config/container/index.js" -> "src/config/config.js"
+    "src/config/container/index.js" -> "src/config/container/ai.js"
+    "src/config/container/index.js" -> "src/config/container/constants.js"
+    "src/config/container/index.js" -> "src/config/container/controllers.js"
+    "src/config/container/index.js" -> "src/config/container/coordinators.js"
+    "src/config/container/index.js" -> "src/config/container/infrastructure.js"
+    "src/config/container/index.js" -> "src/config/container/repositories.js"
+    "src/config/container/index.js" -> "src/config/container/routes.js"
+    "src/config/container/index.js" -> "src/config/container/services.js"
+    "src/config/container/index.js" -> "src/core/infra/di/DIContainer.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/config" {label="config" subgraph "cluster_src/config/container" {label="container" "src/config/container/infrastructure.js" [label=<infrastructure.js> tooltip="infrastructure.js" URL="src/config/container/infrastructure.js" ] } } }
+    "src/config/container/infrastructure.js" -> "src/core/common/events/DeadLetterQueueService.js"
+    "src/config/container/infrastructure.js" -> "src/core/common/events/domainEvents.js"
+    "src/config/container/infrastructure.js" -> "src/core/common/events/RobustEventBus.js"
+    "src/config/container/infrastructure.js" -> "src/core/infra/cache/CacheService.js"
+    "src/config/container/infrastructure.js" -> "src/core/infra/db/databaseConnection.js" [style="dashed"]
+    "src/config/container/infrastructure.js" -> "src/core/infra/db/supabaseClient.js"
+    "src/config/container/infrastructure.js" -> "src/core/infra/errors/AppError.js"
+    "src/config/container/infrastructure.js" -> "src/core/infra/errors/errorHandler.js"
+    "src/config/container/infrastructure.js" -> "src/core/infra/health/HealthCheckService.js"
+    "src/config/container/infrastructure.js" -> "src/core/infra/logging/domainLogger.js"
+    "src/config/container/infrastructure.js" -> "src/core/infra/logging/logger.js"
+    "src/config/container/infrastructure.js" -> "src/core/infra/openai/config.js"
+    "src/config/container/infrastructure.js" -> "src/core/infra/openai/healthCheck.js" [style="dashed"]
+    "src/config/container/infrastructure.js" -> "src/core/infra/openai/index.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/config" {label="config" subgraph "cluster_src/config/container" {label="container" "src/config/container/repositories.js" [label=<repositories.js> tooltip="repositories.js" URL="src/config/container/repositories.js" ] } } }
+    "src/config/container/repositories.js" -> "src/core/adaptive/repositories/AdaptiveRepository.js"
+    "src/config/container/repositories.js" -> "src/core/challenge/repositories/challengeRepository.js"
+    "src/config/container/repositories.js" -> "src/core/challenge/repositories/config/ChallengeTypeRepository.js"
+    "src/config/container/repositories.js" -> "src/core/challenge/repositories/config/DifficultyLevelRepository.js"
+    "src/config/container/repositories.js" -> "src/core/challenge/repositories/config/FocusAreaConfigRepository.js"
+    "src/config/container/repositories.js" -> "src/core/challenge/repositories/config/FormatTypeRepository.js"
+    "src/config/container/repositories.js" -> "src/core/evaluation/repositories/evaluationCategoryRepository.js"
+    "src/config/container/repositories.js" -> "src/core/evaluation/repositories/evaluationRepository.js"
+    "src/config/container/repositories.js" -> "src/core/focusArea/repositories/focusAreaRepository.js"
+    "src/config/container/repositories.js" -> "src/core/infra/repositories/ConversationStateRepository.js"
+    "src/config/container/repositories.js" -> "src/core/personality/repositories/PersonalityRepository.js"
+    "src/config/container/repositories.js" -> "src/core/progress/repositories/ProgressRepository.js"
+    "src/config/container/repositories.js" -> "src/core/user/repositories/UserRepository.js"
+    "src/config/container/repositories.js" -> "src/core/userJourney/repositories/UserJourneyRepository.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/config" {label="config" subgraph "cluster_src/config/container" {label="container" "src/config/container/routes.js" [label=<routes.js> tooltip="routes.js" URL="src/config/container/routes.js" ] } } }
+    "src/config/container/routes.js" -> "src/core/infra/http/routes/adaptiveRoutes.js"
+    "src/config/container/routes.js" -> "src/core/infra/http/routes/challengeRoutes.js"
+    "src/config/container/routes.js" -> "src/core/infra/http/routes/evaluationRoutes.js"
+    "src/config/container/routes.js" -> "src/core/infra/http/routes/focusAreaRoutes.js"
+    "src/config/container/routes.js" -> "src/core/infra/http/routes/personalityRoutes.js"
+    "src/config/container/routes.js" -> "src/core/infra/http/routes/progressRoutes.js"
+    "src/config/container/routes.js" -> "src/core/infra/http/routes/systemRoutes.js"
+    "src/config/container/routes.js" -> "src/core/infra/http/routes/userJourneyRoutes.js"
+    "src/config/container/routes.js" -> "src/core/infra/http/routes/userRoutes.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/config" {label="config" subgraph "cluster_src/config/container" {label="container" "src/config/container/services.js" [label=<services.js> tooltip="services.js" URL="src/config/container/services.js" ] } } }
+    "src/config/container/services.js" -> "src/application/challenge/ChallengeEvaluationService.js"
+    "src/config/container/services.js" -> "src/application/challenge/ChallengeGenerationService.js"
+    "src/config/container/services.js" -> "src/application/evaluation/UserContextService.js"
+    "src/config/container/services.js" -> "src/application/focusArea/FocusAreaGenerationService.js"
+    "src/config/container/services.js" -> "src/application/focusArea/services/FocusAreaThreadService.js"
+    "src/config/container/services.js" -> "src/core/adaptive/services/AdaptiveService.js"
+    "src/config/container/services.js" -> "src/core/ai/adapters/OpenAIClientAdapter.js"
+    "src/config/container/services.js" -> "src/core/ai/adapters/OpenAIStateManagerAdapter.js"
+    "src/config/container/services.js" -> "src/core/auth/services/AuthorizationService.js"
+    "src/config/container/services.js" -> "src/core/challenge/factories/ChallengeFactory.js"
+    "src/config/container/services.js" -> "src/core/challenge/services/ChallengeConfigService.js"
+    "src/config/container/services.js" -> "src/core/challenge/services/ChallengePersonalizationService.js"
+    "src/config/container/services.js" -> "src/core/challenge/services/ChallengeService.js"
+    "src/config/container/services.js" -> "src/core/evaluation/services/evaluationService.js"
+    "src/config/container/services.js" -> "src/core/focusArea/services/FocusAreaService.js"
+    "src/config/container/services.js" -> "src/core/focusArea/services/FocusAreaValidationService.js"
+    "src/config/container/services.js" -> "src/core/infra/health/HealthCheckService.js"
+    "src/config/container/services.js" -> "src/core/infra/services/MockInsightGenerator.js"
+    "src/config/container/services.js" -> "src/core/infra/services/OpenAIInsightGenerator.js"
+    "src/config/container/services.js" -> "src/core/personality/services/PersonalityDataLoader.js"
+    "src/config/container/services.js" -> "src/core/personality/services/PersonalityService.js"
+    "src/config/container/services.js" -> "src/core/personality/services/TraitsAnalysisService.js"
+    "src/config/container/services.js" -> "src/core/progress/services/ProgressService.js"
+    "src/config/container/services.js" -> "src/core/prompt/builders/PersonalityPromptBuilder.js"
+    "src/config/container/services.js" -> "src/core/user/services/UserPreferencesManager.js"
+    "src/config/container/services.js" -> "src/core/user/services/UserService.js"
+    "src/config/container/services.js" -> "src/core/userJourney/services/UserJourneyService.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/config" {label="config" "src/config/env.js" [label=<env.js> tooltip="env.js" URL="src/config/env.js" ] } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/config" {label="config" "src/config/index.js" [label=<index.js> tooltip="index.js" URL="src/config/index.js" ] } }
+    "src/config/index.js" -> "src/config/config.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/config" {label="config" "src/config/swagger.js" [label=<swagger.js> tooltip="swagger.js" URL="src/config/swagger.js" ] } }
+    "src/config/swagger.js" -> "src/config/config.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/config" {label="config" "src/config/swaggerSetup.js" [label=<swaggerSetup.js> tooltip="swaggerSetup.js" URL="src/config/swaggerSetup.js" ] } }
+    "src/config/swaggerSetup.js" -> "src/config/config.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/config" {label="config" "src/config/swaggerSetup.new.js" [label=<swaggerSetup.new.js> tooltip="swaggerSetup.new.js" URL="src/config/swaggerSetup.new.js" ] } }
+    "src/config/swaggerSetup.new.js" -> "src/config/config.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/adaptive" {label="adaptive" subgraph "cluster_src/core/adaptive/config" {label="config" "src/core/adaptive/config/difficultyConfig.js" [label=<difficultyConfig.js> tooltip="difficultyConfig.js" URL="src/core/adaptive/config/difficultyConfig.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/adaptive" {label="adaptive" subgraph "cluster_src/core/adaptive/controllers" {label="controllers" "src/core/adaptive/controllers/AdaptiveController.js" [label=<AdaptiveController.js> tooltip="AdaptiveController.js" URL="src/core/adaptive/controllers/AdaptiveController.js" ] } } } }
+    "src/core/adaptive/controllers/AdaptiveController.js" -> "src/core/adaptive/errors/adaptiveErrors.js"
+    "src/core/adaptive/controllers/AdaptiveController.js" -> "src/core/auth/errors/AuthErrors.js"
+    "src/core/adaptive/controllers/AdaptiveController.js" -> "src/core/infra/errors/errorStandardization.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/adaptive" {label="adaptive" subgraph "cluster_src/core/adaptive/errors" {label="errors" "src/core/adaptive/errors/adaptiveErrors.js" [label=<adaptiveErrors.js> tooltip="adaptiveErrors.js" URL="src/core/adaptive/errors/adaptiveErrors.js" ] } } } }
+    "src/core/adaptive/errors/adaptiveErrors.js" -> "src/core/infra/errors/AppError.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/adaptive" {label="adaptive" subgraph "cluster_src/core/adaptive/events" {label="events" "src/core/adaptive/events/adaptiveEvents.js" [label=<adaptiveEvents.js> tooltip="adaptiveEvents.js" URL="src/core/adaptive/events/adaptiveEvents.js" ] } } } }
+    "src/core/adaptive/events/adaptiveEvents.js" -> "src/core/adaptive/repositories/AdaptiveRepository.js"
+    "src/core/adaptive/events/adaptiveEvents.js" -> "src/core/common/events/domainEvents.js"
+    "src/core/adaptive/events/adaptiveEvents.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/adaptive" {label="adaptive" subgraph "cluster_src/core/adaptive/mappers" {label="mappers" "src/core/adaptive/mappers/RecommendationMapper.js" [label=<RecommendationMapper.js> tooltip="RecommendationMapper.js" URL="src/core/adaptive/mappers/RecommendationMapper.js" ] } } } }
+    "src/core/adaptive/mappers/RecommendationMapper.js" -> "src/core/adaptive/models/Recommendation.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/adaptive" {label="adaptive" subgraph "cluster_src/core/adaptive/models" {label="models" "src/core/adaptive/models/Difficulty.js" [label=<Difficulty.js> tooltip="Difficulty.js" URL="src/core/adaptive/models/Difficulty.js" ] } } } }
+    "src/core/adaptive/models/Difficulty.js" -> "src/core/adaptive/config/difficultyConfig.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/adaptive" {label="adaptive" subgraph "cluster_src/core/adaptive/models" {label="models" "src/core/adaptive/models/Recommendation.js" [label=<Recommendation.js> tooltip="Recommendation.js" URL="src/core/adaptive/models/Recommendation.js" ] } } } }
+    "src/core/adaptive/models/Recommendation.js" -> "src/core/common/models/Entity.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/adaptive" {label="adaptive" subgraph "cluster_src/core/adaptive/repositories" {label="repositories" "src/core/adaptive/repositories/AdaptiveRepository.js" [label=<AdaptiveRepository.js> tooltip="AdaptiveRepository.js" URL="src/core/adaptive/repositories/AdaptiveRepository.js" ] } } } }
+    "src/core/adaptive/repositories/AdaptiveRepository.js" -> "src/core/adaptive/errors/adaptiveErrors.js"
+    "src/core/adaptive/repositories/AdaptiveRepository.js" -> "src/core/adaptive/mappers/RecommendationMapper.js"
+    "src/core/adaptive/repositories/AdaptiveRepository.js" -> "src/core/adaptive/models/Recommendation.js"
+    "src/core/adaptive/repositories/AdaptiveRepository.js" -> "src/core/adaptive/schemas/RecommendationSchema.js"
+    "src/core/adaptive/repositories/AdaptiveRepository.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/adaptive/repositories/AdaptiveRepository.js" -> "src/core/infra/repositories/BaseRepository.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/adaptive" {label="adaptive" subgraph "cluster_src/core/adaptive/schemas" {label="schemas" "src/core/adaptive/schemas/DifficultySchema.js" [label=<DifficultySchema.js> tooltip="no-orphans" URL="src/core/adaptive/schemas/DifficultySchema.js" fillcolor="#ccffcc" fontcolor="orange" color="orange"] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/adaptive" {label="adaptive" subgraph "cluster_src/core/adaptive/schemas" {label="schemas" "src/core/adaptive/schemas/RecommendationSchema.js" [label=<RecommendationSchema.js> tooltip="RecommendationSchema.js" URL="src/core/adaptive/schemas/RecommendationSchema.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/adaptive" {label="adaptive" subgraph "cluster_src/core/adaptive/services" {label="services" "src/core/adaptive/services/AdaptiveService.js" [label=<AdaptiveService.js> tooltip="AdaptiveService.js" URL="src/core/adaptive/services/AdaptiveService.js" ] } } } }
+    "src/core/adaptive/services/AdaptiveService.js" -> "src/core/adaptive/errors/adaptiveErrors.js"
+    "src/core/adaptive/services/AdaptiveService.js" -> "src/core/infra/errors/errorStandardization.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/ai" {label="ai" subgraph "cluster_src/core/ai/adapters" {label="adapters" "src/core/ai/adapters/OpenAIClientAdapter.js" [label=<OpenAIClientAdapter.js> tooltip="OpenAIClientAdapter.js" URL="src/core/ai/adapters/OpenAIClientAdapter.js" ] } } } }
+    "src/core/ai/adapters/OpenAIClientAdapter.js" -> "src/core/ai/ports/AIClient.js"
+    "src/core/ai/adapters/OpenAIClientAdapter.js" -> "src/core/infra/errors/ApiIntegrationError.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/ai" {label="ai" subgraph "cluster_src/core/ai/adapters" {label="adapters" "src/core/ai/adapters/OpenAIStateManagerAdapter.js" [label=<OpenAIStateManagerAdapter.js> tooltip="OpenAIStateManagerAdapter.js" URL="src/core/ai/adapters/OpenAIStateManagerAdapter.js" ] } } } }
+    "src/core/ai/adapters/OpenAIStateManagerAdapter.js" -> "src/core/ai/ports/AIStateManager.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/ai" {label="ai" "src/core/ai/index.js" [label=<index.js> tooltip="index.js" URL="src/core/ai/index.js" ] } } }
+    "src/core/ai/index.js" -> "src/core/ai/adapters/OpenAIClientAdapter.js"
+    "src/core/ai/index.js" -> "src/core/ai/adapters/OpenAIStateManagerAdapter.js"
+    "src/core/ai/index.js" -> "src/core/ai/ports/AIClient.js"
+    "src/core/ai/index.js" -> "src/core/ai/ports/AIStateManager.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/ai" {label="ai" subgraph "cluster_src/core/ai/ports" {label="ports" "src/core/ai/ports/AIClient.js" [label=<AIClient.js> tooltip="AIClient.js" URL="src/core/ai/ports/AIClient.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/ai" {label="ai" subgraph "cluster_src/core/ai/ports" {label="ports" "src/core/ai/ports/AIStateManager.js" [label=<AIStateManager.js> tooltip="AIStateManager.js" URL="src/core/ai/ports/AIStateManager.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/auth" {label="auth" subgraph "cluster_src/core/auth/controllers" {label="controllers" "src/core/auth/controllers/AuthController.js" [label=<AuthController.js> tooltip="AuthController.js" URL="src/core/auth/controllers/AuthController.js" ] } } } }
+    "src/core/auth/controllers/AuthController.js" -> "src/core/auth/errors/AuthErrors.js"
+    "src/core/auth/controllers/AuthController.js" -> "src/core/infra/errors/ConfigurationError.js"
+    "src/core/auth/controllers/AuthController.js" -> "src/core/infra/errors/errorStandardization.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/auth" {label="auth" subgraph "cluster_src/core/auth/errors" {label="errors" "src/core/auth/errors/AuthErrors.js" [label=<AuthErrors.js> tooltip="AuthErrors.js" URL="src/core/auth/errors/AuthErrors.js" ] } } } }
+    "src/core/auth/errors/AuthErrors.js" -> "src/core/infra/errors/AppError.js"
+    "src/core/auth/errors/AuthErrors.js" -> "src/core/infra/errors/ErrorHandler.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/auth" {label="auth" subgraph "cluster_src/core/auth/errors" {label="errors" "src/core/auth/errors/authErrors.js" [label=<authErrors.js> tooltip="authErrors.js" URL="src/core/auth/errors/authErrors.js" ] } } } }
+    "src/core/auth/errors/authErrors.js" -> "src/core/infra/errors/AppError.js"
+    "src/core/auth/errors/authErrors.js" -> "src/core/infra/errors/ErrorHandler.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/auth" {label="auth" subgraph "cluster_src/core/auth/services" {label="services" "src/core/auth/services/AuthorizationService.js" [label=<AuthorizationService.js> tooltip="AuthorizationService.js" URL="src/core/auth/services/AuthorizationService.js" ] } } } }
+    "src/core/auth/services/AuthorizationService.js" -> "src/core/infra/logging/logger.js"
+    "src/core/auth/services/AuthorizationService.js" -> "src/core/user/errors/UserErrors.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/config" {label="config" "src/core/challenge/config/index.js" [label=<index.js> tooltip="index.js" URL="src/core/challenge/config/index.js" ] } } } }
+    "src/core/challenge/config/index.js" -> "src/core/challenge/config/seedData.js"
+    "src/core/challenge/config/index.js" -> "src/core/challenge/models/config/ChallengeType.js"
+    "src/core/challenge/config/index.js" -> "src/core/challenge/models/config/DifficultyLevel.js"
+    "src/core/challenge/config/index.js" -> "src/core/challenge/models/config/FocusArea.js"
+    "src/core/challenge/config/index.js" -> "src/core/challenge/models/config/FormatType.js"
+    "src/core/challenge/config/index.js" -> "src/core/challenge/repositories/config/ChallengeTypeRepository.js"
+    "src/core/challenge/config/index.js" -> "src/core/challenge/repositories/config/DifficultyLevelRepository.js"
+    "src/core/challenge/config/index.js" -> "src/core/challenge/repositories/config/FocusAreaConfigRepository.js"
+    "src/core/challenge/config/index.js" -> "src/core/challenge/repositories/config/FormatTypeRepository.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/config" {label="config" "src/core/challenge/config/seedData.js" [label=<seedData.js> tooltip="seedData.js" URL="src/core/challenge/config/seedData.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/controllers" {label="controllers" "src/core/challenge/controllers/ChallengeController.js" [label=<ChallengeController.js> tooltip="ChallengeController.js" URL="src/core/challenge/controllers/ChallengeController.js" ] } } } }
+    "src/core/challenge/controllers/ChallengeController.js" -> "src/core/challenge/dtos/ChallengeDTO.js"
+    "src/core/challenge/controllers/ChallengeController.js" -> "src/core/challenge/errors/ChallengeErrors.js"
+    "src/core/challenge/controllers/ChallengeController.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/challenge/controllers/ChallengeController.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/controllers" {label="controllers" "src/core/challenge/controllers/ChallengeTypeController.js" [label=<ChallengeTypeController.js> tooltip="ChallengeTypeController.js" URL="src/core/challenge/controllers/ChallengeTypeController.js" ] } } } }
+    "src/core/challenge/controllers/ChallengeTypeController.js" -> "src/core/challenge/dtos/ChallengeTypeDTO.js"
+    "src/core/challenge/controllers/ChallengeTypeController.js" -> "src/core/challenge/repositories/config/ChallengeTypeRepository.js"
+    "src/core/challenge/controllers/ChallengeTypeController.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/challenge/controllers/ChallengeTypeController.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/controllers" {label="controllers" "src/core/challenge/controllers/DifficultyLevelController.js" [label=<DifficultyLevelController.js> tooltip="DifficultyLevelController.js" URL="src/core/challenge/controllers/DifficultyLevelController.js" ] } } } }
+    "src/core/challenge/controllers/DifficultyLevelController.js" -> "src/config/container.js"
+    "src/core/challenge/controllers/DifficultyLevelController.js" -> "src/core/challenge/dtos/DifficultyLevelDTO.js"
+    "src/core/challenge/controllers/DifficultyLevelController.js" -> "src/core/challenge/errors/ChallengeErrors.js"
+    "src/core/challenge/controllers/DifficultyLevelController.js" -> "src/core/infra/errors/errorStandardization.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/controllers" {label="controllers" "src/core/challenge/controllers/FocusAreaConfigController.js" [label=<FocusAreaConfigController.js> tooltip="FocusAreaConfigController.js" URL="src/core/challenge/controllers/FocusAreaConfigController.js" ] } } } }
+    "src/core/challenge/controllers/FocusAreaConfigController.js" -> "src/core/challenge/dtos/FocusAreaConfigDTO.js"
+    "src/core/challenge/controllers/FocusAreaConfigController.js" -> "src/core/challenge/errors/ChallengeErrors.js"
+    "src/core/challenge/controllers/FocusAreaConfigController.js" -> "src/core/challenge/models/config/FocusArea.js"
+    "src/core/challenge/controllers/FocusAreaConfigController.js" -> "src/core/challenge/repositories/config/FocusAreaConfigRepository.js"
+    "src/core/challenge/controllers/FocusAreaConfigController.js" -> "src/core/infra/errors/errorStandardization.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/controllers" {label="controllers" "src/core/challenge/controllers/FormatTypeController.js" [label=<FormatTypeController.js> tooltip="FormatTypeController.js" URL="src/core/challenge/controllers/FormatTypeController.js" ] } } } }
+    "src/core/challenge/controllers/FormatTypeController.js" -> "src/core/challenge/dtos/FormatTypeDTO.js"
+    "src/core/challenge/controllers/FormatTypeController.js" -> "src/core/challenge/errors/ChallengeErrors.js"
+    "src/core/challenge/controllers/FormatTypeController.js" -> "src/core/challenge/repositories/config/FormatTypeRepository.js"
+    "src/core/challenge/controllers/FormatTypeController.js" -> "src/core/infra/errors/errorStandardization.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/dtos" {label="dtos" "src/core/challenge/dtos/ChallengeDTO.js" [label=<ChallengeDTO.js> tooltip="ChallengeDTO.js" URL="src/core/challenge/dtos/ChallengeDTO.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/dtos" {label="dtos" "src/core/challenge/dtos/ChallengeTypeDTO.js" [label=<ChallengeTypeDTO.js> tooltip="ChallengeTypeDTO.js" URL="src/core/challenge/dtos/ChallengeTypeDTO.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/dtos" {label="dtos" "src/core/challenge/dtos/DifficultyLevelDTO.js" [label=<DifficultyLevelDTO.js> tooltip="DifficultyLevelDTO.js" URL="src/core/challenge/dtos/DifficultyLevelDTO.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/dtos" {label="dtos" "src/core/challenge/dtos/FocusAreaConfigDTO.js" [label=<FocusAreaConfigDTO.js> tooltip="FocusAreaConfigDTO.js" URL="src/core/challenge/dtos/FocusAreaConfigDTO.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/dtos" {label="dtos" "src/core/challenge/dtos/FormatTypeDTO.js" [label=<FormatTypeDTO.js> tooltip="FormatTypeDTO.js" URL="src/core/challenge/dtos/FormatTypeDTO.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/errors" {label="errors" "src/core/challenge/errors/ChallengeErrors.js" [label=<ChallengeErrors.js> tooltip="ChallengeErrors.js" URL="src/core/challenge/errors/ChallengeErrors.js" ] } } } }
+    "src/core/challenge/errors/ChallengeErrors.js" -> "src/core/infra/errors/ErrorHandler.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/events" {label="events" "src/core/challenge/events/challengeEvents.js" [label=<challengeEvents.js> tooltip="challengeEvents.js" URL="src/core/challenge/events/challengeEvents.js" ] } } } }
+    "src/core/challenge/events/challengeEvents.js" -> "src/core/challenge/repositories/challengeRepository.js"
+    "src/core/challenge/events/challengeEvents.js" -> "src/core/common/events/domainEvents.js"
+    "src/core/challenge/events/challengeEvents.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/factories" {label="factories" "src/core/challenge/factories/ChallengeFactory.js" [label=<ChallengeFactory.js> tooltip="ChallengeFactory.js" URL="src/core/challenge/factories/ChallengeFactory.js" ] } } } }
+    "src/core/challenge/factories/ChallengeFactory.js" -> "src/core/challenge/errors/ChallengeErrors.js"
+    "src/core/challenge/factories/ChallengeFactory.js" -> "src/core/challenge/models/Challenge.js"
+    "src/core/challenge/factories/ChallengeFactory.js" -> "src/core/infra/logging/domainLogger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/mappers" {label="mappers" "src/core/challenge/mappers/ChallengeMapper.js" [label=<ChallengeMapper.js> tooltip="ChallengeMapper.js" URL="src/core/challenge/mappers/ChallengeMapper.js" ] } } } }
+    "src/core/challenge/mappers/ChallengeMapper.js" -> "src/core/challenge/models/Challenge.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/mappers" {label="mappers" "src/core/challenge/mappers/ChallengeTypeMapper.js" [label=<ChallengeTypeMapper.js> tooltip="ChallengeTypeMapper.js" URL="src/core/challenge/mappers/ChallengeTypeMapper.js" ] } } } }
+    "src/core/challenge/mappers/ChallengeTypeMapper.js" -> "src/core/challenge/models/config/ChallengeType.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/mappers" {label="mappers" "src/core/challenge/mappers/DifficultyLevelMapper.js" [label=<DifficultyLevelMapper.js> tooltip="DifficultyLevelMapper.js" URL="src/core/challenge/mappers/DifficultyLevelMapper.js" ] } } } }
+    "src/core/challenge/mappers/DifficultyLevelMapper.js" -> "src/core/challenge/models/config/DifficultyLevel.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/mappers" {label="mappers" "src/core/challenge/mappers/FocusAreaConfigMapper.js" [label=<FocusAreaConfigMapper.js> tooltip="FocusAreaConfigMapper.js" URL="src/core/challenge/mappers/FocusAreaConfigMapper.js" ] } } } }
+    "src/core/challenge/mappers/FocusAreaConfigMapper.js" -> "src/core/challenge/models/config/FocusArea.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/mappers" {label="mappers" "src/core/challenge/mappers/FocusAreaMapper.js" [label=<FocusAreaMapper.js> tooltip="FocusAreaMapper.js" URL="src/core/challenge/mappers/FocusAreaMapper.js" ] } } } }
+    "src/core/challenge/mappers/FocusAreaMapper.js" -> "src/core/challenge/models/config/FocusArea.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/mappers" {label="mappers" "src/core/challenge/mappers/FormatTypeMapper.js" [label=<FormatTypeMapper.js> tooltip="FormatTypeMapper.js" URL="src/core/challenge/mappers/FormatTypeMapper.js" ] } } } }
+    "src/core/challenge/mappers/FormatTypeMapper.js" -> "src/core/challenge/models/config/FormatType.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/models" {label="models" "src/core/challenge/models/Challenge.js" [label=<Challenge.js> tooltip="Challenge.js" URL="src/core/challenge/models/Challenge.js" ] } } } }
+    "src/core/challenge/models/Challenge.js" -> "src/core/challenge/errors/ChallengeErrors.js"
+    "src/core/challenge/models/Challenge.js" -> "src/core/challenge/schemas/ChallengeSchema.js"
+    "src/core/challenge/models/Challenge.js" -> "src/core/common/valueObjects/index.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/models" {label="models" subgraph "cluster_src/core/challenge/models/config" {label="config" "src/core/challenge/models/config/ChallengeType.js" [label=<ChallengeType.js> tooltip="ChallengeType.js" URL="src/core/challenge/models/config/ChallengeType.js" ] } } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/models" {label="models" subgraph "cluster_src/core/challenge/models/config" {label="config" "src/core/challenge/models/config/DifficultyLevel.js" [label=<DifficultyLevel.js> tooltip="DifficultyLevel.js" URL="src/core/challenge/models/config/DifficultyLevel.js" ] } } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/models" {label="models" subgraph "cluster_src/core/challenge/models/config" {label="config" "src/core/challenge/models/config/FocusArea.js" [label=<FocusArea.js> tooltip="FocusArea.js" URL="src/core/challenge/models/config/FocusArea.js" ] } } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/models" {label="models" subgraph "cluster_src/core/challenge/models/config" {label="config" "src/core/challenge/models/config/FormatType.js" [label=<FormatType.js> tooltip="FormatType.js" URL="src/core/challenge/models/config/FormatType.js" ] } } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/repositories" {label="repositories" "src/core/challenge/repositories/ChallengeTypeRepository.js" [label=<ChallengeTypeRepository.js> tooltip="ChallengeTypeRepository.js" URL="src/core/challenge/repositories/ChallengeTypeRepository.js" ] } } } }
+    "src/core/challenge/repositories/ChallengeTypeRepository.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/repositories" {label="repositories" "src/core/challenge/repositories/challengeRepository.js" [label=<challengeRepository.js> tooltip="challengeRepository.js" URL="src/core/challenge/repositories/challengeRepository.js" ] } } } }
+    "src/core/challenge/repositories/challengeRepository.js" -> "src/core/focusArea/repositories/focusAreaRepository.js" [xlabel="no-circular" tooltip="no-circular" arrowhead="normalnoneodot" fontcolor="orange" color="orange"]
+    "src/core/challenge/repositories/challengeRepository.js" -> "src/core/challenge/errors/ChallengeErrors.js"
+    "src/core/challenge/repositories/challengeRepository.js" -> "src/core/challenge/mappers/ChallengeMapper.js"
+    "src/core/challenge/repositories/challengeRepository.js" -> "src/core/challenge/models/Challenge.js"
+    "src/core/challenge/repositories/challengeRepository.js" -> "src/core/challenge/schemas/ChallengeSchema.js"
+    "src/core/challenge/repositories/challengeRepository.js" -> "src/core/common/events/domainEvents.js"
+    "src/core/challenge/repositories/challengeRepository.js" -> "src/core/common/valueObjects/ChallengeId.js"
+    "src/core/challenge/repositories/challengeRepository.js" -> "src/core/common/valueObjects/Email.js"
+    "src/core/challenge/repositories/challengeRepository.js" -> "src/core/common/valueObjects/FocusArea.js"
+    "src/core/challenge/repositories/challengeRepository.js" -> "src/core/common/valueObjects/UserId.js"
+    "src/core/challenge/repositories/challengeRepository.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/challenge/repositories/challengeRepository.js" -> "src/core/infra/repositories/BaseRepository.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/repositories" {label="repositories" subgraph "cluster_src/core/challenge/repositories/config" {label="config" "src/core/challenge/repositories/config/ChallengeTypeRepository.js" [label=<ChallengeTypeRepository.js> tooltip="ChallengeTypeRepository.js" URL="src/core/challenge/repositories/config/ChallengeTypeRepository.js" ] } } } } }
+    "src/core/challenge/repositories/config/ChallengeTypeRepository.js" -> "src/core/challenge/errors/ChallengeErrors.js"
+    "src/core/challenge/repositories/config/ChallengeTypeRepository.js" -> "src/core/challenge/mappers/ChallengeTypeMapper.js"
+    "src/core/challenge/repositories/config/ChallengeTypeRepository.js" -> "src/core/challenge/models/config/ChallengeType.js"
+    "src/core/challenge/repositories/config/ChallengeTypeRepository.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/challenge/repositories/config/ChallengeTypeRepository.js" -> "src/core/infra/logging/domainLogger.js"
+    "src/core/challenge/repositories/config/ChallengeTypeRepository.js" -> "src/core/infra/repositories/BaseRepository.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/repositories" {label="repositories" subgraph "cluster_src/core/challenge/repositories/config" {label="config" "src/core/challenge/repositories/config/DifficultyLevelRepository.js" [label=<DifficultyLevelRepository.js> tooltip="DifficultyLevelRepository.js" URL="src/core/challenge/repositories/config/DifficultyLevelRepository.js" ] } } } } }
+    "src/core/challenge/repositories/config/DifficultyLevelRepository.js" -> "src/core/challenge/errors/ChallengeErrors.js"
+    "src/core/challenge/repositories/config/DifficultyLevelRepository.js" -> "src/core/challenge/mappers/DifficultyLevelMapper.js"
+    "src/core/challenge/repositories/config/DifficultyLevelRepository.js" -> "src/core/challenge/models/config/DifficultyLevel.js"
+    "src/core/challenge/repositories/config/DifficultyLevelRepository.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/challenge/repositories/config/DifficultyLevelRepository.js" -> "src/core/infra/logging/domainLogger.js"
+    "src/core/challenge/repositories/config/DifficultyLevelRepository.js" -> "src/core/infra/repositories/BaseRepository.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/repositories" {label="repositories" subgraph "cluster_src/core/challenge/repositories/config" {label="config" "src/core/challenge/repositories/config/FocusAreaConfigRepository.js" [label=<FocusAreaConfigRepository.js> tooltip="FocusAreaConfigRepository.js" URL="src/core/challenge/repositories/config/FocusAreaConfigRepository.js" ] } } } } }
+    "src/core/challenge/repositories/config/FocusAreaConfigRepository.js" -> "src/core/challenge/errors/ChallengeErrors.js"
+    "src/core/challenge/repositories/config/FocusAreaConfigRepository.js" -> "src/core/challenge/mappers/FocusAreaMapper.js"
+    "src/core/challenge/repositories/config/FocusAreaConfigRepository.js" -> "src/core/challenge/models/config/FocusArea.js"
+    "src/core/challenge/repositories/config/FocusAreaConfigRepository.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/challenge/repositories/config/FocusAreaConfigRepository.js" -> "src/core/infra/logging/domainLogger.js"
+    "src/core/challenge/repositories/config/FocusAreaConfigRepository.js" -> "src/core/infra/repositories/BaseRepository.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/repositories" {label="repositories" subgraph "cluster_src/core/challenge/repositories/config" {label="config" "src/core/challenge/repositories/config/FormatTypeRepository.js" [label=<FormatTypeRepository.js> tooltip="FormatTypeRepository.js" URL="src/core/challenge/repositories/config/FormatTypeRepository.js" ] } } } } }
+    "src/core/challenge/repositories/config/FormatTypeRepository.js" -> "src/core/challenge/errors/ChallengeErrors.js"
+    "src/core/challenge/repositories/config/FormatTypeRepository.js" -> "src/core/challenge/mappers/FormatTypeMapper.js"
+    "src/core/challenge/repositories/config/FormatTypeRepository.js" -> "src/core/challenge/models/config/FormatType.js"
+    "src/core/challenge/repositories/config/FormatTypeRepository.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/challenge/repositories/config/FormatTypeRepository.js" -> "src/core/infra/logging/domainLogger.js"
+    "src/core/challenge/repositories/config/FormatTypeRepository.js" -> "src/core/infra/repositories/BaseRepository.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/schemas" {label="schemas" "src/core/challenge/schemas/ChallengeSchema.js" [label=<ChallengeSchema.js> tooltip="ChallengeSchema.js" URL="src/core/challenge/schemas/ChallengeSchema.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/schemas" {label="schemas" "src/core/challenge/schemas/challengeApiSchemas.js" [label=<challengeApiSchemas.js> tooltip="no-orphans" URL="src/core/challenge/schemas/challengeApiSchemas.js" fillcolor="#ccffcc" fontcolor="orange" color="orange"] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/services" {label="services" "src/core/challenge/services/ChallengeConfigService.js" [label=<ChallengeConfigService.js> tooltip="ChallengeConfigService.js" URL="src/core/challenge/services/ChallengeConfigService.js" ] } } } }
+    "src/core/challenge/services/ChallengeConfigService.js" -> "src/core/challenge/errors/ChallengeErrors.js"
+    "src/core/challenge/services/ChallengeConfigService.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/challenge/services/ChallengeConfigService.js" -> "src/core/infra/logging/domainLogger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/services" {label="services" "src/core/challenge/services/ChallengePerformanceService.js" [label=<ChallengePerformanceService.js> tooltip="ChallengePerformanceService.js" URL="src/core/challenge/services/ChallengePerformanceService.js" ] } } } }
+    "src/core/challenge/services/ChallengePerformanceService.js" -> "src/core/challenge/errors/ChallengeErrors.js"
+    "src/core/challenge/services/ChallengePerformanceService.js" -> "src/core/infra/errors/errorStandardization.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/services" {label="services" "src/core/challenge/services/ChallengePersonalizationService.js" [label=<ChallengePersonalizationService.js> tooltip="ChallengePersonalizationService.js" URL="src/core/challenge/services/ChallengePersonalizationService.js" ] } } } }
+    "src/core/challenge/services/ChallengePersonalizationService.js" -> "src/core/infra/errors/errorStandardization.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/challenge" {label="challenge" subgraph "cluster_src/core/challenge/services" {label="services" "src/core/challenge/services/ChallengeService.js" [label=<ChallengeService.js> tooltip="ChallengeService.js" URL="src/core/challenge/services/ChallengeService.js" ] } } } }
+    "src/core/challenge/services/ChallengeService.js" -> "src/core/challenge/errors/ChallengeErrors.js"
+    "src/core/challenge/services/ChallengeService.js" -> "src/core/challenge/models/Challenge.js"
+    "src/core/challenge/services/ChallengeService.js" -> "src/core/challenge/repositories/challengeRepository.js"
+    "src/core/challenge/services/ChallengeService.js" -> "src/core/challenge/schemas/ChallengeSchema.js"
+    "src/core/challenge/services/ChallengeService.js" -> "src/core/common/events/domainEvents.js"
+    "src/core/challenge/services/ChallengeService.js" -> "src/core/common/valueObjects/index.js"
+    "src/core/challenge/services/ChallengeService.js" -> "src/core/infra/cache/cacheFactory.js"
+    "src/core/challenge/services/ChallengeService.js" -> "src/core/infra/errors/ConfigurationError.js"
+    "src/core/challenge/services/ChallengeService.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/challenge/services/ChallengeService.js" -> "src/core/infra/logging/logger.js"
+    "src/core/challenge/services/ChallengeService.js" -> "src/core/shared/utils/serviceUtils.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/common" {label="common" subgraph "cluster_src/core/common/events" {label="events" "src/core/common/events/DeadLetterQueueService.js" [label=<DeadLetterQueueService.js> tooltip="DeadLetterQueueService.js" URL="src/core/common/events/DeadLetterQueueService.js" ] } } } }
+    "src/core/common/events/DeadLetterQueueService.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/common" {label="common" subgraph "cluster_src/core/common/events" {label="events" "src/core/common/events/RobustEventBus.js" [label=<RobustEventBus.js> tooltip="RobustEventBus.js" URL="src/core/common/events/RobustEventBus.js" ] } } } }
+    "src/core/common/events/RobustEventBus.js" -> "src/core/common/events/eventUtils.js" [xlabel="no-circular" tooltip="no-circular" arrowhead="normalnoneodot" fontcolor="orange" color="orange"]
+    "src/core/common/events/RobustEventBus.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/common" {label="common" subgraph "cluster_src/core/common/events" {label="events" "src/core/common/events/domainEvents.js" [label=<domainEvents.js> tooltip="domainEvents.js" URL="src/core/common/events/domainEvents.js" ] } } } }
+    "src/core/common/events/domainEvents.js" -> "src/core/common/events/RobustEventBus.js" [xlabel="no-circular" tooltip="no-circular" arrowhead="normalnoneodot" fontcolor="orange" color="orange"]
+    "src/core/common/events/domainEvents.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/common" {label="common" subgraph "cluster_src/core/common/events" {label="events" "src/core/common/events/eventUtils.js" [label=<eventUtils.js> tooltip="eventUtils.js" URL="src/core/common/events/eventUtils.js" ] } } } }
+    "src/core/common/events/eventUtils.js" -> "src/core/common/events/domainEvents.js" [xlabel="no-circular" tooltip="no-circular" arrowhead="normalnoneodot" fontcolor="orange" color="orange"]
+    "src/core/common/events/eventUtils.js" -> "src/core/infra/errors/AppError.js"
+    "src/core/common/events/eventUtils.js" -> "src/core/infra/errors/errorHandler.js"
+    "src/core/common/events/eventUtils.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/common" {label="common" "src/core/common/fallbackChallenges.js" [label=<fallbackChallenges.js> tooltip="no-orphans" URL="src/core/common/fallbackChallenges.js" fillcolor="#ccffcc" fontcolor="orange" color="orange"] } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/common" {label="common" subgraph "cluster_src/core/common/models" {label="models" "src/core/common/models/Entity.js" [label=<Entity.js> tooltip="Entity.js" URL="src/core/common/models/Entity.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/common" {label="common" subgraph "cluster_src/core/common/valueObjects" {label="valueObjects" "src/core/common/valueObjects/ChallengeId.js" [label=<ChallengeId.js> tooltip="ChallengeId.js" URL="src/core/common/valueObjects/ChallengeId.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/common" {label="common" subgraph "cluster_src/core/common/valueObjects" {label="valueObjects" "src/core/common/valueObjects/DifficultyLevel.js" [label=<DifficultyLevel.js> tooltip="DifficultyLevel.js" URL="src/core/common/valueObjects/DifficultyLevel.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/common" {label="common" subgraph "cluster_src/core/common/valueObjects" {label="valueObjects" "src/core/common/valueObjects/Email.js" [label=<Email.js> tooltip="Email.js" URL="src/core/common/valueObjects/Email.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/common" {label="common" subgraph "cluster_src/core/common/valueObjects" {label="valueObjects" "src/core/common/valueObjects/FocusArea.js" [label=<FocusArea.js> tooltip="FocusArea.js" URL="src/core/common/valueObjects/FocusArea.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/common" {label="common" subgraph "cluster_src/core/common/valueObjects" {label="valueObjects" "src/core/common/valueObjects/TraitScore.js" [label=<TraitScore.js> tooltip="TraitScore.js" URL="src/core/common/valueObjects/TraitScore.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/common" {label="common" subgraph "cluster_src/core/common/valueObjects" {label="valueObjects" "src/core/common/valueObjects/UserId.js" [label=<UserId.js> tooltip="UserId.js" URL="src/core/common/valueObjects/UserId.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/common" {label="common" subgraph "cluster_src/core/common/valueObjects" {label="valueObjects" "src/core/common/valueObjects/index.js" [label=<index.js> tooltip="index.js" URL="src/core/common/valueObjects/index.js" ] } } } }
+    "src/core/common/valueObjects/index.js" -> "src/core/common/valueObjects/ChallengeId.js"
+    "src/core/common/valueObjects/index.js" -> "src/core/common/valueObjects/DifficultyLevel.js"
+    "src/core/common/valueObjects/index.js" -> "src/core/common/valueObjects/Email.js"
+    "src/core/common/valueObjects/index.js" -> "src/core/common/valueObjects/FocusArea.js"
+    "src/core/common/valueObjects/index.js" -> "src/core/common/valueObjects/TraitScore.js"
+    "src/core/common/valueObjects/index.js" -> "src/core/common/valueObjects/UserId.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/evaluation" {label="evaluation" subgraph "cluster_src/core/evaluation/controllers" {label="controllers" "src/core/evaluation/controllers/EvaluationController.js" [label=<EvaluationController.js> tooltip="EvaluationController.js" URL="src/core/evaluation/controllers/EvaluationController.js" ] } } } }
+    "src/core/evaluation/controllers/EvaluationController.js" -> "src/core/evaluation/dtos/EvaluationDTO.js"
+    "src/core/evaluation/controllers/EvaluationController.js" -> "src/core/evaluation/errors/EvaluationErrors.js"
+    "src/core/evaluation/controllers/EvaluationController.js" -> "src/core/infra/errors/errorStandardization.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/evaluation" {label="evaluation" subgraph "cluster_src/core/evaluation/dtos" {label="dtos" "src/core/evaluation/dtos/EvaluationDTO.js" [label=<EvaluationDTO.js> tooltip="EvaluationDTO.js" URL="src/core/evaluation/dtos/EvaluationDTO.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/evaluation" {label="evaluation" subgraph "cluster_src/core/evaluation/errors" {label="errors" "src/core/evaluation/errors/EvaluationErrors.js" [label=<EvaluationErrors.js> tooltip="EvaluationErrors.js" URL="src/core/evaluation/errors/EvaluationErrors.js" ] } } } }
+    "src/core/evaluation/errors/EvaluationErrors.js" -> "src/core/infra/errors/AppError.js"
+    "src/core/evaluation/errors/EvaluationErrors.js" -> "src/core/infra/errors/ErrorHandler.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/evaluation" {label="evaluation" subgraph "cluster_src/core/evaluation/errors" {label="errors" "src/core/evaluation/errors/evaluationErrors.js" [label=<evaluationErrors.js> tooltip="evaluationErrors.js" URL="src/core/evaluation/errors/evaluationErrors.js" ] } } } }
+    "src/core/evaluation/errors/evaluationErrors.js" -> "src/core/infra/errors/AppError.js"
+    "src/core/evaluation/errors/evaluationErrors.js" -> "src/core/infra/errors/ErrorHandler.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/evaluation" {label="evaluation" subgraph "cluster_src/core/evaluation/events" {label="events" "src/core/evaluation/events/evaluationEvents.js" [label=<evaluationEvents.js> tooltip="evaluationEvents.js" URL="src/core/evaluation/events/evaluationEvents.js" ] } } } }
+    "src/core/evaluation/events/evaluationEvents.js" -> "src/core/common/events/domainEvents.js"
+    "src/core/evaluation/events/evaluationEvents.js" -> "src/core/evaluation/repositories/evaluationRepository.js"
+    "src/core/evaluation/events/evaluationEvents.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/evaluation" {label="evaluation" subgraph "cluster_src/core/evaluation/models" {label="models" "src/core/evaluation/models/Evaluation.js" [label=<Evaluation.js> tooltip="Evaluation.js" URL="src/core/evaluation/models/Evaluation.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/evaluation" {label="evaluation" subgraph "cluster_src/core/evaluation/repositories" {label="repositories" "src/core/evaluation/repositories/evaluationCategoryRepository.js" [label=<evaluationCategoryRepository.js> tooltip="evaluationCategoryRepository.js" URL="src/core/evaluation/repositories/evaluationCategoryRepository.js" ] } } } }
+    "src/core/evaluation/repositories/evaluationCategoryRepository.js" -> "src/core/evaluation/errors/EvaluationErrors.js"
+    "src/core/evaluation/repositories/evaluationCategoryRepository.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/evaluation/repositories/evaluationCategoryRepository.js" -> "src/core/infra/repositories/BaseRepository.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/evaluation" {label="evaluation" subgraph "cluster_src/core/evaluation/repositories" {label="repositories" "src/core/evaluation/repositories/evaluationRepository.js" [label=<evaluationRepository.js> tooltip="evaluationRepository.js" URL="src/core/evaluation/repositories/evaluationRepository.js" ] } } } }
+    "src/core/evaluation/repositories/evaluationRepository.js" -> "src/core/challenge/repositories/challengeRepository.js"
+    "src/core/evaluation/repositories/evaluationRepository.js" -> "src/core/common/events/domainEvents.js"
+    "src/core/evaluation/repositories/evaluationRepository.js" -> "src/core/evaluation/errors/EvaluationErrors.js"
+    "src/core/evaluation/repositories/evaluationRepository.js" -> "src/core/evaluation/models/Evaluation.js"
+    "src/core/evaluation/repositories/evaluationRepository.js" -> "src/core/evaluation/schemas/EvaluationSchema.js"
+    "src/core/evaluation/repositories/evaluationRepository.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/evaluation/repositories/evaluationRepository.js" -> "src/core/infra/repositories/BaseRepository.js"
+    "src/core/evaluation/repositories/evaluationRepository.js" -> "src/core/user/repositories/UserRepository.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/evaluation" {label="evaluation" subgraph "cluster_src/core/evaluation/schemas" {label="schemas" "src/core/evaluation/schemas/EvaluationSchema.js" [label=<EvaluationSchema.js> tooltip="EvaluationSchema.js" URL="src/core/evaluation/schemas/EvaluationSchema.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/evaluation" {label="evaluation" subgraph "cluster_src/core/evaluation/services" {label="services" subgraph "cluster_src/core/evaluation/services/domain" {label="domain" "src/core/evaluation/services/domain/EvaluationDomainService.js" [label=<EvaluationDomainService.js> tooltip="no-orphans" URL="src/core/evaluation/services/domain/EvaluationDomainService.js" fillcolor="#ccffcc" fontcolor="orange" color="orange"] } } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/evaluation" {label="evaluation" subgraph "cluster_src/core/evaluation/services" {label="services" "src/core/evaluation/services/dynamicPromptService.js" [label=<dynamicPromptService.js> tooltip="dynamicPromptService.js" URL="src/core/evaluation/services/dynamicPromptService.js" ] } } } }
+    "src/core/evaluation/services/dynamicPromptService.js" -> "src/core/evaluation/errors/EvaluationErrors.js"
+    "src/core/evaluation/services/dynamicPromptService.js" -> "src/core/infra/errors/centralizedErrorUtils.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/evaluation" {label="evaluation" subgraph "cluster_src/core/evaluation/services" {label="services" "src/core/evaluation/services/evaluationService.js" [label=<evaluationService.js> tooltip="evaluationService.js" URL="src/core/evaluation/services/evaluationService.js" ] } } } }
+    "src/core/evaluation/services/evaluationService.js" -> "src/core/evaluation/errors/EvaluationErrors.js"
+    "src/core/evaluation/services/evaluationService.js" -> "src/core/evaluation/models/Evaluation.js"
+    "src/core/evaluation/services/evaluationService.js" -> "src/core/infra/errors/ConfigurationError.js"
+    "src/core/evaluation/services/evaluationService.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/evaluation/services/evaluationService.js" -> "src/core/infra/openai/messageFormatter.js"
+    "src/core/evaluation/services/evaluationService.js" -> "src/core/prompt/promptBuilder.js"
+    "src/core/evaluation/services/evaluationService.js" -> "src/core/prompt/promptTypes.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/focusArea" {label="focusArea" subgraph "cluster_src/core/focusArea/controllers" {label="controllers" "src/core/focusArea/controllers/FocusAreaController.js" [label=<FocusAreaController.js> tooltip="FocusAreaController.js" URL="src/core/focusArea/controllers/FocusAreaController.js" ] } } } }
+    "src/core/focusArea/controllers/FocusAreaController.js" -> "src/core/focusArea/errors/focusAreaErrors.js"
+    "src/core/focusArea/controllers/FocusAreaController.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/focusArea/controllers/FocusAreaController.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/focusArea" {label="focusArea" subgraph "cluster_src/core/focusArea/errors" {label="errors" "src/core/focusArea/errors/focusAreaErrors.js" [label=<focusAreaErrors.js> tooltip="focusAreaErrors.js" URL="src/core/focusArea/errors/focusAreaErrors.js" ] } } } }
+    "src/core/focusArea/errors/focusAreaErrors.js" -> "src/core/infra/errors/AppError.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/focusArea" {label="focusArea" subgraph "cluster_src/core/focusArea/events" {label="events" "src/core/focusArea/events/focusAreaEvents.js" [label=<focusAreaEvents.js> tooltip="focusAreaEvents.js" URL="src/core/focusArea/events/focusAreaEvents.js" ] } } } }
+    "src/core/focusArea/events/focusAreaEvents.js" -> "src/core/common/events/domainEvents.js"
+    "src/core/focusArea/events/focusAreaEvents.js" -> "src/core/focusArea/repositories/focusAreaRepository.js"
+    "src/core/focusArea/events/focusAreaEvents.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/focusArea" {label="focusArea" subgraph "cluster_src/core/focusArea/models" {label="models" "src/core/focusArea/models/FocusArea.js" [label=<FocusArea.js> tooltip="FocusArea.js" URL="src/core/focusArea/models/FocusArea.js" ] } } } }
+    "src/core/focusArea/models/FocusArea.js" -> "src/core/common/events/domainEvents.js"
+    "src/core/focusArea/models/FocusArea.js" -> "src/core/common/models/Entity.js"
+    "src/core/focusArea/models/FocusArea.js" -> "src/core/focusArea/schemas/focusAreaValidation.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/focusArea" {label="focusArea" subgraph "cluster_src/core/focusArea/ports" {label="ports" "src/core/focusArea/ports/FocusAreaThreadStatePort.js" [label=<FocusAreaThreadStatePort.js> tooltip="FocusAreaThreadStatePort.js" URL="src/core/focusArea/ports/FocusAreaThreadStatePort.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/focusArea" {label="focusArea" subgraph "cluster_src/core/focusArea/repositories" {label="repositories" "src/core/focusArea/repositories/focusAreaRepository.js" [label=<focusAreaRepository.js> tooltip="focusAreaRepository.js" URL="src/core/focusArea/repositories/focusAreaRepository.js" ] } } } }
+    "src/core/focusArea/repositories/focusAreaRepository.js" -> "src/core/challenge/repositories/challengeRepository.js" [xlabel="no-circular" tooltip="no-circular" arrowhead="normalnoneodot" fontcolor="orange" color="orange"]
+    "src/core/focusArea/repositories/focusAreaRepository.js" -> "src/core/common/events/domainEvents.js"
+    "src/core/focusArea/repositories/focusAreaRepository.js" -> "src/core/focusArea/errors/focusAreaErrors.js"
+    "src/core/focusArea/repositories/focusAreaRepository.js" -> "src/core/focusArea/models/FocusArea.js"
+    "src/core/focusArea/repositories/focusAreaRepository.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/focusArea/repositories/focusAreaRepository.js" -> "src/core/infra/repositories/BaseRepository.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/focusArea" {label="focusArea" subgraph "cluster_src/core/focusArea/schemas" {label="schemas" "src/core/focusArea/schemas/FocusAreaSchema.js" [label=<FocusAreaSchema.js> tooltip="no-orphans" URL="src/core/focusArea/schemas/FocusAreaSchema.js" fillcolor="#ccffcc" fontcolor="orange" color="orange"] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/focusArea" {label="focusArea" subgraph "cluster_src/core/focusArea/schemas" {label="schemas" "src/core/focusArea/schemas/focusAreaValidation.js" [label=<focusAreaValidation.js> tooltip="focusAreaValidation.js" URL="src/core/focusArea/schemas/focusAreaValidation.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/focusArea" {label="focusArea" subgraph "cluster_src/core/focusArea/services" {label="services" "src/core/focusArea/services/FocusAreaService.js" [label=<FocusAreaService.js> tooltip="FocusAreaService.js" URL="src/core/focusArea/services/FocusAreaService.js" ] } } } }
+    "src/core/focusArea/services/FocusAreaService.js" -> "src/core/focusArea/errors/focusAreaErrors.js"
+    "src/core/focusArea/services/FocusAreaService.js" -> "src/core/infra/errors/ConfigurationError.js"
+    "src/core/focusArea/services/FocusAreaService.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/focusArea/services/FocusAreaService.js" -> "src/core/infra/logging/domainLogger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/focusArea" {label="focusArea" subgraph "cluster_src/core/focusArea/services" {label="services" "src/core/focusArea/services/FocusAreaValidationService.js" [label=<FocusAreaValidationService.js> tooltip="FocusAreaValidationService.js" URL="src/core/focusArea/services/FocusAreaValidationService.js" ] } } } }
+    "src/core/focusArea/services/FocusAreaValidationService.js" -> "src/core/common/valueObjects/index.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/focusArea" {label="focusArea" subgraph "cluster_src/core/focusArea/services" {label="services" "src/core/focusArea/services/focusAreaThreadService.js" [label=<focusAreaThreadService.js> tooltip="focusAreaThreadService.js" URL="src/core/focusArea/services/focusAreaThreadService.js" ] } } } }
+    "src/core/focusArea/services/focusAreaThreadService.js" -> "src/application/focusArea/services/FocusAreaThreadService.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/api" {label="api" "src/core/infra/api/responsesApiTypes.js" [label=<responsesApiTypes.js> tooltip="no-orphans" URL="src/core/infra/api/responsesApiTypes.js" fillcolor="#ccffcc" fontcolor="orange" color="orange"] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/cache" {label="cache" "src/core/infra/cache/CacheInvalidationManager.js" [label=<CacheInvalidationManager.js> tooltip="CacheInvalidationManager.js" URL="src/core/infra/cache/CacheInvalidationManager.js" ] } } } }
+    "src/core/infra/cache/CacheInvalidationManager.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/cache" {label="cache" "src/core/infra/cache/CacheService.js" [label=<CacheService.js> tooltip="CacheService.js" URL="src/core/infra/cache/CacheService.js" ] } } } }
+    "src/core/infra/cache/CacheService.js" -> "src/core/infra/errors/AppError.js"
+    "src/core/infra/cache/CacheService.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/infra/cache/CacheService.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/cache" {label="cache" "src/core/infra/cache/MemoryCacheProvider.js" [label=<MemoryCacheProvider.js> tooltip="MemoryCacheProvider.js" URL="src/core/infra/cache/MemoryCacheProvider.js" ] } } } }
+    "src/core/infra/cache/MemoryCacheProvider.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/cache" {label="cache" "src/core/infra/cache/RedisCacheProvider.js" [label=<RedisCacheProvider.js> tooltip="RedisCacheProvider.js" URL="src/core/infra/cache/RedisCacheProvider.js" ] } } } }
+    "src/core/infra/cache/RedisCacheProvider.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/cache" {label="cache" "src/core/infra/cache/cacheFactory.js" [label=<cacheFactory.js> tooltip="cacheFactory.js" URL="src/core/infra/cache/cacheFactory.js" ] } } } }
+    "src/core/infra/cache/cacheFactory.js" -> "src/config/config.js"
+    "src/core/infra/cache/cacheFactory.js" -> "src/core/infra/cache/CacheInvalidationManager.js"
+    "src/core/infra/cache/cacheFactory.js" -> "src/core/infra/cache/CacheService.js"
+    "src/core/infra/cache/cacheFactory.js" -> "src/core/infra/cache/MemoryCacheProvider.js"
+    "src/core/infra/cache/cacheFactory.js" -> "src/core/infra/cache/RedisCacheProvider.js"
+    "src/core/infra/cache/cacheFactory.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/cache" {label="cache" "src/core/infra/cache/cacheFactory.mjs" [label=<cacheFactory.mjs> tooltip="cacheFactory.mjs" URL="src/core/infra/cache/cacheFactory.mjs" ] } } } }
+    "src/core/infra/cache/cacheFactory.mjs" -> "src/core/infra/logging/logger.js"
+    "src/core/infra/cache/cacheFactory.mjs" -> "src/core/infra/cache/CacheInvalidationManager.js"
+    "src/core/infra/cache/cacheFactory.mjs" -> "src/core/infra/cache/CacheService.js"
+    "src/core/infra/cache/cacheFactory.mjs" -> "src/core/infra/cache/MemoryCacheProvider.js"
+    "src/core/infra/cache/cacheFactory.mjs" -> "src/core/infra/cache/RedisCacheProvider.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/db" {label="db" "src/core/infra/db/databaseConnection.js" [label=<databaseConnection.js> tooltip="databaseConnection.js" URL="src/core/infra/db/databaseConnection.js" ] } } } }
+    "src/core/infra/db/databaseConnection.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/db" {label="db" "src/core/infra/db/supabaseClient.js" [label=<supabaseClient.js> tooltip="supabaseClient.js" URL="src/core/infra/db/supabaseClient.js" ] } } } }
+    "src/core/infra/db/supabaseClient.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/di" {label="di" "src/core/infra/di/DIContainer.js" [label=<DIContainer.js> tooltip="DIContainer.js" URL="src/core/infra/di/DIContainer.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/errors" {label="errors" "src/core/infra/errors/ApiIntegrationError.js" [label=<ApiIntegrationError.js> tooltip="ApiIntegrationError.js" URL="src/core/infra/errors/ApiIntegrationError.js" ] } } } }
+    "src/core/infra/errors/ApiIntegrationError.js" -> "src/core/infra/errors/InfraErrors.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/errors" {label="errors" "src/core/infra/errors/AppError.js" [label=<AppError.js> tooltip="AppError.js" URL="src/core/infra/errors/AppError.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/errors" {label="errors" "src/core/infra/errors/ConfigurationError.js" [label=<ConfigurationError.js> tooltip="ConfigurationError.js" URL="src/core/infra/errors/ConfigurationError.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/errors" {label="errors" "src/core/infra/errors/ErrorHandler.js" [label=<ErrorHandler.js> tooltip="ErrorHandler.js" URL="src/core/infra/errors/ErrorHandler.js" ] } } } }
+    "src/core/infra/errors/ErrorHandler.js" -> "src/config/config.js"
+    "src/core/infra/errors/ErrorHandler.js" -> "src/core/infra/errors/AppError.js"
+    "src/core/infra/errors/ErrorHandler.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/errors" {label="errors" "src/core/infra/errors/FileStorageErrors.js" [label=<FileStorageErrors.js> tooltip="FileStorageErrors.js" URL="src/core/infra/errors/FileStorageErrors.js" ] } } } }
+    "src/core/infra/errors/FileStorageErrors.js" -> "src/core/infra/errors/InfraErrors.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/errors" {label="errors" "src/core/infra/errors/InfraErrors.js" [label=<InfraErrors.js> tooltip="InfraErrors.js" URL="src/core/infra/errors/InfraErrors.js" ] } } } }
+    "src/core/infra/errors/InfraErrors.js" -> "src/core/infra/errors/AppError.js"
+    "src/core/infra/errors/InfraErrors.js" -> "src/core/infra/errors/ErrorHandler.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/errors" {label="errors" "src/core/infra/errors/MissingParameterError.js" [label=<MissingParameterError.js> tooltip="MissingParameterError.js" URL="src/core/infra/errors/MissingParameterError.js" ] } } } }
+    "src/core/infra/errors/MissingParameterError.js" -> "src/core/infra/errors/AppError.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/errors" {label="errors" "src/core/infra/errors/centralizedErrorUtils.js" [label=<centralizedErrorUtils.js> tooltip="centralizedErrorUtils.js" URL="src/core/infra/errors/centralizedErrorUtils.js" ] } } } }
+    "src/core/infra/errors/centralizedErrorUtils.js" -> "src/core/infra/errors/errorStandardization.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/errors" {label="errors" "src/core/infra/errors/errorHandler.js" [label=<errorHandler.js> tooltip="errorHandler.js" URL="src/core/infra/errors/errorHandler.js" ] } } } }
+    "src/core/infra/errors/errorHandler.js" -> "src/config/config.js"
+    "src/core/infra/errors/errorHandler.js" -> "src/core/infra/errors/AppError.js"
+    "src/core/infra/errors/errorHandler.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/errors" {label="errors" "src/core/infra/errors/errorStandardization.js" [label=<errorStandardization.js> tooltip="errorStandardization.js" URL="src/core/infra/errors/errorStandardization.js" ] } } } }
+    "src/core/infra/errors/errorStandardization.js" -> "src/core/infra/errors/AppError.js"
+    "src/core/infra/errors/errorStandardization.js" -> "src/core/infra/errors/errorHandler.js"
+    "src/core/infra/errors/errorStandardization.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/events" {label="events" "src/core/infra/events/EventBusController.js" [label=<EventBusController.js> tooltip="EventBusController.js" URL="src/core/infra/events/EventBusController.js" ] } } } }
+    "src/core/infra/events/EventBusController.js" -> "src/core/common/events/RobustEventBus.js"
+    "src/core/infra/events/EventBusController.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/events" {label="events" "src/core/infra/events/eventSetup.js" [label=<eventSetup.js> tooltip="eventSetup.js" URL="src/core/infra/events/eventSetup.js" ] } } } }
+    "src/core/infra/events/eventSetup.js" -> "src/application/events/CacheInvalidationEventHandlers.js"
+    "src/core/infra/events/eventSetup.js" -> "src/core/adaptive/events/adaptiveEvents.js"
+    "src/core/infra/events/eventSetup.js" -> "src/core/challenge/events/challengeEvents.js"
+    "src/core/infra/events/eventSetup.js" -> "src/core/common/events/domainEvents.js"
+    "src/core/infra/events/eventSetup.js" -> "src/core/evaluation/events/evaluationEvents.js"
+    "src/core/infra/events/eventSetup.js" -> "src/core/focusArea/events/focusAreaEvents.js"
+    "src/core/infra/events/eventSetup.js" -> "src/core/infra/logging/logger.js"
+    "src/core/infra/events/eventSetup.js" -> "src/core/personality/events/personalityEvents.js"
+    "src/core/infra/events/eventSetup.js" -> "src/core/progress/events/progressEvents.js"
+    "src/core/infra/events/eventSetup.js" -> "src/core/user/events/userEvents.js"
+    "src/core/infra/events/eventSetup.js" -> "src/core/userJourney/events/userJourneyEvents.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/health" {label="health" "src/core/infra/health/HealthCheckController.js" [label=<HealthCheckController.js> tooltip="HealthCheckController.js" URL="src/core/infra/health/HealthCheckController.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/health" {label="health" "src/core/infra/health/HealthCheckService.js" [label=<HealthCheckService.js> tooltip="HealthCheckService.js" URL="src/core/infra/health/HealthCheckService.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/http" {label="http" subgraph "cluster_src/core/infra/http/middleware" {label="middleware" "src/core/infra/http/middleware/auth.js" [label=<auth.js> tooltip="auth.js" URL="src/core/infra/http/middleware/auth.js" ] } } } } }
+    "src/core/infra/http/middleware/auth.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/infra/http/middleware/auth.js" -> "src/core/infra/logging/logger.js"
+    "src/core/infra/http/middleware/auth.js" -> "src/core/user/errors/UserErrors.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/http" {label="http" subgraph "cluster_src/core/infra/http/middleware" {label="middleware" "src/core/infra/http/middleware/errorHandler.js" [label=<errorHandler.js> tooltip="errorHandler.js" URL="src/core/infra/http/middleware/errorHandler.js" ] } } } } }
+    "src/core/infra/http/middleware/errorHandler.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/http" {label="http" subgraph "cluster_src/core/infra/http/middleware" {label="middleware" "src/core/infra/http/middleware/rateLimit.js" [label=<rateLimit.js> tooltip="rateLimit.js" URL="src/core/infra/http/middleware/rateLimit.js" ] } } } } }
+    "src/core/infra/http/middleware/rateLimit.js" -> "src/config/config.js"
+    "src/core/infra/http/middleware/rateLimit.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/http" {label="http" subgraph "cluster_src/core/infra/http/middleware" {label="middleware" "src/core/infra/http/middleware/resourceAuth.js" [label=<resourceAuth.js> tooltip="resourceAuth.js" URL="src/core/infra/http/middleware/resourceAuth.js" ] } } } } }
+    "src/core/infra/http/middleware/resourceAuth.js" -> "src/core/auth/services/AuthorizationService.js"
+    "src/core/infra/http/middleware/resourceAuth.js" -> "src/core/infra/logging/logger.js"
+    "src/core/infra/http/middleware/resourceAuth.js" -> "src/core/user/errors/UserErrors.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/http" {label="http" subgraph "cluster_src/core/infra/http/middleware" {label="middleware" "src/core/infra/http/middleware/validation.js" [label=<validation.js> tooltip="validation.js" URL="src/core/infra/http/middleware/validation.js" ] } } } } }
+    "src/core/infra/http/middleware/validation.js" -> "src/core/infra/errors/AppError.js"
+    "src/core/infra/http/middleware/validation.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/infra/http/middleware/validation.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/http" {label="http" subgraph "cluster_src/core/infra/http/middleware" {label="middleware" "src/core/infra/http/middleware/validationFactory.js" [label=<validationFactory.js> tooltip="validationFactory.js" URL="src/core/infra/http/middleware/validationFactory.js" ] } } } } }
+    "src/core/infra/http/middleware/validationFactory.js" -> "src/core/infra/http/middleware/validation.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/http" {label="http" "src/core/infra/http/responseFormatter.js" [label=<responseFormatter.js> tooltip="responseFormatter.js" URL="src/core/infra/http/responseFormatter.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/http" {label="http" subgraph "cluster_src/core/infra/http/routes" {label="routes" "src/core/infra/http/routes/RouteFactory.js" [label=<RouteFactory.js> tooltip="RouteFactory.js" URL="src/core/infra/http/routes/RouteFactory.js" ] } } } } }
+    "src/core/infra/http/routes/RouteFactory.js" -> "src/core/infra/http/routes/systemRoutes.js"
+    "src/core/infra/http/routes/RouteFactory.js" -> "src/core/infra/http/middleware/auth.js"
+    "src/core/infra/http/routes/RouteFactory.js" -> "src/core/infra/http/middleware/validation.js"
+    "src/core/infra/http/routes/RouteFactory.js" -> "src/core/infra/logging/domainLogger.js"
+    "src/core/infra/http/routes/RouteFactory.js" -> "src/core/personality/schemas/personalityApiSchemas.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/http" {label="http" subgraph "cluster_src/core/infra/http/routes" {label="routes" "src/core/infra/http/routes/adaptiveRoutes.js" [label=<adaptiveRoutes.js> tooltip="adaptiveRoutes.js" URL="src/core/infra/http/routes/adaptiveRoutes.js" ] } } } } }
+    "src/core/infra/http/routes/adaptiveRoutes.js" -> "src/core/adaptive/controllers/AdaptiveController.js"
+    "src/core/infra/http/routes/adaptiveRoutes.js" -> "src/core/infra/http/middleware/auth.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/http" {label="http" subgraph "cluster_src/core/infra/http/routes" {label="routes" "src/core/infra/http/routes/apiTesterRoutes.js" [label=<apiTesterRoutes.js> tooltip="apiTesterRoutes.js" URL="src/core/infra/http/routes/apiTesterRoutes.js" ] } } } } }
+    "src/core/infra/http/routes/apiTesterRoutes.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/http" {label="http" subgraph "cluster_src/core/infra/http/routes" {label="routes" "src/core/infra/http/routes/authRoutes.js" [label=<authRoutes.js> tooltip="no-orphans" URL="src/core/infra/http/routes/authRoutes.js" fillcolor="#ccffcc" fontcolor="orange" color="orange"] } } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/http" {label="http" subgraph "cluster_src/core/infra/http/routes" {label="routes" "src/core/infra/http/routes/challengeRoutes.js" [label=<challengeRoutes.js> tooltip="challengeRoutes.js" URL="src/core/infra/http/routes/challengeRoutes.js" ] } } } } }
+    "src/core/infra/http/routes/challengeRoutes.js" -> "src/core/challenge/controllers/ChallengeController.js"
+    "src/core/infra/http/routes/challengeRoutes.js" -> "src/core/infra/http/middleware/auth.js"
+    "src/core/infra/http/routes/challengeRoutes.js" -> "src/core/infra/http/middleware/resourceAuth.js"
+    "src/core/infra/http/routes/challengeRoutes.js" -> "src/core/infra/http/middleware/validation.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/http" {label="http" subgraph "cluster_src/core/infra/http/routes" {label="routes" "src/core/infra/http/routes/evaluationRoutes.js" [label=<evaluationRoutes.js> tooltip="evaluationRoutes.js" URL="src/core/infra/http/routes/evaluationRoutes.js" ] } } } } }
+    "src/core/infra/http/routes/evaluationRoutes.js" -> "src/core/evaluation/controllers/EvaluationController.js"
+    "src/core/infra/http/routes/evaluationRoutes.js" -> "src/core/infra/http/middleware/auth.js"
+    "src/core/infra/http/routes/evaluationRoutes.js" -> "src/core/infra/http/middleware/resourceAuth.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/http" {label="http" subgraph "cluster_src/core/infra/http/routes" {label="routes" "src/core/infra/http/routes/eventBusRoutes.js" [label=<eventBusRoutes.js> tooltip="eventBusRoutes.js" URL="src/core/infra/http/routes/eventBusRoutes.js" ] } } } } }
+    "src/core/infra/http/routes/eventBusRoutes.js" -> "src/core/common/events/DeadLetterQueueService.js"
+    "src/core/infra/http/routes/eventBusRoutes.js" -> "src/core/common/events/RobustEventBus.js"
+    "src/core/infra/http/routes/eventBusRoutes.js" -> "src/core/infra/http/middleware/auth.js"
+    "src/core/infra/http/routes/eventBusRoutes.js" -> "src/core/infra/http/middleware/validationFactory.js"
+    "src/core/infra/http/routes/eventBusRoutes.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/http" {label="http" subgraph "cluster_src/core/infra/http/routes" {label="routes" "src/core/infra/http/routes/focusAreaRoutes.js" [label=<focusAreaRoutes.js> tooltip="focusAreaRoutes.js" URL="src/core/infra/http/routes/focusAreaRoutes.js" ] } } } } }
+    "src/core/infra/http/routes/focusAreaRoutes.js" -> "src/core/focusArea/controllers/FocusAreaController.js"
+    "src/core/infra/http/routes/focusAreaRoutes.js" -> "src/core/infra/http/middleware/auth.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/http" {label="http" subgraph "cluster_src/core/infra/http/routes" {label="routes" "src/core/infra/http/routes/healthRoutes.js" [label=<healthRoutes.js> tooltip="healthRoutes.js" URL="src/core/infra/http/routes/healthRoutes.js" ] } } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/http" {label="http" subgraph "cluster_src/core/infra/http/routes" {label="routes" "src/core/infra/http/routes/personalityRoutes.js" [label=<personalityRoutes.js> tooltip="personalityRoutes.js" URL="src/core/infra/http/routes/personalityRoutes.js" ] } } } } }
+    "src/core/infra/http/routes/personalityRoutes.js" -> "src/core/infra/http/middleware/auth.js"
+    "src/core/infra/http/routes/personalityRoutes.js" -> "src/core/personality/controllers/PersonalityController.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/http" {label="http" subgraph "cluster_src/core/infra/http/routes" {label="routes" "src/core/infra/http/routes/progressRoutes.js" [label=<progressRoutes.js> tooltip="progressRoutes.js" URL="src/core/infra/http/routes/progressRoutes.js" ] } } } } }
+    "src/core/infra/http/routes/progressRoutes.js" -> "src/core/infra/http/middleware/auth.js"
+    "src/core/infra/http/routes/progressRoutes.js" -> "src/core/progress/controllers/ProgressController.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/http" {label="http" subgraph "cluster_src/core/infra/http/routes" {label="routes" "src/core/infra/http/routes/systemRoutes.js" [label=<systemRoutes.js> tooltip="systemRoutes.js" URL="src/core/infra/http/routes/systemRoutes.js" ] } } } } }
+    "src/core/infra/http/routes/systemRoutes.js" -> "src/core/infra/http/middleware/auth.js"
+    "src/core/infra/http/routes/systemRoutes.js" -> "src/core/common/events/domainEvents.js"
+    "src/core/infra/http/routes/systemRoutes.js" -> "src/core/infra/cache/cacheFactory.js"
+    "src/core/infra/http/routes/systemRoutes.js" -> "src/core/infra/logging/domainLogger.js"
+    "src/core/infra/http/routes/systemRoutes.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/http" {label="http" subgraph "cluster_src/core/infra/http/routes" {label="routes" "src/core/infra/http/routes/userJourneyRoutes.js" [label=<userJourneyRoutes.js> tooltip="userJourneyRoutes.js" URL="src/core/infra/http/routes/userJourneyRoutes.js" ] } } } } }
+    "src/core/infra/http/routes/userJourneyRoutes.js" -> "src/core/infra/http/middleware/auth.js"
+    "src/core/infra/http/routes/userJourneyRoutes.js" -> "src/core/userJourney/controllers/UserJourneyController.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/http" {label="http" subgraph "cluster_src/core/infra/http/routes" {label="routes" "src/core/infra/http/routes/userRoutes.js" [label=<userRoutes.js> tooltip="userRoutes.js" URL="src/core/infra/http/routes/userRoutes.js" ] } } } } }
+    "src/core/infra/http/routes/userRoutes.js" -> "src/core/infra/http/middleware/auth.js"
+    "src/core/infra/http/routes/userRoutes.js" -> "src/core/infra/http/middleware/resourceAuth.js"
+    "src/core/infra/http/routes/userRoutes.js" -> "src/core/infra/http/middleware/validationFactory.js"
+    "src/core/infra/http/routes/userRoutes.js" -> "src/core/user/schemas/userApiSchemas.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/logging" {label="logging" "src/core/infra/logging/domainLogger.js" [label=<domainLogger.js> tooltip="domainLogger.js" URL="src/core/infra/logging/domainLogger.js" ] } } } }
+    "src/core/infra/logging/domainLogger.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/logging" {label="logging" "src/core/infra/logging/logger.js" [label=<logger.js> tooltip="logger.js" URL="src/core/infra/logging/logger.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/memory" {label="memory" "src/core/infra/memory/MemoryMonitor.js" [label=<MemoryMonitor.js> tooltip="MemoryMonitor.js" URL="src/core/infra/memory/MemoryMonitor.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/openai" {label="openai" subgraph "cluster_src/core/infra/openai/adapters" {label="adapters" "src/core/infra/openai/adapters/FocusAreaThreadStateAdapter.js" [label=<FocusAreaThreadStateAdapter.js> tooltip="FocusAreaThreadStateAdapter.js" URL="src/core/infra/openai/adapters/FocusAreaThreadStateAdapter.js" ] } } } } }
+    "src/core/infra/openai/adapters/FocusAreaThreadStateAdapter.js" -> "src/core/focusArea/errors/focusAreaErrors.js"
+    "src/core/infra/openai/adapters/FocusAreaThreadStateAdapter.js" -> "src/core/focusArea/ports/FocusAreaThreadStatePort.js"
+    "src/core/infra/openai/adapters/FocusAreaThreadStateAdapter.js" -> "src/core/infra/logging/domainLogger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/openai" {label="openai" "src/core/infra/openai/client.js" [label=<client.js> tooltip="client.js" URL="src/core/infra/openai/client.js" ] } } } }
+    "src/core/infra/openai/client.js" -> "src/core/infra/logging/domainLogger.js"
+    "src/core/infra/openai/client.js" -> "src/core/infra/openai/errors.js"
+    "src/core/infra/openai/client.js" -> "src/core/infra/openai/messageFormatter.js"
+    "src/core/infra/openai/client.js" -> "src/core/infra/openai/streamProcessor.js"
+    "src/core/infra/openai/client.js" -> "src/core/infra/openai/types.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/openai" {label="openai" "src/core/infra/openai/config.js" [label=<config.js> tooltip="config.js" URL="src/core/infra/openai/config.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/openai" {label="openai" "src/core/infra/openai/errors.js" [label=<errors.js> tooltip="errors.js" URL="src/core/infra/openai/errors.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/openai" {label="openai" "src/core/infra/openai/functionTools.js" [label=<functionTools.js> tooltip="functionTools.js" URL="src/core/infra/openai/functionTools.js" ] } } } }
+    "src/core/infra/openai/functionTools.js" -> "src/core/infra/openai/errors.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/openai" {label="openai" "src/core/infra/openai/healthCheck.js" [label=<healthCheck.js> tooltip="healthCheck.js" URL="src/core/infra/openai/healthCheck.js" ] } } } }
+    "src/core/infra/openai/healthCheck.js" -> "src/core/infra/logging/domainLogger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/openai" {label="openai" "src/core/infra/openai/index.js" [label=<index.js> tooltip="index.js" URL="src/core/infra/openai/index.js" ] } } } }
+    "src/core/infra/openai/index.js" -> "src/core/infra/openai/client.js"
+    "src/core/infra/openai/index.js" -> "src/core/infra/openai/errors.js"
+    "src/core/infra/openai/index.js" -> "src/core/infra/openai/messageFormatter.js"
+    "src/core/infra/openai/index.js" -> "src/core/infra/openai/responseHandler.js"
+    "src/core/infra/openai/index.js" -> "src/core/infra/openai/stateManager.js"
+    "src/core/infra/openai/index.js" -> "src/core/infra/openai/streamProcessor.js"
+    "src/core/infra/openai/index.js" -> "src/core/infra/openai/types.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/openai" {label="openai" "src/core/infra/openai/messageFormatter.js" [label=<messageFormatter.js> tooltip="messageFormatter.js" URL="src/core/infra/openai/messageFormatter.js" ] } } } }
+    "src/core/infra/openai/messageFormatter.js" -> "src/core/infra/openai/errors.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/openai" {label="openai" "src/core/infra/openai/responseHandler.js" [label=<responseHandler.js> tooltip="responseHandler.js" URL="src/core/infra/openai/responseHandler.js" ] } } } }
+    "src/core/infra/openai/responseHandler.js" -> "src/core/infra/logging/domainLogger.js"
+    "src/core/infra/openai/responseHandler.js" -> "src/core/infra/openai/errors.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/openai" {label="openai" "src/core/infra/openai/stateManager.js" [label=<stateManager.js> tooltip="stateManager.js" URL="src/core/infra/openai/stateManager.js" ] } } } }
+    "src/core/infra/openai/stateManager.js" -> "src/core/infra/openai/errors.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/openai" {label="openai" "src/core/infra/openai/streamProcessor.js" [label=<streamProcessor.js> tooltip="streamProcessor.js" URL="src/core/infra/openai/streamProcessor.js" ] } } } }
+    "src/core/infra/openai/streamProcessor.js" -> "src/core/infra/logging/domainLogger.js"
+    "src/core/infra/openai/streamProcessor.js" -> "src/core/infra/openai/errors.js"
+    "src/core/infra/openai/streamProcessor.js" -> "src/core/infra/openai/types.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/openai" {label="openai" "src/core/infra/openai/types.js" [label=<types.js> tooltip="types.js" URL="src/core/infra/openai/types.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/repositories" {label="repositories" "src/core/infra/repositories/BaseRepository.js" [label=<BaseRepository.js> tooltip="BaseRepository.js" URL="src/core/infra/repositories/BaseRepository.js" ] } } } }
+    "src/core/infra/repositories/BaseRepository.js" -> "src/core/common/events/eventUtils.js"
+    "src/core/infra/repositories/BaseRepository.js" -> "src/core/infra/cache/cacheFactory.js"
+    "src/core/infra/repositories/BaseRepository.js" -> "src/core/infra/errors/AppError.js"
+    "src/core/infra/repositories/BaseRepository.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/infra/repositories/BaseRepository.js" -> "src/core/infra/errors/InfraErrors.js"
+    "src/core/infra/repositories/BaseRepository.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/repositories" {label="repositories" "src/core/infra/repositories/ConversationStateRepository.js" [label=<ConversationStateRepository.js> tooltip="ConversationStateRepository.js" URL="src/core/infra/repositories/ConversationStateRepository.js" ] } } } }
+    "src/core/infra/repositories/ConversationStateRepository.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/services" {label="services" "src/core/infra/services/CacheService.js" [label=<CacheService.js> tooltip="CacheService.js" URL="src/core/infra/services/CacheService.js" ] } } } }
+    "src/core/infra/services/CacheService.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/services" {label="services" "src/core/infra/services/MockInsightGenerator.js" [label=<MockInsightGenerator.js> tooltip="MockInsightGenerator.js" URL="src/core/infra/services/MockInsightGenerator.js" ] } } } }
+    "src/core/infra/services/MockInsightGenerator.js" -> "src/core/infra/logging/domainLogger.js"
+    "src/core/infra/services/MockInsightGenerator.js" -> "src/core/personality/ports/InsightGenerator.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/infra" {label="infra" subgraph "cluster_src/core/infra/services" {label="services" "src/core/infra/services/OpenAIInsightGenerator.js" [label=<OpenAIInsightGenerator.js> tooltip="OpenAIInsightGenerator.js" URL="src/core/infra/services/OpenAIInsightGenerator.js" ] } } } }
+    "src/core/infra/services/OpenAIInsightGenerator.js" -> "src/core/ai/ports/AIClient.js"
+    "src/core/infra/services/OpenAIInsightGenerator.js" -> "src/core/infra/logging/domainLogger.js"
+    "src/core/infra/services/OpenAIInsightGenerator.js" -> "src/core/infra/openai/errors.js"
+    "src/core/infra/services/OpenAIInsightGenerator.js" -> "src/core/infra/openai/types.js"
+    "src/core/infra/services/OpenAIInsightGenerator.js" -> "src/core/personality/models/Personality.js" [arrowhead="onormal" penwidth="1.0"]
+    "src/core/infra/services/OpenAIInsightGenerator.js" -> "src/core/personality/ports/InsightGenerator.js"
+    "src/core/infra/services/OpenAIInsightGenerator.js" -> "src/core/prompt/builders/PersonalityPromptBuilder.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/personality" {label="personality" subgraph "cluster_src/core/personality/config" {label="config" "src/core/personality/config/attitudeMappingConfig.js" [label=<attitudeMappingConfig.js> tooltip="attitudeMappingConfig.js" URL="src/core/personality/config/attitudeMappingConfig.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/personality" {label="personality" subgraph "cluster_src/core/personality/config" {label="config" "src/core/personality/config/personalityConfig.js" [label=<personalityConfig.js> tooltip="personalityConfig.js" URL="src/core/personality/config/personalityConfig.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/personality" {label="personality" subgraph "cluster_src/core/personality/controllers" {label="controllers" "src/core/personality/controllers/PersonalityController.js" [label=<PersonalityController.js> tooltip="PersonalityController.js" URL="src/core/personality/controllers/PersonalityController.js" ] } } } }
+    "src/core/personality/controllers/PersonalityController.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/personality/controllers/PersonalityController.js" -> "src/core/infra/logging/domainLogger.js"
+    "src/core/personality/controllers/PersonalityController.js" -> "src/core/personality/errors/PersonalityErrors.js"
+    "src/core/personality/controllers/PersonalityController.js" -> "src/core/personality/schemas/personalityApiSchemas.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/personality" {label="personality" subgraph "cluster_src/core/personality/errors" {label="errors" "src/core/personality/errors/PersonalityErrors.js" [label=<PersonalityErrors.js> tooltip="PersonalityErrors.js" URL="src/core/personality/errors/PersonalityErrors.js" ] } } } }
+    "src/core/personality/errors/PersonalityErrors.js" -> "src/core/infra/errors/AppError.js"
+    "src/core/personality/errors/PersonalityErrors.js" -> "src/core/infra/errors/ErrorHandler.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/personality" {label="personality" subgraph "cluster_src/core/personality/events" {label="events" "src/core/personality/events/personalityEvents.js" [label=<personalityEvents.js> tooltip="personalityEvents.js" URL="src/core/personality/events/personalityEvents.js" ] } } } }
+    "src/core/personality/events/personalityEvents.js" -> "src/core/common/events/domainEvents.js"
+    "src/core/personality/events/personalityEvents.js" -> "src/core/infra/logging/logger.js"
+    "src/core/personality/events/personalityEvents.js" -> "src/core/personality/repositories/PersonalityRepository.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/personality" {label="personality" subgraph "cluster_src/core/personality/mappers" {label="mappers" "src/core/personality/mappers/PersonalityMapper.js" [label=<PersonalityMapper.js> tooltip="PersonalityMapper.js" URL="src/core/personality/mappers/PersonalityMapper.js" ] } } } }
+    "src/core/personality/mappers/PersonalityMapper.js" -> "src/core/personality/models/Personality.js"
+    "src/core/personality/mappers/PersonalityMapper.js" -> "src/core/personality/schemas/personalitySchema.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/personality" {label="personality" subgraph "cluster_src/core/personality/models" {label="models" "src/core/personality/models/Personality.js" [label=<Personality.js> tooltip="Personality.js" URL="src/core/personality/models/Personality.js" ] } } } }
+    "src/core/personality/models/Personality.js" -> "src/core/common/events/domainEvents.js"
+    "src/core/personality/models/Personality.js" -> "src/core/common/models/Entity.js"
+    "src/core/personality/models/Personality.js" -> "src/core/personality/errors/PersonalityErrors.js"
+    "src/core/personality/models/Personality.js" -> "src/core/personality/schemas/personalitySchema.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/personality" {label="personality" subgraph "cluster_src/core/personality/ports" {label="ports" "src/core/personality/ports/InsightGenerator.js" [label=<InsightGenerator.js> tooltip="InsightGenerator.js" URL="src/core/personality/ports/InsightGenerator.js" ] } } } }
+    "src/core/personality/ports/InsightGenerator.js" -> "src/core/personality/models/Personality.js" [arrowhead="onormal" penwidth="1.0"]
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/personality" {label="personality" subgraph "cluster_src/core/personality/repositories" {label="repositories" "src/core/personality/repositories/PersonalityRepository.js" [label=<PersonalityRepository.js> tooltip="PersonalityRepository.js" URL="src/core/personality/repositories/PersonalityRepository.js" ] } } } }
+    "src/core/personality/repositories/PersonalityRepository.js" -> "src/core/common/events/domainEvents.js"
+    "src/core/personality/repositories/PersonalityRepository.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/personality/repositories/PersonalityRepository.js" -> "src/core/infra/logging/logger.js"
+    "src/core/personality/repositories/PersonalityRepository.js" -> "src/core/infra/repositories/BaseRepository.js"
+    "src/core/personality/repositories/PersonalityRepository.js" -> "src/core/personality/errors/PersonalityErrors.js"
+    "src/core/personality/repositories/PersonalityRepository.js" -> "src/core/personality/mappers/PersonalityMapper.js"
+    "src/core/personality/repositories/PersonalityRepository.js" -> "src/core/personality/models/Personality.js"
+    "src/core/personality/repositories/PersonalityRepository.js" -> "src/core/personality/schemas/personalitySchema.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/personality" {label="personality" subgraph "cluster_src/core/personality/schemas" {label="schemas" "src/core/personality/schemas/personalityApiSchemas.js" [label=<personalityApiSchemas.js> tooltip="personalityApiSchemas.js" URL="src/core/personality/schemas/personalityApiSchemas.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/personality" {label="personality" subgraph "cluster_src/core/personality/schemas" {label="schemas" "src/core/personality/schemas/personalitySchema.js" [label=<personalitySchema.js> tooltip="personalitySchema.js" URL="src/core/personality/schemas/personalitySchema.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/personality" {label="personality" subgraph "cluster_src/core/personality/services" {label="services" "src/core/personality/services/PersonalityDataLoader.js" [label=<PersonalityDataLoader.js> tooltip="PersonalityDataLoader.js" URL="src/core/personality/services/PersonalityDataLoader.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/personality" {label="personality" subgraph "cluster_src/core/personality/services" {label="services" "src/core/personality/services/PersonalityService.js" [label=<PersonalityService.js> tooltip="PersonalityService.js" URL="src/core/personality/services/PersonalityService.js" ] } } } }
+    "src/core/personality/services/PersonalityService.js" -> "src/core/common/events/domainEvents.js"
+    "src/core/personality/services/PersonalityService.js" -> "src/core/infra/errors/centralizedErrorUtils.js"
+    "src/core/personality/services/PersonalityService.js" -> "src/core/infra/errors/ConfigurationError.js"
+    "src/core/personality/services/PersonalityService.js" -> "src/core/infra/logging/domainLogger.js"
+    "src/core/personality/services/PersonalityService.js" -> "src/core/personality/errors/PersonalityErrors.js"
+    "src/core/personality/services/PersonalityService.js" -> "src/core/personality/models/Personality.js"
+    "src/core/personality/services/PersonalityService.js" -> "src/core/personality/repositories/PersonalityRepository.js"
+    "src/core/personality/services/PersonalityService.js" -> "src/core/shared/utils/serviceUtils.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/personality" {label="personality" subgraph "cluster_src/core/personality/services" {label="services" "src/core/personality/services/TraitsAnalysisService.js" [label=<TraitsAnalysisService.js> tooltip="TraitsAnalysisService.js" URL="src/core/personality/services/TraitsAnalysisService.js" ] } } } }
+    "src/core/personality/services/TraitsAnalysisService.js" -> "src/core/infra/errors/centralizedErrorUtils.js"
+    "src/core/personality/services/TraitsAnalysisService.js" -> "src/core/infra/logging/domainLogger.js"
+    "src/core/personality/services/TraitsAnalysisService.js" -> "src/core/personality/errors/PersonalityErrors.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/progress" {label="progress" subgraph "cluster_src/core/progress/controllers" {label="controllers" "src/core/progress/controllers/ProgressController.js" [label=<ProgressController.js> tooltip="ProgressController.js" URL="src/core/progress/controllers/ProgressController.js" ] } } } }
+    "src/core/progress/controllers/ProgressController.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/progress/controllers/ProgressController.js" -> "src/core/progress/dtos/ProgressDTO.js"
+    "src/core/progress/controllers/ProgressController.js" -> "src/core/progress/errors/progressErrors.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/progress" {label="progress" subgraph "cluster_src/core/progress/dtos" {label="dtos" "src/core/progress/dtos/ProgressDTO.js" [label=<ProgressDTO.js> tooltip="ProgressDTO.js" URL="src/core/progress/dtos/ProgressDTO.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/progress" {label="progress" subgraph "cluster_src/core/progress/errors" {label="errors" "src/core/progress/errors/progressErrors.js" [label=<progressErrors.js> tooltip="progressErrors.js" URL="src/core/progress/errors/progressErrors.js" ] } } } }
+    "src/core/progress/errors/progressErrors.js" -> "src/core/infra/errors/AppError.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/progress" {label="progress" subgraph "cluster_src/core/progress/events" {label="events" "src/core/progress/events/progressEvents.js" [label=<progressEvents.js> tooltip="progressEvents.js" URL="src/core/progress/events/progressEvents.js" ] } } } }
+    "src/core/progress/events/progressEvents.js" -> "src/core/common/events/domainEvents.js"
+    "src/core/progress/events/progressEvents.js" -> "src/core/infra/logging/logger.js"
+    "src/core/progress/events/progressEvents.js" -> "src/core/progress/repositories/ProgressRepository.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/progress" {label="progress" subgraph "cluster_src/core/progress/mappers" {label="mappers" "src/core/progress/mappers/ProgressMapper.js" [label=<ProgressMapper.js> tooltip="ProgressMapper.js" URL="src/core/progress/mappers/ProgressMapper.js" ] } } } }
+    "src/core/progress/mappers/ProgressMapper.js" -> "src/core/progress/models/Progress.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/progress" {label="progress" subgraph "cluster_src/core/progress/models" {label="models" "src/core/progress/models/Progress.js" [label=<Progress.js> tooltip="Progress.js" URL="src/core/progress/models/Progress.js" ] } } } }
+    "src/core/progress/models/Progress.js" -> "src/core/common/events/domainEvents.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/progress" {label="progress" subgraph "cluster_src/core/progress/repositories" {label="repositories" "src/core/progress/repositories/ProgressRepository.js" [label=<ProgressRepository.js> tooltip="ProgressRepository.js" URL="src/core/progress/repositories/ProgressRepository.js" ] } } } }
+    "src/core/progress/repositories/ProgressRepository.js" -> "src/core/challenge/repositories/challengeRepository.js"
+    "src/core/progress/repositories/ProgressRepository.js" -> "src/core/common/events/domainEvents.js"
+    "src/core/progress/repositories/ProgressRepository.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/progress/repositories/ProgressRepository.js" -> "src/core/infra/repositories/BaseRepository.js"
+    "src/core/progress/repositories/ProgressRepository.js" -> "src/core/progress/errors/progressErrors.js"
+    "src/core/progress/repositories/ProgressRepository.js" -> "src/core/progress/mappers/ProgressMapper.js"
+    "src/core/progress/repositories/ProgressRepository.js" -> "src/core/progress/models/Progress.js"
+    "src/core/progress/repositories/ProgressRepository.js" -> "src/core/user/repositories/UserRepository.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/progress" {label="progress" subgraph "cluster_src/core/progress/schemas" {label="schemas" "src/core/progress/schemas/ProgressSchema.js" [label=<ProgressSchema.js> tooltip="no-orphans" URL="src/core/progress/schemas/ProgressSchema.js" fillcolor="#ccffcc" fontcolor="orange" color="orange"] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/progress" {label="progress" subgraph "cluster_src/core/progress/services" {label="services" "src/core/progress/services/ProgressService.js" [label=<ProgressService.js> tooltip="ProgressService.js" URL="src/core/progress/services/ProgressService.js" ] } } } }
+    "src/core/progress/services/ProgressService.js" -> "src/core/infra/errors/ConfigurationError.js"
+    "src/core/progress/services/ProgressService.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/progress/services/ProgressService.js" -> "src/core/progress/errors/progressErrors.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/prompt" {label="prompt" subgraph "cluster_src/core/prompt/builders" {label="builders" "src/core/prompt/builders/AdaptiveChallengeSelectionPromptBuilder.js" [label=<AdaptiveChallengeSelectionPromptBuilder.js> tooltip="AdaptiveChallengeSelectionPromptBuilder.js" URL="src/core/prompt/builders/AdaptiveChallengeSelectionPromptBuilder.js" ] } } } }
+    "src/core/prompt/builders/AdaptiveChallengeSelectionPromptBuilder.js" -> "src/core/infra/logging/logger.js"
+    "src/core/prompt/builders/AdaptiveChallengeSelectionPromptBuilder.js" -> "src/core/infra/openai/messageFormatter.js"
+    "src/core/prompt/builders/AdaptiveChallengeSelectionPromptBuilder.js" -> "src/core/prompt/common/apiStandards.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/prompt" {label="prompt" subgraph "cluster_src/core/prompt/builders" {label="builders" "src/core/prompt/builders/ChallengePromptBuilder.js" [label=<ChallengePromptBuilder.js> tooltip="ChallengePromptBuilder.js" URL="src/core/prompt/builders/ChallengePromptBuilder.js" ] } } } }
+    "src/core/prompt/builders/ChallengePromptBuilder.js" -> "src/core/infra/logging/logger.js"
+    "src/core/prompt/builders/ChallengePromptBuilder.js" -> "src/core/infra/openai/messageFormatter.js"
+    "src/core/prompt/builders/ChallengePromptBuilder.js" -> "src/core/prompt/common/apiStandards.js"
+    "src/core/prompt/builders/ChallengePromptBuilder.js" -> "src/core/prompt/common/errors.js"
+    "src/core/prompt/builders/ChallengePromptBuilder.js" -> "src/core/prompt/schemas/challengeSchema.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/prompt" {label="prompt" subgraph "cluster_src/core/prompt/builders" {label="builders" "src/core/prompt/builders/DifficultyCalibratonPromptBuilder.js" [label=<DifficultyCalibratonPromptBuilder.js> tooltip="DifficultyCalibratonPromptBuilder.js" URL="src/core/prompt/builders/DifficultyCalibratonPromptBuilder.js" ] } } } }
+    "src/core/prompt/builders/DifficultyCalibratonPromptBuilder.js" -> "src/core/infra/logging/logger.js"
+    "src/core/prompt/builders/DifficultyCalibratonPromptBuilder.js" -> "src/core/infra/openai/messageFormatter.js"
+    "src/core/prompt/builders/DifficultyCalibratonPromptBuilder.js" -> "src/core/prompt/common/apiStandards.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/prompt" {label="prompt" subgraph "cluster_src/core/prompt/builders" {label="builders" "src/core/prompt/builders/EngagementOptimizationPromptBuilder.js" [label=<EngagementOptimizationPromptBuilder.js> tooltip="EngagementOptimizationPromptBuilder.js" URL="src/core/prompt/builders/EngagementOptimizationPromptBuilder.js" ] } } } }
+    "src/core/prompt/builders/EngagementOptimizationPromptBuilder.js" -> "src/core/infra/logging/logger.js"
+    "src/core/prompt/builders/EngagementOptimizationPromptBuilder.js" -> "src/core/infra/openai/messageFormatter.js"
+    "src/core/prompt/builders/EngagementOptimizationPromptBuilder.js" -> "src/core/prompt/common/apiStandards.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/prompt" {label="prompt" subgraph "cluster_src/core/prompt/builders" {label="builders" "src/core/prompt/builders/EvaluationPromptBuilder.js" [label=<EvaluationPromptBuilder.js> tooltip="EvaluationPromptBuilder.js" URL="src/core/prompt/builders/EvaluationPromptBuilder.js" ] } } } }
+    "src/core/prompt/builders/EvaluationPromptBuilder.js" -> "src/core/infra/logging/logger.js"
+    "src/core/prompt/builders/EvaluationPromptBuilder.js" -> "src/core/infra/openai/messageFormatter.js"
+    "src/core/prompt/builders/EvaluationPromptBuilder.js" -> "src/core/prompt/common/apiStandards.js"
+    "src/core/prompt/builders/EvaluationPromptBuilder.js" -> "src/core/prompt/common/errors.js"
+    "src/core/prompt/builders/EvaluationPromptBuilder.js" -> "src/core/prompt/schemas/evaluationSchema.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/prompt" {label="prompt" subgraph "cluster_src/core/prompt/builders" {label="builders" "src/core/prompt/builders/FocusAreaPromptBuilder.js" [label=<FocusAreaPromptBuilder.js> tooltip="FocusAreaPromptBuilder.js" URL="src/core/prompt/builders/FocusAreaPromptBuilder.js" ] } } } }
+    "src/core/prompt/builders/FocusAreaPromptBuilder.js" -> "src/core/infra/logging/logger.js"
+    "src/core/prompt/builders/FocusAreaPromptBuilder.js" -> "src/core/infra/openai/messageFormatter.js"
+    "src/core/prompt/builders/FocusAreaPromptBuilder.js" -> "src/core/prompt/common/apiStandards.js"
+    "src/core/prompt/builders/FocusAreaPromptBuilder.js" -> "src/core/prompt/common/errors.js"
+    "src/core/prompt/builders/FocusAreaPromptBuilder.js" -> "src/core/prompt/schemas/focusAreaSchema.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/prompt" {label="prompt" subgraph "cluster_src/core/prompt/builders" {label="builders" "src/core/prompt/builders/PersonalityPromptBuilder.js" [label=<PersonalityPromptBuilder.js> tooltip="PersonalityPromptBuilder.js" URL="src/core/prompt/builders/PersonalityPromptBuilder.js" ] } } } }
+    "src/core/prompt/builders/PersonalityPromptBuilder.js" -> "src/core/infra/logging/logger.js"
+    "src/core/prompt/builders/PersonalityPromptBuilder.js" -> "src/core/infra/openai/messageFormatter.js"
+    "src/core/prompt/builders/PersonalityPromptBuilder.js" -> "src/core/prompt/common/apiStandards.js"
+    "src/core/prompt/builders/PersonalityPromptBuilder.js" -> "src/core/prompt/common/errors.js"
+    "src/core/prompt/builders/PersonalityPromptBuilder.js" -> "src/core/prompt/schemas/personalitySchema.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/prompt" {label="prompt" subgraph "cluster_src/core/prompt/builders" {label="builders" "src/core/prompt/builders/PersonalizedLearningPathPromptBuilder.js" [label=<PersonalizedLearningPathPromptBuilder.js> tooltip="PersonalizedLearningPathPromptBuilder.js" URL="src/core/prompt/builders/PersonalizedLearningPathPromptBuilder.js" ] } } } }
+    "src/core/prompt/builders/PersonalizedLearningPathPromptBuilder.js" -> "src/core/infra/logging/logger.js"
+    "src/core/prompt/builders/PersonalizedLearningPathPromptBuilder.js" -> "src/core/infra/openai/messageFormatter.js"
+    "src/core/prompt/builders/PersonalizedLearningPathPromptBuilder.js" -> "src/core/prompt/common/apiStandards.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/prompt" {label="prompt" subgraph "cluster_src/core/prompt/builders" {label="builders" "src/core/prompt/builders/ProgressPromptBuilder.js" [label=<ProgressPromptBuilder.js> tooltip="ProgressPromptBuilder.js" URL="src/core/prompt/builders/ProgressPromptBuilder.js" ] } } } }
+    "src/core/prompt/builders/ProgressPromptBuilder.js" -> "src/core/infra/logging/logger.js"
+    "src/core/prompt/builders/ProgressPromptBuilder.js" -> "src/core/infra/openai/messageFormatter.js"
+    "src/core/prompt/builders/ProgressPromptBuilder.js" -> "src/core/prompt/common/apiStandards.js"
+    "src/core/prompt/builders/ProgressPromptBuilder.js" -> "src/core/prompt/schemas/progressSchema.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/prompt" {label="prompt" subgraph "cluster_src/core/prompt/common" {label="common" "src/core/prompt/common/apiStandards.js" [label=<apiStandards.js> tooltip="apiStandards.js" URL="src/core/prompt/common/apiStandards.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/prompt" {label="prompt" subgraph "cluster_src/core/prompt/common" {label="common" "src/core/prompt/common/errorHandler.js" [label=<errorHandler.js> tooltip="errorHandler.js" URL="src/core/prompt/common/errorHandler.js" ] } } } }
+    "src/core/prompt/common/errorHandler.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/prompt" {label="prompt" subgraph "cluster_src/core/prompt/common" {label="common" "src/core/prompt/common/errors.js" [label=<errors.js> tooltip="errors.js" URL="src/core/prompt/common/errors.js" ] } } } }
+    "src/core/prompt/common/errors.js" -> "src/core/infra/errors/AppError.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/prompt" {label="prompt" "src/core/prompt/promptBuilder.js" [label=<promptBuilder.js> tooltip="promptBuilder.js" URL="src/core/prompt/promptBuilder.js" ] } } }
+    "src/core/prompt/promptBuilder.js" -> "src/core/infra/logging/logger.js"
+    "src/core/prompt/promptBuilder.js" -> "src/core/prompt/builders/AdaptiveChallengeSelectionPromptBuilder.js"
+    "src/core/prompt/promptBuilder.js" -> "src/core/prompt/builders/ChallengePromptBuilder.js"
+    "src/core/prompt/promptBuilder.js" -> "src/core/prompt/builders/DifficultyCalibratonPromptBuilder.js"
+    "src/core/prompt/promptBuilder.js" -> "src/core/prompt/builders/EngagementOptimizationPromptBuilder.js"
+    "src/core/prompt/promptBuilder.js" -> "src/core/prompt/builders/EvaluationPromptBuilder.js"
+    "src/core/prompt/promptBuilder.js" -> "src/core/prompt/builders/FocusAreaPromptBuilder.js"
+    "src/core/prompt/promptBuilder.js" -> "src/core/prompt/builders/PersonalityPromptBuilder.js"
+    "src/core/prompt/promptBuilder.js" -> "src/core/prompt/builders/PersonalizedLearningPathPromptBuilder.js"
+    "src/core/prompt/promptBuilder.js" -> "src/core/prompt/builders/ProgressPromptBuilder.js"
+    "src/core/prompt/promptBuilder.js" -> "src/core/prompt/common/errors.js"
+    "src/core/prompt/promptBuilder.js" -> "src/core/prompt/promptTypes.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/prompt" {label="prompt" "src/core/prompt/promptTypes.js" [label=<promptTypes.js> tooltip="promptTypes.js" URL="src/core/prompt/promptTypes.js" ] } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/prompt" {label="prompt" subgraph "cluster_src/core/prompt/repositories" {label="repositories" "src/core/prompt/repositories/PromptRepository.js" [label=<PromptRepository.js> tooltip="PromptRepository.js" URL="src/core/prompt/repositories/PromptRepository.js" ] } } } }
+    "src/core/prompt/repositories/PromptRepository.js" -> "src/core/infra/db/supabaseClient.js"
+    "src/core/prompt/repositories/PromptRepository.js" -> "src/core/infra/logging/domainLogger.js"
+    "src/core/prompt/repositories/PromptRepository.js" -> "src/core/prompt/common/errors.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/prompt" {label="prompt" subgraph "cluster_src/core/prompt/schemas" {label="schemas" "src/core/prompt/schemas/adaptiveChallengeSelectionSchema.js" [label=<adaptiveChallengeSelectionSchema.js> tooltip="no-orphans" URL="src/core/prompt/schemas/adaptiveChallengeSelectionSchema.js" fillcolor="#ccffcc" fontcolor="orange" color="orange"] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/prompt" {label="prompt" subgraph "cluster_src/core/prompt/schemas" {label="schemas" "src/core/prompt/schemas/challengeSchema.js" [label=<challengeSchema.js> tooltip="challengeSchema.js" URL="src/core/prompt/schemas/challengeSchema.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/prompt" {label="prompt" subgraph "cluster_src/core/prompt/schemas" {label="schemas" "src/core/prompt/schemas/difficultyCalibratonSchema.js" [label=<difficultyCalibratonSchema.js> tooltip="no-orphans" URL="src/core/prompt/schemas/difficultyCalibratonSchema.js" fillcolor="#ccffcc" fontcolor="orange" color="orange"] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/prompt" {label="prompt" subgraph "cluster_src/core/prompt/schemas" {label="schemas" "src/core/prompt/schemas/engagementOptimizationSchema.js" [label=<engagementOptimizationSchema.js> tooltip="no-orphans" URL="src/core/prompt/schemas/engagementOptimizationSchema.js" fillcolor="#ccffcc" fontcolor="orange" color="orange"] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/prompt" {label="prompt" subgraph "cluster_src/core/prompt/schemas" {label="schemas" "src/core/prompt/schemas/evaluationSchema.js" [label=<evaluationSchema.js> tooltip="evaluationSchema.js" URL="src/core/prompt/schemas/evaluationSchema.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/prompt" {label="prompt" subgraph "cluster_src/core/prompt/schemas" {label="schemas" "src/core/prompt/schemas/focusAreaSchema.js" [label=<focusAreaSchema.js> tooltip="focusAreaSchema.js" URL="src/core/prompt/schemas/focusAreaSchema.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/prompt" {label="prompt" subgraph "cluster_src/core/prompt/schemas" {label="schemas" "src/core/prompt/schemas/personalitySchema.js" [label=<personalitySchema.js> tooltip="personalitySchema.js" URL="src/core/prompt/schemas/personalitySchema.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/prompt" {label="prompt" subgraph "cluster_src/core/prompt/schemas" {label="schemas" "src/core/prompt/schemas/personalizedLearningPathSchema.js" [label=<personalizedLearningPathSchema.js> tooltip="no-orphans" URL="src/core/prompt/schemas/personalizedLearningPathSchema.js" fillcolor="#ccffcc" fontcolor="orange" color="orange"] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/prompt" {label="prompt" subgraph "cluster_src/core/prompt/schemas" {label="schemas" "src/core/prompt/schemas/progressSchema.js" [label=<progressSchema.js> tooltip="progressSchema.js" URL="src/core/prompt/schemas/progressSchema.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" "src/core/repositories.js" [label=<repositories.js> tooltip="repositories.js" URL="src/core/repositories.js" ] } }
+    "src/core/repositories.js" -> "src/core/challenge/repositories/challengeRepository.js"
+    "src/core/repositories.js" -> "src/core/evaluation/repositories/evaluationRepository.js"
+    "src/core/repositories.js" -> "src/core/focusArea/repositories/focusAreaRepository.js"
+    "src/core/repositories.js" -> "src/core/personality/repositories/PersonalityRepository.js"
+    "src/core/repositories.js" -> "src/core/progress/repositories/ProgressRepository.js"
+    "src/core/repositories.js" -> "src/core/user/repositories/UserRepository.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/shared" {label="shared" "src/core/shared/BaseService.js" [label=<BaseService.js> tooltip="BaseService.js" URL="src/core/shared/BaseService.js" ] } } }
+    "src/core/shared/BaseService.js" -> "src/core/infra/errors/MissingParameterError.js"
+    "src/core/shared/BaseService.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/shared" {label="shared" subgraph "cluster_src/core/shared/utils" {label="utils" "src/core/shared/utils/serviceUtils.js" [label=<serviceUtils.js> tooltip="serviceUtils.js" URL="src/core/shared/utils/serviceUtils.js" ] } } } }
+    "src/core/shared/utils/serviceUtils.js" -> "src/core/infra/errors/ConfigurationError.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/system" {label="system" subgraph "cluster_src/core/system/controllers" {label="controllers" "src/core/system/controllers/SystemController.js" [label=<SystemController.js> tooltip="SystemController.js" URL="src/core/system/controllers/SystemController.js" ] } } } }
+    "src/core/system/controllers/SystemController.js" -> "src/core/infra/logging/domainLogger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/system" {label="system" subgraph "cluster_src/core/system/controllers" {label="controllers" subgraph "cluster_src/core/system/controllers/minimal" {label="minimal" "src/core/system/controllers/minimal/MinimalSystemController.js" [label=<MinimalSystemController.js> tooltip="no-orphans" URL="src/core/system/controllers/minimal/MinimalSystemController.js" fillcolor="#ccffcc" fontcolor="orange" color="orange"] } } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/system" {label="system" subgraph "cluster_src/core/system/errors" {label="errors" "src/core/system/errors/SystemErrors.js" [label=<SystemErrors.js> tooltip="SystemErrors.js" URL="src/core/system/errors/SystemErrors.js" ] } } } }
+    "src/core/system/errors/SystemErrors.js" -> "src/core/infra/errors/AppError.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/system" {label="system" subgraph "cluster_src/core/system/services" {label="services" "src/core/system/services/LogService.js" [label=<LogService.js> tooltip="LogService.js" URL="src/core/system/services/LogService.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/user" {label="user" subgraph "cluster_src/core/user/controllers" {label="controllers" "src/core/user/controllers/UserController.js" [label=<UserController.js> tooltip="UserController.js" URL="src/core/user/controllers/UserController.js" ] } } } }
+    "src/core/user/controllers/UserController.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/user/controllers/UserController.js" -> "src/core/infra/logging/domainLogger.js"
+    "src/core/user/controllers/UserController.js" -> "src/core/user/dtos/UserDTO.js"
+    "src/core/user/controllers/UserController.js" -> "src/core/user/errors/UserErrors.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/user" {label="user" subgraph "cluster_src/core/user/dtos" {label="dtos" "src/core/user/dtos/UserDTO.js" [label=<UserDTO.js> tooltip="UserDTO.js" URL="src/core/user/dtos/UserDTO.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/user" {label="user" subgraph "cluster_src/core/user/errors" {label="errors" "src/core/user/errors/UserErrors.js" [label=<UserErrors.js> tooltip="UserErrors.js" URL="src/core/user/errors/UserErrors.js" ] } } } }
+    "src/core/user/errors/UserErrors.js" -> "src/core/infra/errors/AppError.js"
+    "src/core/user/errors/UserErrors.js" -> "src/core/infra/errors/ErrorHandler.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/user" {label="user" subgraph "cluster_src/core/user/events" {label="events" "src/core/user/events/userEvents.js" [label=<userEvents.js> tooltip="userEvents.js" URL="src/core/user/events/userEvents.js" ] } } } }
+    "src/core/user/events/userEvents.js" -> "src/core/common/events/domainEvents.js"
+    "src/core/user/events/userEvents.js" -> "src/core/infra/logging/logger.js"
+    "src/core/user/events/userEvents.js" -> "src/core/user/repositories/UserRepository.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/user" {label="user" subgraph "cluster_src/core/user/mappers" {label="mappers" "src/core/user/mappers/UserMapper.js" [label=<UserMapper.js> tooltip="UserMapper.js" URL="src/core/user/mappers/UserMapper.js" ] } } } }
+    "src/core/user/mappers/UserMapper.js" -> "src/core/user/models/User.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/user" {label="user" subgraph "cluster_src/core/user/models" {label="models" "src/core/user/models/User.js" [label=<User.js> tooltip="User.js" URL="src/core/user/models/User.js" ] } } } }
+    "src/core/user/models/User.js" -> "src/core/common/events/domainEvents.js"
+    "src/core/user/models/User.js" -> "src/core/common/valueObjects/index.js"
+    "src/core/user/models/User.js" -> "src/core/user/errors/UserErrors.js"
+    "src/core/user/models/User.js" -> "src/core/user/schemas/userSchema.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/user" {label="user" subgraph "cluster_src/core/user/repositories" {label="repositories" "src/core/user/repositories/UserRepository.js" [label=<UserRepository.js> tooltip="UserRepository.js" URL="src/core/user/repositories/UserRepository.js" ] } } } }
+    "src/core/user/repositories/UserRepository.js" -> "src/core/common/events/domainEvents.js"
+    "src/core/user/repositories/UserRepository.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/user/repositories/UserRepository.js" -> "src/core/infra/repositories/BaseRepository.js"
+    "src/core/user/repositories/UserRepository.js" -> "src/core/user/errors/UserErrors.js"
+    "src/core/user/repositories/UserRepository.js" -> "src/core/user/mappers/UserMapper.js"
+    "src/core/user/repositories/UserRepository.js" -> "src/core/user/models/User.js"
+    "src/core/user/repositories/UserRepository.js" -> "src/core/user/schemas/userSchema.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/user" {label="user" subgraph "cluster_src/core/user/schemas" {label="schemas" "src/core/user/schemas/preferencesSchema.js" [label=<preferencesSchema.js> tooltip="preferencesSchema.js" URL="src/core/user/schemas/preferencesSchema.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/user" {label="user" subgraph "cluster_src/core/user/schemas" {label="schemas" "src/core/user/schemas/userApiSchemas.js" [label=<userApiSchemas.js> tooltip="userApiSchemas.js" URL="src/core/user/schemas/userApiSchemas.js" ] } } } }
+    "src/core/user/schemas/userApiSchemas.js" -> "src/core/user/schemas/preferencesSchema.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/user" {label="user" subgraph "cluster_src/core/user/schemas" {label="schemas" "src/core/user/schemas/userSchema.js" [label=<userSchema.js> tooltip="userSchema.js" URL="src/core/user/schemas/userSchema.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/user" {label="user" subgraph "cluster_src/core/user/services" {label="services" "src/core/user/services/UserPreferencesManager.js" [label=<UserPreferencesManager.js> tooltip="UserPreferencesManager.js" URL="src/core/user/services/UserPreferencesManager.js" ] } } } }
+    "src/core/user/services/UserPreferencesManager.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/user/services/UserPreferencesManager.js" -> "src/core/infra/logging/logger.js"
+    "src/core/user/services/UserPreferencesManager.js" -> "src/core/user/errors/UserErrors.js"
+    "src/core/user/services/UserPreferencesManager.js" -> "src/core/user/schemas/preferencesSchema.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/user" {label="user" subgraph "cluster_src/core/user/services" {label="services" "src/core/user/services/UserService.js" [label=<UserService.js> tooltip="UserService.js" URL="src/core/user/services/UserService.js" ] } } } }
+    "src/core/user/services/UserService.js" -> "src/core/common/events/domainEvents.js"
+    "src/core/user/services/UserService.js" -> "src/core/common/valueObjects/index.js"
+    "src/core/user/services/UserService.js" -> "src/core/infra/errors/ConfigurationError.js"
+    "src/core/user/services/UserService.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/user/services/UserService.js" -> "src/core/infra/logging/domainLogger.js"
+    "src/core/user/services/UserService.js" -> "src/core/shared/utils/serviceUtils.js"
+    "src/core/user/services/UserService.js" -> "src/core/user/errors/UserErrors.js"
+    "src/core/user/services/UserService.js" -> "src/core/user/models/User.js"
+    "src/core/user/services/UserService.js" -> "src/core/user/repositories/UserRepository.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/userJourney" {label="userJourney" subgraph "cluster_src/core/userJourney/controllers" {label="controllers" "src/core/userJourney/controllers/UserJourneyController.js" [label=<UserJourneyController.js> tooltip="UserJourneyController.js" URL="src/core/userJourney/controllers/UserJourneyController.js" ] } } } }
+    "src/core/userJourney/controllers/UserJourneyController.js" -> "src/core/infra/errors/AppError.js"
+    "src/core/userJourney/controllers/UserJourneyController.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/userJourney/controllers/UserJourneyController.js" -> "src/core/infra/logging/logger.js"
+    "src/core/userJourney/controllers/UserJourneyController.js" -> "src/core/userJourney/dtos/UserJourneyDTO.js"
+    "src/core/userJourney/controllers/UserJourneyController.js" -> "src/core/userJourney/errors/userJourneyErrors.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/userJourney" {label="userJourney" subgraph "cluster_src/core/userJourney/dtos" {label="dtos" "src/core/userJourney/dtos/UserJourneyDTO.js" [label=<UserJourneyDTO.js> tooltip="UserJourneyDTO.js" URL="src/core/userJourney/dtos/UserJourneyDTO.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/userJourney" {label="userJourney" subgraph "cluster_src/core/userJourney/errors" {label="errors" "src/core/userJourney/errors/userJourneyErrors.js" [label=<userJourneyErrors.js> tooltip="userJourneyErrors.js" URL="src/core/userJourney/errors/userJourneyErrors.js" ] } } } }
+    "src/core/userJourney/errors/userJourneyErrors.js" -> "src/core/infra/errors/AppError.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/userJourney" {label="userJourney" subgraph "cluster_src/core/userJourney/events" {label="events" "src/core/userJourney/events/userJourneyEvents.js" [label=<userJourneyEvents.js> tooltip="userJourneyEvents.js" URL="src/core/userJourney/events/userJourneyEvents.js" ] } } } }
+    "src/core/userJourney/events/userJourneyEvents.js" -> "src/core/common/events/domainEvents.js"
+    "src/core/userJourney/events/userJourneyEvents.js" -> "src/core/infra/logging/logger.js"
+    "src/core/userJourney/events/userJourneyEvents.js" -> "src/core/userJourney/repositories/UserJourneyRepository.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/userJourney" {label="userJourney" subgraph "cluster_src/core/userJourney/mappers" {label="mappers" "src/core/userJourney/mappers/UserJourneyEventMapper.js" [label=<UserJourneyEventMapper.js> tooltip="UserJourneyEventMapper.js" URL="src/core/userJourney/mappers/UserJourneyEventMapper.js" ] } } } }
+    "src/core/userJourney/mappers/UserJourneyEventMapper.js" -> "src/core/userJourney/models/UserJourneyEvent.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/userJourney" {label="userJourney" subgraph "cluster_src/core/userJourney/mappers" {label="mappers" "src/core/userJourney/mappers/UserJourneyMapper.js" [label=<UserJourneyMapper.js> tooltip="UserJourneyMapper.js" URL="src/core/userJourney/mappers/UserJourneyMapper.js" ] } } } }
+    "src/core/userJourney/mappers/UserJourneyMapper.js" -> "src/core/userJourney/models/UserJourneyEvent.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/userJourney" {label="userJourney" subgraph "cluster_src/core/userJourney/models" {label="models" "src/core/userJourney/models/UserJourneyEvent.js" [label=<UserJourneyEvent.js> tooltip="UserJourneyEvent.js" URL="src/core/userJourney/models/UserJourneyEvent.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/userJourney" {label="userJourney" subgraph "cluster_src/core/userJourney/repositories" {label="repositories" "src/core/userJourney/repositories/UserJourneyRepository.js" [label=<UserJourneyRepository.js> tooltip="UserJourneyRepository.js" URL="src/core/userJourney/repositories/UserJourneyRepository.js" ] } } } }
+    "src/core/userJourney/repositories/UserJourneyRepository.js" -> "src/core/common/events/domainEvents.js"
+    "src/core/userJourney/repositories/UserJourneyRepository.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/userJourney/repositories/UserJourneyRepository.js" -> "src/core/infra/logging/logger.js"
+    "src/core/userJourney/repositories/UserJourneyRepository.js" -> "src/core/infra/repositories/BaseRepository.js"
+    "src/core/userJourney/repositories/UserJourneyRepository.js" -> "src/core/userJourney/errors/userJourneyErrors.js"
+    "src/core/userJourney/repositories/UserJourneyRepository.js" -> "src/core/userJourney/mappers/UserJourneyEventMapper.js"
+    "src/core/userJourney/repositories/UserJourneyRepository.js" -> "src/core/userJourney/models/UserJourneyEvent.js"
+    "src/core/userJourney/repositories/UserJourneyRepository.js" -> "src/core/userJourney/schemas/UserJourneyEventSchema.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/userJourney" {label="userJourney" subgraph "cluster_src/core/userJourney/schemas" {label="schemas" "src/core/userJourney/schemas/UserJourneyEventSchema.js" [label=<UserJourneyEventSchema.js> tooltip="UserJourneyEventSchema.js" URL="src/core/userJourney/schemas/UserJourneyEventSchema.js" ] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/userJourney" {label="userJourney" subgraph "cluster_src/core/userJourney/schemas" {label="schemas" "src/core/userJourney/schemas/UserJourneySchema.js" [label=<UserJourneySchema.js> tooltip="no-orphans" URL="src/core/userJourney/schemas/UserJourneySchema.js" fillcolor="#ccffcc" fontcolor="orange" color="orange"] } } } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/core" {label="core" subgraph "cluster_src/core/userJourney" {label="userJourney" subgraph "cluster_src/core/userJourney/services" {label="services" "src/core/userJourney/services/UserJourneyService.js" [label=<UserJourneyService.js> tooltip="UserJourneyService.js" URL="src/core/userJourney/services/UserJourneyService.js" ] } } } }
+    "src/core/userJourney/services/UserJourneyService.js" -> "src/core/infra/errors/errorStandardization.js"
+    "src/core/userJourney/services/UserJourneyService.js" -> "src/core/infra/logging/domainLogger.js"
+    "src/core/userJourney/services/UserJourneyService.js" -> "src/core/infra/logging/logger.js"
+    "src/core/userJourney/services/UserJourneyService.js" -> "src/core/userJourney/errors/userJourneyErrors.js"
+    subgraph "cluster_src" {label="src" "src/index.js" [label=<index.js> tooltip="index.js" URL="src/index.js" ] }
+    "src/index.js" -> "src/config/env.js"
+    "src/index.js" -> "src/core/infra/logging/logger.js"
+    "src/index.js" -> "src/server.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/scripts" {label="scripts" "src/scripts/checkSwagger.js" [label=<checkSwagger.js> tooltip="checkSwagger.js" URL="src/scripts/checkSwagger.js" ] } }
+    "src/scripts/checkSwagger.js" -> "src/config/swagger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/scripts" {label="scripts" "src/scripts/directory-migration.js" [label=<directory-migration.js> tooltip="no-orphans" URL="src/scripts/directory-migration.js" fillcolor="#ccffcc" fontcolor="orange" color="orange"] } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/scripts" {label="scripts" "src/scripts/remove-swagger-jsdoc.js" [label=<remove-swagger-jsdoc.js> tooltip="no-orphans" URL="src/scripts/remove-swagger-jsdoc.js" fillcolor="#ccffcc" fontcolor="orange" color="orange"] } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/scripts" {label="scripts" "src/scripts/setup-openapi-validator.js" [label=<setup-openapi-validator.js> tooltip="no-orphans" URL="src/scripts/setup-openapi-validator.js" fillcolor="#ccffcc" fontcolor="orange" color="orange"] } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/scripts" {label="scripts" "src/scripts/update-cache-invalidation.js" [label=<update-cache-invalidation.js> tooltip="no-orphans" URL="src/scripts/update-cache-invalidation.js" fillcolor="#ccffcc" fontcolor="orange" color="orange"] } }
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/scripts" {label="scripts" "src/scripts/validateSwagger.js" [label=<validateSwagger.js> tooltip="validateSwagger.js" URL="src/scripts/validateSwagger.js" ] } }
+    "src/scripts/validateSwagger.js" -> "src/config/swagger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/scripts" {label="scripts" "src/scripts/valueObjectAudit.js" [label=<valueObjectAudit.js> tooltip="no-orphans" URL="src/scripts/valueObjectAudit.js" fillcolor="#ccffcc" fontcolor="orange" color="orange"] } }
+    subgraph "cluster_src" {label="src" "src/server.js" [label=<server.js> tooltip="server.js" URL="src/server.js" ] }
+    "src/server.js" -> "src/app.js"
+    "src/server.js" -> "src/config/config.js"
+    "src/server.js" -> "src/core/infra/logging/logger.js"
+    subgraph "cluster_src" {label="src" subgraph "cluster_src/tests" {label="tests" subgraph "cluster_src/tests/infra" {label="infra" subgraph "cluster_src/tests/infra/repositories" {label="repositories" "src/tests/infra/repositories/BaseRepositoryCacheTest.js" [label=<BaseRepositoryCacheTest.js> tooltip="BaseRepositoryCacheTest.js" URL="src/tests/infra/repositories/BaseRepositoryCacheTest.js" ] } } } }
+    "src/tests/infra/repositories/BaseRepositoryCacheTest.js" -> "src/core/infra/cache/CacheInvalidationManager.js"
+    "src/tests/infra/repositories/BaseRepositoryCacheTest.js" -> "src/core/infra/repositories/BaseRepository.js"
+}

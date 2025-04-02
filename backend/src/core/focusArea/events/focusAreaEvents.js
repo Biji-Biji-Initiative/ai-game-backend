@@ -1,8 +1,7 @@
 'use strict';
 
-import domainEvents from "#app/core/common/events/domainEvents.js";
+import { EventTypes } from "#app/core/common/events/eventTypes.js";
 import { logger } from "#app/core/infra/logging/logger.js";
-import { FocusAreaRepository } from "#app/core/focusArea/repositories/focusAreaRepository.js";
 
 /**
  * Focus Area Domain Events
@@ -11,178 +10,146 @@ import { FocusAreaRepository } from "#app/core/focusArea/repositories/focusAreaR
  * Following DDD principles, these events are used to communicate changes
  * in the domain to other domains.
  */
-const {
-  EventTypes,
-  eventBus
-} = domainEvents;
 
-// Create repository instance
-const focusAreaRepository = new FocusAreaRepository();
+/**
+ * Get the FocusAreaRepository instance from the container.
+ * @param {DIContainer} container - The DI container instance.
+ * @returns {FocusAreaRepository}
+ */
+function getRepo(container) {
+    if (!container) {
+        logger.error('[focusAreaEvents] Container not provided to getRepo!');
+        throw new Error('DI container is required to get FocusAreaRepository');
+    }
+    try {
+        return container.get('focusAreaRepository');
+    } catch (error) {
+        logger.error('[focusAreaEvents] Failed to get FocusAreaRepository from container', { error: error.message });
+        throw error;
+    }
+}
 
 /**
  * Publish an event when a focus area is created
+ * @param {DIContainer} container - The DI container instance.
  * @param {string} focusAreaId - ID of the focus area
  * @param {string} name - Name of the focus area
  * @returns {Promise<void>}
  */
-async function publishFocusAreaCreated(focusAreaId, name) {
+async function publishFocusAreaCreated(container, focusAreaId, name) {
   try {
-    // Get entity to add domain event
-    const entity = await focusAreaRepository.findById(focusAreaId);
+    const repo = getRepo(container);
+    const entity = await repo.findById(focusAreaId);
     if (entity) {
-      // Add domain event to entity
       entity.addDomainEvent(EventTypes.FOCUS_AREA_CREATED, {
         focusAreaId,
         name
       });
-      
-      // Save entity which will publish the event
-      await focusAreaRepository.save(entity);
+      await repo.save(entity);
     } else {
-      // Fallback to direct event publishing if entity not found
-      console.warn(`Entity with ID ${focusAreaId} not found for event FOCUS_AREA_CREATED. Using direct event publishing.`);
-      await eventBus.publishEvent(EventTypes.FOCUS_AREA_CREATED, {
-        focusAreaId,
-        name
+      logger.warn(`[focusAreaEvents] Entity ${focusAreaId} not found for FOCUS_AREA_CREATED. Direct publish.`);
+      await eventBus.publish({
+        type: EventTypes.FOCUS_AREA_CREATED,
+        data: { entityId: focusAreaId, entityType: 'FocusArea', name },
+        metadata: { timestamp: new Date().toISOString() }
       });
     }
-    
-    logger.debug('Published focus area created event', {
-      focusAreaId,
-      name
-    });
+    logger.debug('Published focus area created event', { focusAreaId, name });
   } catch (error) {
-    logger.error('Error publishing focus area created event', {
-      error: error.message,
-      focusAreaId,
-      name
-    });
+    logger.error('Error publishing focus area created event', { error: error.message, focusAreaId, name });
   }
 }
 
 /**
  * Publish an event when a focus area is updated
+ * @param {DIContainer} container - The DI container instance.
  * @param {string} focusAreaId - ID of the focus area
  * @param {Object} changes - Changes made to the focus area
  * @returns {Promise<void>}
  */
-async function publishFocusAreaUpdated(focusAreaId, changes) {
+async function publishFocusAreaUpdated(container, focusAreaId, changes) {
   try {
-    // Get entity to add domain event
-    const entity = await focusAreaRepository.findById(focusAreaId);
+    const repo = getRepo(container);
+    const entity = await repo.findById(focusAreaId);
     if (entity) {
-      // Add domain event to entity
       entity.addDomainEvent(EventTypes.FOCUS_AREA_UPDATED, {
         focusAreaId,
         changes
       });
-      
-      // Save entity which will publish the event
-      await focusAreaRepository.save(entity);
+      await repo.save(entity);
     } else {
-      // Fallback to direct event publishing if entity not found
-      console.warn(`Entity with ID ${focusAreaId} not found for event FOCUS_AREA_UPDATED. Using direct event publishing.`);
-      await eventBus.publishEvent(EventTypes.FOCUS_AREA_UPDATED, {
-        focusAreaId,
-        changes
+      logger.warn(`[focusAreaEvents] Entity ${focusAreaId} not found for FOCUS_AREA_UPDATED. Direct publish.`);
+      await eventBus.publish({
+        type: EventTypes.FOCUS_AREA_UPDATED,
+        data: { entityId: focusAreaId, entityType: 'FocusArea', changes },
+        metadata: { timestamp: new Date().toISOString() }
       });
     }
-    
-    logger.debug('Published focus area updated event', {
-      focusAreaId
-    });
+    logger.debug('Published focus area updated event', { focusAreaId });
   } catch (error) {
-    logger.error('Error publishing focus area updated event', {
-      error: error.message,
-      focusAreaId
-    });
+    logger.error('Error publishing focus area updated event', { error: error.message, focusAreaId });
   }
 }
 
 /**
  * Publish an event when a user's focus area is set
+ * @param {DIContainer} container - The DI container instance.
  * @param {string} userId - ID of the user
  * @param {string} focusArea - Focus area name
  * @returns {Promise<void>}
  */
-async function publishUserFocusAreaSet(userId, focusArea) {
+async function publishUserFocusAreaSet(container, userId, focusArea) {
   try {
-    // Get entity to add domain event
-    const entity = await focusAreaRepository.findById(userId);
+    const repo = getRepo(container);
+    const entity = await repo.findById(userId);
     if (entity) {
-      // Add domain event to entity
       entity.addDomainEvent(EventTypes.USER_FOCUS_AREA_SET, {
         userId,
         focusArea
       });
-      
-      // Save entity which will publish the event
-      await focusAreaRepository.save(entity);
+      await repo.save(entity);
     } else {
-      // Fallback to direct event publishing if entity not found
-      console.warn(`Entity with ID ${userId} not found for event USER_FOCUS_AREA_SET. Using direct event publishing.`);
-      await eventBus.publishEvent(EventTypes.USER_FOCUS_AREA_SET, {
-        userId,
-        focusArea
+      logger.warn(`[focusAreaEvents] Entity with userId ${userId} not found for USER_FOCUS_AREA_SET. Direct publish.`);
+      await eventBus.publish({
+        type: EventTypes.USER_FOCUS_AREA_SET,
+        data: { entityId: userId, entityType: 'UserFocusArea', userId, focusArea },
+        metadata: { timestamp: new Date().toISOString() }
       });
     }
-    
-    logger.debug('Published user focus area set event', {
-      userId,
-      focusArea
-    });
+    logger.debug('Published user focus area set event', { userId, focusArea });
   } catch (error) {
-    logger.error('Error publishing user focus area set event', {
-      error: error.message,
-      userId,
-      focusArea
-    });
+    logger.error('Error publishing user focus area set event', { error: error.message, userId, focusArea });
   }
 }
 
 /**
  * Set up focus area event subscriptions
+ * @param {DIContainer} container - The DI container instance.
  */
-async function registerFocusAreaEventHandlers() {
-  // When a user is created, suggest initial focus areas
-  eventBus.subscribe(EventTypes.USER_CREATED, async event => {
-    logger.debug('Handling user created event', {
-      userId: event.payload.userId
-    });
-    // In a real implementation, we would suggest initial focus areas
-    logger.info('Initial focus areas would be suggested for new user', {
-      userId: event.payload.userId
-    });
-  });
-  
-  // When personality traits are updated, adjust focus area recommendations
-  eventBus.subscribe(EventTypes.PERSONALITY_PROFILE_UPDATED, async event => {
-    logger.debug('Handling personality profile updated event', {
-      userId: event.payload.userId
-    });
-    // In a real implementation, we would adjust focus area recommendations
-    logger.info('Focus area recommendations would be adjusted based on personality', {
-      userId: event.payload.userId
-    });
-  });
-  
-  // When multiple challenges are completed, adjust focus area recommendations
-  eventBus.subscribe(EventTypes.ACHIEVEMENT_UNLOCKED, async event => {
-    logger.debug('Handling achievement unlocked event', {
-      userId: event.payload.userId,
-      achievement: event.payload.achievement
-    });
-    // In a real implementation, we would update focus area recommendations
-    logger.info('Focus area recommendations would be adjusted based on achievements', {
-      userId: event.payload.userId
-    });
-  });
-}
+export function registerFocusAreaEventHandlers(container) {
+    if (!container) {
+        throw new Error('Container is required to register focus area event handlers');
+    }
 
-export { publishFocusAreaCreated };
-export { publishFocusAreaUpdated };
-export { publishUserFocusAreaSet };
-export { registerFocusAreaEventHandlers };
+    const eventBus = container.get('eventBus');
+    if (!eventBus) {
+        throw new Error('EventBus not found in container');
+    }
+
+    // Register event handlers here...
+    // Example:
+    eventBus.on(EventTypes.FOCUS_AREA_CREATED, async (event) => {
+        try {
+            const repo = getRepo(container);
+            // Handle focus area created event...
+            logger.info('Focus area created event handled', { eventId: event.id });
+        } catch (error) {
+            logger.error('Error handling focus area created event', { error: error.message });
+        }
+    });
+
+    // Add more event handlers as needed...
+}
 
 export default {
   publishFocusAreaCreated,

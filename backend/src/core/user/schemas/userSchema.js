@@ -72,6 +72,10 @@
 import { z } from "zod";
 import { v4 as uuidv4 } from 'uuid';
 'use strict';
+
+// Define allowed difficulty levels
+const difficultyLevelSchema = z.enum(['beginner', 'intermediate', 'advanced']);
+
 // Define the basic user schema
 const userSchema = z
     .object({
@@ -93,22 +97,27 @@ const userSchema = z
         .string()
         .max(100, 'Professional title cannot exceed 100 characters')
         .refine(title => !title || title.trim() === title, 'Professional title cannot start or end with whitespace')
+        .optional()
         .default(''),
     location: z
         .string()
         .max(100, 'Location cannot exceed 100 characters')
         .refine(loc => !loc || loc.trim() === loc, 'Location cannot start or end with whitespace')
+        .optional()
         .default(''),
     country: z
         .string()
         .max(100, 'Country cannot exceed 100 characters')
         .refine(country => !country || country.trim() === country, 'Country cannot start or end with whitespace')
+        .optional()
         .default(''),
     focusArea: z
         .string()
         .max(100, 'Focus area cannot exceed 100 characters')
         .refine(area => !area || area.trim() === area, 'Focus area cannot start or end with whitespace')
+        .optional()
         .default(''),
+    difficultyLevel: difficultyLevelSchema.optional().nullable().default(null),
     lastActive: z
         .string()
         .datetime('Last active must be a valid ISO datetime')
@@ -287,6 +296,7 @@ const userDatabaseSchema = z.object({
     location: z.string().optional().default(''),
     country: z.string().optional().default(''),
     focus_area: z.string().optional().default(''),
+    difficulty_level: difficultyLevelSchema.optional().nullable().default(null),
     last_active: z.string().nullable().optional(),
     created_at: z.string().optional(),
     updated_at: z.string().optional(),
@@ -305,10 +315,12 @@ export { createUserSchema };
 export { updateUserSchema };
 export { userSearchOptionsSchema };
 export { userDatabaseSchema };
+export { difficultyLevelSchema };
 export default {
     userSchema,
     createUserSchema,
     updateUserSchema,
     userSearchOptionsSchema,
-    userDatabaseSchema
+    userDatabaseSchema,
+    difficultyLevelSchema
 };

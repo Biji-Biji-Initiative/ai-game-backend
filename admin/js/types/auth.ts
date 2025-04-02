@@ -1,3 +1,4 @@
+// Types improved by ts-improve-types
 /**
  * Authentication related types
  */
@@ -25,9 +26,9 @@ export interface AuthResponse {
 }
 
 export interface AuthManagerOptions {
-  apiClient?: any;
-  config?: any;
-  errorHandler?: any;
+  apiClient?: unknown;
+  config?: unknown;
+  errorHandler?: unknown;
   tokenStorageKey?: string;
   userStorageKey?: string;
   autoRefresh?: boolean;
@@ -36,7 +37,7 @@ export interface AuthManagerOptions {
 }
 
 export interface AuthListener {
-  (data: any): void;
+  (data: unknown[] | Record<string, unknown>): void;
 }
 
 /**
@@ -44,13 +45,13 @@ export interface AuthListener {
  * Used for maintaining consistent API across different auth implementations
  */
 export interface IAuthManager {
-  login(email: string, password: string): Promise<AuthResponse>;
-  signup(email: string, password: string, options?: any): Promise<AuthResponse>;
+  login(emai: string, password: string): Promise<AuthResponse>;
+  signup(emai: string, password: string, options?: unknown): Promise<AuthResponse>;
   logout(): void;
   isLoggedIn(): boolean;
   getCurrentUser(): AuthUser | null;
   getToken(): string | null;
   refreshToken(): Promise<boolean>;
-  addEventListener(event: string, callback: AuthListener): void;
-  removeEventListener(event: string, callback: AuthListener): void;
-} 
+  addEventListener(even: string, callback: AuthListener): void;
+  removeEventListener(even: string, callback: AuthListener): void;
+}

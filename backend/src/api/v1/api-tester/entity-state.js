@@ -3,82 +3,151 @@
  * Provides debug endpoints for fetching domain entity state for the API tester
  */
 
-const { Router } = require('express');
-const { v4: uuidv4 } = require('uuid');
-const { getRepositoryByEntityType } = require('#app/core/repositories');
-const { logger } = require('#app/utils/logger');
-const { asyncHandler } = require('#app/api/middleware/asyncHandler');
-const { requireAdmin } = require('#app/api/middleware/requireAdmin');
-const { isDevMode } = require('#app/utils/environment');
+import express from 'express';
+import { v4 as uuidv4 } from 'uuid';
+import { logger } from '#app/core/infra/logging/logger.js';
+import { withControllerErrorHandling } from '#app/core/infra/errors/errorStandardization.js';
 
-// Create a router
-const router = Router();
+// This route likely needs dependencies injected now. 
+// Assuming it's created via a factory or class that receives services.
+// Example factory function structure:
+export default function createEntityStateRoute(dependencies = {}) {
+    const { 
+        userService, 
+        challengeService,
+        evaluationService,
+        focusAreaService,
+        // Add other relevant services here...
+    } = dependencies;
+    
+    // Basic validation to ensure services are provided during setup
+    if (!userService || !challengeService /* Add checks for others */) {
+      logger.error('Missing required services for createEntityStateRoute');
+      // Return a handler that always errors out
+      return (req, res) => res.status(500).json({ success: false, error: 'API Tester Route Configuration Error' });
+    }
 
-/**
- * GET /api/v1/api-tester/entity-state
- * Fetches the current state of a domain entity by type and ID
- * Requires either:
- * - Admin permission, or
- * - Dev mode enabled
- */
-router.get('/entity-state', requireAdmin(), asyncHandler(async (req, res) => {
+    const router = express.Router();
+
+    const handleEntityStateRequest = async (req, res) => {
+        const { type, id } = req.query;
+        const correlationId = req.headers['x-correlation-id'] || uuidv4();
+
+        if (!type || !id) {
+            logger.warn('Missing required parameters', { type, id, correlationId });
+            return res.status(400).json({ success: false, error: 'Missing required parameters: type and id are required' });
+        }
+
+        logger.info('API Tester: Fetching entity state', { type, id, correlationId });
+
+        let entity = null;
+        let serviceToUse = null;
+
+        // Use a switch or map to select the appropriate *injected* service
+        switch (type.toLowerCase()) {
+            case 'user':
+                serviceToUse = userService;
+                break;
+            case 'challenge':
+                serviceToUse = challengeService;
+                break;
+            case 'evaluation':
+                serviceToUse = evaluationService;
+                break;
+            case 'focusarea': // Assuming 'focusarea' is the type string
+                serviceToUse = focusAreaService;
+                break;
+            // Add cases for other entity types and their corresponding services
+            default:
+                logger.warn('API Tester: Invalid entity type requested', { type, correlationId });
+                return res.status(400).json({ success: false, error: `Invalid entity type: ${type}` });
+        }
+
+        if (!serviceToUse) {
+             logger.error('API Tester: Service not found for type, DI issue?', { type, correlationId });
+             return res.status(500).json({ success: false, error: `Internal configuration error for entity type: ${type}` });
+        }
+
+        try {
+            // Call the appropriate method on the selected service
+            // Use existing methods like getChallengeByIdOrVO, getUserById, etc.
+            // We might need to ensure these services have a consistent `getById` or similar method.
+            // Assuming methods like `getUserById`, `getChallengeByIdOrVO` exist and return the domain object or null.
+            // Adjust method names as needed based on actual service interfaces.
+            if (typeof serviceToUse.findById === 'function') { // Prefer findById if available
+                 entity = await serviceToUse.findById(id);
+            } else if (type.toLowerCase() === 'user' && typeof serviceToUse.getUserById === 'function') {
+                 entity = await serviceToUse.getUserById(id);
+            } else if (type.toLowerCase() === 'challenge' && typeof serviceToUse.getChallengeByIdOrVO === 'function') {
+                 entity = await serviceToUse.getChallengeByIdOrVO(id);
+            } else if (type.toLowerCase() === 'evaluation' && typeof serviceToUse.getEvaluationById === 'function') {
+                 entity = await serviceToUse.getEvaluationById(id);
+            } else if (type.toLowerCase() === 'focusarea' && typeof serviceToUse.getFocusAreaById === 'function') {
+                 entity = await serviceToUse.getFocusAreaById(id);
+            } else {
+                logger.error('API Tester: No suitable get method found on service for type', { type, serviceName: serviceToUse.constructor?.name, correlationId });
+                return res.status(500).json({ success: false, error: `Internal configuration error - cannot find data for type: ${type}` });
+            }
+
+            if (!entity) {
+                logger.warn('API Tester: Entity not found via service', { type, id, correlationId });
+                return res.status(404).json({ success: false, error: `Entity not found: ${type} with ID ${id}` });
+            }
+
+            // Return the entity state (prefer toJSON if available)
+            return res.json({ success: true, entity: entity.toJSON ? entity.toJSON() : entity });
+
+        } catch (error) {
+            logger.error('API Tester: Error fetching entity state via service', {
+                type,
+                id,
+                correlationId,
+                service: serviceToUse?.constructor?.name,
+                error: error.message,
+                stack: error.stack // Be cautious logging full stack in production
+            });
+            // Use status code from error if available and operational, otherwise 500
+            const statusCode = (error.isOperational && error.statusCode) ? error.statusCode : 500;
+            return res.status(statusCode).json({ success: false, error: `Error fetching entity state: ${error.message}` });
+        }
+    };
+
+    // Apply standardized error handling to the handler
+    const safeHandler = withControllerErrorHandling(handleEntityStateRequest, {
+        controllerName: 'ApiTesterEntityState',
+        logger: logger
+    });
+
+    // Define the route
+    router.get('/entity-state', safeHandler);
+
+    return router; // Return the configured router
+}
+
+// --- Original Code (Commented out / To be removed) ---
+/*
+const router = express.Router();
+
+router.get('/entity-state', withControllerErrorHandling(async (req, res) => {
   const { type, id } = req.query;
   const correlationId = req.headers['x-correlation-id'] || uuidv4();
   
-  // Validate parameters
-  if (!type || !id) {
-    logger.warn('Missing required parameters', { type, id, correlationId });
-    return res.status(400).json({
-      success: false,
-      error: 'Missing required parameters: type and id are required'
-    });
-  }
+  // ... validation ...
   
-  // Log the request
   logger.info('Fetching entity state', { type, id, correlationId });
   
   try {
-    // Get the appropriate repository for the entity type
     const repository = getRepositoryByEntityType(type);
     
-    if (!repository) {
-      logger.warn('Invalid entity type', { type, correlationId });
-      return res.status(400).json({
-        success: false,
-        error: `Invalid entity type: ${type}`
-      });
-    }
+    if (!repository) { ... }
     
-    // Fetch the entity from the repository
     const entity = await repository.findById(id);
     
-    if (!entity) {
-      logger.warn('Entity not found', { type, id, correlationId });
-      return res.status(404).json({
-        success: false,
-        error: `Entity not found: ${type} with ID ${id}`
-      });
-    }
+    if (!entity) { ... }
     
-    // Return the entity state
-    return res.json({
-      success: true,
-      entity: entity.toJSON ? entity.toJSON() : entity
-    });
-  } catch (error) {
-    logger.error('Error fetching entity state', {
-      type,
-      id,
-      correlationId,
-      error: error.message,
-      stack: error.stack
-    });
-    
-    return res.status(500).json({
-      success: false,
-      error: `Error fetching entity state: ${error.message}`
-    });
-  }
+    return res.json({ success: true, entity: entity.toJSON ? entity.toJSON() : entity });
+  } catch (error) { ... }
 }));
 
-module.exports = router; 
+export default router;
+*/ 

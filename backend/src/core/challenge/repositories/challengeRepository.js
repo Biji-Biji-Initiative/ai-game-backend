@@ -5,8 +5,7 @@ import Challenge from "#app/core/challenge/models/Challenge.js";
 import challengeMapper from "#app/core/challenge/mappers/ChallengeMapper.js";
 import challengeSchema from "#app/core/challenge/schemas/ChallengeSchema.js";
 import challengeErrors from "#app/core/challenge/errors/ChallengeErrors.js";
-import domainEvents from "#app/core/common/events/domainEvents.js";
-import { supabaseClient } from "#app/core/infra/db/supabaseClient.js";
+import { EventTypes } from "#app/core/common/events/eventTypes.js";
 import { BaseRepository, EntityNotFoundError, ValidationError, DatabaseError } from "#app/core/infra/repositories/BaseRepository.js";
 import { createErrorMapper, createErrorCollector, withRepositoryErrorHandling } from "#app/core/infra/errors/errorStandardization.js";
 import ChallengeId from "#app/core/common/valueObjects/ChallengeId.js";
@@ -21,7 +20,6 @@ const {
     ChallengeRepositoryError, 
     ChallengeError 
 } = challengeErrors;
-const { eventBus, EventTypes } = domainEvents;
 // Create an error mapper for the challenge domain
 const challengeErrorMapper = createErrorMapper({
     EntityNotFoundError: ChallengeNotFoundError,
@@ -42,14 +40,19 @@ class ChallengeRepository extends BaseRepository {
      */
     constructor(options = {}) {
         super({
-            db: options.db || supabaseClient,
+            db: options.db, // Expect db to be provided via dependency injection
             tableName: 'challenges',
             domainName: 'challenge',
             logger: options.logger,
             maxRetries: 3
         });
-        this.eventBus = options.eventBus || eventBus;
+        this.eventBus = options.eventBus;
         this.validateUuids = true;
+        
+        // Log if db is missing
+        if (!this.db) {
+            this.logger?.warn('No database client provided to ChallengeRepository');
+        }
         
         // Apply standardized error handling to methods
         this.findById = withRepositoryErrorHandling(
@@ -82,25 +85,27 @@ class ChallengeRepository extends BaseRepository {
             }
         );
         
-        this.findByUserEmail = withRepositoryErrorHandling(
-            this.findByUserEmail.bind(this),
-            {
-                methodName: 'findByUserEmail',
-                domainName: this.domainName,
-                logger: this.logger,
-                errorMapper: challengeErrorMapper
-            }
-        );
+        // REMOVED: Method findByUserEmail does not exist on this class
+        // this.findByUserEmail = withRepositoryErrorHandling(
+        //     this.findByUserEmail.bind(this),
+        //     {
+        //         methodName: 'findByUserEmail',
+        //         domainName: this.domainName,
+        //         logger: this.logger,
+        //         errorMapper: challengeErrorMapper
+        //     }
+        // );
         
-        this.findRecentByUserEmail = withRepositoryErrorHandling(
-            this.findRecentByUserEmail.bind(this),
-            {
-                methodName: 'findRecentByUserEmail',
-                domainName: this.domainName,
-                logger: this.logger,
-                errorMapper: challengeErrorMapper
-            }
-        );
+        // REMOVED: Method findRecentByUserEmail does not exist on this class
+        // this.findRecentByUserEmail = withRepositoryErrorHandling(
+        //     this.findRecentByUserEmail.bind(this),
+        //     {
+        //         methodName: 'findRecentByUserEmail',
+        //         domainName: this.domainName,
+        //         logger: this.logger,
+        //         errorMapper: challengeErrorMapper
+        //     }
+        // );
         
         this.save = withRepositoryErrorHandling(
             this.save.bind(this),
@@ -200,8 +205,8 @@ class ChallengeRepository extends BaseRepository {
                 }
                 return null;
             }
-            const challengeData = this._snakeToCamel(data);
-            return challengeMapper.toDomain(challengeData);
+            // const challengeData = this._snakeToCamel(data); // Mapper handles this
+            return challengeMapper.toDomain(data); // Pass raw data to mapper
         }, 'findById', { id });
     }
     /**
@@ -221,11 +226,8 @@ class ChallengeRepository extends BaseRepository {
             // Use the base repository implementation to get raw data
             const records = await super.findByIds(ids);
             
-            // Map database records to domain objects
-            const challenges = records.map(record => {
-                const challengeData = this._snakeToCamel(record);
-                return challengeMapper.toDomain(challengeData);
-            });
+            // Map database records to domain objects using mapper
+            const challenges = challengeMapper.toDomainCollection(records);
             
             // If include options are specified, handle eager loading
             if (options.include && Array.isArray(options.include) && options.include.length > 0) {
@@ -273,11 +275,21 @@ class ChallengeRepository extends BaseRepository {
                         .filter(id => !!id);
                         
                     if (focusAreaIds.length > 0) {
-                        // Get the repository from container or directly
-                        const focusAreaRepo = this.container ? 
-                            this.container.get('focusAreaRepository') : 
-                            require('../../focusArea/repositories/focusAreaRepository').default;
-                            
+                        if (!this.container) {
+                            this.logger?.warn('Cannot load related entities (focusAreas) - DI container not provided', {
+                                method: '_loadRelatedEntities',
+                                relationshipType: 'focusArea'
+                            });
+                            // Set empty focusArea references and skip loading
+                            challenges.forEach(challenge => {
+                                challenge.focusArea = null;
+                            });
+                            break;
+                        }
+                        
+                        // Get repository from the container
+                        const focusAreaRepo = this.container.get('focusAreaRepository');
+                        
                         // Batch load all focus areas
                         const focusAreas = await focusAreaRepo.findByIds(focusAreaIds);
                         
@@ -350,11 +362,8 @@ class ChallengeRepository extends BaseRepository {
                 });
             }
             
-            // Map database records to domain objects
-            const challenges = (data || []).map(record => {
-                const challengeData = this._snakeToCamel(record);
-                return challengeMapper.toDomain(challengeData);
-            });
+            // Map database records to domain objects using mapper
+            const challenges = challengeMapper.toDomainCollection(data || []);
             
             // Handle eager loading if specified in options
             if (options.include && Array.isArray(options.include) && options.include.length > 0) {
@@ -378,90 +387,6 @@ class ChallengeRepository extends BaseRepository {
      */
     async findRecentByUserId(userIdOrIdVO, limit = 5) {
         return this.findByUserId(userIdOrIdVO, { 
-            limit, 
-            sortBy: 'createdAt', 
-            sortDir: 'desc' 
-        });
-    }
-    /**
-     * Find challenges by user email
-     * 
-     * NOTE: This is a cross-aggregate query with stronger coupling than findByUserId.
-     * It bypasses the User aggregate boundary and assumes knowledge of User attribute (email).
-     * Consider using a two-step process in new code: first get userId by email,
-     * then find challenges by userId for better adherence to DDD principles.
-     * 
-     * This method is maintained for backward compatibility and simple read scenarios.
-     * 
-     * @deprecated Since v1.5.0. Use a two-step process with UserService.getUserByEmail and
-     * then ChallengeRepository.findByUserId for better DDD adherence and aggregate boundary respect.
-     * @param {string|Email} emailOrEmailVO - User email or Email value object
-     * @param {Object} options - Query options
-     * @returns {Promise<Array<Challenge>>} Array of challenges
-     * @throws {ChallengeRepositoryError} If database operation fails
-     */
-    async findByUserEmail(emailOrEmailVO, options = {}) {
-        // Log a warning to indicate usage of deprecated method
-        this._log('warn', 'Using deprecated findByUserEmail method that crosses aggregate boundaries', { 
-            method: 'findByUserEmail',
-            recommendation: 'Use UserService.getUserByEmail and then ChallengeRepository.findByUserId instead'
-        });
-        
-        // Handle value object if provided
-        const email = emailOrEmailVO instanceof Email ? emailOrEmailVO.value : emailOrEmailVO;
-        
-        this._validateRequiredParams({ email }, ['email']);
-        const { limit = 10, offset = 0, status, sortBy = 'createdAt', sortDir = 'desc' } = options;
-        return await this._withRetry(async () => {
-            this._log('debug', 'Finding challenges by user email', { email, options });
-            let query = this.db
-                .from(this.tableName)
-                .select('*')
-                .eq('user_email', email);
-            if (status) {
-                query = query.eq('status', status);
-            }
-            const dbSortBy = this._camelToSnakeField(sortBy);
-            query = query
-                .order(dbSortBy, { ascending: sortDir === 'asc' })
-                .range(offset, offset + limit - 1);
-            const { data, error } = await query;
-            if (error) {
-                throw new DatabaseError(`Failed to fetch challenges by user email: ${error.message}`, {
-                    cause: error,
-                    entityType: this.domainName,
-                    operation: 'findByUserEmail',
-                    metadata: { email, options }
-                });
-            }
-            return (data || []).map(record => {
-                const challengeData = this._snakeToCamel(record);
-                return challengeMapper.toDomain(challengeData);
-            });
-        }, 'findByUserEmail', { email, options });
-    }
-    /**
-     * Find recent challenges by user email
-     * 
-     * NOTE: This is a cross-aggregate query with stronger coupling than findByUserId.
-     * It inherits the same concerns as findByUserEmail. For new code, consider a two-step
-     * approach using findByEmail and findByUserId instead.
-     * 
-     * @deprecated Since v1.5.0. Use a two-step process with UserService.getUserByEmail and 
-     * then ChallengeRepository.findRecentByUserId for better DDD adherence.
-     * @param {string|Email} emailOrEmailVO - User email or Email value object
-     * @param {number} limit - Maximum number of results to return
-     * @returns {Promise<Array<Challenge>>} Array of challenges
-     * @throws {ChallengeRepositoryError} If database operation fails
-     */
-    async findRecentByUserEmail(emailOrEmailVO, limit = 5) {
-        // Log a warning to indicate usage of deprecated method
-        this._log('warn', 'Using deprecated findRecentByUserEmail method that crosses aggregate boundaries', { 
-            method: 'findRecentByUserEmail',
-            recommendation: 'Use UserService.getUserByEmail and then ChallengeRepository.findRecentByUserId instead'
-        });
-        
-        return this.findByUserEmail(emailOrEmailVO, { 
             limit, 
             sortBy: 'createdAt', 
             sortDir: 'desc' 
@@ -500,14 +425,21 @@ class ChallengeRepository extends BaseRepository {
                 isUpdate: Boolean(challenge.id)
             });
             
-            // Validate challenge data
-            ChallengeSchema.parse(challenge);
+            // Validate challenge data using domain model's method
+            try {
+                challenge.validate(); 
+            } catch(validationError) {
+                throw new ChallengeValidationError(`Validation failed before save: ${validationError.message}`, {
+                    cause: validationError
+                });
+            }
             
-            // Prepare data for database (convert camelCase to snake_case)
-            const challengeData = this._camelToSnake(challengeMapper.toPersistence(challenge));
+            // Prepare data for database using mapper
+            const challengeData = challengeMapper.toPersistence(challenge);
             let data;
-            
-            if (challenge.id) {
+            const isUpdate = !!challenge.id; // Determine if it's an update
+
+            if (isUpdate) {
                 // Update existing challenge
                 const { data: updateData, error: updateError } = await transaction
                     .from(this.tableName)
@@ -547,24 +479,24 @@ class ChallengeRepository extends BaseRepository {
             }
             
             this._log('debug', 'Saved challenge', {
-                id: challenge.id,
-                title: challenge.title
+                id: data.id, // Use ID from returned data
+                title: data.title || challenge.title
             });
             
-            const savedData = this._snakeToCamel(data);
-            const savedChallenge = challengeMapper.toDomain(savedData);
+            // Convert result back using mapper
+            const savedChallenge = challengeMapper.toDomain(data);
             
-            // If no domain events were provided but this is a new challenge, add creation event
-            if (domainEvents.length === 0 && !challenge.id) {
-                domainEvents.push({
+            // If no domain events were collected BUT this was a create operation, add default event
+            if (domainEvents.length === 0 && !isUpdate) {
+                 domainEvents.push({
                     type: EventTypes.CHALLENGE_CREATED,
-                    payload: {
+                    data: {
                         challengeId: savedChallenge.id,
                         userId: savedChallenge.userId,
                         challengeType: savedChallenge.challengeType,
                         focusArea: savedChallenge.focusArea
                     },
-                    timestamp: new Date().toISOString()
+                    metadata: { timestamp: new Date().toISOString() }
                 });
             }
             
@@ -636,7 +568,7 @@ class ChallengeRepository extends BaseRepository {
         this._validateId(id);
         
         // Check if challenge exists and get its data for the event
-        const challenge = await this.findById(id, true);
+        const challenge = await this.findById(id, true); // Ensures ChallengeNotFound is thrown if absent
         
         // Use withTransaction to ensure events are only published after successful commit
         // and cache is properly invalidated
@@ -657,21 +589,22 @@ class ChallengeRepository extends BaseRepository {
                 });
             }
             
-            // Create domain event for deletion
-            const domainEvents = [{
-                type: EventTypes.CHALLENGE_DELETED,
-                payload: {
+            // Add domain event for deletion using the entity
+            challenge.addDomainEvent(EventTypes.CHALLENGE_DELETED, {
                     challengeId: id,
                     userId: challenge.userId,
                     challengeType: challenge.challengeType,
                     focusArea: challenge.focusArea
-                },
-                timestamp: new Date().toISOString()
-            }];
+                    // timestamp added automatically by addDomainEvent
+                });
+            
+            // Collect domain events from the entity
+            const domainEvents = challenge.getDomainEvents();
+            challenge.clearDomainEvents(); // Clear events after collecting
             
             // Return both the result and the domain events for publishing after commit
             return {
-                result: true,
+                result: true, // Deletion was successful if no DB error occurred
                 domainEvents: domainEvents
             };
         }, {
@@ -722,7 +655,7 @@ class ChallengeRepository extends BaseRepository {
                 this._log('debug', 'Searching challenges', { filters, options });
                 let query = this.db
                     .from(this.tableName)
-                    .select('*');
+                    .select('* ', { count: 'exact' }); // Fetch count for pagination
                 // Apply filters
                 if (userId) {
                     query = query.eq('user_id', userId);
@@ -747,51 +680,38 @@ class ChallengeRepository extends BaseRepository {
                 query = query
                     .order(dbSortBy, { ascending: sortDir === 'asc' })
                     .range(offset, offset + limit - 1);
-                const { data, error } = await query;
+
+                const { data, error, count } = await query;
+
                 if (error) {
                     throw new DatabaseError(`Failed to search challenges: ${error.message}`, {
                         cause: error,
                         entityType: this.domainName,
-                        operation: 'search',
-                        metadata: { filters, options }
+                        operation: 'search'
                     });
                 }
-                return {
-                    results: (data || []).map(record => {
-                        const challengeData = this._snakeToCamel(record);
-                        return challengeMapper.toDomain(challengeData);
-                    }),
-                    total: data?.length || 0
-                };
+
+                const results = challengeMapper.toDomainCollection(data || []);
+                return { results, total: count || 0 };
+
             }, 'search', { filters, options });
+
             return result;
-        }
-        catch (error) {
-            if (error instanceof ValidationError) {
-                throw new ChallengeValidationError(error.message, {
-                    cause: error,
-                    metadata: error.metadata
-                });
+
+        } catch (error) {
+            if (error instanceof ValidationError || error instanceof DatabaseError) {
+                throw error;
             }
-            if (error instanceof DatabaseError) {
-                throw new ChallengePersistenceError(error.message, {
-                    cause: error,
-                    metadata: error.metadata
-                });
-            }
-            if (!(error instanceof ChallengePersistenceError)) {
-                this._log('error', 'Error in search', {
-                    filters,
-                    options,
-                    error: error.message,
-                    stack: error.stack
-                });
-                throw new ChallengePersistenceError(`Failed to search challenges: ${error.message}`, {
-                    cause: error,
-                    metadata: { filters, options }
-                });
-            }
-            throw error;
+            this._log('error', 'Unexpected error searching challenges', { 
+                error: error.message, 
+                stack: error.stack, 
+                filters, 
+                options 
+            });
+            throw new ChallengePersistenceError(`Failed to search challenges: ${error.message}`, {
+                cause: error,
+                metadata: { filters, options }
+            });
         }
     }
     /**
@@ -817,8 +737,10 @@ class ChallengeRepository extends BaseRepository {
      * @returns {Promise<Array<Challenge>>} Array of challenges
      * @throws {ChallengePersistenceError} If database operation fails
      */
-    findAll(options = {}) {
-        return this.search({}, options);
+    async findAll(options = {}) {
+        // Using search without filters to get all, respecting options
+        const { results, total } = await this.search({}, options);
+        return results; // Or return { results, total } if needed
     }
     /**
      * Helper method to convert camelCase field name to snake_case
@@ -830,16 +752,6 @@ class ChallengeRepository extends BaseRepository {
     }
 }
 
-// Use a function to get the singleton instance (lazy initialization)
-let _instance = null;
-function getRepositoryInstance() {
-    if (!_instance) {
-        _instance = new ChallengeRepository();
-    }
-    return _instance;
-}
-
-// Export the singleton getter, the named export for ChallengeRepository, and the class as default
-export { ChallengeRepository };
-export const challengeRepository = getRepositoryInstance();
+// Export the class for DI registration and the error class.
+export { ChallengeRepository, ChallengeRepositoryError };
 export default ChallengeRepository;

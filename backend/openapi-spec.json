@@ -1,0 +1,4428 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "AI Fight Club API",
+    "description": "Complete API documentation for the AI Fight Club application - a platform for AI coding challenges and evaluation",
+    "version": "1.0.0",
+    "license": {
+      "name": "ISC",
+      "url": "https://opensource.org/licenses/ISC"
+    },
+    "contact": {
+      "name": "Support",
+      "url": "https://aifightclub.example.com",
+      "email": "support@aifightclub.example.com"
+    },
+    "termsOfService": "https://aifightclub.example.com/terms",
+    "x-api-versioning": {
+      "strategy": "uri-path",
+      "current": "v1",
+      "deprecated": [],
+      "sunset": []
+    }
+  },
+  "servers": [
+    {
+      "url": "/api/v1",
+      "description": "Current server (relative path)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "System",
+      "description": "System-level endpoints for health checking and monitoring"
+    },
+    {
+      "name": "Users",
+      "description": "User management operations"
+    },
+    {
+      "name": "Auth",
+      "description": "Authentication and authorization endpoints"
+    },
+    {
+      "name": "Challenges",
+      "description": "Challenge management and generation"
+    },
+    {
+      "name": "Evaluations",
+      "description": "Evaluation of challenge responses"
+    },
+    {
+      "name": "UserJourney",
+      "description": "User progress tracking and journey management"
+    },
+    {
+      "name": "Adaptive",
+      "description": "Adaptive learning and personalization features"
+    },
+    {
+      "name": "FocusAreas",
+      "description": "Focus areas for learning and skill development"
+    },
+    {
+      "name": "Progress",
+      "description": "User progress tracking and reporting"
+    },
+    {
+      "name": "Personality",
+      "description": "User personality assessment and insights"
+    },
+    {
+      "name": "Prompts",
+      "description": "System prompts for AI interactions"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check endpoint",
+        "description": "Returns detailed health status of the API including database and OpenAI service availability",
+        "tags": [
+          "System"
+        ],
+        "parameters": [
+          {
+            "name": "format",
+            "in": "query",
+            "description": "Response format (json or text)",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json",
+                "text"
+              ],
+              "default": "json"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success",
+                      "enum": [
+                        "success",
+                        "error"
+                      ]
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Server is healthy"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time",
+                      "example": "2023-04-01T10:00:00Z"
+                    },
+                    "uptime": {
+                      "type": "number",
+                      "description": "Server uptime in seconds",
+                      "example": 3600
+                    },
+                    "dependencies": {
+                      "type": "object",
+                      "properties": {
+                        "database": {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "healthy",
+                                "unhealthy",
+                                "error",
+                                "unknown"
+                              ],
+                              "example": "healthy"
+                            },
+                            "message": {
+                              "type": "string",
+                              "example": "Database connection successful"
+                            }
+                          }
+                        },
+                        "openai": {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "healthy",
+                                "unhealthy",
+                                "error",
+                                "unknown"
+                              ],
+                              "example": "healthy"
+                            },
+                            "message": {
+                              "type": "string",
+                              "example": "OpenAI service is available"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error during health check",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "error"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Server is error"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "API is unhealthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "error"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Server is unhealthy"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "dependencies": {
+                      "type": "object",
+                      "properties": {
+                        "database": {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "example": "unhealthy"
+                            },
+                            "message": {
+                              "type": "string",
+                              "example": "Database connection failed"
+                            }
+                          }
+                        },
+                        "openai": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "summary": "Get all users",
+        "description": "Retrieves a list of all users with pagination",
+        "operationId": "getAllUsers",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/limitParam"
+          },
+          {
+            "$ref": "#/components/parameters/offsetParam"
+          },
+          {
+            "$ref": "#/components/parameters/sortParam"
+          },
+          {
+            "$ref": "#/components/parameters/filterParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Users retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/User"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/PaginationParams"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "summary": "Get user by ID",
+        "description": "Retrieves a user by their unique identifier",
+        "operationId": "getUserById",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID of the user to retrieve",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "Login to the system",
+        "description": "Authenticates a user and returns a JWT token",
+        "operationId": "loginUser",
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "User's email address"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "description": "User's password"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "token": {
+                          "type": "string",
+                          "description": "JWT token for authentication"
+                        },
+                        "user": {
+                          "$ref": "#/components/schemas/User"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid email or password"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "summary": "Register a new user",
+        "description": "Creates a new user account",
+        "operationId": "registerUser",
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password",
+                  "fullName"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "User's email address"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "description": "User's password"
+                  },
+                  "fullName": {
+                    "type": "string",
+                    "description": "User's full name"
+                  },
+                  "professionalTitle": {
+                    "type": "string",
+                    "description": "User's professional title"
+                  },
+                  "location": {
+                    "type": "string",
+                    "description": "User's location"
+                  },
+                  "country": {
+                    "type": "string",
+                    "description": "User's country"
+                  },
+                  "focusArea": {
+                    "type": "string",
+                    "description": "User's primary focus area"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Registration successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "token": {
+                          "type": "string",
+                          "description": "JWT token for authentication"
+                        },
+                        "user": {
+                          "$ref": "#/components/schemas/User"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "409": {
+            "description": "User already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "User with this email already exists"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/challenges": {
+      "get": {
+        "summary": "Get all challenges",
+        "description": "Retrieves a list of all challenges with pagination",
+        "operationId": "getAllChallenges",
+        "tags": [
+          "Challenges"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/limitParam"
+          },
+          {
+            "$ref": "#/components/parameters/offsetParam"
+          },
+          {
+            "$ref": "#/components/parameters/sortParam"
+          },
+          {
+            "$ref": "#/components/parameters/filterParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Challenges retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Challenge"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/PaginationParams"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a new challenge",
+        "description": "Creates a new challenge in the system",
+        "operationId": "createChallenge",
+        "tags": [
+          "Challenges"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "content",
+                  "userEmail"
+                ],
+                "properties": {
+                  "content": {
+                    "type": "string",
+                    "description": "Challenge content/question"
+                  },
+                  "userEmail": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "Email of the user the challenge is for"
+                  },
+                  "focusArea": {
+                    "type": "string",
+                    "description": "Focus area for the challenge"
+                  },
+                  "challengeType": {
+                    "type": "string",
+                    "description": "Type of challenge"
+                  },
+                  "formatType": {
+                    "type": "string",
+                    "description": "Format of the challenge"
+                  },
+                  "difficulty": {
+                    "type": "string",
+                    "enum": [
+                      "beginner",
+                      "intermediate",
+                      "advanced",
+                      "expert"
+                    ],
+                    "description": "Difficulty level"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Challenge created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Challenge"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/challenges/{id}": {
+      "get": {
+        "summary": "Get challenge by ID",
+        "description": "Retrieves a challenge by its unique identifier",
+        "operationId": "getChallengeById",
+        "tags": [
+          "Challenges"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID of the challenge to retrieve",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Challenge found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Challenge"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update a challenge",
+        "description": "Updates an existing challenge",
+        "operationId": "updateChallenge",
+        "tags": [
+          "Challenges"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID of the challenge to update",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "content": {
+                    "type": "string",
+                    "description": "Challenge content/question"
+                  },
+                  "focusArea": {
+                    "type": "string",
+                    "description": "Focus area for the challenge"
+                  },
+                  "challengeType": {
+                    "type": "string",
+                    "description": "Type of challenge"
+                  },
+                  "formatType": {
+                    "type": "string",
+                    "description": "Format of the challenge"
+                  },
+                  "difficulty": {
+                    "type": "string",
+                    "enum": [
+                      "beginner",
+                      "intermediate",
+                      "advanced",
+                      "expert"
+                    ],
+                    "description": "Difficulty level"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "pending",
+                      "submitted",
+                      "evaluated"
+                    ],
+                    "description": "Current status of the challenge"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Challenge updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Challenge"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a challenge",
+        "description": "Deletes an existing challenge",
+        "operationId": "deleteChallenge",
+        "tags": [
+          "Challenges"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID of the challenge to delete",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Challenge deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Challenge deleted successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          }
+        }
+      }
+    },
+    "/evaluations": {
+      "get": {
+        "summary": "Get all evaluations",
+        "description": "Retrieves a list of all evaluations with pagination",
+        "operationId": "getAllEvaluations",
+        "tags": [
+          "Evaluations"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/limitParam"
+          },
+          {
+            "$ref": "#/components/parameters/offsetParam"
+          },
+          {
+            "$ref": "#/components/parameters/sortParam"
+          },
+          {
+            "$ref": "#/components/parameters/filterParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Evaluations retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Evaluation"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/PaginationParams"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a new evaluation",
+        "description": "Creates a new evaluation for a challenge",
+        "operationId": "createEvaluation",
+        "tags": [
+          "Evaluations"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "challengeId",
+                  "userId",
+                  "response"
+                ],
+                "properties": {
+                  "challengeId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "ID of the challenge being evaluated"
+                  },
+                  "userId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "ID of the user who submitted the response"
+                  },
+                  "response": {
+                    "type": "string",
+                    "description": "User's response to evaluate"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Evaluation created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Evaluation"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/evaluations/{id}": {
+      "get": {
+        "summary": "Get evaluation by ID",
+        "description": "Retrieves an evaluation by its unique identifier",
+        "operationId": "getEvaluationById",
+        "tags": [
+          "Evaluations"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID of the evaluation to retrieve",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Evaluation found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Evaluation"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          }
+        }
+      }
+    },
+    "/user-journey/events": {
+      "get": {
+        "summary": "Get user journey events",
+        "description": "Retrieves all events in the current user's journey",
+        "operationId": "getUserJourneyEvents",
+        "tags": [
+          "UserJourney"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/limitParam"
+          },
+          {
+            "$ref": "#/components/parameters/offsetParam"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "description": "Filter by event type",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "login",
+                "challenge_started",
+                "challenge_completed",
+                "evaluation_received",
+                "badge_earned",
+                "level_up"
+              ]
+            }
+          },
+          {
+            "name": "fromDate",
+            "in": "query",
+            "description": "Filter events from this date (inclusive)",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "toDate",
+            "in": "query",
+            "description": "Filter events to this date (inclusive)",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User journey events retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/UserJourneyEvent"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/PaginationParams"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/user-journey/timeline": {
+      "get": {
+        "summary": "Get user timeline",
+        "description": "Retrieves a chronological timeline of the user's journey",
+        "operationId": "getUserTimeline",
+        "tags": [
+          "UserJourney"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/limitParam"
+          },
+          {
+            "$ref": "#/components/parameters/offsetParam"
+          },
+          {
+            "name": "includeDetails",
+            "in": "query",
+            "description": "Include detailed information about each event",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User timeline retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "date": {
+                            "type": "string",
+                            "format": "date",
+                            "description": "Date of the events"
+                          },
+                          "events": {
+                            "type": "array",
+                            "items": {
+                              "$ref": "#/components/schemas/UserJourneyEvent"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/PaginationParams"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/user-journey/progress": {
+      "get": {
+        "summary": "Get user progress",
+        "description": "Retrieves the user's overall progress in their learning journey",
+        "operationId": "getUserProgress",
+        "tags": [
+          "UserJourney"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User progress retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "userId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "description": "ID of the user"
+                        },
+                        "totalChallenges": {
+                          "type": "integer",
+                          "description": "Total number of challenges completed"
+                        },
+                        "totalPoints": {
+                          "type": "integer",
+                          "description": "Total points earned"
+                        },
+                        "rank": {
+                          "type": "string",
+                          "description": "User's current rank"
+                        },
+                        "level": {
+                          "type": "integer",
+                          "description": "User's current level"
+                        },
+                        "badges": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid",
+                                "description": "Badge ID"
+                              },
+                              "name": {
+                                "type": "string",
+                                "description": "Badge name"
+                              },
+                              "description": {
+                                "type": "string",
+                                "description": "Badge description"
+                              },
+                              "earnedAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "description": "When the badge was earned"
+                              }
+                            }
+                          }
+                        },
+                        "nextMilestone": {
+                          "type": "object",
+                          "properties": {
+                            "description": {
+                              "type": "string",
+                              "description": "Description of the next milestone"
+                            },
+                            "progress": {
+                              "type": "number",
+                              "format": "float",
+                              "minimum": 0,
+                              "maximum": 100,
+                              "description": "Progress towards next milestone (0-100)"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/adaptive/recommendations": {
+      "get": {
+        "summary": "Get adaptive recommendations",
+        "description": "Retrieves personalized adaptive learning recommendations for the current user",
+        "operationId": "getAdaptiveRecommendations",
+        "tags": [
+          "Adaptive"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/limitParam"
+          },
+          {
+            "$ref": "#/components/parameters/offsetParam"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "description": "Filter by recommendation type",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "challenge",
+                "resource",
+                "skill_focus",
+                "difficulty_adjustment"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter by recommendation status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "dismissed",
+                "completed"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recommendations retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AdaptiveRecommendation"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/PaginationParams"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/adaptive/dynamic-challenge": {
+      "post": {
+        "summary": "Generate dynamic challenge",
+        "description": "Generates a challenge dynamically based on user's skill level and learning path",
+        "operationId": "generateDynamicChallenge",
+        "tags": [
+          "Adaptive",
+          "Challenges"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "focusArea": {
+                    "type": "string",
+                    "description": "Specific area to focus on (optional)"
+                  },
+                  "preferredDifficulty": {
+                    "type": "string",
+                    "enum": [
+                      "beginner",
+                      "intermediate",
+                      "advanced",
+                      "expert"
+                    ],
+                    "description": "User's preferred difficulty level (optional)"
+                  },
+                  "includeConcepts": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Specific concepts to include (optional)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Dynamic challenge created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Challenge"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/adaptive/skill-profile": {
+      "get": {
+        "summary": "Get user skill profile",
+        "description": "Retrieves the current user's skill profile based on their learning history",
+        "operationId": "getUserSkillProfile",
+        "tags": [
+          "Adaptive",
+          "Users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Skill profile retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "userId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "description": "ID of the user"
+                        },
+                        "skills": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string",
+                                "description": "Name of the skill"
+                              },
+                              "proficiency": {
+                                "type": "number",
+                                "format": "float",
+                                "minimum": 0,
+                                "maximum": 100,
+                                "description": "Proficiency level (0-100)"
+                              },
+                              "lastImproved": {
+                                "type": "string",
+                                "format": "date-time",
+                                "description": "When the skill was last improved"
+                              }
+                            }
+                          }
+                        },
+                        "recommendedFocusAreas": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "description": "Areas recommended for improvement"
+                          }
+                        },
+                        "overallProficiency": {
+                          "type": "number",
+                          "format": "float",
+                          "minimum": 0,
+                          "maximum": 100,
+                          "description": "Overall proficiency level (0-100)"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/focus-areas": {
+      "get": {
+        "summary": "Get all focus areas",
+        "description": "Retrieves a list of all available focus areas",
+        "operationId": "getAllFocusAreas",
+        "tags": [
+          "FocusAreas"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/limitParam"
+          },
+          {
+            "$ref": "#/components/parameters/offsetParam"
+          },
+          {
+            "$ref": "#/components/parameters/sortParam"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "description": "Filter by category",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "difficulty",
+            "in": "query",
+            "description": "Filter by difficulty level",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "beginner",
+                "intermediate",
+                "advanced",
+                "expert"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Focus areas retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FocusArea"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/PaginationParams"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a new focus area",
+        "description": "Creates a new focus area (admin only)",
+        "operationId": "createFocusArea",
+        "tags": [
+          "FocusAreas"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "description"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Name of the focus area"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Detailed description of the focus area"
+                  },
+                  "category": {
+                    "type": "string",
+                    "description": "Category of the focus area",
+                    "default": "general"
+                  },
+                  "difficulty": {
+                    "type": "string",
+                    "enum": [
+                      "beginner",
+                      "intermediate",
+                      "advanced",
+                      "expert"
+                    ],
+                    "description": "Recommended difficulty level",
+                    "default": "intermediate"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Focus area created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/FocusArea"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "description": "Forbidden - requires admin access"
+          }
+        }
+      }
+    },
+    "/focus-areas/{id}": {
+      "get": {
+        "summary": "Get focus area by ID",
+        "description": "Retrieves a focus area by its unique identifier",
+        "operationId": "getFocusAreaById",
+        "tags": [
+          "FocusAreas"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID of the focus area to retrieve",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Focus area found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/FocusArea"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update a focus area",
+        "description": "Updates an existing focus area (admin only)",
+        "operationId": "updateFocusArea",
+        "tags": [
+          "FocusAreas"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID of the focus area to update",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Name of the focus area"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Detailed description of the focus area"
+                  },
+                  "category": {
+                    "type": "string",
+                    "description": "Category of the focus area"
+                  },
+                  "difficulty": {
+                    "type": "string",
+                    "enum": [
+                      "beginner",
+                      "intermediate",
+                      "advanced",
+                      "expert"
+                    ],
+                    "description": "Recommended difficulty level"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Focus area updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/FocusArea"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "description": "Forbidden - requires admin access"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a focus area",
+        "description": "Deletes an existing focus area (admin only)",
+        "operationId": "deleteFocusArea",
+        "tags": [
+          "FocusAreas"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID of the focus area to delete",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Focus area deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Focus area deleted successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "description": "Forbidden - requires admin access"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          }
+        }
+      }
+    },
+    "/users/{userId}/focus-areas": {
+      "get": {
+        "summary": "Get focus areas for a user",
+        "description": "Retrieves the focus areas assigned to a specific user",
+        "operationId": "getFocusAreasForUser",
+        "tags": [
+          "FocusAreas",
+          "Users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "ID of the user",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User focus areas retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FocusArea"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          }
+        }
+      },
+      "put": {
+        "summary": "Set focus areas for a user",
+        "description": "Assigns focus areas to a specific user",
+        "operationId": "setFocusAreasForUser",
+        "tags": [
+          "FocusAreas",
+          "Users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "ID of the user",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "focusAreas"
+                ],
+                "properties": {
+                  "focusAreas": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "description": "Array of focus area IDs"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Focus areas updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Focus areas updated successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          }
+        }
+      }
+    },
+    "/focus-areas/generate": {
+      "post": {
+        "summary": "Generate a new focus area",
+        "description": "Uses AI to generate a new focus area (admin only)",
+        "operationId": "generateFocusArea",
+        "tags": [
+          "FocusAreas"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Name or topic for the focus area"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Optional starting description"
+                  },
+                  "category": {
+                    "type": "string",
+                    "description": "Category for the focus area",
+                    "default": "general"
+                  },
+                  "difficulty": {
+                    "type": "string",
+                    "enum": [
+                      "beginner",
+                      "intermediate",
+                      "advanced",
+                      "expert"
+                    ],
+                    "description": "Difficulty level",
+                    "default": "intermediate"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Focus area generated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/FocusArea"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "description": "Forbidden - requires admin access"
+          }
+        }
+      }
+    },
+    "/progress": {
+      "get": {
+        "summary": "Get current user's progress",
+        "description": "Retrieves the overall progress for the current user",
+        "operationId": "getUserProgress",
+        "tags": [
+          "Progress"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User progress retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "progress": {
+                          "type": "object",
+                          "properties": {
+                            "overall": {
+                              "type": "number",
+                              "format": "float",
+                              "minimum": 0,
+                              "maximum": 100,
+                              "description": "Overall progress percentage"
+                            },
+                            "level": {
+                              "type": "integer",
+                              "description": "User's current level"
+                            },
+                            "skillLevels": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "type": "number"
+                              },
+                              "description": "Map of skill names to level values"
+                            },
+                            "challengesCompleted": {
+                              "type": "integer",
+                              "description": "Number of challenges completed"
+                            },
+                            "lastActive": {
+                              "type": "string",
+                              "format": "date-time",
+                              "description": "When the user was last active"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/progress/all": {
+      "get": {
+        "summary": "Get all progress records",
+        "description": "Retrieves all progress records for the current user",
+        "operationId": "getAllUserProgress",
+        "tags": [
+          "Progress"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/limitParam"
+          },
+          {
+            "$ref": "#/components/parameters/offsetParam"
+          },
+          {
+            "$ref": "#/components/parameters/sortParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Progress records retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "progressRecords": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid",
+                                "description": "Progress record ID"
+                              },
+                              "challengeId": {
+                                "type": "string",
+                                "format": "uuid",
+                                "description": "Related challenge ID"
+                              },
+                              "focusArea": {
+                                "type": "string",
+                                "description": "Focus area"
+                              },
+                              "averageScore": {
+                                "type": "number",
+                                "format": "float",
+                                "description": "Average score"
+                              },
+                              "completedAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "description": "Completion timestamp"
+                              }
+                            }
+                          }
+                        },
+                        "count": {
+                          "type": "integer",
+                          "description": "Total number of records"
+                        },
+                        "pagination": {
+                          "$ref": "#/components/schemas/PaginationParams"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/progress/challenge/{challengeId}": {
+      "get": {
+        "summary": "Get progress for a challenge",
+        "description": "Retrieves the user's progress for a specific challenge",
+        "operationId": "getChallengeProgress",
+        "tags": [
+          "Progress",
+          "Challenges"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "challengeId",
+            "in": "path",
+            "required": true,
+            "description": "ID of the challenge",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Challenge progress retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "challengeId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "description": "Challenge ID"
+                        },
+                        "score": {
+                          "type": "number",
+                          "format": "float",
+                          "description": "Average score"
+                        },
+                        "completionTime": {
+                          "type": "integer",
+                          "description": "Time to complete in seconds"
+                        },
+                        "skillLevels": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "number"
+                          },
+                          "description": "Map of skill names to level values"
+                        },
+                        "strengths": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Areas of strength"
+                        },
+                        "weaknesses": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Areas needing improvement"
+                        },
+                        "completedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "description": "Completion timestamp"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          }
+        }
+      }
+    },
+    "/progress/complete": {
+      "post": {
+        "summary": "Record challenge completion",
+        "description": "Records the completion of a challenge for the current user",
+        "operationId": "recordChallengeCompletion",
+        "tags": [
+          "Progress",
+          "Challenges"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "challengeId",
+                  "score"
+                ],
+                "properties": {
+                  "challengeId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "ID of the completed challenge"
+                  },
+                  "score": {
+                    "type": "number",
+                    "format": "float",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "Score achieved (0-100)"
+                  },
+                  "completionTime": {
+                    "type": "integer",
+                    "description": "Time to complete in seconds"
+                  },
+                  "skillLevels": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "description": "Skill levels achieved"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Challenge completion recorded successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Progress"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/progress/skills": {
+      "put": {
+        "summary": "Update skill levels",
+        "description": "Updates the user's skill levels",
+        "operationId": "updateSkillLevels",
+        "tags": [
+          "Progress"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "skillLevels"
+                ],
+                "properties": {
+                  "skillLevels": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "description": "Map of skill names to level values (0-100)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Skill levels updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "skillLevels": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "number"
+                          },
+                          "description": "Updated skill levels"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "description": "Update timestamp"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/progress/focus-area": {
+      "put": {
+        "summary": "Set focus area",
+        "description": "Sets the user's current focus area",
+        "operationId": "setFocusArea",
+        "tags": [
+          "Progress",
+          "FocusAreas"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "focusArea"
+                ],
+                "properties": {
+                  "focusArea": {
+                    "type": "string",
+                    "description": "Focus area to set"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Focus area updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "focusArea": {
+                          "type": "string",
+                          "description": "Updated focus area"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "description": "Update timestamp"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/personality/profile": {
+      "get": {
+        "summary": "Get personality profile",
+        "description": "Retrieves the current user's personality profile and insights",
+        "operationId": "getPersonalityProfile",
+        "tags": [
+          "Personality"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "includeInsights",
+            "in": "query",
+            "description": "Whether to include personality insights",
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
+          },
+          {
+            "name": "includeTraits",
+            "in": "query",
+            "description": "Whether to include personality traits",
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
+          },
+          {
+            "name": "includeAttitudes",
+            "in": "query",
+            "description": "Whether to include AI attitudes",
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Personality profile retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Personality"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "404": {
+            "description": "Profile not found"
+          }
+        }
+      }
+    },
+    "/personality/traits": {
+      "put": {
+        "summary": "Update personality traits",
+        "description": "Updates the user's personality traits",
+        "operationId": "updatePersonalityTraits",
+        "tags": [
+          "Personality"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "traits"
+                ],
+                "properties": {
+                  "traits": {
+                    "type": "object",
+                    "properties": {
+                      "creativity": {
+                        "type": "number",
+                        "format": "float",
+                        "minimum": 0,
+                        "maximum": 100,
+                        "description": "Creativity trait score"
+                      },
+                      "analyticalThinking": {
+                        "type": "number",
+                        "format": "float",
+                        "minimum": 0,
+                        "maximum": 100,
+                        "description": "Analytical thinking trait score"
+                      },
+                      "empathy": {
+                        "type": "number",
+                        "format": "float",
+                        "minimum": 0,
+                        "maximum": 100,
+                        "description": "Empathy trait score"
+                      },
+                      "assertiveness": {
+                        "type": "number",
+                        "format": "float",
+                        "minimum": 0,
+                        "maximum": 100,
+                        "description": "Assertiveness trait score"
+                      },
+                      "adaptability": {
+                        "type": "number",
+                        "format": "float",
+                        "minimum": 0,
+                        "maximum": 100,
+                        "description": "Adaptability trait score"
+                      }
+                    },
+                    "additionalProperties": {
+                      "type": "number",
+                      "format": "float",
+                      "minimum": 0,
+                      "maximum": 100
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Traits updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "traits": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "number"
+                          },
+                          "description": "Updated traits"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "description": "Update timestamp"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/personality/attitudes": {
+      "put": {
+        "summary": "Update AI attitudes",
+        "description": "Updates the user's attitudes towards AI",
+        "operationId": "updateAIAttitudes",
+        "tags": [
+          "Personality"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "attitudes"
+                ],
+                "properties": {
+                  "attitudes": {
+                    "type": "object",
+                    "properties": {
+                      "trust": {
+                        "type": "number",
+                        "format": "float",
+                        "minimum": 0,
+                        "maximum": 100,
+                        "description": "Trust in AI score"
+                      },
+                      "jobConcerns": {
+                        "type": "number",
+                        "format": "float",
+                        "minimum": 0,
+                        "maximum": 100,
+                        "description": "Job displacement concerns score"
+                      },
+                      "impact": {
+                        "type": "number",
+                        "format": "float",
+                        "minimum": 0,
+                        "maximum": 100,
+                        "description": "Perceived positive impact score"
+                      },
+                      "interest": {
+                        "type": "number",
+                        "format": "float",
+                        "minimum": 0,
+                        "maximum": 100,
+                        "description": "Interest in AI score"
+                      },
+                      "interaction": {
+                        "type": "number",
+                        "format": "float",
+                        "minimum": 0,
+                        "maximum": 100,
+                        "description": "AI interaction frequency score"
+                      }
+                    },
+                    "additionalProperties": {
+                      "type": "number",
+                      "format": "float",
+                      "minimum": 0,
+                      "maximum": 100
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Attitudes updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "attitudes": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "number"
+                          },
+                          "description": "Updated attitudes"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "description": "Update timestamp"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/personality/insights/generate": {
+      "post": {
+        "summary": "Generate personality insights",
+        "description": "Generates insights based on the user's personality profile",
+        "operationId": "generateInsights",
+        "tags": [
+          "Personality"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "includeTraits": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Whether to include trait-based insights"
+                  },
+                  "includeAttitudes": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Whether to include attitude-based insights"
+                  },
+                  "targetAreas": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Specific areas to focus insights on"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Insights generated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "insights": {
+                          "type": "object",
+                          "properties": {
+                            "strengths": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "Identified strengths"
+                            },
+                            "learningStyle": {
+                              "type": "string",
+                              "description": "Identified learning style"
+                            },
+                            "challengeRecommendations": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "Recommended challenge types"
+                            },
+                            "summary": {
+                              "type": "string",
+                              "description": "Summary of insights"
+                            }
+                          }
+                        },
+                        "generatedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "description": "When insights were generated"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "404": {
+            "description": "No personality data found"
+          }
+        }
+      }
+    },
+    "/personality/insights": {
+      "get": {
+        "summary": "Get personality insights",
+        "description": "Retrieves previously generated insights for the user",
+        "operationId": "getInsights",
+        "tags": [
+          "Personality"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Insights retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "insights": {
+                          "type": "object",
+                          "properties": {
+                            "strengths": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "Identified strengths"
+                            },
+                            "learningStyle": {
+                              "type": "string",
+                              "description": "Identified learning style"
+                            },
+                            "challengeRecommendations": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "Recommended challenge types"
+                            },
+                            "summary": {
+                              "type": "string",
+                              "description": "Summary of insights"
+                            }
+                          }
+                        },
+                        "generatedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "description": "When insights were generated"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "404": {
+            "description": "No insights found"
+          }
+        }
+      }
+    },
+    "/personality/compatibility": {
+      "post": {
+        "summary": "Calculate challenge compatibility",
+        "description": "Calculates compatibility between user personality and challenge types",
+        "operationId": "calculateChallengeCompatibility",
+        "tags": [
+          "Personality",
+          "Challenges"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "challengeType"
+                ],
+                "properties": {
+                  "challengeType": {
+                    "type": "string",
+                    "description": "Type of challenge to check compatibility for"
+                  },
+                  "challengeId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Specific challenge ID (optional)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Compatibility calculated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "compatibility": {
+                          "type": "number",
+                          "format": "float",
+                          "minimum": 0,
+                          "maximum": 100,
+                          "description": "Compatibility score (0-100)"
+                        },
+                        "strengths": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Personality strengths for this challenge"
+                        },
+                        "challenges": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Potential challenges for the user"
+                        },
+                        "recommendedApproach": {
+                          "type": "string",
+                          "description": "Recommended approach based on personality"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "404": {
+            "description": "Personality profile not found"
+          }
+        }
+      }
+    },
+    "/personality/assessment": {
+      "post": {
+        "summary": "Submit personality assessment",
+        "description": "Submits answers to a personality assessment questionnaire",
+        "operationId": "submitAssessment",
+        "tags": [
+          "Personality"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "answers"
+                ],
+                "properties": {
+                  "answers": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "questionId",
+                        "value"
+                      ],
+                      "properties": {
+                        "questionId": {
+                          "type": "string",
+                          "description": "ID of the question"
+                        },
+                        "value": {
+                          "oneOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "boolean"
+                            }
+                          ],
+                          "description": "Answer value"
+                        },
+                        "comments": {
+                          "type": "string",
+                          "description": "Optional comments"
+                        }
+                      }
+                    },
+                    "description": "Array of assessment answers"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Assessment submitted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "description": "Assessment result ID"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "processing",
+                            "completed",
+                            "failed"
+                          ],
+                          "description": "Status of the assessment"
+                        },
+                        "profileUpdated": {
+                          "type": "boolean",
+                          "description": "Whether the profile was updated"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/prompts": {
+      "get": {
+        "summary": "Get all prompts",
+        "description": "Retrieves a list of all available prompts with pagination",
+        "operationId": "getAllPrompts",
+        "tags": [
+          "Prompts"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/limitParam"
+          },
+          {
+            "$ref": "#/components/parameters/offsetParam"
+          },
+          {
+            "$ref": "#/components/parameters/sortParam"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "description": "Filter by prompt type",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Prompts retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Prompt"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/PaginationParams"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT token authentication. Use the token from the login response. Tokens expire after 24 hours."
+      }
+    },
+    "parameters": {
+      "limitParam": {
+        "name": "limit",
+        "in": "query",
+        "description": "Maximum number of items to return per page (default: 20, max: 100)",
+        "schema": {
+          "type": "integer",
+          "default": 20,
+          "minimum": 1,
+          "maximum": 100
+        }
+      },
+      "offsetParam": {
+        "name": "offset",
+        "in": "query",
+        "description": "Number of items to skip (for pagination)",
+        "schema": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0
+        }
+      },
+      "sortParam": {
+        "name": "sort",
+        "in": "query",
+        "description": "Field to sort by (prefix with - for descending order)",
+        "schema": {
+          "type": "string",
+          "example": "-createdAt"
+        }
+      },
+      "filterParam": {
+        "name": "filter",
+        "in": "query",
+        "description": "Filter criteria in format field:operator:value (e.g., difficulty:eq:advanced)",
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "responses": {
+      "UnauthorizedError": {
+        "description": "Authentication information is missing or invalid",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean",
+                  "example": false
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Unauthorized - Invalid or missing token"
+                }
+              }
+            }
+          }
+        }
+      },
+      "NotFoundError": {
+        "description": "The specified resource was not found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean",
+                  "example": false
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Resource not found"
+                }
+              }
+            }
+          }
+        }
+      },
+      "ValidationError": {
+        "description": "The request data failed validation",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean",
+                  "example": false
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Validation error"
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "field": {
+                        "type": "string"
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "RateLimitError": {
+        "description": "Too many requests, rate limit exceeded",
+        "headers": {
+          "X-RateLimit-Limit": {
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Request limit per hour"
+          },
+          "X-RateLimit-Remaining": {
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Remaining requests in the current period"
+          },
+          "X-RateLimit-Reset": {
+            "schema": {
+              "type": "integer",
+              "format": "unix-time"
+            },
+            "description": "Time when the rate limit resets"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean",
+                  "example": false
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Rate limit exceeded"
+                },
+                "retryAfter": {
+                  "type": "integer",
+                  "example": 30,
+                  "description": "Seconds to wait before retrying"
+                }
+              }
+            }
+          }
+        }
+      },
+      "PaginatedResponse": {
+        "description": "A paginated list of items",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean",
+                  "example": true
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                },
+                "pagination": {
+                  "type": "object",
+                  "properties": {
+                    "total": {
+                      "type": "integer",
+                      "description": "Total number of items available"
+                    },
+                    "limit": {
+                      "type": "integer",
+                      "description": "Number of items per page"
+                    },
+                    "offset": {
+                      "type": "integer",
+                      "description": "Current offset from the first item"
+                    },
+                    "hasMore": {
+                      "type": "boolean",
+                      "description": "Whether more items are available"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "PaginationParams": {
+        "type": "object",
+        "description": "Parameters for pagination",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "default": 20,
+            "minimum": 1,
+            "maximum": 100,
+            "description": "Maximum number of items to return"
+          },
+          "offset": {
+            "type": "integer",
+            "default": 0,
+            "minimum": 0,
+            "description": "Number of items to skip"
+          },
+          "sort": {
+            "type": "string",
+            "description": "Field to sort by (prefix with - for descending order)"
+          }
+        }
+      },
+      "FilterParams": {
+        "type": "object",
+        "description": "Parameters for filtering results",
+        "properties": {
+          "field": {
+            "type": "string",
+            "description": "Field name to filter on"
+          },
+          "operator": {
+            "type": "string",
+            "enum": [
+              "eq",
+              "neq",
+              "gt",
+              "gte",
+              "lt",
+              "lte",
+              "in",
+              "nin",
+              "like"
+            ],
+            "description": "Comparison operator"
+          },
+          "value": {
+            "type": "string",
+            "description": "Value to compare against"
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "description": "User information returned by the API",
+        "required": [
+          "id",
+          "email"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier for the user"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Email address of the user"
+          },
+          "fullName": {
+            "type": "string",
+            "description": "Full name of the user"
+          },
+          "professionalTitle": {
+            "type": "string",
+            "description": "Professional title or position"
+          },
+          "location": {
+            "type": "string",
+            "description": "User's location"
+          },
+          "country": {
+            "type": "string",
+            "description": "User's country"
+          },
+          "focusArea": {
+            "type": "string",
+            "description": "Primary focus area or specialty"
+          },
+          "lastActive": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the user was last active"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the user was created"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the user was last updated"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive",
+              "suspended",
+              "pending"
+            ],
+            "description": "Current user status",
+            "default": "active"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "user",
+                "admin"
+              ]
+            },
+            "description": "Roles assigned to the user",
+            "default": [
+              "user"
+            ]
+          },
+          "onboardingCompleted": {
+            "type": "boolean",
+            "description": "Whether the user has completed onboarding",
+            "default": false
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Whether the user is active",
+            "readOnly": true
+          },
+          "hasCompletedProfile": {
+            "type": "boolean",
+            "description": "Whether the user has completed their profile",
+            "readOnly": true
+          },
+          "preferences": {
+            "type": "object",
+            "description": "User preferences",
+            "additionalProperties": true
+          }
+        }
+      },
+      "Challenge": {
+        "type": "object",
+        "description": "Challenge information",
+        "required": [
+          "id",
+          "content",
+          "userEmail",
+          "status",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier for the challenge"
+          },
+          "content": {
+            "type": "string",
+            "description": "The challenge content/question"
+          },
+          "userEmail": {
+            "type": "string",
+            "format": "email",
+            "description": "Email of the user the challenge is for"
+          },
+          "focusArea": {
+            "type": "string",
+            "description": "The focus area of the challenge"
+          },
+          "challengeType": {
+            "type": "string",
+            "description": "The type of challenge"
+          },
+          "formatType": {
+            "type": "string",
+            "description": "The format of the challenge"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "beginner",
+              "intermediate",
+              "advanced",
+              "expert"
+            ],
+            "description": "Difficulty level of the challenge"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "submitted",
+              "evaluated"
+            ],
+            "description": "Current status of the challenge"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the challenge was created"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the challenge was last updated"
+          }
+        }
+      },
+      "Evaluation": {
+        "type": "object",
+        "description": "Evaluation of a challenge response",
+        "required": [
+          "id",
+          "challengeId",
+          "userId",
+          "status",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier for the evaluation"
+          },
+          "challengeId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of the challenge being evaluated"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of the user who submitted the response"
+          },
+          "response": {
+            "type": "string",
+            "description": "User's response to the challenge"
+          },
+          "feedback": {
+            "type": "string",
+            "description": "Feedback on the user's response"
+          },
+          "score": {
+            "type": "number",
+            "format": "float",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Score for the response (0-100)"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "in_progress",
+              "completed",
+              "failed"
+            ],
+            "description": "Current status of the evaluation"
+          },
+          "metrics": {
+            "type": "object",
+            "description": "Various metrics from the evaluation",
+            "properties": {
+              "accuracy": {
+                "type": "number",
+                "format": "float",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Accuracy score"
+              },
+              "creativity": {
+                "type": "number",
+                "format": "float",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Creativity score"
+              },
+              "reasoning": {
+                "type": "number",
+                "format": "float",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Reasoning score"
+              }
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the evaluation was created"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the evaluation was completed"
+          }
+        }
+      },
+      "UserJourneyEvent": {
+        "type": "object",
+        "description": "Event in a user's journey",
+        "required": [
+          "id",
+          "userId",
+          "type",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier for the event"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of the user the event belongs to"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "login",
+              "challenge_started",
+              "challenge_completed",
+              "evaluation_received",
+              "badge_earned",
+              "level_up"
+            ],
+            "description": "Type of event"
+          },
+          "data": {
+            "type": "object",
+            "description": "Additional data for the event",
+            "additionalProperties": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the event occurred"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Additional metadata",
+            "additionalProperties": true
+          }
+        }
+      },
+      "AdaptiveRecommendation": {
+        "type": "object",
+        "description": "Adaptive learning recommendation for a user",
+        "required": [
+          "id",
+          "userId",
+          "type",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier for the recommendation"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of the user the recommendation is for"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "challenge",
+              "resource",
+              "skill_focus",
+              "difficulty_adjustment"
+            ],
+            "description": "Type of recommendation"
+          },
+          "contentId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of the recommended content (challenge, resource, etc.)"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Explanation for why this recommendation was made"
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10,
+            "description": "Priority of the recommendation (1-10)"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "dismissed",
+              "completed"
+            ],
+            "description": "Current status of the recommendation"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Additional metadata about the recommendation",
+            "additionalProperties": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the recommendation was created"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the recommendation was last updated"
+          }
+        }
+      },
+      "FocusArea": {
+        "type": "object",
+        "description": "Focus area for learning and challenges",
+        "required": [
+          "id",
+          "name",
+          "description"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier for the focus area"
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the focus area"
+          },
+          "description": {
+            "type": "string",
+            "description": "Detailed description of the focus area"
+          },
+          "category": {
+            "type": "string",
+            "description": "Category of the focus area",
+            "example": "general"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "beginner",
+              "intermediate",
+              "advanced",
+              "expert"
+            ],
+            "description": "Recommended difficulty level for this focus area"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the focus area was created"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the focus area was last updated"
+          }
+        }
+      },
+      "Progress": {
+        "type": "object",
+        "description": "User progress tracking information",
+        "required": [
+          "id",
+          "userId",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier for the progress record"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of the user this progress belongs to"
+          },
+          "challengeId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of the challenge this progress is related to (if applicable)"
+          },
+          "focusArea": {
+            "type": "string",
+            "description": "Focus area for this progress"
+          },
+          "averageScore": {
+            "type": "number",
+            "format": "float",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Average score (0-100)"
+          },
+          "completionTime": {
+            "type": "integer",
+            "description": "Time to complete in seconds"
+          },
+          "skillLevels": {
+            "type": "object",
+            "description": "Map of skill names to level values (0-100)",
+            "additionalProperties": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            }
+          },
+          "strengths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Areas of strength for the user"
+          },
+          "weaknesses": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Areas needing improvement"
+          },
+          "level": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Current user level"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the progress record was created"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the progress record was last updated"
+          }
+        }
+      },
+      "Personality": {
+        "type": "object",
+        "description": "User personality profile information",
+        "required": [
+          "id",
+          "userId",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier for the personality profile"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of the user this profile belongs to"
+          },
+          "traits": {
+            "type": "object",
+            "description": "Personality traits with scores (0-100)",
+            "properties": {
+              "creativity": {
+                "type": "number",
+                "format": "float",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Creativity trait score"
+              },
+              "analyticalThinking": {
+                "type": "number",
+                "format": "float",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Analytical thinking trait score"
+              },
+              "empathy": {
+                "type": "number",
+                "format": "float",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Empathy trait score"
+              },
+              "assertiveness": {
+                "type": "number",
+                "format": "float",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Assertiveness trait score"
+              },
+              "adaptability": {
+                "type": "number",
+                "format": "float",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Adaptability trait score"
+              }
+            },
+            "additionalProperties": {
+              "type": "number",
+              "format": "float",
+              "minimum": 0,
+              "maximum": 100
+            }
+          },
+          "attitudes": {
+            "type": "object",
+            "description": "AI attitudes with scores (0-100)",
+            "properties": {
+              "trust": {
+                "type": "number",
+                "format": "float",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Trust in AI score"
+              },
+              "jobConcerns": {
+                "type": "number",
+                "format": "float",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Job displacement concerns score"
+              },
+              "impact": {
+                "type": "number",
+                "format": "float",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Perceived positive impact score"
+              },
+              "interest": {
+                "type": "number",
+                "format": "float",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Interest in AI score"
+              },
+              "interaction": {
+                "type": "number",
+                "format": "float",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "AI interaction frequency score"
+              }
+            },
+            "additionalProperties": {
+              "type": "number",
+              "format": "float",
+              "minimum": 0,
+              "maximum": 100
+            }
+          },
+          "insights": {
+            "type": "object",
+            "description": "Generated insights about the personality profile",
+            "properties": {
+              "strengths": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Identified strengths based on profile"
+              },
+              "learningStyle": {
+                "type": "string",
+                "description": "Identified learning style"
+              },
+              "challengeRecommendations": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Recommended challenge types"
+              },
+              "summary": {
+                "type": "string",
+                "description": "Summary of the personality profile"
+              }
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the personality profile was created"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the personality profile was last updated"
+          }
+        }
+      },
+      "Prompt": {
+        "type": "object",
+        "description": "System prompt for AI interactions",
+        "required": [
+          "id",
+          "type",
+          "content"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier for the prompt"
+          },
+          "type": {
+            "type": "string",
+            "description": "Type of prompt (evaluation, challenge, etc.)",
+            "example": "evaluation"
+          },
+          "content": {
+            "type": "string",
+            "description": "The actual prompt content"
+          },
+          "systemInstructions": {
+            "type": "string",
+            "description": "System instructions to accompany the prompt"
+          },
+          "parameters": {
+            "type": "object",
+            "description": "Parameters used to build the prompt",
+            "additionalProperties": true
+          },
+          "version": {
+            "type": "string",
+            "description": "Version of the prompt template"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the prompt was created"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the prompt was last updated"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,4 +1,5 @@
-import { Logger } from '../core/Logger';
+// Types improved by ts-improve-types
+import { logger } from './logger';
 
 /**
  * Storage types supported by the application
@@ -6,7 +7,7 @@ import { Logger } from '../core/Logger';
 export enum StorageType {
   LOCAL = 'localStorage',
   SESSION = 'sessionStorage',
-  MEMORY = 'memory'
+  MEMORY = 'memory',
 }
 
 /**
@@ -17,17 +18,17 @@ export interface StorageOptions {
    * Storage type to use
    */
   type: StorageType;
-  
+
   /**
    * Prefix for all keys
    */
   prefix?: string;
-  
+
   /**
    * Enable encryption (not implemented)
    */
   encrypt?: boolean;
-  
+
   /**
    * Maximum storage size in bytes (not implemented)
    */
@@ -40,18 +41,13 @@ export interface StorageOptions {
 const DEFAULT_OPTIONS: StorageOptions = {
   type: StorageType.LOCAL,
   prefix: 'app_',
-  encrypt: false
+  encrypt: false,
 };
 
 /**
  * In-memory storage fallback
  */
 const memoryStorage: Record<string, string> = {};
-
-/**
- * Logger for storage operations
- */
-const logger = Logger.getLogger('Storage');
 
 /**
  * Check if a storage type is available
@@ -62,16 +58,16 @@ export function isStorageAvailable(type: StorageType): boolean {
   if (type === StorageType.MEMORY) {
     return true;
   }
-  
+
   try {
     const storage = type === StorageType.LOCAL ? localStorage : sessionStorage;
     const testKey = '__storage_test__';
-    
+
     storage.setItem(testKey, 'test');
     storage.removeItem(testKey);
     return true;
-  } catch (e) {
-    logger.warn(`${type} is not available: ${e}`);
+  } catch (error) {
+    logger.warn(`${type} is not available: ${error}`);
     return false;
   }
 }
@@ -102,16 +98,16 @@ function getStorage(type: StorageType): Storage | null {
       key: (index: number): string | null => {
         return Object.keys(memoryStorage)[index] || null;
       },
-      length: Object.keys(memoryStorage).length
+      length: Object.keys(memoryStorage).length,
     } as Storage;
   }
-  
+
   // Check if the requested storage is available
   if (!isStorageAvailable(type)) {
     logger.warn(`${type} not available, falling back to memory storage`);
     return getStorage(StorageType.MEMORY);
   }
-  
+
   // Return the appropriate storage
   return type === StorageType.LOCAL ? localStorage : sessionStorage;
 }
@@ -122,7 +118,7 @@ function getStorage(type: StorageType): Storage | null {
  * @param prefix Prefix to use
  * @returns Formatted key
  */
-function formatKey(key: string, prefix: string = ''): string {
+function formatKey(key: string, prefix = ''): string {
   return prefix + key;
 }
 
@@ -135,26 +131,24 @@ function formatKey(key: string, prefix: string = ''): string {
  */
 export function setItem(
   key: string,
-  value: any,
-  options: Partial<StorageOptions> = {}
+  value: string,
+  options: Partial<StorageOptions> = {},
 ): boolean {
   const opts = { ...DEFAULT_OPTIONS, ...options };
   const storage = getStorage(opts.type);
-  
+
   if (!storage) {
     logger.error('Failed to get storage');
     return false;
   }
-  
+
   try {
     // Format the key
     const formattedKey = formatKey(key, opts.prefix);
-    
+
     // Convert the value to a string
-    const valueStr = typeof value === 'object' 
-      ? JSON.stringify(value) 
-      : String(value);
-    
+    const valueStr = typeof value === 'object' ? JSON.stringify(value) : String(value);
+
     // Store the value
     storage.setItem(formattedKey, valueStr);
     return true;
@@ -170,29 +164,26 @@ export function setItem(
  * @param options Storage options
  * @returns Retrieved value or null
  */
-export function getItem<T = any>(
-  key: string,
-  options: Partial<StorageOptions> = {}
-): T | null {
+export function getItem<T = unknown>(key: string, options: Partial<StorageOptions> = {}): T | null {
   const opts = { ...DEFAULT_OPTIONS, ...options };
   const storage = getStorage(opts.type);
-  
+
   if (!storage) {
     logger.error('Failed to get storage');
     return null;
   }
-  
+
   try {
     // Format the key
     const formattedKey = formatKey(key, opts.prefix);
-    
+
     // Get the value
     const value = storage.getItem(formattedKey);
-    
+
     if (value === null) {
       return null;
     }
-    
+
     // Try to parse as JSON
     try {
       return JSON.parse(value) as T;
@@ -212,22 +203,19 @@ export function getItem<T = any>(
  * @param options Storage options
  * @returns True if successful
  */
-export function removeItem(
-  key: string,
-  options: Partial<StorageOptions> = {}
-): boolean {
+export function removeItem(key: string, options: Partial<StorageOptions> = {}): boolean {
   const opts = { ...DEFAULT_OPTIONS, ...options };
   const storage = getStorage(opts.type);
-  
+
   if (!storage) {
     logger.error('Failed to get storage');
     return false;
   }
-  
+
   try {
     // Format the key
     const formattedKey = formatKey(key, opts.prefix);
-    
+
     // Remove the item
     storage.removeItem(formattedKey);
     return true;
@@ -242,17 +230,15 @@ export function removeItem(
  * @param options Storage options
  * @returns True if successful
  */
-export function clearItems(
-  options: Partial<StorageOptions> = {}
-): boolean {
+export function clearItems(options: Partial<StorageOptions> = {}): boolean {
   const opts = { ...DEFAULT_OPTIONS, ...options };
   const storage = getStorage(opts.type);
-  
+
   if (!storage) {
     logger.error('Failed to get storage');
     return false;
   }
-  
+
   if (opts.type === StorageType.MEMORY) {
     // For memory storage, just clear all keys with the prefix
     Object.keys(memoryStorage).forEach(key => {
@@ -262,23 +248,23 @@ export function clearItems(
     });
     return true;
   }
-  
+
   try {
     // For localStorage and sessionStorage, iterate all keys
     const keysToRemove: string[] = [];
-    
+
     for (let i = 0; i < storage.length; i++) {
       const key = storage.key(i);
       if (key && key.startsWith(opts.prefix || '')) {
         keysToRemove.push(key);
       }
     }
-    
+
     // Remove all matching keys
     keysToRemove.forEach(key => {
       storage.removeItem(key);
     });
-    
+
     return true;
   } catch (e) {
     logger.error('Failed to clear items:', e);
@@ -291,22 +277,20 @@ export function clearItems(
  * @param options Storage options
  * @returns Object with all items
  */
-export function getAllItems<T = any>(
-  options: Partial<StorageOptions> = {}
-): Record<string, T> {
+export function getAllItems<T = unknown>(options: Partial<StorageOptions> = {}): Record<string, T> {
   const opts = { ...DEFAULT_OPTIONS, ...options };
   const storage = getStorage(opts.type);
   const result: Record<string, T> = {};
-  
+
   if (!storage) {
     logger.error('Failed to get storage');
     return result;
   }
-  
+
   try {
     // Get all keys
     const allKeys: string[] = [];
-    
+
     if (opts.type === StorageType.MEMORY) {
       // For memory storage, use Object.keys
       allKeys.push(...Object.keys(memoryStorage));
@@ -319,16 +303,16 @@ export function getAllItems<T = any>(
         }
       }
     }
-    
+
     // Filter keys by prefix
     const prefix = opts.prefix || '';
     const filteredKeys = allKeys.filter(key => key.startsWith(prefix));
-    
+
     // Get values for all keys
     filteredKeys.forEach(key => {
       // Remove the prefix for the result object
       const keyWithoutPrefix = key.substring(prefix.length);
-      
+
       // Get and parse the value
       const value = storage.getItem(key);
       if (value !== null) {
@@ -339,7 +323,7 @@ export function getAllItems<T = any>(
         }
       }
     });
-    
+
     return result;
   } catch (e) {
     logger.error('Failed to get all items:', e);
@@ -353,20 +337,17 @@ export function getAllItems<T = any>(
  * @param options Storage options
  * @returns True if the key exists
  */
-export function hasItem(
-  key: string,
-  options: Partial<StorageOptions> = {}
-): boolean {
+export function hasItem(key: string, options: Partial<StorageOptions> = {}): boolean {
   const opts = { ...DEFAULT_OPTIONS, ...options };
   const storage = getStorage(opts.type);
-  
+
   if (!storage) {
     return false;
   }
-  
+
   // Format the key
   const formattedKey = formatKey(key, opts.prefix);
-  
+
   // Check if the key exists
   const value = storage.getItem(formattedKey);
   return value !== null;
@@ -380,27 +361,27 @@ export function hasItem(
  */
 export function createNamespace(
   namespace: string,
-  options: Partial<StorageOptions> = {}
+  options: Partial<StorageOptions> = {},
 ): {
   get: <T>(key: string) => T | null;
-  set: (key: string, value: any) => boolean;
+  set: (key: string, value: string) => boolean;
   remove: (key: string) => boolean;
   clear: () => boolean;
   getAll: <T>() => Record<string, T>;
   has: (key: string) => boolean;
 } {
-  const opts = { 
-    ...DEFAULT_OPTIONS, 
+  const opts = {
+    ...DEFAULT_OPTIONS,
     ...options,
-    prefix: (options.prefix || DEFAULT_OPTIONS.prefix) + namespace + '_'
+    prefix: (options.prefix || DEFAULT_OPTIONS.prefix) + namespace + '_',
   };
-  
+
   return {
     get: <T>(key: string) => getItem<T>(key, opts),
-    set: (key: string, value: any) => setItem(key, value, opts),
+    set: (key: string, value: string) => setItem(key, value, opts),
     remove: (key: string) => removeItem(key, opts),
     clear: () => clearItems(opts),
     getAll: <T>() => getAllItems<T>(opts),
-    has: (key: string) => hasItem(key, opts)
+    has: (key: string) => hasItem(key, opts),
   };
-} 
+}

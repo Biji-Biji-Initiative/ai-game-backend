@@ -1,310 +1,221 @@
 /**
- * Combined Application Types
- * This file contains all the interfaces used across the application to fix type issues
+ * Application Types
+ * 
+ * Centralized type definitions for component options and configuration
  */
+
+import { APIClient } from '../api/api-client';
+import { ConfigManager } from '../core/ConfigManager';
+import { Logger, ComponentLogger } from '../core/Logger';
+import { DependencyContainer } from '../core/DependencyContainer';
+import { StorageService } from '../services/StorageService';
+import { DomService } from '../services/DomService';
 
 /**
- * Application type definitions
+ * Base component options interface
  */
-
-import { ResponseViewer } from '../components/ResponseViewer';
-import { DomainStateManager } from '../modules/domain-state-manager';
-// Import types from modules.ts
-import { DomainStateManagerOptions as ModulesDomainStateManagerOptions } from './modules';
-
-/**
- * UI Manager Interface
- */
-export interface IUIManager {
-  // Elements
-  container: HTMLElement | null;
-  toastContainer: HTMLElement | null;
-  loadingOverlay: HTMLElement | null;
-  modalContainer: HTMLElement | null;
-  
-  // Initialization methods
-  initElements(): void;
-  initializeUI(): void;
-  
-  // Toast notifications
-  showToast(options: ToastOptions): void;
-  showSuccess(title: string, message: string, duration?: number): void;
-  showError(title: string, message: string, duration?: number): void;
-  showWarning(title: string, message: string, duration?: number): void;
-  showInfo(title: string, message: string, duration?: number): void;
-  
-  // Loading indicators
-  showLoading(message?: string): void;
-  hideLoading(): void;
-  
-  // Modal dialogs
-  showModal(options: ModalOptions): HTMLElement;
-  closeModal(modalEl: HTMLElement): void;
-  closeAllModals(): void;
-  
-  // Confirmation dialogs
-  confirm(title: string, message: string, onConfirm: () => void, onCancel?: () => void): void;
-  
-  // Theme and styling
-  setTheme(theme: string): void;
-  getTheme(): string;
-}
-
-/**
- * UI Manager Options
- */
-export interface UIManagerOptions {
-  containerId?: string;
-  toastContainerId?: string;
-  loadingOverlayId?: string;
-  modalContainerId?: string;
-  responseViewer?: any;
-  showLoadingIndicator?: (show: boolean, message?: string) => void;
-  onUiReady?: () => void;
-  config?: any;
+export interface ComponentOptions {
+  // Base options all components might need
   debug?: boolean;
 }
 
 /**
- * Toast Options
+ * Response Viewer component options
  */
-export interface ToastOptions {
-  id?: string;
-  message: string;
-  type?: 'success' | 'error' | 'warning' | 'info';
-  duration?: number;
-  title?: string;
-  position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'top-center' | 'bottom-center';
-  closable?: boolean;
-  onClose?: () => void;
-  dismissable?: boolean;
+export interface ResponseViewerOptions extends ComponentOptions {
+  containerId: string;
+  responseHeadersId: string;
+  responseBodyId: string;
+  responseStatusId: string;
+  formatJsonResponse?: boolean;
+  showRawResponse?: boolean;
+  maxHeadersDisplayed?: number;
 }
 
 /**
- * Modal Options
+ * Domain State Viewer component options
  */
-export interface ModalOptions {
-  id?: string;
-  title?: string;
-  content?: string | HTMLElement;
-  size?: 'small' | 'medium' | 'large' | 'fullscreen';
-  buttons?: ModalButton[];
-  closable?: boolean;
-  showClose?: boolean;
-  onClose?: () => void;
-  onOpen?: () => void;
-  className?: string;
-  customClass?: string;
+export interface DomainStateViewerOptions extends ComponentOptions {
+  container: HTMLElement;
+  domainStateManager: any; // DomainStateManager
+  getCurrentRequest: () => any | null;
+  autoRefresh?: boolean;
+  refreshInterval?: number;
 }
 
 /**
- * Modal Button
+ * UI Manager component options
  */
-export interface ModalButton {
-  text: string;
-  type?: 'primary' | 'secondary' | 'danger' | 'success' | 'info' | 'warning';
-  onClick?: (modal: any) => void;
-  closeOnClick?: boolean;
+export interface UIManagerOptions extends ComponentOptions {
+  containerId: string;
+  responseViewer: any; // ResponseViewer
+  toastContainerId: string;
+  loadingOverlayId: string;
+  modalContainerId: string;
+  confirmationDialogId?: string;
+  domService?: DomService;
 }
 
 /**
- * Response Viewer Options
+ * Endpoint Manager options
  */
-export interface ResponseViewerOptions {
-  containerId?: string;
-  responseHeadersId?: string;
-  responseBodyId?: string;
-  responseStatusId?: string;
-  prettyPrint?: boolean;
-  syntaxHighlighting?: boolean;
-  collapsibleSections?: boolean;
-  maxDepth?: number;
-  formatter?: any;
+export interface EndpointManagerOptions extends ComponentOptions {
+  useLocalEndpoints: boolean;
+  supportMultipleFormats: boolean;
+  apiClient: APIClient;
+  config: ConfigManager;
+  maxRetries?: number;
+  retryDelay?: number;
+  endpointsFilePath?: string;
+  dynamicEndpointsPath?: string;
+  useDynamicEndpoints?: boolean;
+  useStorage?: boolean;
+  endpointsUrl?: string;
+  storageService?: StorageService;
 }
 
 /**
- * Domain State Viewer Options
+ * Variable Manager options
  */
-export interface DomainStateViewerOptions {
-  containerId?: string;
-  stateManager?: DomainStateManager | any;
-  showFilters?: boolean;
-  showTimeline?: boolean;
-  selectedEntityTypes?: string[];
-  initialView?: 'graph' | 'tree' | 'table';
-  enableExport?: boolean;
-  maxItems?: number;
-  compactView?: boolean;
-  defaultEntityTypes?: string[];
-}
-
-/**
- * Variable Extractor Options
- */
-export interface VariableExtractorOptions {
-  containerId?: string;
-  responseViewer?: ResponseViewer | any;
-  domainStateManager?: DomainStateManager | any;
-  apiClient?: any;
-  variablePrefix?: string;
-  suggestionsEnabled?: boolean;
-  autoExtract?: boolean;
-  maxSuggestions?: number;
-}
-
-/**
- * Flow Controller Options
- */
-export interface FlowControllerOptions {
-  containerId?: string;
-  endpointManager: any;
-  uiManager: IUIManager | any;
-  variableManager: any;
-  historyManager: any;
-  apiClient?: any;
-  autoInit?: boolean;
-  appController?: any;
-  config?: any;
-}
-
-/**
- * History Manager Options
- */
-export interface HistoryManagerOptions {
-  maxEntries?: number;
-  persistHistory?: boolean;
-  storageKey?: string;
+export interface VariableManagerOptions extends ComponentOptions {
+  storageKey: string;
+  persistVariables: boolean;
   storageType?: 'localStorage' | 'sessionStorage' | 'memory';
-  compressionEnabled?: boolean;
-  compressionThreshold?: number;
-  storageQuotaWarningThreshold?: number;
-  maxItems?: number;
-}
-
-/**
- * Domain State Manager Options
- * Extends the base interface from modules.ts
- */
-export interface DomainStateManagerOptions extends ModulesDomainStateManagerOptions {
-  apiClient?: any;
-  localStorageKey?: string;
-  autoSave?: boolean;
-  diffingEnabled?: boolean;
-  snapshotLimit?: number;
-  debug?: boolean;
-  viewer?: any;
-}
-
-/**
- * Variable Manager Options
- */
-export interface VariableManagerOptions {
-  storageKey?: string;
-  persistVariables?: boolean;
-  storageType?: 'localStorage' | 'sessionStorage';
   maxVariables?: number;
-  variablePrefix?: string;
-  variableSuffix?: string;
   variableSyntax?: {
     prefix: string;
     suffix: string;
-    jsonPathIndicator?: string;
+    jsonPathIndicator: string;
   };
   initialVariables?: Record<string, any>;
+  storageService?: StorageService;
 }
 
 /**
- * Status Manager Options
+ * Domain State Manager options
  */
-export interface StatusManagerOptions {
-  containerId?: string;
-  updateInterval?: number;
-  apiClient?: any;
-  statusEndpoint?: string;
-  healthEndpoint?: string; // For backward compatibility
+export interface DomainStateManagerOptions extends ComponentOptions {
+  apiBasePath: string;
+  shouldCache?: boolean;
+  cacheExpiry?: number;
+  apiClient?: APIClient;
 }
 
 /**
- * Endpoint Manager Options
+ * Status Manager options
  */
-export interface EndpointManagerOptions {
-  useLocalEndpoints?: boolean;
-  supportMultipleFormats?: boolean;
-  apiClient?: any;
-  endpointsPath?: string;
+export interface StatusManagerOptions extends ComponentOptions {
+  updateInterval: number;
+  statusEndpoint: string;
+  containerId: string;
+  apiClient?: APIClient;
 }
 
 /**
- * Domain State Manager Interface
+ * History Manager options
  */
-export interface IDomainStateManager {
-  // State management
-  loadState(state: any): void;
-  saveState(): void;
-  getState(): any;
-  clearState(): void;
-  
-  // Entity operations
-  addEntity(type: string, data: any): string;
-  updateEntity(id: string, data: any): boolean;
-  deleteEntity(id: string): boolean;
-  getEntity(id: string): any | null;
-  getEntitiesByType(type: string): any[];
-  
-  // Snapshot operations
-  takeBeforeSnapshot(entityTypes?: string[]): string | Promise<void>;
-  takeAfterSnapshot(entityTypes?: string[]): Promise<string | void>;
-  getSnapshot(id: string): any | null;
-  getLatestSnapshot(): any | null;
-  getDiffs(beforeId?: string, afterId?: string): any[] | Record<string, any>;
-  
-  // Events
-  addEventListener(event: string, handler: (data: any) => void): void;
-  removeEventListener(event: string, handler: (data: any) => void): void;
+export interface HistoryManagerOptions extends ComponentOptions {
+  maxEntries: number;
+  persistHistory: boolean;
+  storageKey: string;
+  storageType: 'localStorage' | 'sessionStorage' | 'memory';
+  storageService?: StorageService;
 }
 
 /**
- * Variable Extractor Interface
+ * Flow Controller options
  */
-export interface IVariableExtractor {
-  // Core methods
-  extractVariables(response: any): any[];
-  getVariables(): any[];
-  
-  // Extraction helper methods
-  extractFromJson(json: any, path?: string): any[];
-  extractFromText(text: string): any[];
-  extractFromHeaders(headers: Record<string, string>): any[];
-  
-  // Suggestion methods
-  suggestVariables(response: any): any[];
-  renderSuggestions(container: HTMLElement | any, suggestions: any[], onAdd: (suggestion: any) => void): void;
-  showExtractionModal?(data: any): void;
-  
-  // UI methods
-  render(): void;
-  clear(): void;
-  
-  // Events
-  addEventListener(event: string, handler: (data: any) => void): void;
-  removeEventListener(event: string, handler: (data: any) => void): void;
+export interface FlowControllerOptions extends ComponentOptions {
+  endpointManager: any; // EndpointManager
+  uiManager: any; // UIManager
+  variableManager: any; // VariableManager
+  historyManager: any; // HistoryManager
+  apiClient: APIClient;
+  appController: any; // AppController
 }
 
 /**
- * RequestBuilder types
+ * App Controller options
  */
-export interface RequestBuilderOptions {
-  containerId?: string;
-  uiManager?: IUIManager;
-  onRequestDataChange?: (data: any) => void;
+export interface AppControllerOptions extends ComponentOptions {
+  configManager: ConfigManager;
+  endpointManager: any; // EndpointManager
+  historyManager: any; // HistoryManager
+  variableManager: any; // VariableManager
+  uiManager: any; // UIManager
+  apiClient: APIClient;
+  authManager: any; // AuthManager
+  domainStateManager: any; // DomainStateManager
+  flowController: any | null; // FlowController
+  responseViewer: any; // ResponseViewer
+  flowManager: any | null; // FlowManager
+  logger: ComponentLogger;
 }
 
 /**
- * Add Error with optional code property
+ * User Friendly UI options
  */
-declare global {
-  interface Error {
-    code?: number;
-    status?: number;
-  }
-} 
+export interface UserFriendlyUIOptions extends ComponentOptions {
+  container: HTMLElement;
+  uiManager: any; // UIManager
+  flowManager: any; // UserFriendlyFlowManager
+  variableExtractor: any; // VariableExtractor
+  dependencyContainer: DependencyContainer;
+  apiClient: APIClient;
+}
+
+/**
+ * Variable Extractor options
+ */
+export interface VariableExtractorOptions extends ComponentOptions {
+  container: HTMLElement;
+  variableManager: any; // VariableManager
+  domService?: DomService;
+}
+
+/**
+ * Logs Viewer options
+ */
+export interface LogsViewerOptions extends ComponentOptions {
+  logsContainerId: string;
+  backendLogsManager: any; // BackendLogsManager
+  maxFrontendLogs: number;
+  showFrontendLogs: boolean;
+  showBackendLogs: boolean;
+  enableAiLogFormatting: boolean;
+  enableDomainEventFormatting: boolean;
+  enableCorrelationIdFiltering: boolean;
+  enableSearchFiltering: boolean;
+  autoRefreshBackendLogs: boolean;
+  refreshInterval: number;
+  domService?: DomService;
+}
+
+/**
+ * Backend Logs Manager options
+ */
+export interface BackendLogsManagerOptions extends ComponentOptions {
+  logsEndpoint: string;
+  apiClient?: APIClient;
+  maxLogRetention?: number;
+}
+
+/**
+ * Storage Service Factory options
+ */
+export interface StorageServiceFactoryOptions {
+  storageType: 'localStorage' | 'sessionStorage' | 'memory';
+  namespace?: string;
+}
+
+/**
+ * Represents the information needed to make an API request
+ */
+export interface RequestInfo {
+  method: string;
+  url: string;
+  path?: string;
+  headers: Record<string, string>;
+  requestBody?: unknown;
+  auth?: unknown;
+}

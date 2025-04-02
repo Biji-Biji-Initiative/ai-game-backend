@@ -1,3 +1,4 @@
+// Types improved by ts-improve-types
 /**
  * DOM Utility functions for safe DOM manipulation
  */
@@ -12,9 +13,7 @@ export interface ExtendedElementCreationOptions extends ElementCreationOptions {
  * @param id Element ID
  * @returns The element or null if not found
  */
-export function getElementById<T extends HTMLElement = HTMLElement>(
-  id: string
-): T | null {
+export function getElementById<T extends HTMLElement = HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
 }
 
@@ -23,9 +22,7 @@ export function getElementById<T extends HTMLElement = HTMLElement>(
  * @param id Element ID
  * @returns The element or null if not found
  */
-export function getById<T extends HTMLElement = HTMLElement>(
-  id: string
-): T | null {
+export function getById<T extends HTMLElement = HTMLElement>(id: string): T | null {
   return getElementById<T>(id);
 }
 
@@ -36,8 +33,8 @@ export function getById<T extends HTMLElement = HTMLElement>(
  * @returns The element or null if not found
  */
 export function querySelector<T extends HTMLElement = HTMLElement>(
-  selector: string, 
-  parent: Document | HTMLElement = document
+  selector: string,
+  parent: Document | HTMLElement = document,
 ): T | null {
   return parent.querySelector(selector) as T;
 }
@@ -49,8 +46,8 @@ export function querySelector<T extends HTMLElement = HTMLElement>(
  * @returns The element or null if not found
  */
 export function findElement<T extends HTMLElement = HTMLElement>(
-  selector: string, 
-  parent: Document | HTMLElement = document
+  selector: string,
+  parent: Document | HTMLElement = document,
 ): T | null {
   return querySelector<T>(selector, parent);
 }
@@ -62,8 +59,8 @@ export function findElement<T extends HTMLElement = HTMLElement>(
  * @returns Array of matching elements
  */
 export function querySelectorAll<T extends HTMLElement = HTMLElement>(
-  selector: string, 
-  parent: Document | HTMLElement = document
+  selector: string,
+  parent: Document | HTMLElement = document,
 ): T[] {
   return Array.from(parent.querySelectorAll(selector)) as T[];
 }
@@ -75,8 +72,8 @@ export function querySelectorAll<T extends HTMLElement = HTMLElement>(
  * @returns Array of matching elements
  */
 export function findElements<T extends HTMLElement = HTMLElement>(
-  selector: string, 
-  parent: Document | HTMLElement = document
+  selector: string,
+  parent: Document | HTMLElement = document,
 ): T[] {
   return querySelectorAll<T>(selector, parent);
 }
@@ -89,15 +86,15 @@ export function findElements<T extends HTMLElement = HTMLElement>(
  */
 export function createElement<T extends HTMLElement = HTMLElement>(
   tagName: string,
-  options?: ExtendedElementCreationOptions
+  options?: ExtendedElementCreationOptions,
 ): T {
   const element = document.createElement(tagName) as T;
-  
+
   // Apply class if provided in extended options
   if (options?.class) {
     element.className = options.class;
   }
-  
+
   return element;
 }
 
@@ -111,10 +108,10 @@ export function createElement<T extends HTMLElement = HTMLElement>(
 export function createElementWithAttributes<T extends HTMLElement = HTMLElement>(
   tagName: string,
   attributes: Record<string, string> = {},
-  content?: string | HTMLElement | HTMLElement[]
+  content?: string | HTMLElement | HTMLElement[],
 ): T {
   const element = createElement<T>(tagName);
-  
+
   // Set attributes
   Object.entries(attributes).forEach(([key, value]) => {
     if (key === 'className') {
@@ -125,7 +122,7 @@ export function createElementWithAttributes<T extends HTMLElement = HTMLElement>
       element.setAttribute(key, value);
     }
   });
-  
+
   // Add content
   if (content) {
     if (typeof content === 'string') {
@@ -136,7 +133,7 @@ export function createElementWithAttributes<T extends HTMLElement = HTMLElement>
       element.appendChild(content);
     }
   }
-  
+
   return element;
 }
 
@@ -145,7 +142,7 @@ export function createElementWithAttributes<T extends HTMLElement = HTMLElement>
  * @param element Target element
  * @param text Text content to set
  */
-export function setTextContent(element: HTMLElement | null, text: string): void {
+export function setText(element: HTMLElement | null, text: string): void {
   if (element) {
     element.textContent = text;
   }
@@ -190,11 +187,7 @@ export function removeClass(element: HTMLElement | null, className: string): voi
  * @param className Class to toggle
  * @param force Force state if provided
  */
-export function toggleClass(
-  element: HTMLElement | null, 
-  className: string, 
-  force?: boolean
-): void {
+export function toggleClass(element: HTMLElement | null, className: string, force?: boolean): void {
   if (element) {
     element.classList.toggle(className, force);
   }
@@ -220,8 +213,8 @@ export function hasClass(element: HTMLElement | null, className: string): boolea
 export function addEventListener<K extends keyof HTMLElementEventMap>(
   element: HTMLElement | null,
   eventType: K,
-  handler: (this: HTMLElement, ev: HTMLElementEventMap[K]) => any,
-  options?: boolean | AddEventListenerOptions
+  handler: (this: HTMLElement, ev: HTMLElementEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
 ): void {
   if (element) {
     element.addEventListener(eventType, handler, options);
@@ -238,8 +231,8 @@ export function addEventListener<K extends keyof HTMLElementEventMap>(
 export function removeEventListener<K extends keyof HTMLElementEventMap>(
   element: HTMLElement | null,
   eventType: K,
-  handler: (this: HTMLElement, ev: HTMLElementEventMap[K]) => any,
-  options?: boolean | EventListenerOptions
+  handler: (this: HTMLElement, ev: HTMLElementEventMap[K]) => void,
+  options?: boolean | EventListenerOptions,
 ): void {
   if (element) {
     element.removeEventListener(eventType, handler, options);
@@ -251,10 +244,7 @@ export function removeEventListener<K extends keyof HTMLElementEventMap>(
  * @param parent Parent element
  * @param child Child element
  */
-export function appendChild(
-  parent: HTMLElement | null,
-  child: HTMLElement | string
-): void {
+export function appendChild(parent: HTMLElement | null, child: HTMLElement | string): void {
   if (parent) {
     if (typeof child === 'string') {
       parent.appendChild(document.createTextNode(child));
@@ -268,7 +258,7 @@ export function appendChild(
  * Safely removes all children from an element
  * @param element Target element
  */
-export function removeAllChildren(element: HTMLElement | null): void {
+export function removeChildren(element: HTMLElement | null): void {
   if (element) {
     while (element.firstChild) {
       element.removeChild(element.firstChild);
@@ -282,11 +272,7 @@ export function removeAllChildren(element: HTMLElement | null): void {
  * @param name Attribute name
  * @param value Attribute value
  */
-export function setAttribute(
-  element: HTMLElement | null,
-  name: string,
-  value: string
-): void {
+export function setAttribute(element: HTMLElement | null, name: string, value: string): void {
   if (element) {
     element.setAttribute(name, value);
   }
@@ -298,10 +284,7 @@ export function setAttribute(
  * @param name Attribute name
  * @returns Attribute value or null
  */
-export function getAttribute(
-  element: HTMLElement | null,
-  name: string
-): string | null {
+export function getAttribute(element: HTMLElement | null, name: string): string | null {
   return element ? element.getAttribute(name) : null;
 }
 
@@ -310,10 +293,7 @@ export function getAttribute(
  * @param element Target element
  * @param name Attribute name
  */
-export function removeAttribute(
-  element: HTMLElement | null,
-  name: string
-): void {
+export function removeAttribute(element: HTMLElement | null, name: string): void {
   if (element) {
     element.removeAttribute(name);
   }
@@ -326,11 +306,9 @@ export function removeAttribute(
  */
 export function isVisible(element: HTMLElement | null): boolean {
   if (!element) return false;
-  
+
   const style = window.getComputedStyle(element);
-  return style.display !== 'none' && 
-         style.visibility !== 'hidden' && 
-         element.offsetParent !== null;
+  return style.display !== 'none' && style.visibility !== 'hidden' && element.offsetParent !== null;
 }
 
 /**
@@ -338,10 +316,7 @@ export function isVisible(element: HTMLElement | null): boolean {
  * @param element Target element
  * @param display Display value
  */
-export function setDisplay(
-  element: HTMLElement | null,
-  display: string
-): void {
+export function setDisplay(element: HTMLElement | null, display: string): void {
   if (element) {
     element.style.display = display;
   }
@@ -352,10 +327,7 @@ export function setDisplay(
  * @param element Target element
  * @param displayValue Display value to use (default: block)
  */
-export function showElement(
-  element: HTMLElement | null,
-  displayValue: string = 'block'
-): void {
+export function showElement(element: HTMLElement | null, displayValue = 'block'): void {
   setDisplay(element, displayValue);
 }
 
@@ -372,10 +344,7 @@ export function hideElement(element: HTMLElement | null): void {
  * @param element Target element
  * @param displayValue Display value when showing (default: block)
  */
-export function toggleElementVisibility(
-  element: HTMLElement | null,
-  displayValue: string = 'block'
-): void {
+export function toggleElementVisibility(element: HTMLElement | null, displayValue = 'block'): void {
   if (element) {
     element.style.display = isVisible(element) ? 'none' : displayValue;
   }
@@ -386,12 +355,9 @@ export function toggleElementVisibility(
  * @param element Target element
  * @param force Force state if provided
  */
-export function toggleElement(
-  element: HTMLElement | null,
-  force?: boolean
-): void {
+export function toggleElement(element: HTMLElement | null, force?: boolean): void {
   if (!element) return;
-  
+
   const isHidden = element.style.display === 'none';
   if (force !== undefined) {
     element.style.display = force ? '' : 'none';
@@ -410,11 +376,11 @@ export function toggleElement(
 export function addEventListeners<K extends keyof HTMLElementEventMap>(
   selector: string,
   eventType: K,
-  handler: (this: HTMLElement, ev: HTMLElementEventMap[K]) => any,
-  options?: boolean | AddEventListenerOptions
+  handler: (this: HTMLElement, ev: HTMLElementEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
 ): void {
   const elements = findElements(selector);
   elements.forEach(element => {
     addEventListener(element, eventType, handler, options);
   });
-} 
+}

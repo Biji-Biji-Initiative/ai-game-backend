@@ -1,3 +1,4 @@
+// Types improved by ts-improve-types
 /**
  * ResponseViewer Component
  * Displays API response data with formatting and syntax highlighting
@@ -5,12 +6,18 @@
 
 import { formatJSON } from '../utils/json-utils';
 import { escapeHtml } from '../utils/string-utils';
-import { setHTML, createElement, ExtendedElementCreationOptions, getById } from '../utils/dom-utils';
+import {
+  setHTML,
+  createElement,
+  ExtendedElementCreationOptions,
+  getById,
+} from '../utils/dom-utils';
 import { logger } from '../utils/logger';
+import { ComponentBase } from '../types/component-base';
 
 // Define a minimal JSONFormatter interface to avoid TypeScript errors
 interface JSONFormatterInterface {
-  new(data: any): {
+  new (dat: any[] | Record<string, unknown>): {
     render(): HTMLElement;
   };
 }
@@ -19,11 +26,11 @@ interface JSONFormatterInterface {
  * Response viewer options interface
  */
 export interface ResponseViewerOptions {
-  containerId?: string;        // ID of the container element
-  responseHeadersId?: string;  // ID of the response headers element
-  responseBodyId?: string;     // ID of the response body element
-  responseStatusId?: string;   // ID of the response status element
-  formatter?: JSONFormatterInterface;  // JSON formatter instance or class
+  containerId?: string; // ID of the container element
+  responseHeadersId?: string; // ID of the response headers element
+  responseBodyId?: string; // ID of the response body element
+  responseStatusId?: string; // ID of the response status element
+  formatter?: JSONFormatterInterface; // JSON formatter instance or class
 }
 
 /**
@@ -64,8 +71,8 @@ const DEFAULT_OPTIONS: ResponseViewerOptions = {
 /**
  * ResponseViewer class
  */
-export class ResponseViewer {
-  private options: Required<ResponseViewerOptions>;
+export class ResponseViewer extends ComponentBase {
+  protected options: Partial<ResponseViewerOptions>;
   private container: HTMLElement | null;
   private responseHeaders: HTMLElement | null;
   private responseBody: HTMLElement | null;
@@ -74,48 +81,52 @@ export class ResponseViewer {
   private currentHeaders: Record<string, string>;
   private currentStatus: number;
   private formatter: JSONFormatterInterface | null;
-  
+
   /**
    * Creates a new ResponseViewer instance
    * @param options Component options
    */
   constructor(options: Partial<ResponseViewerOptions> = {}) {
-    this.options = { ...DEFAULT_OPTIONS, ...options } as Required<ResponseViewerOptions>;
-    
-    this.container = getById(this.options.containerId);
+    super();
+    this.options = {
+      containerId: 'response-viewer',
+      ...DEFAULT_OPTIONS,
+      ...options,
+    };
+    this.container = document.getElementById(this.options.containerId || '');
     this.responseHeaders = getById(this.options.responseHeadersId);
     this.responseBody = getById(this.options.responseBodyId);
     this.responseStatus = getById(this.options.responseStatusId);
-    
+
     this.currentResponse = null;
     this.currentHeaders = {};
     this.currentStatus = 0;
-    this.formatter = this.options.formatter || (typeof window !== 'undefined' && (window as any).JSONFormatter ? (window as any).JSONFormatter : null);
-    
-    if (!this.container) {
-      logger.warn(`ResponseViewer: Container element with ID "${this.options.containerId}" not found`);
-    }
+    this.formatter =
+      this.options.formatter ||
+      (typeof window !== 'undefined' && window.JSONFormatter ? window.JSONFormatter : null);
+
+    // if (this.container) {
+    //   this.initializeUI();
+    // }
   }
-  
+
   /**
    * Displays API response data
-   * @param response Response data
-   * @param headers Response headers
-   * @param status HTTP status code
+   * @param response Response data object
    */
-  display(response: any, headers: Record<string, string> = {}, status: number = 200): void {
+  display(response: ResponseData): void {
     this.currentResponse = response;
-    this.currentHeaders = headers;
-    this.currentStatus = status;
-    
+    this.currentHeaders = response.headers;
+    this.currentStatus = response.status;
+
     // Update UI
     this.displayResponseHeaders();
     this.displayResponseBody();
-    
+
     // Show the container
     this.showResponseContainer();
   }
-  
+
   /**
    * Shows the response container
    */
@@ -124,7 +135,7 @@ export class ResponseViewer {
       this.container.style.display = '';
     }
   }
-  
+
   /**
    * Clears the response viewer
    */
@@ -132,20 +143,20 @@ export class ResponseViewer {
     this.currentResponse = null;
     this.currentHeaders = {};
     this.currentStatus = 0;
-    
+
     if (this.responseHeaders) {
       this.responseHeaders.innerHTML = '';
     }
-    
+
     if (this.responseBody) {
       this.responseBody.innerHTML = '';
     }
-    
+
     if (this.container) {
       this.container.style.display = 'none';
     }
   }
-  
+
   /**
    * Gets the current response data
    * @returns Current response data
@@ -153,7 +164,7 @@ export class ResponseViewer {
   getResponse(): any {
     return this.currentResponse;
   }
-  
+
   /**
    * Gets the current response headers
    * @returns Current response headers
@@ -161,7 +172,7 @@ export class ResponseViewer {
   getHeaders(): Record<string, string> {
     return { ...this.currentHeaders };
   }
-  
+
   /**
    * Gets the current HTTP status code
    * @returns Current HTTP status code
@@ -169,83 +180,75 @@ export class ResponseViewer {
   getStatus(): number {
     return this.currentStatus;
   }
-  
+
   /**
    * Displays response headers
    */
   private displayResponseHeaders(): void {
-    if (!this.responseHeaders) return;
-    
+    if (!this.responseHeaders || !this.currentResponse) return;
+
     // Create headers HTML
-    const statusClass = this.getStatusClass(this.currentStatus);
-    const statusText = this.getStatusText(this.currentStatus);
-    
+    const statusClass = this.getStatusClass(this.currentResponse.status);
+    const statusText = this.getStatusText(this.currentResponse.status);
+
     let html = `
       <div class="mb-2">
         <span class="font-semibold">Status:</span> 
-        <span class="${statusClass}">${this.currentStatus} ${statusText}</span>
+        <span class="${statusClass}">${this.currentResponse.status} ${statusText}</span>
       </div>
     `;
-    
-    if (Object.keys(this.currentHeaders).length > 0) {
+
+    if (Object.keys(this.currentResponse.headers).length > 0) {
       html += '<div class="mb-2"><span class="font-semibold">Headers:</span></div>';
       html += '<ul class="text-sm ml-2 border-l-2 border-gray-300 pl-3 mb-4">';
-      
-      Object.entries(this.currentHeaders).forEach(([name, value]) => {
+
+      Object.entries(this.currentResponse.headers).forEach(([name, value]) => {
         html += `<li><span class="font-medium">${escapeHtml(name)}</span>: ${escapeHtml(String(value))}</li>`;
       });
-      
+
       html += '</ul>';
     }
-    
+
     setHTML(this.responseHeaders, html);
   }
-  
+
   /**
-   * Displays response body
+   * Displays the formatted body of the response
+   * @private
    */
   private displayResponseBody(): void {
     if (!this.responseBody || this.currentResponse === null) return;
-    
+    const body = this.currentResponse.body;
+
     try {
-      // Check if response is JSON
-      if (typeof this.currentResponse === 'object') {
-        this.displayJsonResponse(this.currentResponse);
-      } else if (typeof this.currentResponse === 'string') {
-        // Try to parse as JSON
-        try {
-          const jsonObject = JSON.parse(this.currentResponse);
-          this.displayJsonResponse(jsonObject);
-        } catch (e) {
-          // Not JSON, display as text
-          this.displayTextResponse(this.currentResponse);
-        }
+      // Clear previous content
+      this.responseBody.innerHTML = '';
+
+      // Simple type checking for body display
+      if (typeof body === 'string') {
+        this.displayTextResponse(body);
+      } else if (typeof body === 'object' && body !== null) {
+        this.displayJsonResponse(body);
       } else {
-        // Convert to string and display as text
-        this.displayTextResponse(String(this.currentResponse));
+        // Handle other types or null/undefined
+        this.displayTextResponse(String(body));
       }
     } catch (error) {
-      // Handle any display errors
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error('Error displaying response:', errorMessage);
-      
-      setHTML(
-        this.responseBody,
-        `<div class="text-red-500 p-2">Error displaying response: ${escapeHtml(errorMessage)}</div>`
-      );
+      logger.error('Error displaying response body:', error);
+      this.responseBody.innerHTML = `<pre class="text-red-500">Error rendering response: ${(error as Error).message}</pre>`;
     }
   }
-  
+
   /**
    * Displays JSON response with formatter
    * @param json JSON object to display
    */
-  private displayJsonResponse(json: any): void {
+  private displayJsonResponse(json: Record<string, unknown> | any[]): void {
     if (!this.responseBody) return;
-    
+
     // First clear any existing content
     this.responseBody.innerHTML = '';
-    
+
     // Display using JSONFormatter if available
     if (this.formatter) {
       try {
@@ -257,57 +260,81 @@ export class ResponseViewer {
         // Fall back to basic formatting if JSONFormatter fails
       }
     }
-    
+
     // Use basic JSON formatting as fallback
     const formattedJson = formatJSON(JSON.stringify(json));
     const wrapper = createElement<HTMLDivElement>('div', {
-      class: 'json-viewer overflow-auto'
+      class: 'json-viewer overflow-auto',
     } as ExtendedElementCreationOptions);
     wrapper.innerHTML = formattedJson;
     this.responseBody.appendChild(wrapper);
   }
-  
+
   /**
    * Displays text response
    * @param text Text to display
    */
   private displayTextResponse(text: string): void {
     if (!this.responseBody) return;
-    
+
     const isHtml = text.trim().startsWith('<') && text.trim().endsWith('>');
-    
+
     if (isHtml) {
-      // Display HTML content in an iframe for safety
+      // Create a safe iframe container
+      const iframeContainer = createElement<HTMLDivElement>('div', {
+        class: 'iframe-container w-full',
+      } as ExtendedElementCreationOptions);
+
+      // Create iframe with proper sandbox attributes for security
       const iframe = createElement<HTMLIFrameElement>('iframe', {
         class: 'w-full h-96 border border-gray-300 rounded',
-        sandbox: 'allow-same-origin'
+        sandbox: 'allow-same-origin',
       } as ExtendedElementCreationOptions);
-      
+
+      // Clear previous content and append new iframe
       this.responseBody.innerHTML = '';
-      this.responseBody.appendChild(iframe);
-      
-      // Now we can access contentDocument and contentWindow properties
-      if (iframe.contentDocument) {
-        iframe.contentDocument.open();
-        iframe.contentDocument.write(text);
-        iframe.contentDocument.close();
-      } else if (iframe.contentWindow && iframe.contentWindow.document) {
-        iframe.contentWindow.document.open();
-        iframe.contentWindow.document.write(text);
-        iframe.contentWindow.document.close();
-      }
+      iframeContainer.appendChild(iframe);
+      this.responseBody.appendChild(iframeContainer);
+
+      // Add content to iframe only after it's in the DOM
+      setTimeout(() => {
+        try {
+          // Access the document safely
+          const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+
+          if (iframeDoc) {
+            iframeDoc.open();
+            iframeDoc.write(text);
+            iframeDoc.close();
+          }
+        } catch (error) {
+          // Fallback if iframe access fails
+          logger.error('Error rendering HTML in iframe:', error);
+
+          // Show as text instead
+          const pre = createElement<HTMLPreElement>('pre', {
+            class: 'bg-gray-100 p-4 rounded overflow-auto text-sm',
+          } as ExtendedElementCreationOptions);
+
+          pre.textContent = text;
+          if (this.responseBody) {
+            this.responseBody.innerHTML = '';
+            this.responseBody.appendChild(pre);
+          }
+        }
+      }, 0);
     } else {
       // Display as preformatted text
       const pre = createElement<HTMLPreElement>('pre', {
-        class: 'bg-gray-100 p-4 rounded overflow-auto text-sm'
+        class: 'bg-gray-100 p-4 rounded overflow-auto text-sm',
       } as ExtendedElementCreationOptions);
-      
+
       pre.textContent = text;
       this.responseBody.innerHTML = '';
       this.responseBody.appendChild(pre);
     }
   }
-  
+
   /**
    * Gets the appropriate CSS class for a status code
    * @param status HTTP status code
@@ -326,7 +353,7 @@ export class ResponseViewer {
       return 'text-gray-600 font-medium';
     }
   }
-  
+
   /**
    * Gets status text for a status code
    * @param status HTTP status code
@@ -350,38 +377,32 @@ export class ResponseViewer {
       500: 'Internal Server Error',
       502: 'Bad Gateway',
       503: 'Service Unavailable',
-      504: 'Gateway Timeout'
+      504: 'Gateway Timeout',
     };
-    
+
     return statusTexts[status] || '';
   }
 
   /**
    * Show an API response in the viewer
-   * @param response The API response object to display
+   * @param response The API response data object to display
    */
-  showResponse(response: any): void {
+  showResponse(response: ResponseData): void {
     if (!response) {
       this.clear();
       return;
     }
-    
+
     // Store the response data
     this.currentResponse = response;
-    
-    // Extract headers and status if available
-    if (response.headers) {
-      this.currentHeaders = response.headers;
-    }
-    
-    if (response.status) {
-      this.currentStatus = response.status;
-    }
-    
+    this.currentHeaders = response.headers;
+    this.currentStatus = response.status;
+
     // Update UI
+    this.displayResponseStatus();
     this.displayResponseHeaders();
     this.displayResponseBody();
-    
+
     // Show the response container
     this.showResponseContainer();
   }
@@ -395,7 +416,7 @@ export class ResponseViewer {
       this.clear();
       return;
     }
-    
+
     // Create response from error
     const response: ResponseData = {
       status: error.code || 0,
@@ -404,17 +425,17 @@ export class ResponseViewer {
       body: {
         error: error.message,
         details: error.details || '',
-        stack: error.stack || ''
-      }
+        stack: error.stack || '',
+      },
     };
-    
+
     // Store the response data
     this.currentResponse = response;
-    
+
     // Update UI
     this.displayResponseStatus('error');
     this.displayResponseBody();
-    
+
     // Show the response container
     this.showResponseContainer();
   }
@@ -424,12 +445,12 @@ export class ResponseViewer {
    */
   private displayResponseStatus(type: 'success' | 'error' | 'warning' = 'success'): void {
     if (!this.responseStatus || !this.currentResponse) return;
-    
+
     const statusCode = this.currentResponse.status;
     const statusText = this.currentResponse.statusText;
-    
+
     let statusClass = 'status-unknown';
-    
+
     if (type === 'error' || statusCode >= 400) {
       statusClass = 'status-error';
     } else if (statusCode >= 200 && statusCode < 300) {
@@ -439,20 +460,20 @@ export class ResponseViewer {
     } else if (statusCode === 0) {
       statusClass = 'status-error';
     }
-    
+
     // Format response time if available
     let timeInfo = '';
     if (this.currentResponse.time) {
       const formattedTime = this.currentResponse.formattedTime || `${this.currentResponse.time}ms`;
       timeInfo = `<span class="response-time">${formattedTime}</span>`;
     }
-    
+
     // Format response size if available
     let sizeInfo = '';
     if (this.currentResponse.size) {
       sizeInfo = `<span class="response-size">${this.formatBytes(this.currentResponse.size)}</span>`;
     }
-    
+
     this.responseStatus.innerHTML = `
       <div class="status-code ${statusClass}">${statusCode}</div>
       <div class="status-text">${statusText}</div>
@@ -464,13 +485,13 @@ export class ResponseViewer {
   /**
    * Formats bytes to human-readable size
    */
-  private formatBytes(bytes: number, decimals: number = 2): string {
+  private formatBytes(bytes: number, decimals = 2): string {
     if (bytes === 0) return '0 Bytes';
-    
+
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
+
     return parseFloat((bytes / Math.pow(k, i)).toFixed(decimals)) + ' ' + sizes[i];
   }
-} 
+}

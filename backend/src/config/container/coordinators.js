@@ -1,5 +1,5 @@
 import PersonalityCoordinator from "#app/application/PersonalityCoordinator.js";
-import FocusAreaCoordinatorFacade from "#app/application/focusArea/FocusAreaCoordinatorFacade.js";
+// import FocusAreaCoordinatorFacade from "#app/application/focusArea/FocusAreaCoordinatorFacade.js"; // REMOVED - Refactored
 import ChallengeCoordinator from "#app/application/challengeCoordinator.js";
 import UserJourneyCoordinator from "#app/application/userJourneyCoordinator.js";
 import FocusAreaGenerationCoordinator from "#app/application/focusArea/FocusAreaGenerationCoordinator.js";
@@ -20,7 +20,10 @@ import ApplicationEventHandlers from "#app/application/EventHandlers.js";
  * @param {DIContainer} container - The DI container
  */
 function registerCoordinatorComponents(container) {
-    // Register application coordinators
+    const coordinatorLogger = container.get('logger').child({ context: 'DI-Coordinators' });
+    coordinatorLogger.info('[DI Coordinators] Starting coordinator registration...');
+
+    coordinatorLogger.info('[DI Coordinators] Registering personalityCoordinator...');
     container.register('personalityCoordinator', c => {
         return new PersonalityCoordinator({
             userService: c.get('userService'),
@@ -30,21 +33,7 @@ function registerCoordinatorComponents(container) {
         });
     }, false // Transient: orchestrates user-specific personality operations
     );
-    container.register('focusAreaCoordinator', c => {
-        return new FocusAreaCoordinatorFacade({
-            userService: c.get('userService'),
-            challengeService: c.get('challengeService'),
-            progressService: c.get('progressService'),
-            focusAreaService: c.get('focusAreaService'),
-            focusAreaValidationService: c.get('focusAreaValidationService'),
-            focusAreaThreadService: c.get('focusAreaThreadService'),
-            focusAreaGenerationService: c.get('focusAreaGenerationService'),
-            eventBus: c.get('eventBus'),
-            eventTypes: c.get('eventTypes'),
-            logger: c.get('focusAreaLogger'),
-        });
-    }, false // Transient: manages complex user focus area operations
-    );
+    coordinatorLogger.info('[DI Coordinators] Registering challengeCoordinator...');
     container.register('challengeCoordinator', c => {
         return new ChallengeCoordinator({
             userService: c.get('userService'),
@@ -57,17 +46,17 @@ function registerCoordinatorComponents(container) {
         });
     }, false // Transient: manages user-specific challenge operations
     );
+    coordinatorLogger.info('[DI Coordinators] Registering userJourneyCoordinator...');
     container.register('userJourneyCoordinator', c => {
         return new UserJourneyCoordinator({
-            userService: c.get('userService'),
-            challengeService: c.get('challengeService'),
-            userJourneyService: c.get('userJourneyService'),
-            config: c.get('config'),
+            userJourneyRepository: c.get('userJourneyRepository'),
+            userRepository: c.get('userRepository'),
             logger: c.get('userJourneyLogger'),
         });
     }, false // Transient: handles user-specific journey progress
     );
     // Register more specialized focus area coordinators
+    coordinatorLogger.info('[DI Coordinators] Registering focusAreaGenerationCoordinator...');
     container.register('focusAreaGenerationCoordinator', c => {
         return new FocusAreaGenerationCoordinator({
             userService: c.get('userService'),
@@ -82,6 +71,7 @@ function registerCoordinatorComponents(container) {
         });
     }, false // Transient: generates user-specific focus areas
     );
+    coordinatorLogger.info('[DI Coordinators] Registering focusAreaManagementCoordinator...');
     container.register('focusAreaManagementCoordinator', c => {
         return new FocusAreaManagementCoordinator({
             userService: c.get('userService'),
@@ -94,6 +84,7 @@ function registerCoordinatorComponents(container) {
         });
     }, false // Transient: manages user-specific focus areas
     );
+    coordinatorLogger.info('[DI Coordinators] Registering progressCoordinator...');
     container.register('progressCoordinator', c => {
         return new ProgressCoordinator({
             progressService: c.get('progressService'),
@@ -105,13 +96,15 @@ function registerCoordinatorComponents(container) {
     }, false // Transient: tracks user-specific progress
     );
     // Register event handlers that use coordinators
-    container.register('applicationEventHandlers', c => {
-        return new ApplicationEventHandlers({
-            personalityCoordinator: c.get('personalityCoordinator'),
-            logger: c.get('eventsLogger'),
-        });
-    }, true // Singleton: subscribes to events system-wide, should be initialized once
-    );
+    coordinatorLogger.info('[DI Coordinators] Registering applicationEventHandlers...');
+    container.register('applicationEventHandlers', c => new ApplicationEventHandlers({
+        personalityCoordinator: c.get('personalityCoordinator'),
+        logger: c.get('eventsLogger'),
+        eventBus: c.get('eventBus'),
+        EventTypes: c.get('eventTypes')
+    }), true); // Singleton
+    
+    coordinatorLogger.info('[DI Coordinators] Coordinator registration complete.');
 }
 export { registerCoordinatorComponents };
 export default {

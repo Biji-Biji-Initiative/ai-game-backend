@@ -1,6 +1,5 @@
-import domainEvents from "#app/core/common/events/domainEvents.js";
+import { EventTypes } from "#app/core/common/events/eventTypes.js";
 import { logger } from "#app/core/infra/logging/logger.js";
-import { ChallengeRepository } from "#app/core/challenge/repositories/challengeRepository.js";
 
 /**
  * Challenge Domain Events
@@ -9,42 +8,51 @@ import { ChallengeRepository } from "#app/core/challenge/repositories/challengeR
  * Following DDD principles, these events are used to communicate changes
  * in the domain to other domains.
  */
-const {
-  EventTypes,
-  eventBus
-} = domainEvents;
 
-// Initialize repository
-const challengeRepository = new ChallengeRepository();
+/**
+ * Get the ChallengeRepository instance from the container.
+ * @param {DIContainer} container - The DI container instance.
+ * @returns {ChallengeRepository}
+ */
+function getRepo(container) {
+    if (!container) {
+        logger.error('[challengeEvents] Container not provided to getRepo!');
+        throw new Error('DI container is required to get ChallengeRepository');
+    }
+    try {
+        return container.get('challengeRepository');
+    } catch (error) {
+        logger.error('[challengeEvents] Failed to get ChallengeRepository from container', { error: error.message });
+        throw error;
+    }
+}
 
 /**
  * Publish an event when a challenge is created
+ * @param {DIContainer} container - The DI container instance.
  * @param {string} challengeId - ID of the challenge
  * @param {string} userEmail - Email of the user who created the challenge
  * @param {string} focusArea - Focus area of the challenge
  * @returns {Promise<void>}
  */
-async function publishChallengeCreated(challengeId, userEmail, focusArea) {
+async function publishChallengeCreated(container, challengeId, userEmail, focusArea) {
   try {
-    // Get entity to add domain event
-    const entity = await challengeRepository.findById(challengeId);
+    const repo = getRepo(container);
+    const entity = await repo.findById(challengeId);
     if (entity) {
-      // Add domain event to entity
       entity.addDomainEvent(EventTypes.CHALLENGE_CREATED, {
         challengeId,
         userEmail,
         focusArea
       });
       
-      // Save entity which will publish the event
-      await challengeRepository.save(entity);
+      await repo.save(entity);
     } else {
-      // Fallback to direct event publishing if entity not found
-      logger.warn(`Entity with ID ${challengeId} not found for event CHALLENGE_CREATED. Using direct event publishing.`);
-      await eventBus.publishEvent(EventTypes.CHALLENGE_CREATED, {
-        challengeId,
-        userEmail,
-        focusArea
+      logger.warn(`[challengeEvents] Entity ${challengeId} not found for CHALLENGE_CREATED. Direct publish.`);
+      await eventBus.publish({
+        type: EventTypes.CHALLENGE_CREATED,
+        data: { entityId: challengeId, entityType: 'Challenge', userEmail, focusArea },
+        metadata: { timestamp: new Date().toISOString() }
       });
     }
     
@@ -63,32 +71,30 @@ async function publishChallengeCreated(challengeId, userEmail, focusArea) {
 
 /**
  * Publish an event when a challenge is updated
+ * @param {DIContainer} container - The DI container instance.
  * @param {string} challengeId - ID of the challenge
  * @param {string} userEmail - Email of the user who updated the challenge
  * @param {Object} changes - Changes made to the challenge
  * @returns {Promise<void>}
  */
-async function publishChallengeUpdated(challengeId, userEmail, changes) {
+async function publishChallengeUpdated(container, challengeId, userEmail, changes) {
   try {
-    // Get entity to add domain event
-    const entity = await challengeRepository.findById(challengeId);
+    const repo = getRepo(container);
+    const entity = await repo.findById(challengeId);
     if (entity) {
-      // Add domain event to entity
       entity.addDomainEvent(EventTypes.CHALLENGE_UPDATED, {
         challengeId,
         userEmail,
         changes
       });
       
-      // Save entity which will publish the event
-      await challengeRepository.save(entity);
+      await repo.save(entity);
     } else {
-      // Fallback to direct event publishing if entity not found
-      logger.warn(`Entity with ID ${challengeId} not found for event CHALLENGE_UPDATED. Using direct event publishing.`);
-      await eventBus.publishEvent(EventTypes.CHALLENGE_UPDATED, {
-        challengeId,
-        userEmail,
-        changes
+      logger.warn(`[challengeEvents] Entity ${challengeId} not found for CHALLENGE_UPDATED. Direct publish.`);
+      await eventBus.publish({
+        type: EventTypes.CHALLENGE_UPDATED,
+        data: { entityId: challengeId, entityType: 'Challenge', userEmail, changes },
+        metadata: { timestamp: new Date().toISOString() }
       });
     }
     
@@ -107,32 +113,30 @@ async function publishChallengeUpdated(challengeId, userEmail, changes) {
 
 /**
  * Publish an event when a challenge response is submitted
+ * @param {DIContainer} container - The DI container instance.
  * @param {string} challengeId - ID of the challenge
  * @param {string} userEmail - Email of the user who submitted the response
  * @param {Object} response - The challenge response
  * @returns {Promise<void>}
  */
-async function publishChallengeResponseSubmitted(challengeId, userEmail, response) {
+async function publishChallengeResponseSubmitted(container, challengeId, userEmail, response) {
   try {
-    // Get entity to add domain event
-    const entity = await challengeRepository.findById(challengeId);
+    const repo = getRepo(container);
+    const entity = await repo.findById(challengeId);
     if (entity) {
-      // Add domain event to entity
       entity.addDomainEvent(EventTypes.CHALLENGE_RESPONSE_SUBMITTED, {
         challengeId,
         userEmail,
         response
       });
       
-      // Save entity which will publish the event
-      await challengeRepository.save(entity);
+      await repo.save(entity);
     } else {
-      // Fallback to direct event publishing if entity not found
-      logger.warn(`Entity with ID ${challengeId} not found for event CHALLENGE_RESPONSE_SUBMITTED. Using direct event publishing.`);
-      await eventBus.publishEvent(EventTypes.CHALLENGE_RESPONSE_SUBMITTED, {
-        challengeId,
-        userEmail,
-        response
+      logger.warn(`[challengeEvents] Entity ${challengeId} not found for CHALLENGE_RESPONSE_SUBMITTED. Direct publish.`);
+      await eventBus.publish({
+        type: EventTypes.CHALLENGE_RESPONSE_SUBMITTED,
+        data: { entityId: challengeId, entityType: 'Challenge', userEmail, response },
+        metadata: { timestamp: new Date().toISOString() }
       });
     }
     
@@ -151,32 +155,30 @@ async function publishChallengeResponseSubmitted(challengeId, userEmail, respons
 
 /**
  * Publish an event when a challenge is evaluated
+ * @param {DIContainer} container - The DI container instance.
  * @param {string} challengeId - ID of the challenge
  * @param {string} userEmail - Email of the user
  * @param {Object} evaluation - Challenge evaluation result
  * @returns {Promise<void>}
  */
-async function publishChallengeEvaluated(challengeId, userEmail, evaluation) {
+async function publishChallengeEvaluated(container, challengeId, userEmail, evaluation) {
   try {
-    // Get entity to add domain event
-    const entity = await challengeRepository.findById(challengeId);
+    const repo = getRepo(container);
+    const entity = await repo.findById(challengeId);
     if (entity) {
-      // Add domain event to entity
       entity.addDomainEvent(EventTypes.CHALLENGE_EVALUATED, {
         challengeId,
         userEmail,
         evaluation
       });
       
-      // Save entity which will publish the event
-      await challengeRepository.save(entity);
+      await repo.save(entity);
     } else {
-      // Fallback to direct event publishing if entity not found
-      logger.warn(`Entity with ID ${challengeId} not found for event CHALLENGE_EVALUATED. Using direct event publishing.`);
-      await eventBus.publishEvent(EventTypes.CHALLENGE_EVALUATED, {
-        challengeId,
-        userEmail,
-        evaluation
+      logger.warn(`[challengeEvents] Entity ${challengeId} not found for CHALLENGE_EVALUATED. Direct publish.`);
+      await eventBus.publish({
+        type: EventTypes.CHALLENGE_EVALUATED,
+        data: { entityId: challengeId, entityType: 'Challenge', userEmail, evaluation },
+        metadata: { timestamp: new Date().toISOString() }
       });
     }
     
@@ -195,50 +197,32 @@ async function publishChallengeEvaluated(challengeId, userEmail, evaluation) {
 
 /**
  * Set up challenge event subscriptions
+ * @param {DIContainer} container - The DI container instance.
  */
-async function registerChallengeEventHandlers() {
-  // When user focus area is set, generate new challenges
-  eventBus.subscribe(EventTypes.USER_FOCUS_AREA_SET, async event => {
-    logger.debug('Handling user focus area set event', {
-      userId: event.payload.userId,
-      focusArea: event.payload.focusArea
-    });
-    // In a real implementation, we would generate new challenges for the user
-    logger.info('New challenges would be generated for user focus area', {
-      userId: event.payload.userId,
-      focusArea: event.payload.focusArea
-    });
-  });
-  
-  // When progress is updated, adjust challenge difficulty
-  eventBus.subscribe(EventTypes.PROGRESS_UPDATED, async event => {
-    logger.debug('Handling progress updated event', {
-      userId: event.payload.userId
-    });
-    // In a real implementation, we would adjust challenge difficulty
-    logger.info('Challenge difficulty would be adjusted based on progress', {
-      userId: event.payload.userId
-    });
-  });
-  
-  // When evaluation is completed, update challenge status
-  eventBus.subscribe(EventTypes.EVALUATION_COMPLETED, async event => {
-    logger.debug('Handling evaluation completed event', {
-      challengeId: event.payload.challengeId
-    });
-    // In a real implementation, we would update the challenge status
-    logger.info('Challenge status would be updated based on evaluation', {
-      challengeId: event.payload.challengeId,
-      userEmail: event.payload.userEmail
-    });
-  });
-}
+export function registerChallengeEventHandlers(container) {
+    if (!container) {
+        throw new Error('Container is required to register challenge event handlers');
+    }
 
-export { publishChallengeCreated };
-export { publishChallengeUpdated };
-export { publishChallengeResponseSubmitted };
-export { publishChallengeEvaluated };
-export { registerChallengeEventHandlers };
+    const eventBus = container.get('eventBus');
+    if (!eventBus) {
+        throw new Error('EventBus not found in container');
+    }
+
+    // Register event handlers here...
+    // Example:
+    eventBus.on(EventTypes.CHALLENGE_CREATED, async (event) => {
+        try {
+            const repo = getRepo(container);
+            // Handle challenge created event...
+            logger.info('Challenge created event handled', { eventId: event.id });
+        } catch (error) {
+            logger.error('Error handling challenge created event', { error: error.message });
+        }
+    });
+
+    // Add more event handlers as needed...
+}
 
 export default {
   publishChallengeCreated,

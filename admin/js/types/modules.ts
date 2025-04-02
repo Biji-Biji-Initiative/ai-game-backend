@@ -1,9 +1,17 @@
+// Types improved by ts-improve-types
 /**
  * Module Types
  * Interfaces and types for application modules
  */
 
-import { IUIManager } from '../components/UIManagerNew';
+import { IUIManager } from './ui';
+import { ApiClient } from '../services/api-client';
+import { VariableManager } from '../modules/variable-manager';
+import { EndpointManager } from '../modules/endpoint-manager';
+import { HistoryManager } from '../modules/history-manager';
+import { AppController } from '../controllers/AppController';
+import { DomainStateViewer } from '../ui/domain-state-viewer';
+import { EndpointParameter } from './endpoints.d';
 
 /**
  * Variable Manager Options
@@ -15,7 +23,7 @@ export interface VariableManagerOptions {
   variableSuffix?: string;
   maxVariables?: number;
   storageType?: 'localStorage' | 'sessionStorage';
-  initialVariables?: Record<string, any>;
+  initialVariables?: Record<string, unknown>;
   variableSyntax?: {
     prefix: string;
     suffix: string;
@@ -29,7 +37,7 @@ export interface VariableManagerOptions {
 export interface StatusManagerOptions {
   containerId?: string;
   updateInterval?: number;
-  apiClient?: any;
+  apiClient?: ApiClient;
   statusEndpoint?: string;
 }
 
@@ -38,14 +46,14 @@ export interface StatusManagerOptions {
  */
 export interface FlowControllerOptions {
   containerId?: string;
-  uiManager?: any;
-  variableManager?: any;
-  endpointManager?: any;
-  historyManager?: any;
-  apiClient?: any;
+  uiManager?: IUIManager;
+  variableManager?: VariableManager;
+  endpointManager?: EndpointManager;
+  historyManager?: HistoryManager;
+  apiClient?: ApiClient;
   autoInit?: boolean;
-  appController?: any;
-  config?: any;
+  appController?: AppController;
+  config?: Record<string, unknown>;
 }
 
 /**
@@ -74,7 +82,7 @@ export interface ServiceStatus {
  */
 export interface Variable {
   name: string;
-  value: any;
+  value: string;
   type?: string;
   description?: string;
   scope?: string;
@@ -91,19 +99,19 @@ export interface Endpoint {
   description?: string;
   category?: string;
   headers?: Record<string, string>;
-  parameters?: Record<string, any>;
-  body?: any;
+  parameters?: EndpointParameter[];
+  body?: unknown;
 }
 
 /**
  * Domain State Manager Options
  */
 export interface DomainStateManagerOptions {
-  apiClient?: any;
+  apiClient?: ApiClient;
   localStorageKey?: string;
   autoSave?: boolean;
   diffingEnabled?: boolean;
   snapshotLimit?: number;
   debug?: boolean;
-  viewer?: any;
-} 
+  viewer?: DomainStateViewer;
+}

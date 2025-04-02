@@ -1,4 +1,5 @@
 import { validate as uuidValidate } from "uuid";
+import { UserValidationError } from "#app/core/user/errors/UserErrors.js";
 'use strict';
 /**
  *
@@ -14,10 +15,12 @@ class UserId {
      */
     constructor(value) {
         if (!value) {
-            throw new Error('UserId cannot be empty');
+            throw new UserValidationError('UserId cannot be empty');
         }
-        if (!UserId.isValid(value)) {
-            throw new Error(`Invalid UserId format: ${value}`);
+        // Simple UUID validation (adjust regex as needed)
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if (typeof value !== 'string' || !uuidRegex.test(value)) {
+            throw new UserValidationError(`Invalid UserId format: ${value}`);
         }
         this._value = value;
         // Determine if this is an email or UUID type

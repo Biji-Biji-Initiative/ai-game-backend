@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ValidationError } from "#app/core/infra/repositories/BaseRepository.js";
 'use strict';
 /**
  * Type metadata schema with specific types
@@ -177,25 +178,17 @@ const evaluationResultSchema = z
  * Validate evaluation prompt parameters
  * @param {Object} params - Parameters to validate
  * @returns {Object} Validated parameters
- * @throws {Error} If validation fails
+ * @throws {ValidationError} If validation fails
  */
-function validateEvaluationPromptParams(params) {
-    try {
-        return evaluationPromptSchema.parse(params);
+export function validateEvaluationPromptParams(params) {
+    const validationResult = evaluationPromptSchema.safeParse(params);
+    if (!validationResult.success) {
+        const formattedErrors = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
+        throw new ValidationError(`Evaluation prompt parameter validation failed: ${formattedErrors}`);
     }
-    catch (error) {
-        // Transform Zod validation errors to more user-friendly format
-        if (error.errors) {
-            const formattedErrors = error.errors
-                .map(err => `${err.path.join('.')}: ${err.message}`)
-                .join('; ');
-            throw new Error(`Evaluation prompt parameter validation failed: ${formattedErrors}`);
-        }
-        throw error;
-    }
+    return validationResult.data;
 }
 export { evaluationPromptSchema };
-export { validateEvaluationPromptParams };
 export { evaluationResultSchema };
 export { typeMetadataSchema };
 export { formatMetadataSchema };

@@ -81,6 +81,9 @@ module.exports = {
       instances: 1,
       exec_mode: 'fork',
       
+      // Add explicit args to ensure port is passed correctly
+      args: "--port=4000",
+      
       // Process Management
       autorestart: true,
       max_memory_restart: '300M',

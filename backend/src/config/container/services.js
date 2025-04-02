@@ -45,279 +45,221 @@ import PersonalityPromptBuilder from "#app/core/prompt/builders/PersonalityPromp
  * @param {DIContainer} container - The DI container
  */
 function registerServiceComponents(container) {
-    // Register domain services - generally not singletons as they should be stateless
-    // and safe to use in concurrent requests
+    const serviceLogger = container.get('logger').child({ context: 'DI-Services' });
+    serviceLogger.info('[DI Services] Starting service registration...');
+
+    // Register domain services using the custom DIContainer format
+    
+    serviceLogger.info('[DI Services] Registering userService...');
     container.register('userService', c => {
+        const repo = c.get('userRepository');
+        const logger = c.get('userLogger');
+        const eventBus = c.get('eventBus');
+        const cache = c.get('cacheService');
+        if (!repo || !logger || !eventBus || !cache) {
+            serviceLogger.error('[DI Services] Missing dependency for userService', { hasRepo: !!repo, hasLogger: !!logger, hasEventBus: !!eventBus, hasCache: !!cache });
+            throw new Error('Failed to resolve dependencies for userService');
+        }
         const userService = new UserService({
-            userRepository: c.get('userRepository'),
-            logger: c.get('userLogger'),
-            eventBus: c.get('eventBus'),
-            cacheService: c.get('cacheService')
+            userRepository: repo,
+            logger: logger,
+            eventBus: eventBus,
+            cacheService: cache,
+            // userPreferencesManager will be injected later if needed, or resolved via singleton
         });
-        
-        // Set up for dependency injection after both services are created
-        setTimeout(() => {
-            try {
-                userService.userPreferencesManager = c.get('userPreferencesManager');
-            } catch (error) {
-                c.get('userLogger').error('Failed to inject userPreferencesManager into userService', { error });
-            }
-        }, 0);
-        
         return userService;
-    }, false // Transient: user-specific operations should be isolated
-    );
-    
-    // Register UserPreferencesManager
-    container.register('userPreferencesManager', c => {
-        return new UserPreferencesManager({
-            userService: c.get('userService'),
-            logger: c.get('userLogger')
-        });
-    }, false // Transient: handles user-specific preference operations
-    );
-    
+    }, true); // Singleton
+
+    serviceLogger.info('[DI Services] Registering userPreferencesManager...');
+    container.register('userPreferencesManager', c => new UserPreferencesManager({
+        userService: c.get('userService'), // Singleton resolution handles circular dependency
+        logger: c.get('userLogger')
+    }), true); // Singleton
+
+    serviceLogger.info('[DI Services] Registering personalityService...');
     container.register('personalityService', c => {
-        console.log('[DI Services] Attempting to register PersonalityService...');
-        // Explicitly resolve dependencies first
         const repository = c.get('personalityRepository');
         const traitsService = c.get('traitsAnalysisService');
         const insightGen = c.get('personalityInsightGenerator');
-
-        console.log('[DI Services] Dependencies resolved for PersonalityService:', {
-             hasRepo: !!repository,
-             hasTraitsService: !!traitsService,
-             hasInsightGen: !!insightGen
-        });
-
-        // We rely on the PersonalityService constructor to throw if deps are missing now
-        // if (!repository) throw new Error('personalityRepository unavailable for PersonalityService');
-        // if (!traitsService) throw new Error('traitsAnalysisService unavailable for PersonalityService');
-        // if (!insightGen) throw new Error('personalityInsightGenerator unavailable for PersonalityService');
-
-        console.log('[DI Services] Instantiating PersonalityService...');
-        const instance = new PersonalityService({
-             personalityRepository: repository, 
-             traitsAnalysisService: traitsService, 
+        if (!repository || !traitsService || !insightGen) {
+             serviceLogger.error('[DI Services] Missing dependency for personalityService', { hasRepo: !!repository, hasTraits: !!traitsService, hasInsight: !!insightGen });
+             throw new Error('Failed to resolve dependencies for personalityService');
+        }
+        return new PersonalityService({
+             personalityRepository: repository,
+             traitsAnalysisService: traitsService,
              insightGenerator: insightGen
         });
-        console.log('[DI Services] PersonalityService instantiated successfully.');
-        return instance;
-        
-        // REMOVED old try/catch with mock fallback logic
-        
-    }, false // Transient: handles user-specific personality data
-    );
-    container.register('userJourneyService', c => {
-        return new UserJourneyService({
-            userJourneyRepository: c.get('userJourneyRepository'),
-            logger: c.get('userJourneyLogger'),
-        });
-    }, false // Transient: handles user-specific journey data
-    );
-    container.register('progressService', c => {
-        return new ProgressService({
-            progressRepository: c.get('progressRepository'),
-            logger: c.get('logger'),
-            eventBus: c.get('eventBus'),
-        });
-    }, false // Transient: handles user-specific progress data
-    );
-    container.register('adaptiveService', c => {
-        return new AdaptiveService({
-            adaptiveRepository: c.get('adaptiveRepository'),
-            logger: c.get('adaptiveLogger'),
-            eventBus: c.get('eventBus'),
-        });
-    }, false // Transient: handles user-specific adaptive difficulty
-    );
-    // Register focus area services
-    container.register('focusAreaService', c => {
-        return new FocusAreaService({
-            focusAreaRepository: c.get('focusAreaRepository'),
-            eventBus: c.get('eventBus'),
-            eventTypes: c.get('eventTypes'),
-            logger: c.get('focusAreaLogger')
-        });
-    }, false // Transient: handles user-specific focus areas
-    );
-    // Register focusAreaThreadService
-    container.register('focusAreaThreadService', c => {
-        return new FocusAreaThreadService({
-            focusAreaThreadState: c.get('focusAreaThreadState'),
-            logger: c.get('focusAreaLogger')
-        });
-    }, false); // Transient: manages user-specific focus area threads
-    
-    // Register focusAreaValidationService
-    container.register('focusAreaValidationService', c => {
-        return new FocusAreaValidationService(
-            c.get('focusAreaConfigRepository'), 
-            c.get('focusAreaLogger')
-        );
-    }, true); // Singleton: validation rules don't change frequently
-    
-    // Application service for focus area generation
-    container.register('focusAreaGenerationService', c => {
-        return new FocusAreaGenerationService({
-            openAIClient: c.get('aiClient'),
-            MessageRole: c.get('messageRole'),
-            openAIStateManager: c.get('aiStateManager'),
-            logger: c.get('focusAreaLogger')
-        });
-    }, false // Transient: generates user-specific focus areas
-    );
-    // Challenge-related services
-    container.register('challengePersonalizationService', c => {
-        return new ChallengePersonalizationService({
-            challengeTypeRepository: c.get('challengeTypeRepository'),
-            focusAreaConfigRepository: c.get('focusAreaConfigRepository'),
-            logger: c.get('challengeLogger')
-        });
-    }, true // Singleton: primarily reads from config repositories which are cached
-    );
-    container.register('challengeConfigService', c => {
-        return new ChallengeConfigService({
-            challengeTypeRepository: c.get('challengeTypeRepository'),
-            formatTypeRepository: c.get('formatTypeRepository'),
-            focusAreaConfigRepository: c.get('focusAreaConfigRepository'),
-            difficultyLevelRepository: c.get('difficultyLevelRepository'),
-            logger: c.get('challengeLogger')
-        });
-    }, true // Singleton: primarily reads from config repositories which are cached
-    );
-    container.register('challengeService', c => {
-        return new ChallengeService({
-            challengeRepository: c.get('challengeRepository'),
-            logger: c.get('challengeLogger'),
-        });
-    }, false // Transient: handles user-specific challenge operations
-    );
-    container.register('evaluationService', c => {
-        return new EvaluationService({
-            evaluationRepository: c.get('evaluationRepository'),
-            evaluationCategoryRepository: c.get('evaluationCategoryRepository'),
-            aiClient: c.get('aiClient'),
-            aiStateManager: c.get('aiStateManager'),
-            eventBus: c.get('eventBus'),
-            logger: c.get('evaluationLogger'),
-        });
-    }, false // Transient: handles user-specific evaluation operations
-    );
-    // AI-related services
-    // container.register('aiChatService', c => {
-    //     return new AiChatService({
-    //         openai: c.get('openai'),
-    //         conversationStateManager: c.get('conversationStateManager'),
-    //         logger: c.get('logger'),
-    //     });
-    // }, false // Transient: manages conversation state which is request-specific
-    // );
-    // container.register('aiAnalysisService', c => {
-    //     return new AiAnalysisService({
-    //         openai: c.get('openai'),
-    //         logger: c.get('logger'),
-    //     });
-    // }, false // Transient: should not maintain state between requests
-    // );
-    // Register PersonalityDataLoader
-    container.register('personalityDataLoader', c => {
-        return new PersonalityDataLoader({
-            personalityRepository: c.get('personalityRepository'),
-            cacheService: c.get('cacheService'),
-            logger: c.get('personalityLogger')
-        });
-    }, true // Singleton: maintains internal cache for performance
-    );
-    // Register TraitsAnalysis Service
-    container.register('traitsAnalysisService', c => {
-        return new TraitsAnalysisService({
-            personalityRepository: c.get('personalityRepository'),
-            logger: c.get('traitsAnalysisLogger'),
-        });
-    }, false // Transient: performs analysis on user-specific data
-    );
-    
-    // Register Personality Insight Generator
+    }, false); // Transient
+
+    serviceLogger.info('[DI Services] Registering userJourneyService...');
+    container.register('userJourneyService', c => new UserJourneyService({
+        userJourneyRepository: c.get('userJourneyRepository'),
+        userService: c.get('userService'),
+        config: c.get('config'),
+        logger: c.get('userJourneyLogger')
+    }), false); // Transient
+
+    serviceLogger.info('[DI Services] Registering progressService...');
+    container.register('progressService', c => new ProgressService({
+        progressRepository: c.get('progressRepository'),
+        logger: c.get('progressLogger'),
+        eventBus: c.get('eventBus')
+    }), true); // Changed to Singleton for reliability
+
+    serviceLogger.info('[DI Services] Registering adaptiveService...');
+    container.register('adaptiveService', c => new AdaptiveService({
+        adaptiveRepository: c.get('adaptiveRepository'),
+        progressService: c.get('progressService'),
+        personalityService: c.get('personalityService'),
+        challengeConfigService: c.get('challengeConfigService'),
+        challengePersonalizationService: c.get('challengePersonalizationService'),
+        userService: c.get('userService'),
+        logger: c.get('adaptiveLogger'),
+        eventBus: c.get('eventBus')
+    }), false); // Transient
+
+    serviceLogger.info('[DI Services] Registering focusAreaService...');
+    container.register('focusAreaService', c => new FocusAreaService({
+        focusAreaRepository: c.get('focusAreaRepository'),
+        eventBus: c.get('eventBus'),
+        eventTypes: c.get('eventTypes'),
+        logger: c.get('focusAreaLogger')
+    }), false); // Transient
+
+    serviceLogger.info('[DI Services] Registering focusAreaThreadService...');
+    container.register('focusAreaThreadService', c => new FocusAreaThreadService({
+        focusAreaThreadState: c.get('focusAreaThreadState'),
+        logger: c.get('focusAreaLogger')
+    }), false); // Transient
+
+    serviceLogger.info('[DI Services] Registering focusAreaValidationService...');
+    container.register('focusAreaValidationService', c => new FocusAreaValidationService(
+        c.get('focusAreaConfigRepository'),
+        c.get('focusAreaLogger')
+    ), true); // Singleton
+
+    serviceLogger.info('[DI Services] Registering focusAreaGenerationService...');
+    container.register('focusAreaGenerationService', c => new FocusAreaGenerationService({
+        openAIClient: c.get('aiClient'),
+        MessageRole: c.get('messageRole'),
+        openAIStateManager: c.get('aiStateManager'),
+        logger: c.get('focusAreaLogger')
+    }), false); // Transient
+
+    serviceLogger.info('[DI Services] Registering challengePersonalizationService...');
+    container.register('challengePersonalizationService', c => new ChallengePersonalizationService({
+        challengeTypeRepository: c.get('challengeTypeRepository'),
+        focusAreaConfigRepository: c.get('focusAreaConfigRepository'),
+        logger: c.get('challengeLogger')
+    }), true); // Singleton
+
+    serviceLogger.info('[DI Services] Registering challengeConfigService...');
+    container.register('challengeConfigService', c => new ChallengeConfigService({
+        challengeTypeRepository: c.get('challengeTypeRepository'),
+        formatTypeRepository: c.get('formatTypeRepository'),
+        focusAreaConfigRepository: c.get('focusAreaConfigRepository'),
+        difficultyLevelRepository: c.get('difficultyLevelRepository'),
+        logger: c.get('challengeLogger')
+    }), true); // Singleton
+
+    serviceLogger.info('[DI Services] Registering challengeService...');
+    container.register('challengeService', c => new ChallengeService({
+        challengeRepository: c.get('challengeRepository'),
+        userService: c.get('userService'),
+        logger: c.get('challengeLogger'),
+        cacheService: c.get('cacheService'),
+        cacheInvalidationManager: c.get('cacheInvalidationManager')
+    }), false); // Transient
+
+    serviceLogger.info('[DI Services] Registering evaluationService...');
+    container.register('evaluationService', c => new EvaluationService({
+        evaluationRepository: c.get('evaluationRepository'),
+        evaluationCategoryRepository: c.get('evaluationCategoryRepository'),
+        aiClient: c.get('aiClient'),
+        aiStateManager: c.get('aiStateManager'),
+        eventBus: c.get('eventBus'),
+        logger: c.get('evaluationLogger')
+    }), false); // Transient
+
+    serviceLogger.info('[DI Services] Registering personalityDataLoader...');
+    container.register('personalityDataLoader', c => new PersonalityDataLoader({
+        personalityRepository: c.get('personalityRepository'),
+        cacheService: c.get('cacheService'),
+        logger: c.get('personalityLogger')
+    }), true); // Singleton
+
+    serviceLogger.info('[DI Services] Registering traitsAnalysisService...');
+    container.register('traitsAnalysisService', c => new TraitsAnalysisService({
+        personalityRepository: c.get('personalityRepository'),
+        logger: c.get('traitsAnalysisLogger')
+    }), false); // Transient
+
+    serviceLogger.info('[DI Services] Registering personalityInsightGenerator...');
     container.register('personalityInsightGenerator', c => {
         const logger = c.get('personalityLogger');
-        // Use MockInsightGenerator in development mode
         if (process.env.NODE_ENV === 'development') {
             logger.info('Using MockInsightGenerator for personality insights.');
             return new MockInsightGenerator();
         }
-        // Use OpenAIInsightGenerator in production, injecting dependencies
         logger.info('Using OpenAIInsightGenerator for personality insights.');
         try {
             const aiClient = c.get('aiClient');
-            // PersonalityPromptBuilder uses static methods, no instance needed from DI
-            return new OpenAIInsightGenerator({
-                aiClient: aiClient,
-                logger: logger,
-                // Pass the builder class itself if needed, or rely on static calls
-                // personalityPromptBuilder: PersonalityPromptBuilder 
-            });
+            return new OpenAIInsightGenerator({ aiClient: aiClient, logger: logger });
         } catch (error) {
             logger.error('Failed to instantiate OpenAIInsightGenerator. Falling back to mock.', { error: error.message });
-            return new MockInsightGenerator(); // Fallback to mock if dependencies fail
+            return new MockInsightGenerator();
         }
-    }, false // Transient: generates user-specific insights
-    );
+    }, false); // Transient
 
-    // Register application services moved from domain layer
-    container.register('challengeGenerationService', c => {
-        return new ChallengeGenerationService({
-            aiClient: c.get('aiClient'),
-            aiStateManager: c.get('aiStateManager'),
-            openAIConfig: c.get('openAIConfig'),
-            logger: c.get('challengeLogger')
-        });
-    }, false // Transient: generates user-specific challenges
-    );
-    
-    container.register('challengeEvaluationService', c => {
-        return new ChallengeEvaluationService({
-            aiClient: c.get('aiClient'),
-            aiStateManager: c.get('aiStateManager'),
-            openAIConfig: c.get('openAIConfig'),
-            logger: c.get('challengeLogger')
-        });
-    }, false // Transient: evaluates user-specific challenge responses
-    );
-    
-    container.register('userContextService', c => {
-        return new UserContextService({
-            userRepository: c.get('userRepository'),
-            challengeRepository: c.get('challengeRepository'),
-            evaluationRepository: c.get('evaluationRepository'),
-            cacheService: c.get('cacheService'),
-            logger: c.get('evaluationLogger')
-        });
-    }, false // Transient: manages user-specific context
-    );
-    
-    // Miscellaneous utilities
-    container.register('healthCheckService', c => {
-        return new HealthCheckService({
-            logger: c.get('infraLogger'),
-            openAIClient: c.get('openAIClient')
-        });
-    });
+    serviceLogger.info('[DI Services] Registering challengeGenerationService...');
+    container.register('challengeGenerationService', c => new ChallengeGenerationService({
+        aiClient: c.get('aiClient'),
+        aiStateManager: c.get('aiStateManager'),
+        openAIConfig: c.get('openAIConfig'),
+        logger: c.get('challengeLogger')
+    }), false); // Transient
 
-    // Register challenge factory
-    container.register('challengeFactory', c => {
-        return new ChallengeFactory({
-            challengeConfigService: c.get('challengeConfigService'),
-            focusAreaValidationService: c.get('focusAreaValidationService'),
-            logger: c.get('challengeLogger')
-        });
-    }, true); // Singleton: primarily creates entities based on configuration
+    serviceLogger.info('[DI Services] Registering challengeEvaluationService...');
+    container.register('challengeEvaluationService', c => new ChallengeEvaluationService({
+        aiClient: c.get('aiClient'),
+        aiStateManager: c.get('aiStateManager'),
+        openAIConfig: c.get('openAIConfig'),
+        logger: c.get('challengeLogger')
+    }), false); // Transient
 
-    // Auth-related services
-    container.register('authorizationService', () => {
-        return new AuthorizationService();
-    }, true); // Singleton: stateless service that handles authorization rules
+    serviceLogger.info('[DI Services] Registering userContextService...');
+    container.register('userContextService', c => new UserContextService({
+        userRepository: c.get('userRepository'),
+        challengeRepository: c.get('challengeRepository'),
+        evaluationRepository: c.get('evaluationRepository'),
+        cacheService: c.get('cacheService'),
+        logger: c.get('evaluationLogger')
+    }), false); // Transient
+
+    serviceLogger.info('[DI Services] Registering healthCheckService...');
+    // NOTE: HealthCheckService was already registered in infrastructure.js.
+    // Re-registering here might overwrite or cause issues. Let's comment this out.
+    // container.register('healthCheckService', c => {
+    //     return new HealthCheckService({
+    //         logger: c.get('infraLogger'),
+    //         openAIClient: c.get('openAIClient')
+    //     });
+    // });
+
+    serviceLogger.info('[DI Services] Registering challengeFactory...');
+    container.register('challengeFactory', c => new ChallengeFactory({
+        challengeConfigService: c.get('challengeConfigService'),
+        focusAreaValidationService: c.get('focusAreaValidationService'),
+        logger: c.get('challengeLogger')
+    }), true); // Singleton
+
+    serviceLogger.info('[DI Services] Registering authorizationService...');
+    container.register('authorizationService', () => new AuthorizationService(), true); // Singleton
+    
+    serviceLogger.info('[DI Services] Service registration complete.');
 }
+
 export { registerServiceComponents };
 export default {
     registerServiceComponents

@@ -1,8 +1,12 @@
-import { createErrorMapper, withServiceErrorHandling } from "#app/core/infra/errors/errorStandardization.js";
-import { UserJourneyError, UserJourneyNotFoundError, UserJourneyValidationError, UserJourneyProcessingError } from "#app/core/userJourney/errors/userJourneyErrors.js";
-import { logger } from "#app/core/infra/logging/logger.js";
-import { userJourneyLogger } from "#app/core/infra/logging/domainLogger.js";
 'use strict';
+
+import { createErrorMapper, withServiceErrorHandling } from "#app/core/infra/errors/errorStandardization.js";
+import { UserJourney, ENGAGEMENT_LEVELS } from "#app/core/userJourney/models/UserJourney.js"; // Import Aggregate and constants
+import UserJourneyEvent from "#app/core/userJourney/models/UserJourneyEvent.js";
+import { UserJourneyError, UserJourneyNotFoundError, UserJourneyValidationError, UserJourneyProcessingError } from "#app/core/userJourney/errors/userJourneyErrors.js";
+import { logger as appLogger } from "#app/core/infra/logging/logger.js";
+import { EventTypes } from "#app/core/common/events/eventTypes.js";
+
 // Create an error mapper for services
 const userJourneyErrorMapper = createErrorMapper({
   UserJourneyNotFoundError: UserJourneyNotFoundError,
@@ -12,354 +16,247 @@ const userJourneyErrorMapper = createErrorMapper({
 }, UserJourneyError);
 
 /**
- * User journey phases and constants
- */
-const USER_JOURNEY_PHASES = {
-  ONBOARDING: 'onboarding',
-  BEGINNER: 'beginner',
-  INTERMEDIATE: 'intermediate',
-  ADVANCED: 'advanced',
-  EXPERT: 'expert'
-};
-/**
  * UserJourneyService class
  *
  * Provides business logic for tracking and managing user journeys through the application.
- * Implements domain operations for user engagement, progress tracking, and activity insights.
+ * Orchestrates interactions between the UserJourney aggregate and repository.
  */
 class UserJourneyService {
   /**
    * Create a new UserJourneyService
    *
    * @param {Object} dependencies - Service dependencies
-   * @param {Object} dependencies.userJourneyRepository - Repository for storing user journey events
+   * @param {Object} dependencies.userJourneyRepository - Repository for storing user journey events & aggregates
+   * @param {Object} dependencies.userService - Service for user data (needed for phase calculation)
+   * @param {Object} dependencies.config - Application config (for session timeout)
    * @param {Object} dependencies.logger - Logger instance
    */
   constructor({
     userJourneyRepository,
+    userService, // Added userService dependency
+    config,      // Added config dependency
     logger: loggerInstance
   }) {
+    if (!userJourneyRepository) throw new UserJourneyValidationError('userJourneyRepository is required');
+    if (!userService) throw new UserJourneyValidationError('userService is required');
+    if (!config) throw new UserJourneyValidationError('config is required');
+    
     this.userJourneyRepository = userJourneyRepository;
-    this.logger = loggerInstance || logger.child({
-      service: 'UserJourneyService'
-    });
-    // Apply error handling to methods using the withServiceErrorHandling wrapper
-    this.recordEvent = withServiceErrorHandling(
-      this.recordEvent.bind(this), 
-      {
-        methodName: 'recordEvent',
-        domainName: 'userJourney',
-        logger: this.logger,
-        errorMapper: userJourneyErrorMapper
-      }
-    );
-    this.getUserEvents = withServiceErrorHandling(
-      this.getUserEvents.bind(this), 
-      {
-        methodName: 'getUserEvents',
-        domainName: 'userJourney',
-        logger: this.logger,
-        errorMapper: userJourneyErrorMapper
-      }
-    );
-    this.getUserEventsByType = withServiceErrorHandling(
-      this.getUserEventsByType.bind(this), 
-      {
-        methodName: 'getUserEventsByType',
-        domainName: 'userJourney',
-        logger: this.logger,
-        errorMapper: userJourneyErrorMapper
-      }
-    );
-    this.getUserEventCountsByType = withServiceErrorHandling(
-      this.getUserEventCountsByType.bind(this), 
-      {
-        methodName: 'getUserEventCountsByType',
-        domainName: 'userJourney',
-        logger: this.logger,
-        errorMapper: userJourneyErrorMapper
-      }
-    );
-  }
-  /**
-   * Record a user interaction event
-   *
-   * @param {string} userEmail - User's email identifier
-   * @param {string} eventType - Type of event
-   * @param {Object} eventData - Additional data about the event
-   * @param {string} challengeId - Optional associated challenge ID
-   * @returns {Promise<Object>} The recorded event
-   */
-  async recordEvent(userEmail, eventType, eventData = {}, challengeId = null) {
-    if (!userEmail) {
-      throw new UserJourneyValidationError('User email is required');
-    }
-    if (!eventType) {
-      throw new UserJourneyValidationError('Event type is required');
-    }
+    this.userService = userService;
+    this.config = config;
+    this.logger = loggerInstance || appLogger.child({ service: 'UserJourneyService' });
     
-    this.logger.debug('Recording user journey event', { userEmail, eventType, challengeId });
-    return this.userJourneyRepository.recordEvent(userEmail, eventType, eventData, challengeId);
+    // Apply error handling wrappers
+    this.recordEvent = withServiceErrorHandling(this.recordEvent.bind(this), { methodName: 'recordEvent', domainName: 'userJourney', logger: this.logger, errorMapper: userJourneyErrorMapper });
+    this.getUserEvents = withServiceErrorHandling(this.getUserEvents.bind(this), { methodName: 'getUserEvents', domainName: 'userJourney', logger: this.logger, errorMapper: userJourneyErrorMapper });
+    this.getUserEventsByType = withServiceErrorHandling(this.getUserEventsByType.bind(this), { methodName: 'getUserEventsByType', domainName: 'userJourney', logger: this.logger, errorMapper: userJourneyErrorMapper });
+    this.getUserEventCountsByType = withServiceErrorHandling(this.getUserEventCountsByType.bind(this), { methodName: 'getUserEventCountsByType', domainName: 'userJourney', logger: this.logger, errorMapper: userJourneyErrorMapper });
+    this.getUserJourneyState = withServiceErrorHandling(this.getUserJourneyState.bind(this), { methodName: 'getUserJourneyState', domainName: 'userJourney', logger: this.logger, errorMapper: userJourneyErrorMapper });
+    this.getUserActivitySummary = withServiceErrorHandling(this.getUserActivitySummary.bind(this), { methodName: 'getUserActivitySummary', domainName: 'userJourney', logger: this.logger, errorMapper: userJourneyErrorMapper });
+    this.getUserEngagementMetrics = withServiceErrorHandling(this.getUserEngagementMetrics.bind(this), { methodName: 'getUserEngagementMetrics', domainName: 'userJourney', logger: this.logger, errorMapper: userJourneyErrorMapper });
+    this.getInsightsAndRecommendations = withServiceErrorHandling(this.getInsightsAndRecommendations.bind(this), { methodName: 'getInsightsAndRecommendations', domainName: 'userJourney', logger: this.logger, errorMapper: userJourneyErrorMapper });
   }
+
   /**
-   * Get user journey events
-   *
-   * @param {string} userEmail - User's email identifier
-   * @param {number} limit - Maximum number of events to retrieve
-   * @returns {Promise<Array>} List of user journey events
+   * Helper to get or create the UserJourney aggregate.
+   * @param {string} userId - User ID.
+   * @returns {Promise<UserJourney>}
+   * @private
    */
-  async getUserEvents(userEmail, limit = null) {
-    if (!userEmail) {
-      throw new UserJourneyValidationError('User email is required');
-    }
-    
-    this.logger.debug('Retrieving user journey events', { userEmail, limit });
-    return this.userJourneyRepository.getUserEvents(userEmail, limit);
+  async _getOrCreateJourney(userId) {
+      // Use the repository method which should handle find or create logic now
+      // This assumes findJourneyByUserId doesn't create, so we handle creation here.
+      let journey = await this.userJourneyRepository.findJourneyByUserId(userId);
+      if (!journey) {
+          this.logger.info('No journey found, creating new one', { userId });
+          journey = new UserJourney({ userId }, { EventTypes });
+          // Save the newly created journey state (initial state)
+          journey = await this.userJourneyRepository.saveJourney(journey);
+      }
+      return journey;
   }
+
   /**
-   * Get user events of a specific type
-   *
-   * @param {string} userEmail - User's email identifier
-   * @param {string} eventType - Type of events to retrieve
-   * @param {number} limit - Maximum number of events to retrieve
-   * @returns {Promise<Array>} List of events of the specified type
+   * Record a user interaction event and update the journey aggregate.
+   * @param {string} userId - User ID.
+   * @param {string} eventType - Type of event.
+   * @param {Object} [eventData={}] - Additional data about the event.
+   * @param {string} [challengeId=null] - Optional associated challenge ID.
+   * @returns {Promise<{event: UserJourneyEvent, journey: UserJourney}>} Recorded event and updated journey aggregate.
    */
-  async getUserEventsByType(userEmail, eventType, limit = null) {
-    if (!userEmail) {
-      throw new UserJourneyValidationError('User email is required');
+  async recordEvent(userId, eventType, eventData = {}, challengeId = null) {
+    if (!userId || !eventType) {
+      throw new UserJourneyValidationError('User ID and Event type are required');
     }
-    if (!eventType) {
-      throw new UserJourneyValidationError('Event type is required');
-    }
-    
-    this.logger.debug('Retrieving user events by type', { userEmail, eventType, limit });
-    return this.userJourneyRepository.getUserEventsByType(userEmail, eventType, limit);
+    this.logger.debug('Recording user journey event', { userId, eventType, challengeId });
+
+    // 1. Get or create the UserJourney aggregate
+    const journey = await this._getOrCreateJourney(userId);
+
+    // 2. Create the new UserJourneyEvent domain object
+    // Note: ID generation and timestamp happen within the Event constructor
+    const newEvent = new UserJourneyEvent({
+      userId: userId,
+      eventType: eventType,
+      eventData: eventData,
+      challengeId: challengeId,
+    }, { EventTypes: this.config?.EventTypes || EventTypes }); // Pass EventTypes if configured
+
+    // 3. Add the event to the aggregate instance
+    // This updates the aggregate's internal state (lastActivity, metrics, etc.)
+    // Pass config for session timeout calculation
+    journey.addEvent(newEvent, { config: this.config });
+
+    // 4. Save the updated aggregate state
+    // The repository's saveJourney method handles persistence and publishing aggregate-related domain events.
+    const savedJourney = await this.userJourneyRepository.saveJourney(journey);
+
+    // 5. Save the individual event record
+    // The repository's recordEvent method now only persists the event itself.
+    const savedEvent = await this.userJourneyRepository.recordEvent(newEvent);
+
+    // 6. Return the saved event and the latest state of the journey aggregate
+    return { event: savedEvent, journey: savedJourney };
   }
+
   /**
-   * Get count of events by type for a user
-   *
-   * @param {string} userEmail - User's email identifier
-   * @returns {Promise<Object>} Counts indexed by event type
+   * Get user journey events (fetches individual event records).
+   * @param {string} userId - User ID.
+   * @param {Object} [filters={}] - Filtering options.
+   * @returns {Promise<Array<UserJourneyEvent>>} List of user journey events.
    */
-  async getUserEventCountsByType(userEmail) {
-    if (!userEmail) {
-      throw new UserJourneyValidationError('User email is required');
+  async getUserEvents(userId, filters = {}) {
+    if (!userId) {
+      throw new UserJourneyValidationError('User ID is required');
     }
-    
-    this.logger.debug('Retrieving user event counts by type', { userEmail });
-    return this.userJourneyRepository.getUserEventCountsByType(userEmail);
+    this.logger.debug('Retrieving user journey events', { userId, filters });
+    // No longer need to fetch user just for email
+    // const user = await this.userService.getUserById(userId);
+    // if (!user) {
+    //     throw new UserJourneyNotFoundError(`User not found: ${userId}`);
+    // }
+    // Delegate to repository using userId
+    return this.userJourneyRepository.getUserEvents(userId, filters); 
   }
+
   /**
-   * Calculate user engagement level based on activity patterns
-   *
-   * @param {Object} journeyMeta - User's journey metadata
-   * @param {Array} recentEvents - Recent user events
-   * @returns {string} Engagement level classification
+   * Get user events of a specific type.
+   * @param {string} userId - User ID.
+   * @param {string} eventType - Type of events to retrieve.
+   * @param {number} [limit=null] - Maximum number of events to retrieve.
+   * @returns {Promise<Array<UserJourneyEvent>>} List of events.
    */
-  calculateEngagementLevel(journeyMeta, recentEvents) {
-    if (!journeyMeta || !recentEvents) {
-      return 'new';
+  async getUserEventsByType(userId, eventType, limit = null) {
+     if (!userId || !eventType) {
+      throw new UserJourneyValidationError('User ID and Event type are required');
     }
-    const now = new Date();
-    const lastActivity = journeyMeta.lastActivity ? new Date(journeyMeta.lastActivity) : null;
-    // No previous activity
-    if (!lastActivity) {
-      return 'new';
-    }
-    // Check recency of last activity
-    const daysSinceLastActivity = (now - lastActivity) / (1000 * 60 * 60 * 24);
-    if (daysSinceLastActivity < 2) {
-      return 'active';
-    } else if (daysSinceLastActivity < 7) {
-      return 'engaged';
-    } else if (daysSinceLastActivity < 30) {
-      return 'casual';
-    } else {
-      return 'inactive';
-    }
+    this.logger.debug('Retrieving user events by type', { userId, eventType, limit });
+    // No longer need to fetch user just for email
+    // const user = await this.userService.getUserById(userId);
+    // if (!user) {
+    //     throw new UserJourneyNotFoundError(`User not found: ${userId}`);
+    // }
+    // Delegate to repository using userId
+    return this.userJourneyRepository.getUserEventsByType(userId, eventType, limit);
   }
+
   /**
-   * Determine user's journey phase based on progress
-   *
-   * @param {Object} user - User data
-   * @param {number} completedChallenges - Number of completed challenges
-   * @returns {string} Current journey phase
+   * Get count of events by type for a user.
+   * @param {string} userId - User ID.
+   * @returns {Promise<Object>} Counts indexed by event type.
    */
-  determineUserPhase(user, completedChallenges) {
-    if (!user || !user.profile) {
-      return USER_JOURNEY_PHASES.ONBOARDING;
+  async getUserEventCountsByType(userId) {
+    if (!userId) {
+      throw new UserJourneyValidationError('User ID is required');
     }
-    // Check if user has completed profile
-    const hasCompletedProfile = Boolean(user.profile.personalityTraits);
-    if (!hasCompletedProfile) {
-      return USER_JOURNEY_PHASES.ONBOARDING;
-    }
-    // Determine phase based on completed challenges
-    if (completedChallenges < 5) {
-      return USER_JOURNEY_PHASES.BEGINNER;
-    } else if (completedChallenges < 15) {
-      return USER_JOURNEY_PHASES.INTERMEDIATE;
-    } else if (completedChallenges < 30) {
-      return USER_JOURNEY_PHASES.ADVANCED;
-    } else {
-      return USER_JOURNEY_PHASES.EXPERT;
-    }
+    this.logger.debug('Retrieving user event counts by type', { userId });
+    // No longer need to fetch user just for email
+    // const user = await this.userService.getUserById(userId);
+    // if (!user) {
+    //     throw new UserJourneyNotFoundError(`User not found: ${userId}`);
+    // }
+    // Delegate to repository using userId
+    return this.userJourneyRepository.getUserEventCountsByType(userId);
   }
+  
   /**
-   * Generate insights and recommendations for user's journey
-   *
-   * @param {string} phase - User's current phase
-   * @param {string} engagement - User's engagement level
-   * @returns {Object} Insights and personalized recommendations
+   * Get the current state of a user's journey (phase, engagement, metrics).
+   * @param {string} userId - User ID.
+   * @returns {Promise<Object>} Object containing phase, engagement, and metrics.
    */
-  generateInsightsAndRecommendations(phase, engagement) {
-    const insights = [];
-    const recommendations = [];
-    // Add phase-based insights
-    switch (phase) {
-      case USER_JOURNEY_PHASES.ONBOARDING:
-        insights.push('You are just getting started on your learning journey');
-        recommendations.push('Complete your profile to get personalized challenges');
-        break;
-      case USER_JOURNEY_PHASES.BEGINNER:
-        insights.push('You are building foundational skills');
-        recommendations.push('Try different challenge types to discover your strengths');
-        break;
-      case USER_JOURNEY_PHASES.INTERMEDIATE:
-        insights.push('You are developing deeper understanding');
-        recommendations.push('Focus on your weaker areas to build a well-rounded profile');
-        break;
-      case USER_JOURNEY_PHASES.ADVANCED:
-        insights.push('You are demonstrating advanced skills');
-        recommendations.push('Challenge yourself with more difficult challenges');
-        break;
-      case USER_JOURNEY_PHASES.EXPERT:
-        insights.push('You are operating at an expert level');
-        recommendations.push('Try creating your own challenges to test your mastery');
-        break;
-    }
-    // Add engagement-based insights
-    switch (engagement) {
-      case 'active':
-        insights.push('You are regularly engaged with learning');
-        recommendations.push('Keep up the momentum with daily challenges');
-        break;
-      case 'engaged':
-        insights.push('You are maintaining consistent engagement');
-        recommendations.push('Consider setting a schedule for more regular practice');
-        break;
-      case 'casual':
-        insights.push('Your engagement is occasional');
-        recommendations.push('Try to establish a more consistent learning routine');
-        break;
-      case 'inactive':
-        insights.push('It has been a while since your last activity');
-        recommendations.push('Start with a simple challenge to get back into practice');
-        break;
-    }
-    return {
-      insights,
-      recommendations
-    };
-  }
-  /**
-   * Calculate activity metrics from challenge events
-   *
-   * @param {Array} challengeEvents - Challenge completion events
-   * @returns {Object} Calculated activity metrics
-   */
-  calculateActivityMetrics(challengeEvents) {
-    if (!challengeEvents || challengeEvents.length === 0) {
+  async getUserJourneyState(userId) {
+      if (!userId) {
+            throw new UserJourneyValidationError('User ID is required');
+      }
+      // Get the aggregate - it should have calculated state in constructor or via addEvent
+      const journey = await this._getOrCreateJourney(userId);
+      
+      // Phase calculation might need external user data, get it and update the journey model
+      const user = await this.userService.getUserById(userId);
+      if (!user) {
+          // Should not happen if journey exists, but handle defensively
+          throw new UserJourneyNotFoundError(`User data not found for journey state calculation: ${userId}`);
+      }
+      journey._determineUserPhase(journey.metrics?.totalChallenges || 0, user.onboardingCompleted || false);
+      
       return {
-        totalChallenges: 0,
-        averageScore: 0,
-        streakDays: 0,
-        lastChallenge: null
+            phase: journey.getCurrentPhase(),
+            engagement: journey.getEngagementLevel(),
+            metrics: journey.getActivityMetrics()
       };
-    }
-    // Sort events by date
-    const sortedEvents = [...challengeEvents].sort((a, b) => {
-      return new Date(b.timestamp) - new Date(a.timestamp);
-    });
-    // Calculate metrics
-    const lastChallenge = sortedEvents[0].timestamp;
-    const scores = sortedEvents.map(event => event.data?.score).filter(Boolean);
-    const averageScore = scores.length > 0 ? scores.reduce((sum, score) => sum + score, 0) / scores.length : 0;
-    // Calculate streak days
-    // Sort by date ascending for streak calculation
-    const datesSorted = [...challengeEvents].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)).map(event => {
-      const date = new Date(event.timestamp);
-      return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
-    });
-    // Count consecutive days
-    let currentStreak = 1;
-    let maxStreak = 1;
-    for (let i = 1; i < datesSorted.length; i++) {
-      if (datesSorted[i] === datesSorted[i - 1]) {
-        continue; // Same day, skip
-      }
-      const prevDate = new Date(datesSorted[i - 1]);
-      const currDate = new Date(datesSorted[i]);
-      // Check if dates are consecutive
-      const diffTime = Math.abs(currDate - prevDate);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      if (diffDays === 1) {
-        currentStreak++;
-        maxStreak = Math.max(maxStreak, currentStreak);
-      } else {
-        currentStreak = 1;
-      }
-    }
+  }
+
+  /**
+   * Get activity summary (uses journey state).
+   * @param {string} userId - User ID.
+   * @param {string} [timeframe] - Optional timeframe (currently ignored by aggregate calculation).
+   * @returns {Promise<Object>} Summary data including metrics and engagement.
+   */
+  async getUserActivitySummary(userId, timeframe = 'week') { 
+    this.logger.debug('Getting user activity summary', { userId, timeframe });
+    const state = await this.getUserJourneyState(userId); // Gets calculated state
     return {
-      totalChallenges: challengeEvents.length,
-      averageScore: Math.round(averageScore * 100) / 100,
-      streakDays: maxStreak,
-      lastChallenge
+        ...state.metrics,
+        engagementLevel: state.engagement
+        // Add timeframe-specific calculations here later if needed by querying events directly
     };
   }
+
   /**
-   * Get session timeout in milliseconds from config
-   *
-   * @param {Object} config - Application configuration object
-   * @returns {number} Session timeout in milliseconds
+   * Get engagement metrics (uses journey state).
+   * @param {string} userId - User ID.
+   * @returns {Promise<Object>} Engagement metrics including level and last activity.
    */
-  getSessionTimeoutMs(config) {
-    // Default to 30 minutes if config is not provided
-    const timeoutMinutes = config?.userJourney?.sessionTimeoutMinutes || 30;
-    return timeoutMinutes * 60 * 1000; // Convert minutes to milliseconds
+  async getUserEngagementMetrics(userId) {
+     this.logger.debug('Getting user engagement metrics', { userId });
+     const journey = await this._getOrCreateJourney(userId);
+     // The journey aggregate calculates/holds this state
+     return {
+         engagementLevel: journey.getEngagementLevel(),
+         lastActivity: journey.lastActivity,
+         sessionCount: journey.sessionCount,
+         currentSessionStarted: journey.currentSessionStarted
+     };
   }
+
   /**
-   * Update user session data and handle timeouts
-   *
-   * @param {Object} journeyMeta - Current journey metadata
-   * @param {Date|string} currentTime - Current timestamp
-   * @param {Object} config - Application configuration
-   * @returns {Object} Updated journey metadata
+   * Get insights and recommendations based on the user's journey state.
+   * @param {string} userId - User ID.
+   * @returns {Promise<{insights: Array<string>, recommendations: Array<string>}>}
    */
-  updateSessionData(journeyMeta, currentTime = new Date(), config = null) {
-    if (!journeyMeta) {
-      journeyMeta = {
-        lastActivity: null,
-        engagementLevel: 'new',
-        sessionCount: 0,
-        currentSessionStarted: null,
-        currentPhase: 'onboarding'
-      };
-    }
-    const timestamp = currentTime instanceof Date ? currentTime.toISOString() : currentTime;
-    const currentDate = currentTime instanceof Date ? currentTime : new Date(currentTime);
-    const lastActivityDate = journeyMeta.lastActivity ? new Date(journeyMeta.lastActivity) : null;
-    // Get the session timeout value from config
-    const sessionTimeoutMs = this.getSessionTimeoutMs(config);
-    // Update session data
-    // If no previous session or session timeout has occurred, start a new session
-    if (!journeyMeta.currentSessionStarted || !lastActivityDate || currentDate - lastActivityDate > sessionTimeoutMs) {
-      journeyMeta.sessionCount = (journeyMeta.sessionCount || 0) + 1;
-      journeyMeta.currentSessionStarted = timestamp;
-    }
-    // Always update the last activity time
-    journeyMeta.lastActivity = timestamp;
-    return journeyMeta;
+  async getInsightsAndRecommendations(userId) {
+      this.logger.debug('Getting journey insights and recommendations', { userId });
+      const journey = await this._getOrCreateJourney(userId);
+      
+      // Ensure phase is calculated using potentially fresh user data
+      const user = await this.userService.getUserById(userId);
+       if (!user) {
+          throw new UserJourneyNotFoundError(`User data not found for insights: ${userId}`);
+      }
+      journey._determineUserPhase(journey.metrics?.totalChallenges || 0, user.onboardingCompleted || false);
+      
+      // Delegate to the aggregate method
+      return journey.generateInsightsAndRecommendations();
   }
 }
 export default UserJourneyService;

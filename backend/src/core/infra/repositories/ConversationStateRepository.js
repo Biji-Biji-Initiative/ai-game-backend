@@ -1,5 +1,6 @@
 import { logger } from "#app/core/infra/logging/logger.js";
-import { supabaseClient } from "#app/core/infra/db/supabaseClient.js";
+import { v4 as uuidv4 } from "uuid";
+import { ValidationError, DatabaseError } from "#app/core/infra/repositories/BaseRepository.js"; // Import base errors
 'use strict';
 /**
  * Conversation State Repository
@@ -16,7 +17,7 @@ const {
 class ConversationStateRepository {
   /**
    * Create a new ConversationStateRepository
-   * @param {Object} supabase - Supabase client
+   * @param {Object} supabase - Supabase client (Injected)
    * @param {Object} logger - Logger instance
    */
   /**
@@ -24,9 +25,14 @@ class ConversationStateRepository {
    */
   constructor(supabase, logger) {
     // Use provided supabase client or fallback to the default one
-    this.supabase = supabase || supabaseClient;
+    this.supabase = supabase; // Expect supabase to be passed in via dependency injection
     this.tableName = 'conversation_states';
     this.logger = logger || dbLogger.child('repository:conversationState');
+    
+    // Log whether we're using provided client or not
+    if (!this.supabase) {
+      this.logger.warn('No Supabase client provided to ConversationStateRepository');
+    }
   }
   /**
    * Create a new conversation state
@@ -39,7 +45,7 @@ class ConversationStateRepository {
   async createState(state) {
     try {
       if (!state.id || !state.userId || !state.context) {
-        throw new Error('ID, userId, and context are required to create conversation state');
+        throw new ValidationError('ID, userId, and context are required to create conversation state');
       }
       const {
         data,
@@ -59,7 +65,7 @@ class ConversationStateRepository {
           userId: state.userId,
           context: state.context
         });
-        throw error;
+        throw new DatabaseError(`Failed to create conversation state: ${error.message}`, { cause: error });
       }
       this.logger.info('Created conversation state', {
         stateId: data.id,
@@ -95,7 +101,7 @@ class ConversationStateRepository {
   async findStateById(stateId) {
     try {
       if (!stateId) {
-        throw new Error('State ID is required');
+        throw new ValidationError('State ID is required');
       }
       const {
         data,
@@ -110,7 +116,7 @@ class ConversationStateRepository {
           error: error.message,
           stateId
         });
-        throw error;
+        throw new DatabaseError(`Failed to find conversation state by ID: ${error.message}`, { cause: error });
       }
       if (!data) {
         return null;
@@ -146,7 +152,7 @@ class ConversationStateRepository {
   async findStateByContext(userId, context) {
     try {
       if (!userId || !context) {
-        throw new Error('User ID and context are required');
+        throw new ValidationError('User ID and context are required');
       }
       const {
         data,
@@ -164,7 +170,7 @@ class ConversationStateRepository {
           userId,
           context
         });
-        throw error;
+        throw new DatabaseError(`Failed to find conversation state by context: ${error.message}`, { cause: error });
       }
       if (!data) {
         return null;
@@ -201,7 +207,7 @@ class ConversationStateRepository {
   async updateState(stateId, updates) {
     try {
       if (!stateId) {
-        throw new Error('State ID is required for update');
+        throw new ValidationError('State ID is required for update');
       }
       // Convert camelCase keys to snake_case for database
       const dbUpdates = {};
@@ -224,7 +230,7 @@ class ConversationStateRepository {
           stateId,
           updates
         });
-        throw error;
+        throw new DatabaseError(`Failed to update conversation state: ${error.message}`, { cause: error });
       }
       this.logger.debug('Updated conversation state', {
         stateId
@@ -250,7 +256,7 @@ class ConversationStateRepository {
   async deleteState(stateId) {
     try {
       if (!stateId) {
-        throw new Error('State ID is required for deletion');
+        throw new ValidationError('State ID is required for deletion');
       }
       const {
         error
@@ -260,7 +266,7 @@ class ConversationStateRepository {
           error: error.message,
           stateId
         });
-        throw error;
+        throw new DatabaseError(`Failed to delete conversation state: ${error.message}`, { cause: error });
       }
       this.logger.info('Deleted conversation state', {
         stateId
@@ -282,14 +288,14 @@ class ConversationStateRepository {
   async getConversationState(conversationId) {
     try {
       if (!conversationId) {
-        throw new Error('Conversation ID is required');
+        throw new ValidationError('Conversation ID is required');
       }
       const {
         data,
         error
       } = await this.supabase.from(this.tableName).select('*').eq('conversation_id', conversationId).maybeSingle();
       if (error) {
-        throw new Error(`Failed to get conversation state: ${error.message}`);
+        throw new DatabaseError(`Failed to get conversation state: ${error.message}`, { cause: error });
       }
       return data ? this._mapFromDb(data) : null;
     } catch (error) {
