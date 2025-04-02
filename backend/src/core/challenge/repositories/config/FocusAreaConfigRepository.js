@@ -46,14 +46,6 @@ class FocusAreaConfigRepository {
         this.domainName = 'challenge:focusAreaConfig';
         this.cache = options.cache;
         
-        // Log if dependencies are missing
-        if (!this.supabase) {
-            this.logger.warn('No database client provided to FocusAreaConfigRepository');
-        }
-        if (!this.cache) {
-            this.logger.warn('No cache service provided to FocusAreaConfigRepository');
-        }
-        
         // Apply repository error handling with standardized pattern
         this.findAll = withRepositoryErrorHandling(
             this.findAll.bind(this),
@@ -144,6 +136,14 @@ class FocusAreaConfigRepository {
                 errorMapper: focusAreaConfigErrorMapper
             }
         );
+        
+        // Move dependency checking and logging after assignments and error handling setup
+        if (!this.supabase) {
+            this.logger.warn('No database client provided to FocusAreaConfigRepository');
+        }
+        if (!this.cache) {
+            this.logger.warn('No cache service provided to FocusAreaConfigRepository');
+        }
     }
     
     /**
@@ -727,19 +727,6 @@ class FocusAreaConfigRepository {
     }
 }
 
-// Use lazy initialization for the singleton
-let _instance = null;
-function getRepositoryInstance() {
-    if (!_instance) {
-        _instance = new FocusAreaConfigRepository();
-    }
-    return _instance;
-}
-
-// Export singleton instance and class
-export const focusAreaConfigRepository = getRepositoryInstance();
+// JUST export the class itself. The DI container will handle instantiation.
 export { FocusAreaConfigRepository };
-export default {
-    FocusAreaConfigRepository,
-    focusAreaConfigRepository
-};
+export default FocusAreaConfigRepository; // Use default export for the class
