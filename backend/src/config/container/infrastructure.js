@@ -4,6 +4,7 @@ import { logger } from "#app/core/infra/logging/logger.js";
 import { initializeSupabaseClient } from "#app/core/infra/db/supabaseClient.js";
 import AppError from "#app/core/infra/errors/AppError.js";
 import CacheService from "#app/core/infra/cache/CacheService.js";
+import LogService from "#app/core/infra/logging/LogService.js";
 import { 
     userLogger, 
     personalityLogger, 
@@ -113,6 +114,22 @@ function registerInfrastructureComponents(container, logger) {
     container.registerInstance('aiLogger', registeredLogger.child('ai'));
     container.registerInstance('traitsAnalysisLogger', registeredLogger.child('traitsAnalysis'));
     registeredLogger.info('[DI Infra] Specific loggers registered.');
+    
+    // Register LogService
+    container.register('logService', c => {
+        return new LogService({
+            getLogger: (name) => {
+                // Try to get a named logger first
+                const loggerName = `${name.toLowerCase()}Logger`;
+                if (c.has(loggerName)) {
+                    return c.get(loggerName);
+                }
+                // Fall back to the base logger with child
+                return c.get('logger').child(name);
+            }
+        });
+    }, true); // Singleton
+    registeredLogger.info('[DI Infra] LogService registered.');
 
     // 2b. Event Bus 
     const resolvedDbInstance = dbInstance; 
