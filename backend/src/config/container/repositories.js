@@ -144,9 +144,9 @@ function registerRepositoryComponents(container, logger) {
 
     repoLogger.info('Registering FocusAreaConfigRepository...');
     container.register('focusAreaConfigRepository', c => new FocusAreaConfigRepository({
-        db: dbInstance,
+        db: dbInstance,        // Keep this as 'db' as expected by the constructor
         logger: c.get('challengeLogger'),
-        cache: configCacheInstance
+        cache: configCacheInstance  // Keep this as 'cache' as expected by the constructor
     }), true);
 
     repoLogger.info('Registering DifficultyLevelRepository...');
