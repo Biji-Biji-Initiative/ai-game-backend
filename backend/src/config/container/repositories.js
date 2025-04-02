@@ -124,7 +124,8 @@ function registerRepositoryComponents(container, logger) {
     repoLogger.info('Registering UserJourneyRepository...');
     container.register('userJourneyRepository', c => new UserJourneyRepository({
         db: dbInstance, 
-        logger: c.get('userJourneyLogger')
+        logger: c.get('userJourneyLogger'),
+        eventBus: eventBusInstance
     }), true);
 
     // Register challenge configuration repositories
