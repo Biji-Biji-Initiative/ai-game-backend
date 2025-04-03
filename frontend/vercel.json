@@ -1,0 +1,16 @@
+{
+  "name": "frontend",
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "outputDirectory": ".next",
+  "rewrites": [
+    { 
+      "source": "/api/:path*", 
+      "destination": "https://api.${VERCEL_URL}/api/:path*" 
+    }
+  ],
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://api.${VERCEL_URL}/api"
+  }
+} 

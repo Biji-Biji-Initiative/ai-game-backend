@@ -10,11 +10,15 @@ package-lock.json
 # Environment variables
 .env
 .env.local
-.env.development.local
+.env.development
 .env.test
-.env.test.local
 .env.production
-.env.production.local
+backend/.env
+frontend/.env
+frontend/.env.local
+admin/.env
+api-tester-ui/.env
+*/**/.env
 
 # Testing
 coverage
@@ -45,3 +49,24 @@ Desktop.ini
 # Logs
 logs
 *.log
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+backend/.env
+frontend/.env
+frontend/.env.local
+admin/.env
+api-tester-ui/.env
+*/**/.env
+
+# exception for example files
+!.env.example
+!.env.*.example
+!*.env.example
+!*.env.template
+!env.template
+!env.*.template
