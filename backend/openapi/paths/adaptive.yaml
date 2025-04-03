@@ -30,13 +30,16 @@ recommendations:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
-                  type: array
-                  items:
-                    $ref: '../components/schemas/AdaptiveRecommendation.yaml'
+                  type: object
+                  properties:
+                    recommendations:
+                      type: array
+                      items:
+                        $ref: '../components/schemas/AdaptiveRecommendation.yaml'
                 pagination:
                   $ref: '../components/schemas/common/PaginationParams.yaml'
       '401':
@@ -79,11 +82,14 @@ dynamic_challenge:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
-                  $ref: '../components/schemas/Challenge.yaml'
+                  type: object
+                  properties:
+                    challenge:
+                      $ref: '../components/schemas/Challenge.yaml'
       '400':
         $ref: '../components/responses/common.yaml#/ValidationError'
       '401':
@@ -107,44 +113,47 @@ skill_profile:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
                   type: object
                   properties:
-                    userId:
-                      type: string
-                      format: uuid
-                      description: ID of the user
-                    skills:
-                      type: array
-                      items:
-                        type: object
-                        properties:
-                          name:
+                    skillProfile:
+                      type: object
+                      properties:
+                        userId:
+                          type: string
+                          format: uuid
+                          description: ID of the user
+                        skills:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              name:
+                                type: string
+                                description: Name of the skill
+                              proficiency:
+                                type: number
+                                format: float
+                                minimum: 0
+                                maximum: 100
+                                description: Proficiency level (0-100)
+                              lastImproved:
+                                type: string
+                                format: date-time
+                                description: When the skill was last improved
+                        recommendedFocusAreas:
+                          type: array
+                          items:
                             type: string
-                            description: Name of the skill
-                          proficiency:
-                            type: number
-                            format: float
-                            minimum: 0
-                            maximum: 100
-                            description: Proficiency level (0-100)
-                          lastImproved:
-                            type: string
-                            format: date-time
-                            description: When the skill was last improved
-                    recommendedFocusAreas:
-                      type: array
-                      items:
-                        type: string
-                        description: Areas recommended for improvement
-                    overallProficiency:
-                      type: number
-                      format: float
-                      minimum: 0
-                      maximum: 100
-                      description: Overall proficiency level (0-100)
+                            description: Areas recommended for improvement
+                        overallProficiency:
+                          type: number
+                          format: float
+                          minimum: 0
+                          maximum: 100
+                          description: Overall proficiency level (0-100)
       '401':
         $ref: '../components/responses/common.yaml#/UnauthorizedError' 

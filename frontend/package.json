@@ -4,11 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3333",
+    "dev:alt": "next dev -p 4444",
     "dev:fix": "NODE_OPTIONS='--require ./fix-exports.js' next dev -p 3333",
     "patch": "node patch-nextjs.js",
     "dev:patched": "npm run patch && npm run dev:fix",
     "build": "next build",
     "start": "next start -p 3333",
+    "start:alt": "next start -p 4444",
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",

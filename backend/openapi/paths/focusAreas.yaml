@@ -30,13 +30,16 @@ focus_areas:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
-                  type: array
-                  items:
-                    $ref: '../components/schemas/FocusArea.yaml'
+                  type: object
+                  properties:
+                    focusAreas:
+                      type: array
+                      items:
+                        $ref: '../components/schemas/FocusArea.yaml'
                 pagination:
                   $ref: '../components/schemas/common/PaginationParams.yaml'
       '401':
@@ -83,11 +86,14 @@ focus_areas:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
-                  $ref: '../components/schemas/FocusArea.yaml'
+                  type: object
+                  properties:
+                    focusArea:
+                      $ref: '../components/schemas/FocusArea.yaml'
       '400':
         $ref: '../components/responses/common.yaml#/ValidationError'
       '401':
@@ -120,11 +126,14 @@ focus_areas_id:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
-                  $ref: '../components/schemas/FocusArea.yaml'
+                  type: object
+                  properties:
+                    focusArea:
+                      $ref: '../components/schemas/FocusArea.yaml'
       '401':
         $ref: '../components/responses/common.yaml#/UnauthorizedError'
       '404':
@@ -174,11 +183,14 @@ focus_areas_id:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
-                  $ref: '../components/schemas/FocusArea.yaml'
+                  type: object
+                  properties:
+                    focusArea:
+                      $ref: '../components/schemas/FocusArea.yaml'
       '400':
         $ref: '../components/responses/common.yaml#/ValidationError'
       '401':
@@ -212,9 +224,9 @@ focus_areas_id:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 message:
                   type: string
                   example: Focus area deleted successfully
@@ -251,13 +263,16 @@ user_focus_areas:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
-                  type: array
-                  items:
-                    $ref: '../components/schemas/FocusArea.yaml'
+                  type: object
+                  properties:
+                    focusAreas:
+                      type: array
+                      items:
+                        $ref: '../components/schemas/FocusArea.yaml'
       '401':
         $ref: '../components/responses/common.yaml#/UnauthorizedError'
       '404':
@@ -303,9 +318,9 @@ user_focus_areas:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 message:
                   type: string
                   example: Focus areas updated successfully
@@ -357,11 +372,14 @@ focus_areas_generate:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
-                  $ref: '../components/schemas/FocusArea.yaml'
+                  type: object
+                  properties:
+                    focusArea:
+                      $ref: '../components/schemas/FocusArea.yaml'
       '400':
         $ref: '../components/responses/common.yaml#/ValidationError'
       '401':

@@ -24,13 +24,16 @@ prompts:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
-                  type: array
-                  items:
-                    $ref: '../components/schemas/Prompt.yaml'
+                  type: object
+                  properties:
+                    prompts:
+                      type: array
+                      items:
+                        $ref: '../components/schemas/Prompt.yaml'
                 pagination:
                   $ref: '../components/schemas/common/PaginationParams.yaml'
       '401':

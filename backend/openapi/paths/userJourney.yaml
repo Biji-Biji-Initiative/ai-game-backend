@@ -36,13 +36,16 @@ events:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
-                  type: array
-                  items:
-                    $ref: '../components/schemas/UserJourneyEvent.yaml'
+                  type: object
+                  properties:
+                    events:
+                      type: array
+                      items:
+                        $ref: '../components/schemas/UserJourneyEvent.yaml'
                 pagination:
                   $ref: '../components/schemas/common/PaginationParams.yaml'
       '401':
@@ -74,22 +77,25 @@ timeline:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      date:
-                        type: string
-                        format: date
-                        description: Date of the events
-                      events:
-                        type: array
-                        items:
-                          $ref: '../components/schemas/UserJourneyEvent.yaml'
+                  type: object
+                  properties:
+                    timeline:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          date:
+                            type: string
+                            format: date
+                            description: Date of the events
+                          events:
+                            type: array
+                            items:
+                              $ref: '../components/schemas/UserJourneyEvent.yaml'
                 pagination:
                   $ref: '../components/schemas/common/PaginationParams.yaml'
       '401':
@@ -112,58 +118,61 @@ progress:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
                   type: object
                   properties:
-                    userId:
-                      type: string
-                      format: uuid
-                      description: ID of the user
-                    totalChallenges:
-                      type: integer
-                      description: Total number of challenges completed
-                    totalPoints:
-                      type: integer
-                      description: Total points earned
-                    rank:
-                      type: string
-                      description: User's current rank
-                    level:
-                      type: integer
-                      description: User's current level
-                    badges:
-                      type: array
-                      items:
-                        type: object
-                        properties:
-                          id:
-                            type: string
-                            format: uuid
-                            description: Badge ID
-                          name:
-                            type: string
-                            description: Badge name
-                          description:
-                            type: string
-                            description: Badge description
-                          earnedAt:
-                            type: string
-                            format: date-time
-                            description: When the badge was earned
-                    nextMilestone:
+                    progress:
                       type: object
                       properties:
-                        description:
+                        userId:
                           type: string
-                          description: Description of the next milestone
-                        progress:
-                          type: number
-                          format: float
-                          minimum: 0
-                          maximum: 100
-                          description: Progress towards next milestone (0-100)
+                          format: uuid
+                          description: ID of the user
+                        totalChallenges:
+                          type: integer
+                          description: Total number of challenges completed
+                        totalPoints:
+                          type: integer
+                          description: Total points earned
+                        rank:
+                          type: string
+                          description: User's current rank
+                        level:
+                          type: integer
+                          description: User's current level
+                        badges:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                                format: uuid
+                                description: Badge ID
+                              name:
+                                type: string
+                                description: Badge name
+                              description:
+                                type: string
+                                description: Badge description
+                              earnedAt:
+                                type: string
+                                format: date-time
+                                description: When the badge was earned
+                        nextMilestone:
+                          type: object
+                          properties:
+                            description:
+                              type: string
+                              description: Description of the next milestone
+                            progress:
+                              type: number
+                              format: float
+                              minimum: 0
+                              maximum: 100
+                              description: Progress towards next milestone (0-100)
       '401':
         $ref: '../components/responses/common.yaml#/UnauthorizedError' 

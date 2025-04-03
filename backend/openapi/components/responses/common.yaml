@@ -5,12 +5,26 @@ UnauthorizedError:
       schema:
         type: object
         properties:
-          success:
-            type: boolean
-            example: false
+          status:
+            type: string
+            example: error
           message:
             type: string
             example: Unauthorized - Invalid or missing token
+
+ForbiddenError:
+  description: User does not have permission to access the resource
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          status:
+            type: string
+            example: error
+          message:
+            type: string
+            example: Forbidden - Insufficient permissions to access this resource
 
 NotFoundError:
   description: The specified resource was not found
@@ -19,9 +33,9 @@ NotFoundError:
       schema:
         type: object
         properties:
-          success:
-            type: boolean
-            example: false
+          status:
+            type: string
+            example: error
           message:
             type: string
             example: Resource not found
@@ -33,9 +47,9 @@ ValidationError:
       schema:
         type: object
         properties:
-          success:
-            type: boolean
-            example: false
+          status:
+            type: string
+            example: error
           message:
             type: string
             example: Validation error
@@ -70,9 +84,9 @@ RateLimitError:
       schema:
         type: object
         properties:
-          success:
-            type: boolean
-            example: false
+          status:
+            type: string
+            example: error
           message:
             type: string
             example: Rate limit exceeded
@@ -81,6 +95,23 @@ RateLimitError:
             example: 30
             description: Seconds to wait before retrying
 
+InternalServerError:
+  description: Unexpected server error
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          status:
+            type: string
+            example: error
+          message:
+            type: string
+            example: Internal server error occurred
+          error:
+            type: string
+            description: Additional error details (optional)
+
 PaginatedResponse:
   description: A paginated list of items
   content:
@@ -88,13 +119,16 @@ PaginatedResponse:
       schema:
         type: object
         properties:
-          success:
-            type: boolean
-            example: true
+          status:
+            type: string
+            example: success
           data:
-            type: array
-            items:
-              type: object
+            type: object
+            properties:
+              items:
+                type: array
+                items:
+                  type: object
           pagination:
             type: object
             properties:

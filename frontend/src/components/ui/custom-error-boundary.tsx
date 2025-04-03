@@ -3,8 +3,8 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 
 interface Props {
-  children: ReactNode;
-  fallback?: ReactNode;
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
 }
 
 interface State {
@@ -15,11 +15,29 @@ interface State {
 /**
  * Custom error boundary component that doesn't rely on Next.js's built-in error boundary
  * This helps avoid the "_interop_require_default._ is not a function" error
+ * 
+ * This component includes special handling for errors that occur during server-side rendering
  */
 class CustomErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false, error: null };
+    
+    // Apply the fix for _interopRequireDefault immediately
+    if (typeof global !== 'undefined' && !global._interopRequireDefault?._) {
+      try {
+        // @ts-expect-error - Dynamically modifying global object
+        global._interopRequireDefault = global._interopRequireDefault || function(obj: any) {
+          return obj && obj.__esModule ? obj : { default: obj };
+        };
+        // @ts-expect-error - Dynamically adding the missing _ function
+        global._interopRequireDefault._ = function(obj: any) {
+          return obj && obj.__esModule ? obj : { default: obj };
+        };
+      } catch (e) {
+        console.warn('Failed to patch global._interopRequireDefault', e);
+      }
+    }
   }
 
   static getDerivedStateFromError(error: Error): State {
@@ -38,9 +56,28 @@ class CustomErrorBoundary extends Component<Props, State> {
         window.module = window.module || { exports: {} };
       }
     }
+    
+    // Apply fix for _interopRequireDefault._ if needed
+    if (error.message && error.message.includes("_interopRequireDefault._")) {
+      try {
+        // Try to patch at runtime
+        if (typeof window !== 'undefined') {
+          // @ts-expect-error - Dynamically adding to window
+          if (window._interopRequireDefault && !window._interopRequireDefault._) {
+            console.log('Adding missing _interopRequireDefault._ function');
+            // @ts-expect-error - Dynamically adding the missing _ function
+            window._interopRequireDefault._ = function(obj: any) {
+              return obj && obj.__esModule ? obj : { default: obj };
+            };
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to patch _interopRequireDefault at runtime', err);
+      }
+    }
   }
 
-  render(): ReactNode {
+  render(): React.ReactNode {
     if (this.state.hasError) {
       if (this.props.fallback) {
         return this.props.fallback;
@@ -88,6 +125,12 @@ class CustomErrorBoundary extends Component<Props, State> {
 
     return this.props.children;
   }
+}
+
+// Add global type definition for _interopRequireDefault
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  var _interopRequireDefault: ((obj: any) => any) & { _?: (obj: any) => any } | undefined;
 }
 
 export default CustomErrorBoundary; 

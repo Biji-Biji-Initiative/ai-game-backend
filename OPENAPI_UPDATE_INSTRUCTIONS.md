@@ -21,3 +21,23 @@ data:
   items:
     : '../components/schemas/User.yaml'
 TO:
+data:
+  type: object
+  properties:
+    users:  # Use descriptive key name
+      type: array
+      items:
+        : '../components/schemas/User.yaml'
+Controller Change Example:
+FROM:
+return res.status(200).json({
+  success: true,
+  data: users
+});
+TO:
+return res.status(200).json({
+  status: 'success',
+  data: {
+    users: users  // Use descriptive key name
+  }
+});

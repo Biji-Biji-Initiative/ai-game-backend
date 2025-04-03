@@ -16,9 +16,9 @@ user_preferences:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 message:
                   type: string
                   example: User preferences retrieved successfully
@@ -60,9 +60,9 @@ user_preferences:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 message:
                   type: string
                   example: User preferences updated successfully
@@ -104,9 +104,9 @@ user_preferences_category:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 message:
                   type: string
                   example: ui preferences retrieved successfully
@@ -153,9 +153,9 @@ user_preferences_category:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 message:
                   type: string
                   example: ui preferences updated successfully
@@ -206,9 +206,9 @@ user_preferences_key:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 message:
                   type: string
                   example: Preference ui.theme updated successfully
@@ -248,9 +248,9 @@ user_preferences_key:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 message:
                   type: string
                   example: Preference ui.theme reset to default successfully

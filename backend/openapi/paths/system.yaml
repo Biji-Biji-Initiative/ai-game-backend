@@ -6,10 +6,10 @@ health:
     parameters:
       - name: format
         in: query
-        description: Response format (json or text) - Note: Controller currently only returns JSON
+        description: Response format (json or text) - Note Controller currently only returns JSON
         schema:
           type: string
-          enum: [json] # Changed from [json, text]
+          enum: [json]
           default: json
     responses:
       '200':
@@ -17,13 +17,12 @@ health:
         content:
           application/json:
             schema:
-              # This structure seems correct based on controller and previous curl test
               type: object
               properties:
                 status:
                   type: string
                   example: success
-                  enum: [success, error, healthy, unhealthy] # Allow for different overall statuses
+                  enum: [success, error, healthy, unhealthy]
                 message:
                   type: string
                   example: Server is healthy
@@ -48,7 +47,7 @@ health:
                         message:
                           type: string
                           example: Database connection successful
-                        responseTime: # Added based on previous curl output
+                        responseTime: 
                            type: integer
                            description: Time taken for DB check in ms
                            example: 563
@@ -62,7 +61,7 @@ health:
                         message:
                           type: string
                           example: OpenAI service is available
-                        responseTime: # Added based on previous curl output
+                        responseTime:
                            type: integer
                            description: Time taken for OpenAI check in ms
                            example: 949
@@ -71,12 +70,11 @@ health:
         content:
           application/json:
             schema:
-              # Define unhealthy structure similar to healthy, showing dependency status
               type: object
               properties:
                 status:
                   type: string
-                  example: unhealthy # Or 'error'
+                  example: unhealthy
                 message:
                   type: string
                   example: Server is unhealthy due to dependency issues
@@ -87,7 +85,6 @@ health:
                   type: number
                 dependencies:
                   type: object
-                  # Example: Showing one dependency failed
                   properties:
                     database:
                       type: object
@@ -112,7 +109,6 @@ health:
         content:
           application/json:
             schema:
-              # Fallback error structure from controller
               type: object
               properties:
                 status:
@@ -134,7 +130,7 @@ logs:
     description: Retrieves recent system logs from the server log files. Requires admin privileges.
     tags: [System, Admin]
     security:
-      - bearerAuth: [] # Add role check
+      - bearerAuth: []
     parameters:
       - name: limit
         in: query
@@ -170,25 +166,28 @@ logs:
                   type: string
                   example: success
                 data:
-                  type: object # Ensured nesting
+                  type: object
                   properties:
-                    logs: # Ensured key
+                    logs:
                       type: array
                       items:
-                        $ref: '../components/schemas/common/LogEntry.yaml' # Example: Reference a common LogEntry schema
-                        # Or define inline:
-                        # type: object
-                        # properties:
-                        #   level:
-                        #     type: string
-                        #   message:
-                        #     type: string
-                        #   timestamp:
-                        #     type: string
-                        #     format: date-time
-                        #   metadata:
-                        #     type: object
-                        #     additionalProperties: true
+                        type: object
+                        properties:
+                          level:
+                            type: string
+                            example: INFO
+                            description: Log level
+                          message:
+                            type: string
+                            description: Log message content
+                          timestamp:
+                            type: string
+                            format: date-time
+                            description: When the log entry was created
+                          metadata:
+                            type: object
+                            additionalProperties: true
+                            description: Additional log metadata
                     count:
                       type: integer
                       example: 150
@@ -202,4 +201,4 @@ logs:
       '403':
         $ref: '../components/responses/common.yaml#/ForbiddenError'
       '500':
-        $ref: '../components/responses/common.yaml#/InternalServerError' # Covers errors during log retrieval 
+        $ref: '../components/responses/common.yaml#/InternalServerError' 

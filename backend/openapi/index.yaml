@@ -96,9 +96,9 @@ paths:
   /progress/all:
     $ref: './paths/progress.yaml#/progress_all'
   /progress/challenge/{challengeId}:
-    $ref: './paths/progress.yaml#/progress_challenge'
+    $ref: './paths/progress.yaml#/progress_challenge_id'
   /progress/complete:
-    $ref: './paths/progress.yaml#/progress_complete'
+    $ref: './paths/progress.yaml#/progress_complete_challenge'
   /progress/skills:
     $ref: './paths/progress.yaml#/progress_skills'
   /progress/focus-area:

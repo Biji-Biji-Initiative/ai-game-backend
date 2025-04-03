@@ -243,9 +243,9 @@ progress_focus_area:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
                   type: object
                   properties:

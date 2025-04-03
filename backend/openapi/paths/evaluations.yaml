@@ -20,13 +20,16 @@ evaluations:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
-                  type: array
-                  items:
-                    $ref: '../components/schemas/Evaluation.yaml'
+                  type: object
+                  properties:
+                    evaluations:
+                      type: array
+                      items:
+                        $ref: '../components/schemas/Evaluation.yaml'
                 pagination:
                   $ref: '../components/schemas/common/PaginationParams.yaml'
       '401':
@@ -70,11 +73,14 @@ evaluations:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
-                  $ref: '../components/schemas/Evaluation.yaml'
+                  type: object
+                  properties:
+                    evaluation:
+                      $ref: '../components/schemas/Evaluation.yaml'
       '400':
         $ref: '../components/responses/common.yaml#/ValidationError'
       '401':
@@ -105,11 +111,14 @@ evaluations_id:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
-                  $ref: '../components/schemas/Evaluation.yaml'
+                  type: object
+                  properties:
+                    evaluation:
+                      $ref: '../components/schemas/Evaluation.yaml'
       '401':
         $ref: '../components/responses/common.yaml#/UnauthorizedError'
       '404':

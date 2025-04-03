@@ -1,7 +1,7 @@
 login:
   post:
     summary: Login to the system
-    description: Authenticates a user and returns a JWT token
+    description: Authenticates a user and returns an access token and minimal user info. Sets refresh token via httpOnly cookie.
     operationId: loginUser
     tags:
       - Auth
@@ -31,17 +31,26 @@ login:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
                   type: object
                   properties:
-                    token:
+                    accessToken:
                       type: string
-                      description: JWT token for authentication
+                      description: JWT access token for authentication
                     user:
-                      $ref: '../components/schemas/User.yaml'
+                      type: object
+                      description: Basic user information returned on login
+                      properties:
+                        email:
+                          type: string
+                          format: email
+                        fullName:
+                          type: string
+                        emailVerified:
+                           type: boolean
       '400':
         $ref: '../components/responses/common.yaml#/ValidationError'
       '401':
@@ -51,9 +60,9 @@ login:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: false
+                status:
+                  type: string
+                  example: error
                 message:
                   type: string
                   example: Invalid email or password
@@ -61,7 +70,7 @@ login:
 register:
   post:
     summary: Register a new user
-    description: Creates a new user account
+    description: Creates a new user account, returns token and user info. Sets refresh token via httpOnly cookie if applicable.
     operationId: registerUser
     tags:
       - Auth
@@ -79,45 +88,44 @@ register:
               email:
                 type: string
                 format: email
-                description: User's email address
               password:
                 type: string
                 format: password
-                description: User's password
               fullName:
                 type: string
-                description: User's full name
-              professionalTitle:
-                type: string
-                description: User's professional title
-              location:
-                type: string
-                description: User's location
-              country:
-                type: string
-                description: User's country
-              focusArea:
-                type: string
-                description: User's primary focus area
     responses:
       '201':
-        description: Registration successful
+        description: Registration successful (Email verification might be pending)
         content:
           application/json:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
                   type: object
                   properties:
-                    token:
+                    accessToken:
                       type: string
-                      description: JWT token for authentication
+                      nullable: true
+                      description: JWT access token (if session created immediately)
                     user:
-                      $ref: '../components/schemas/User.yaml'
+                      type: object
+                      description: Basic user information returned on registration
+                      properties:
+                        email:
+                          type: string
+                          format: email
+                        fullName:
+                          type: string
+                        emailVerified:
+                           type: boolean
+                message:
+                  type: string
+                  example: 'User registered. Please check your email to verify your account.'
+                  nullable: true
       '400':
         $ref: '../components/responses/common.yaml#/ValidationError'
       '409':
@@ -127,9 +135,9 @@ register:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: false
+                status:
+                  type: string
+                  example: error
                 message:
                   type: string
                   example: User with this email already exists
@@ -163,7 +171,7 @@ status:
 refresh:
   post:
     summary: Refresh authentication token
-    description: Uses a refresh token to generate a new JWT access token
+    description: Uses a refresh token (from httpOnly cookie or request body) to generate a new JWT access token.
     operationId: refreshToken
     tags:
       - Auth
@@ -185,17 +193,27 @@ refresh:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
                   type: object
                   properties:
-                    token:
+                    accessToken:
                       type: string
                       description: New JWT access token
-                    user:
-                      $ref: '../components/schemas/User.yaml'
+                    refreshToken:
+                      type: string
+                      nullable: true
+                      description: New refresh token (only if not using cookies)
+                    expiresIn:
+                      type: integer
+                      example: 3600
+                      description: Access token validity duration in seconds
+                    tokenType:
+                      type: string
+                      example: Bearer
+                      description: Type of the access token
       '401':
         description: Invalid or expired refresh token
         content:
@@ -203,22 +221,25 @@ refresh:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: false
+                status:
+                  type: string
+                  example: error
                 message:
                   type: string
                   example: Invalid or expired refresh token
+                code:
+                  type: string
+                  example: AUTH_REFRESH_FAILED
       '403':
-        description: Refresh token has been revoked
+        description: Refresh token has been revoked or is invalid (Generic fallback)
         content:
           application/json:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: false
+                status:
+                  type: string
+                  example: error
                 message:
                   type: string
-                  example: Token has been revoked 
+                  example: Invalid or expired refresh token 

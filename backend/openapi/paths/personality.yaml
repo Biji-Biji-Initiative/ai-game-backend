@@ -34,11 +34,14 @@ personality_profile:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
-                  $ref: '../components/schemas/Personality.yaml'
+                  type: object
+                  properties:
+                    profile:
+                      $ref: '../components/schemas/Personality.yaml'
       '401':
         $ref: '../components/responses/common.yaml#/UnauthorizedError'
       '404':
@@ -108,9 +111,9 @@ personality_traits:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
                   type: object
                   properties:
@@ -192,9 +195,9 @@ personality_attitudes:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
                   type: object
                   properties:
@@ -248,9 +251,9 @@ personality_insights_generate:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
                   type: object
                   properties:
@@ -301,9 +304,9 @@ personality_insights:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
                   type: object
                   properties:
@@ -369,31 +372,34 @@ personality_compatibility:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
                   type: object
                   properties:
                     compatibility:
-                      type: number
-                      format: float
-                      minimum: 0
-                      maximum: 100
-                      description: Compatibility score (0-100)
-                    strengths:
-                      type: array
-                      items:
-                        type: string
-                      description: Personality strengths for this challenge
-                    challenges:
-                      type: array
-                      items:
-                        type: string
-                      description: Potential challenges for the user
-                    recommendedApproach:
-                      type: string
-                      description: Recommended approach based on personality
+                      type: object
+                      properties:
+                        score:
+                          type: number
+                          format: float
+                          minimum: 0
+                          maximum: 100
+                          description: Compatibility score (0-100)
+                        strengths:
+                          type: array
+                          items:
+                            type: string
+                          description: Personality strengths for this challenge
+                        challenges:
+                          type: array
+                          items:
+                            type: string
+                          description: Potential challenges for the user
+                        recommendedApproach:
+                          type: string
+                          description: Recommended approach based on personality
       '400':
         $ref: '../components/responses/common.yaml#/ValidationError'
       '401':
@@ -448,23 +454,26 @@ personality_assessment:
             schema:
               type: object
               properties:
-                success:
-                  type: boolean
-                  example: true
+                status:
+                  type: string
+                  example: success
                 data:
                   type: object
                   properties:
-                    id:
-                      type: string
-                      format: uuid
-                      description: Assessment result ID
-                    status:
-                      type: string
-                      enum: [pending, processing, completed, failed]
-                      description: Status of the assessment
-                    profileUpdated:
-                      type: boolean
-                      description: Whether the profile was updated
+                    assessment:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          description: Assessment result ID
+                        status:
+                          type: string
+                          enum: [pending, processing, completed, failed]
+                          description: Status of the assessment
+                        profileUpdated:
+                          type: boolean
+                          description: Whether the profile was updated
       '400':
         $ref: '../components/responses/common.yaml#/ValidationError'
       '401':
