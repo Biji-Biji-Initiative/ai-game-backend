@@ -2,12 +2,14 @@
 // console.log('[container/index.js] Module execution START');
 
 import { DIContainer } from "#app/core/infra/di/DIContainer.js";
+// Import the actual Logger class
+import { Logger } from "#app/core/infra/logging/logger.js"; 
 import infrastructure from "#app/config/container/infrastructure.js";
 import repositories from "#app/config/container/repositories.js";
 import services from "#app/config/container/services.js";
 import coordinators from "#app/config/container/coordinators.js";
 import controllers from "#app/config/container/controllers.js";
-import routes from "#app/config/container/routes.js";
+// Removed routes import as we're using directRoutes.js instead
 import { registerAIComponents } from "#app/config/container/ai.js";
 import constants from "#app/config/container/constants.js";
 'use strict';
@@ -19,7 +21,7 @@ const { registerRepositoryComponents } = repositories;
 const { registerServiceComponents } = services;
 const { registerCoordinatorComponents } = coordinators;
 const { registerControllerComponents } = controllers;
-const { registerRouteComponents } = routes;
+// Removed registerRouteComponents - using direct mounting instead
 const { registerConstants } = constants;
 // console.log('[container/index.js] Finished extracting registration functions.');
 
@@ -29,38 +31,25 @@ const { registerConstants } = constants;
  * @returns {DIContainer} - The initialized DI container
  */
 function createContainer(config) {
-    // console.log('[container/index.js] createContainer function START');
-    // console.log('[container/index.js] Creating new DIContainer instance...');
     const container = new DIContainer();
-    // console.log('[container/index.js] DIContainer instance created.');
     
-    // console.log('[container/index.js] Registering \'config\'...');
+    // Create the base application logger FIRST
+    const baseLogger = new Logger('app'); 
+    container.logger = baseLogger; 
+    
     container.register('config', () => config, true);
-    // console.log('[container/index.js] \'config\' registered.');
+    container.registerInstance('logger', baseLogger); 
 
-    // console.log('[container/index.js] Registering component modules...');
-    container
-        .registerModule(registerConstants)
-        .registerModule(registerInfrastructureComponents)
-        .registerModule(registerRepositoryComponents)
-        .registerModule(registerServiceComponents)
-        .registerModule(registerAIComponents)
-        .registerModule(registerCoordinatorComponents)
-        .registerModule(registerControllerComponents)
-        .registerModule(registerRouteComponents);
+    // Register modules in sequence - constants FIRST to ensure they're available to all services
+    container.registerModule(registerConstants, 'constants', baseLogger);
+    container.registerModule(registerInfrastructureComponents, 'infrastructure', baseLogger);
+    container.registerModule(registerRepositoryComponents, 'repositories', baseLogger);
+    container.registerModule(registerServiceComponents, 'services', baseLogger);
+    container.registerModule(registerAIComponents, 'ai', baseLogger);
+    container.registerModule(registerCoordinatorComponents, 'coordinators', baseLogger);
+    container.registerModule(registerControllerComponents, 'controllers', baseLogger);
+    // Removed routes registration as we're using directRoutes.js instead
         
-    // // Moved logs outside the chain
-    // console.log('[container/index.js] Registered Constants.');
-    // console.log('[container/index.js] Registered Infrastructure.');
-    // console.log('[container/index.js] Registered Repositories.');
-    // console.log('[container/index.js] Registered Services.');
-    // console.log('[container/index.js] Registered AI.');
-    // console.log('[container/index.js] Registered Coordinators.');
-    // console.log('[container/index.js] Registered Controllers.');
-    // console.log('[container/index.js] Registered Routes.');
-        
-    // console.log('[container/index.js] All component modules registered.');
-    // console.log('[container/index.js] createContainer function END');
     return container;
 }
 

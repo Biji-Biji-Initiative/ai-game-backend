@@ -5,6 +5,8 @@ import { initializeSupabaseClient } from "#app/core/infra/db/supabaseClient.js";
 import AppError from "#app/core/infra/errors/AppError.js";
 import CacheService from "#app/core/infra/cache/CacheService.js";
 import LogService from "#app/core/infra/logging/LogService.js";
+import EmailService from "#app/core/infra/email/EmailService.js";
+import MemoryCacheProvider from "#app/core/infra/cache/MemoryCacheProvider.js";
 import { 
     userLogger, 
     personalityLogger, 
@@ -113,6 +115,7 @@ function registerInfrastructureComponents(container, logger) {
     container.registerInstance('focusAreaLogger', registeredLogger.child('focusArea'));
     container.registerInstance('aiLogger', registeredLogger.child('ai'));
     container.registerInstance('traitsAnalysisLogger', registeredLogger.child('traitsAnalysis'));
+    container.registerInstance('refreshTokenLogger', registeredLogger.child('refreshToken'));
     registeredLogger.info('[DI Infra] Specific loggers registered.');
     
     // Register LogService
@@ -130,6 +133,15 @@ function registerInfrastructureComponents(container, logger) {
         });
     }, true); // Singleton
     registeredLogger.info('[DI Infra] LogService registered.');
+    
+    // Register EmailService
+    container.register('emailService', c => {
+        return new EmailService({
+            config: c.get('config'),
+            logger: c.get('logger').child({ service: 'EmailService' })
+        });
+    }, true); // Singleton
+    registeredLogger.info('[DI Infra] EmailService registered.');
 
     // 2b. Event Bus 
     const resolvedDbInstance = dbInstance; 
@@ -193,11 +205,21 @@ function registerInfrastructureComponents(container, logger) {
     // 2c. Cache Service
     container.register('cacheService', c => {
         const cacheLogger = c.get('infraLogger').child({ service: 'CacheService' });
-        return new CacheService({
-            provider: appConfig.cache?.provider || 'memory', 
-            options: appConfig.cache?.options || {},
+        
+        // Create a memory cache provider instance
+        const memoryProvider = new MemoryCacheProvider({
+            ttl: appConfig.cache?.defaultTTL || 300,
+            checkPeriod: appConfig.cache?.checkPeriod || 60,
+            useClones: (appConfig.cache?.useClones || 'false') === 'true',
+            enablePatterns: (appConfig.cache?.enablePatterns || 'true') === 'true'
+        });
+        
+        return new CacheService(memoryProvider, {
             logger: cacheLogger,
-            defaultTTL: appConfig.cache?.defaultTTL || 300 
+            defaultTTL: appConfig.cache?.defaultTTL || 300,
+            logHits: (appConfig.cache?.logHits || 'true') === 'true',
+            logMisses: (appConfig.cache?.logMisses || 'true') === 'true',
+            enabled: (appConfig.cache?.enabled || 'true') === 'true'
         });
     }, true); // Singleton
     container.register('configCache', c => c.get('cacheService'), true); // Alias config cache
@@ -233,6 +255,37 @@ function registerInfrastructureComponents(container, logger) {
             validateBody: validationModule.validateBody,
             validateQuery: validationModule.validateQuery,
             validateParams: validationModule.validateParams
+        };
+    }, true); // Singleton
+    
+    // Register authentication middleware
+    infraLogger.info('Registering authentication middleware...');
+    container.register('authMiddleware', async c => {
+        // Use dynamic import for ESM compatibility
+        const authMiddlewareModule = await import('#app/core/infra/http/middleware/auth.js');
+        const { createAuthMiddleware, requireAdmin, addRequestId } = authMiddlewareModule;
+        
+        // Get the supabase client
+        const supabase = c.get('db');
+        if (!supabase) {
+            throw new Error('Supabase client not available for authMiddleware');
+        }
+        
+        return {
+            authenticateUser: createAuthMiddleware(supabase),
+            requireAdmin,
+            addRequestId
+        };
+    }, true); // Singleton
+
+    // Register Sentry services
+    infraLogger.info('Registering Sentry error monitoring services...');
+    container.register('sentryService', async c => {
+        const sentryModule = await import('#app/config/setup/sentry.js');
+        return {
+            captureException: sentryModule.captureException,
+            setUser: sentryModule.setUser,
+            clearUser: sentryModule.clearUser
         };
     }, true); // Singleton
 

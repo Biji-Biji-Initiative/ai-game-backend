@@ -1,4 +1,3 @@
-// Types improved by ts-improve-types
 /**
  * Domain Event Manager
  *
@@ -6,13 +5,13 @@
  * and filtering capabilities.
  */
 
-import { logger } from '../utils/logger';
+import { ComponentLogger, Logger } from '../core/Logger';
 
 export interface DomainEvent {
   id: string;
   type: string;
   timestamp: string;
-  payload: any;
+  payload: unknown;
   source?: string;
   correlationId?: string;
 }
@@ -25,20 +24,22 @@ export class DomainEventManager {
   private events: DomainEvent[] = [];
   private options: DomainEventManagerOptions;
   private eventListeners: Map<string, Function[]> = new Map();
+  private logger: ComponentLogger;
 
   /**
    * Constructor
    * @param options Configuration options
    */
-  constructor(option: DomainEventManagerOptions = {}) {
-    this.options = options; // Property added
+  constructor(options: DomainEventManagerOptions = {}) {
+    this.options = options;
+    this.logger = Logger.getLogger('DomainEventManager');
   }
 
   /**
    * Initialize the manager
    */
   initialize(): void {
-    logger.info('Domain Event Manager initialized');
+    this.logger.info('Domain Event Manager initialized');
   }
 
   /**
@@ -46,15 +47,22 @@ export class DomainEventManager {
    * @param log Log entry to check
    * @returns True if log is a domain event
    */
-  isDomainEventLog(lo: anyg): boolean {
-    return log && typeof log === 'object' && log.type && log.timestamp && log.payload;
+  isDomainEventLog(log: unknown): boolean {
+    if (!log || typeof log !== 'object') {
+      return false;
+    }
+    
+    const obj = log as Record<string, unknown>;
+    return 'type' in obj && 
+           'timestamp' in obj && 
+           'payload' in obj;
   }
 
   /**
    * Add a domain event
    * @param event Domain event to add
    */
-  addEvent(even: DomainEvent): void {
+  addEvent(event: DomainEvent): void {
     this.events.push(event);
 
     // Notify listeners
@@ -66,7 +74,7 @@ export class DomainEventManager {
     this.emit('eventAdded', event);
     this.emit(event.type, event);
 
-    logger.debug('Domain event received:', event);
+    this.logger.debug('Domain event received:', event);
   }
 
   /**
@@ -82,7 +90,7 @@ export class DomainEventManager {
    * @param type Event type
    * @returns Events matching the type
    */
-  getEventsByType(typ: string): DomainEvent[] {
+  getEventsByType(type: string): DomainEvent[] {
     return this.events.filter(event => event.type === type);
   }
 
@@ -91,7 +99,7 @@ export class DomainEventManager {
    * @param source Event source
    * @returns Events matching the source
    */
-  getEventsBySource(sourc: string): DomainEvent[] {
+  getEventsBySource(source: string): DomainEvent[] {
     return this.events.filter(event => event.source === source);
   }
 
@@ -100,7 +108,7 @@ export class DomainEventManager {
    * @param correlationId Correlation ID
    * @returns Events matching the correlation ID
    */
-  getEventsByCorrelationId(correlationI: string): DomainEvent[] {
+  getEventsByCorrelationId(correlationId: string): DomainEvent[] {
     return this.events.filter(event => event.correlationId === correlationId);
   }
 
@@ -108,9 +116,9 @@ export class DomainEventManager {
    * Clear all domain events
    */
   clearEvents(): void {
-    this.events = []; // Property added
+    this.events = [];
     this.emit('eventsCleared');
-    logger.debug('Domain events cleared');
+    this.logger.debug('Domain events cleared');
   }
 
   /**
@@ -118,7 +126,7 @@ export class DomainEventManager {
    * @param event Domain event to format
    * @returns Formatted HTML string
    */
-  formatDomainEventDetails(even: DomainEvent): string {
+  formatDomainEventDetails(event: DomainEvent): string {
     if (!event) return '<div class="text-text-muted">No event data</div>';
 
     const timestamp = new Date(event.timestamp).toLocaleString();
@@ -160,7 +168,7 @@ export class DomainEventManager {
    * Handle a batch of logs from the backend
    * @param logs Array of log entries
    */
-  handleBackendLogs(log: anys[]): void {
+  handleBackendLogs(logs: unknown[]): void {
     if (!Array.isArray(logs)) return;
 
     logs.forEach(log => {
@@ -175,7 +183,7 @@ export class DomainEventManager {
    * @param event Event name
    * @param callback Callback function
    */
-  on(even: string, callback: Function): void {
+  on(event: string, callback: Function): void {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, []);
     }
@@ -188,7 +196,7 @@ export class DomainEventManager {
    * @param event Event name
    * @param callback Callback function
    */
-  off(even: string, callback: Function): void {
+  off(event: string, callback: Function): void {
     if (!this.eventListeners.has(event)) return;
 
     const callbacks = this.eventListeners.get(event) || [];
@@ -204,7 +212,7 @@ export class DomainEventManager {
    * @param event Event name
    * @param data Event data
    */
-  private emit(even: string, data?: any): void {
+  private emit(event: string, data?: unknown): void {
     if (!this.eventListeners.has(event)) return;
 
     const callbacks = this.eventListeners.get(event) || [];
@@ -212,7 +220,7 @@ export class DomainEventManager {
       try {
         callback(data);
       } catch (error) {
-        logger.error(`Error in domain event listener for ${event}:`, error);
+        this.logger.error(`Error in domain event listener for ${event}:`, error);
       }
     });
   }

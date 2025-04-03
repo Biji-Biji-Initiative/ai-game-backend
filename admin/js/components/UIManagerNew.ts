@@ -6,7 +6,7 @@
 
 import { UIManagerOptions, ToastOptions, ModalOptions } from '../types/ui';
 import { logger } from '../utils/logger';
-import { ResponseViewer } from './ResponseViewer';
+import { ResponseViewer } from '../ui/response-viewer';
 import {
   addEventListeners,
   findElement,
@@ -18,7 +18,25 @@ import {
 import { RequestInfo } from '../types/app-types';
 import { AuthState } from '../modules/auth-manager';
 import { escapeHtml } from '../utils/string-utils';
-import { DomainStateViewer } from './DomainStateViewer';
+import { DomainStateViewer } from '../ui/domain-state-viewer';
+import { EventBus } from '../core/EventBus';
+
+interface DomainStateViewerInterface {
+  render(): void;
+  clear(): void;
+  refresh(): void;
+  setEntityTypes(types: string[]): void;
+  getEntityTypes(): string[];
+  setFilter(filter: string): void;
+  clearFilter(): void;
+  selectEntity(id: string): void;
+  deselectEntity(): void;
+  getSelectedEntity(): string | null;
+  getSelectedEntityData(): unknown | null;
+  selectedEntityTypes: string[];
+  addEventListener(event: string, handler: (data: unknown[] | Record<string, unknown>) => void): void;
+  removeEventListener(event: string, handler: (data: unknown[] | Record<string, unknown>) => void): void;
+}
 
 /**
  * UI Manager Interface
@@ -79,11 +97,12 @@ export class UIManager implements IUIManager {
   private activeToasts: HTMLElement[] = [];
   private activeModals: HTMLElement[] = [];
   private theme = 'light';
-  private eventListeners: Map<string, Set<Function>> = new Map();
+  private eventListeners: Map<string, Set<((...args: unknown[]) => void)>> = new Map();
   private elements: Map<string, HTMLElement> = new Map();
   private isInitialized = false;
-  private responseViewer: ResponseViewer | null;
-  private domainStateViewer: DomainStateViewer | null;
+  private responseViewer: ResponseViewer | null = null;
+  private domainStateViewer: DomainStateViewerInterface | null = null;
+  private eventBus: EventBus;
 
   /**
    * Creates a new UIManager instance
@@ -97,19 +116,23 @@ export class UIManager implements IUIManager {
       loadingOverlayId: 'loading-overlay',
       modalContainerId: 'modal-container',
       debug: false,
-      responseViewer: null, // Add default for responseViewer if expected in UIManagerOptions
-      domainStateViewer: null, // Add default for domainStateViewer if expected
-      onUiReady: () => {}, // Add default for onUiReady if expected
-      ...option, // Spread the passed options correctly
+      responseViewer: null,
+      domainStateViewer: null,
+      onUiReady: () => {},
+      ...option,
     };
 
     this.container = null;
     this.toastContainer = null;
     this.loadingOverlay = null;
     this.modalContainer = null;
-    // Use this.options to access the merged options
-    this.responseViewer = this.options.responseViewer;
-    this.domainStateViewer = this.options.domainStateViewer;
+    
+    // Use provided EventBus or get the singleton instance
+    this.eventBus = this.options.eventBus || EventBus.getInstance();
+    
+    // Initialize viewers with null-coalescing operator
+    this.responseViewer = this.options.responseViewer ?? null;
+    this.domainStateViewer = this.options.domainStateViewer ?? null;
 
     this.initElements();
   }
@@ -658,17 +681,20 @@ export class UIManager implements IUIManager {
   private getFormData(formElement: HTMLFormElement): Record<string, unknown> {
     const formData = new FormData(formElement);
     const data: Record<string, unknown> = {};
+
     formData.forEach((value, key) => {
-      // Handle multiple values for the same key (e.g., checkboxes)
-      if (data.hasOwnProperty(key)) {
-        if (!Array.isArray(data[key])) {
-          data[key] = [data[key]];
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        const currentValue = data[key];
+        if (Array.isArray(currentValue)) {
+          currentValue.push(value);
+        } else {
+          data[key] = [currentValue, value];
         }
-        (data[key] as any[]).push(value);
       } else {
         data[key] = value;
       }
     });
+
     return data;
   }
 
@@ -809,44 +835,64 @@ export class UIManager implements IUIManager {
   }
 
   /**
-   * Adds an event listener
+   * Add an event listener
    * @param event Event name
-   * @param callback Callback function
+   * @param callback Event handler function
    */
-  public addEventListener(event: string, callback: Function): void {
+  public addEventListener(event: string, callback: (...args: unknown[]) => void): void {
+    // For backward compatibility, keep the old system
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, new Set());
     }
-    this.eventListeners.get(event)?.add(callback);
+    const listeners = this.eventListeners.get(event);
+    if (listeners) {
+      listeners.add(callback);
+    }
+    
+    // Also register with the EventBus
+    this.eventBus.on(event, callback);
   }
 
   /**
-   * Removes an event listener
+   * Remove an event listener
    * @param event Event name
-   * @param callback Callback function
+   * @param callback Event handler function to remove
    */
-  public removeEventListener(event: string, callback: Function): void {
-    if (this.eventListeners.has(event)) {
-      const listeners = this.eventListeners.get(event);
-      if (listeners) {
-        listeners.delete(callback);
-        if (listeners.size === 0) {
-          this.eventListeners.delete(event);
-        }
+  public removeEventListener(event: string, callback: (...args: unknown[]) => void): void {
+    // Remove from the old system
+    const listeners = this.eventListeners.get(event);
+    if (listeners) {
+      listeners.delete(callback);
+      if (listeners.size === 0) {
+        this.eventListeners.delete(event);
       }
     }
+    
+    // Also remove from the EventBus
+    this.eventBus.off(event, callback);
   }
 
   /**
    * Emits an event to all registered listeners
    * @param event The event name
    * @param data The data associated with the event
+   * @deprecated Use eventBus.emit() instead
    */
-  private emit(event: string, data: any[] | Record<string, unknown> | null = null): void {
+  private emit(event: string, data: Record<string, unknown> | unknown[] | null = null): void {
+    // Emit on the old system
     const listeners = this.eventListeners.get(event);
     if (listeners) {
-      listeners.forEach(callback => callback(data));
+      listeners.forEach(callback => {
+        try {
+          callback(data);
+        } catch (error) {
+          logger.error(`Error in event listener for ${event}:`, error);
+        }
+      });
     }
+    
+    // Also emit on the EventBus
+    this.eventBus.emit(event, data);
   }
 
   /**
@@ -926,25 +972,13 @@ export class UIManager implements IUIManager {
    * @param domainState The current domain state object.
    * @param diffs Optional diff object highlighting changes.
    */
-  public updateDomainStateView(domainStat: Record<string, unknown>, diffs?: any): void {
-    logger.debug('Updating Domain State View', domainStat, diffs);
-
-    // The DomainStateViewer component should update itself by listening to
-    // events from DomainStateManager. Calling a method here might be redundant
-    // or cause issues if the viewer instance isn't correctly passed/managed.
-    // Commenting out the direct call for now.
-    /*
+  public updateDomainStateView(
+    domainState: Record<string, unknown>,
+    diffs?: Array<{path: string; oldValue: unknown; newValue: unknown}>,
+  ): void {
     if (this.domainStateViewer) {
-        this.domainStateViewer.updateState(domainStat, diffs);
-    } else {
-      logger.warn('DomainStateViewer not available in UIManager for updateDomainStateView');
+      this.domainStateViewer.refresh();
+      this.emit('domainStateUpdated', { domainState, diffs });
     }
-    */
-    // If direct updates are needed later, ensure domainStateViewer is correctly passed
-    // in UIManagerOptions and that DomainStateViewer has the expected update method.
-    logger.info('UIManager received domain state update, viewer should update via events.', {
-      domainStat,
-      diffs,
-    });
   }
 }

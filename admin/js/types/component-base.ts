@@ -5,6 +5,8 @@
  * This file defines the base interfaces for all components in the application.
  */
 
+import { EventBus } from '../core/EventBus';
+
 /**
  * Base component interface
  * Provides common methods and properties for all components
@@ -12,7 +14,7 @@
 
 /**
  * Base Component Interface
- * 
+ *
  * Defines the basic contract for all components in the application
  */
 export interface Component {
@@ -79,45 +81,15 @@ export interface ComponentOptions {
    * Additional configuration
    */
   config?: Record<string, unknown>;
+
+  /**
+   * Event bus instance
+   */
+  eventBus?: EventBus;
 }
 
-/**
- * Event handler type for components
- */
+// Type for event handler functions
 export type EventHandler<T = unknown> = (data: T) => void;
-
-/**
- * Event bus interface for communication between components
- */
-export interface EventBus {
-  /**
-   * Subscribe to an event
-   * @param event Event name
-   * @param handler Event handler
-   */
-  subscribe<T = unknown>(event: string, handler: EventHandler<T>): void;
-
-  /**
-   * Unsubscribe from an event
-   * @param event Event name
-   * @param handler Event handler to remove
-   */
-  unsubscribe<T = unknown>(event: string, handler: EventHandler<T>): void;
-
-  /**
-   * Publish an event
-   * @param event Event name
-   * @param data Event data
-   */
-  publish<T = unknown>(event: string, data?: T): void;
-
-  /**
-   * Emit an event (alias for publish)
-   * @param event Event name
-   * @param data Event data
-   */
-  emit<T = unknown>(event: string, data?: T): void;
-}
 
 /**
  * Base interface for data managers
@@ -165,9 +137,13 @@ export interface DataManager<T> extends Component, EventEmitter {
 export abstract class BaseComponent implements Component, EventEmitter {
   protected readonly eventListeners: Map<string, Set<(data?: unknown) => void>> = new Map();
   protected initialized = false;
+  protected eventBus: EventBus;
+  protected componentName: string;
 
-  constructor() {
+  constructor(options?: ComponentOptions) {
     this.eventListeners = new Map();
+    this.eventBus = options?.eventBus || EventBus.getInstance();
+    this.componentName = this.constructor.name;
   }
 
   /**
@@ -181,6 +157,8 @@ export abstract class BaseComponent implements Component, EventEmitter {
    * @param handler Event handler function
    */
   addEventListener(event: string, handler: (data?: unknown) => void): void {
+    // For backward compatibility, we register with both systems
+    // Internal event system (deprecated)
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, new Set());
     }
@@ -188,6 +166,9 @@ export abstract class BaseComponent implements Component, EventEmitter {
     if (listeners) {
       listeners.add(handler);
     }
+    
+    // New EventBus system
+    this.eventBus.on(event, handler);
   }
 
   /**
@@ -196,6 +177,7 @@ export abstract class BaseComponent implements Component, EventEmitter {
    * @param handler Event handler function to remove
    */
   removeEventListener(event: string, handler: (data?: unknown) => void): void {
+    // Internal event system (deprecated)
     const listeners = this.eventListeners.get(event);
     if (listeners) {
       listeners.delete(handler);
@@ -203,14 +185,19 @@ export abstract class BaseComponent implements Component, EventEmitter {
         this.eventListeners.delete(event);
       }
     }
+    
+    // New EventBus system
+    this.eventBus.off(event, handler);
   }
 
   /**
    * Emit an event
    * @param event Event name
    * @param data Event data
+   * @deprecated Use this.eventBus.emit() instead
    */
   protected emit(event: string, data: Record<string, unknown> | null = null): void {
+    // Internal event system (deprecated)
     const listeners = this.eventListeners.get(event);
     if (listeners) {
       listeners.forEach(handler => {
@@ -221,6 +208,9 @@ export abstract class BaseComponent implements Component, EventEmitter {
         }
       });
     }
+    
+    // Also emit on the EventBus
+    this.eventBus.emit(event, data);
   }
 
   /**
@@ -245,7 +235,7 @@ export class ComponentBase extends BaseComponent {
    * @param options Component options
    */
   constructor(options: ComponentOptions = {}) {
-    super();
+    super(options);
     this.options = {
       debug: false,
       ...options,
@@ -265,10 +255,10 @@ export class ComponentBase extends BaseComponent {
     }
 
     if (this.options.debug) {
-      console.debug(`Initializing ${this.constructor.name}`);
+      console.debug(`Initializing ${this.componentName}`);
     }
 
     this.initialized = true;
-    this.emit('initialized', { component: this });
+    this.eventBus.emit('initialized', { component: this });
   }
 }

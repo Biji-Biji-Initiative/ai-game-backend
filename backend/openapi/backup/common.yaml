@@ -1,0 +1,112 @@
+UnauthorizedError:
+  description: Authentication information is missing or invalid
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          success:
+            type: boolean
+            example: false
+          message:
+            type: string
+            example: Unauthorized - Invalid or missing token
+
+NotFoundError:
+  description: The specified resource was not found
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          success:
+            type: boolean
+            example: false
+          message:
+            type: string
+            example: Resource not found
+
+ValidationError:
+  description: The request data failed validation
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          success:
+            type: boolean
+            example: false
+          message:
+            type: string
+            example: Validation error
+          errors:
+            type: array
+            items:
+              type: object
+              properties:
+                field:
+                  type: string
+                message:
+                  type: string
+
+RateLimitError:
+  description: Too many requests, rate limit exceeded
+  headers:
+    X-RateLimit-Limit:
+      schema:
+        type: integer
+      description: Request limit per hour
+    X-RateLimit-Remaining:
+      schema:
+        type: integer
+      description: Remaining requests in the current period
+    X-RateLimit-Reset:
+      schema:
+        type: integer
+        format: unix-time
+      description: Time when the rate limit resets
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          success:
+            type: boolean
+            example: false
+          message:
+            type: string
+            example: Rate limit exceeded
+          retryAfter:
+            type: integer
+            example: 30
+            description: Seconds to wait before retrying
+
+PaginatedResponse:
+  description: A paginated list of items
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          success:
+            type: boolean
+            example: true
+          data:
+            type: array
+            items:
+              type: object
+          pagination:
+            type: object
+            properties:
+              total:
+                type: integer
+                description: Total number of items available
+              limit:
+                type: integer
+                description: Number of items per page
+              offset:
+                type: integer
+                description: Current offset from the first item
+              hasMore:
+                type: boolean
+                description: Whether more items are available 

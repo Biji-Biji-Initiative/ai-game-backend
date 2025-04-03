@@ -3,14 +3,14 @@
  * Domain state manager types
  */
 
-import { ApiClient } from '../services/api-client'; // Assuming ApiClient is here
+import { APIClient } from '../api/api-client'; // Fixed import from correct location
 
 /**
  * Domain State Manager Options
  */
 export interface DomainStateManagerOptions {
   containerId?: string;
-  apiClient?: ApiClient;
+  apiClient?: APIClient;
   localStorageKey?: string;
   autoSave?: boolean;
   diffingEnabled?: boolean;

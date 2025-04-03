@@ -6,18 +6,12 @@
 
 import { formatJSON } from '../utils/json-utils';
 import { escapeHtml } from '../utils/string-utils';
-import {
-  setHTML,
-  createElement,
-  ExtendedElementCreationOptions,
-  getById,
-} from '../utils/dom-utils';
-import { logger } from '../utils/logger';
+import { ComponentLogger, Logger } from '../core/Logger';
 import { ComponentBase } from '../types/component-base';
 
 // Define a minimal JSONFormatter interface to avoid TypeScript errors
 interface JSONFormatterInterface {
-  new (dat: any[] | Record<string, unknown>): {
+  new (data: Record<string, unknown> | unknown[]): {
     render(): HTMLElement;
   };
 }
@@ -40,7 +34,7 @@ export interface ResponseData {
   status: number;
   statusText: string;
   headers: Record<string, string>;
-  body: any;
+  body: unknown;
   time?: number;
   size?: number;
   url?: string;
@@ -81,6 +75,7 @@ export class ResponseViewer extends ComponentBase {
   private currentHeaders: Record<string, string>;
   private currentStatus: number;
   private formatter: JSONFormatterInterface | null;
+  private logger: ComponentLogger;
 
   /**
    * Creates a new ResponseViewer instance
@@ -94,9 +89,9 @@ export class ResponseViewer extends ComponentBase {
       ...options,
     };
     this.container = document.getElementById(this.options.containerId || '');
-    this.responseHeaders = getById(this.options.responseHeadersId);
-    this.responseBody = getById(this.options.responseBodyId);
-    this.responseStatus = getById(this.options.responseStatusId);
+    this.responseHeaders = document.getElementById(this.options.responseHeadersId || '');
+    this.responseBody = document.getElementById(this.options.responseBodyId || '');
+    this.responseStatus = document.getElementById(this.options.responseStatusId || '');
 
     this.currentResponse = null;
     this.currentHeaders = {};
@@ -104,10 +99,8 @@ export class ResponseViewer extends ComponentBase {
     this.formatter =
       this.options.formatter ||
       (typeof window !== 'undefined' && window.JSONFormatter ? window.JSONFormatter : null);
-
-    // if (this.container) {
-    //   this.initializeUI();
-    // }
+    
+    this.logger = Logger.getLogger('ResponseViewer');
   }
 
   /**
@@ -209,7 +202,7 @@ export class ResponseViewer extends ComponentBase {
       html += '</ul>';
     }
 
-    setHTML(this.responseHeaders, html);
+    this.responseHeaders.innerHTML = html;
   }
 
   /**
@@ -234,7 +227,7 @@ export class ResponseViewer extends ComponentBase {
         this.displayTextResponse(String(body));
       }
     } catch (error) {
-      logger.error('Error displaying response body:', error);
+      this.logger.error('Error displaying response body:', error);
       this.responseBody.innerHTML = `<pre class="text-red-500">Error rendering response: ${(error as Error).message}</pre>`;
     }
   }
@@ -243,7 +236,7 @@ export class ResponseViewer extends ComponentBase {
    * Displays JSON response with formatter
    * @param json JSON object to display
    */
-  private displayJsonResponse(json: Record<string, unknown> | any[]): void {
+  private displayJsonResponse(json: Record<string, unknown> | unknown[]): void {
     if (!this.responseBody) return;
 
     // First clear any existing content
@@ -256,16 +249,15 @@ export class ResponseViewer extends ComponentBase {
         this.responseBody.appendChild(formatter.render());
         return;
       } catch (error) {
-        logger.warn('Error using JSONFormatter, falling back to basic formatting:', error);
+        this.logger.warn('Error using JSONFormatter, falling back to basic formatting:', error);
         // Fall back to basic formatting if JSONFormatter fails
       }
     }
 
     // Use basic JSON formatting as fallback
     const formattedJson = formatJSON(JSON.stringify(json));
-    const wrapper = createElement<HTMLDivElement>('div', {
-      class: 'json-viewer overflow-auto',
-    } as ExtendedElementCreationOptions);
+    const wrapper = document.createElement('div');
+    wrapper.className = 'json-viewer overflow-auto';
     wrapper.innerHTML = formattedJson;
     this.responseBody.appendChild(wrapper);
   }
@@ -281,15 +273,13 @@ export class ResponseViewer extends ComponentBase {
 
     if (isHtml) {
       // Create a safe iframe container
-      const iframeContainer = createElement<HTMLDivElement>('div', {
-        class: 'iframe-container w-full',
-      } as ExtendedElementCreationOptions);
+      const iframeContainer = document.createElement('div');
+      iframeContainer.className = 'iframe-container w-full';
 
       // Create iframe with proper sandbox attributes for security
-      const iframe = createElement<HTMLIFrameElement>('iframe', {
-        class: 'w-full h-96 border border-gray-300 rounded',
-        sandbox: 'allow-same-origin',
-      } as ExtendedElementCreationOptions);
+      const iframe = document.createElement('iframe');
+      iframe.className = 'w-full h-96 border border-gray-300 rounded';
+      iframe.sandbox = 'allow-same-origin';
 
       // Clear previous content and append new iframe
       this.responseBody.innerHTML = '';
@@ -309,13 +299,11 @@ export class ResponseViewer extends ComponentBase {
           }
         } catch (error) {
           // Fallback if iframe access fails
-          logger.error('Error rendering HTML in iframe:', error);
+          this.logger.error('Error rendering HTML in iframe:', error);
 
           // Show as text instead
-          const pre = createElement<HTMLPreElement>('pre', {
-            class: 'bg-gray-100 p-4 rounded overflow-auto text-sm',
-          } as ExtendedElementCreationOptions);
-
+          const pre = document.createElement('pre');
+          pre.className = 'bg-gray-100 p-4 rounded overflow-auto text-sm';
           pre.textContent = text;
           if (this.responseBody) {
             this.responseBody.innerHTML = '';
@@ -325,10 +313,8 @@ export class ResponseViewer extends ComponentBase {
       }, 0);
     } else {
       // Display as preformatted text
-      const pre = createElement<HTMLPreElement>('pre', {
-        class: 'bg-gray-100 p-4 rounded overflow-auto text-sm',
-      } as ExtendedElementCreationOptions);
-
+      const pre = document.createElement('pre');
+      pre.className = 'bg-gray-100 p-4 rounded overflow-auto text-sm';
       pre.textContent = text;
       this.responseBody.innerHTML = '';
       this.responseBody.appendChild(pre);

@@ -27,18 +27,19 @@ function initializeSupabaseClient(config, initLogger = logger) {
     const supabaseUrl = config?.supabase?.url || process.env.SUPABASE_URL;
     let supabaseKey;
 
-    if (process.env.NODE_ENV === 'production') {
-      supabaseKey = config?.supabase?.serviceRoleKey || process.env.SUPABASE_SERVICE_ROLE_KEY;
-      if (!supabaseKey) {
+    // Always prefer service role for backend server operations to bypass RLS
+    supabaseKey = config?.supabase?.serviceRoleKey || process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    // Fall back to anon key only if service role is unavailable
+    if (!supabaseKey) {
+      if (process.env.NODE_ENV === 'production') {
         throw new Error('SUPABASE_SERVICE_ROLE_KEY (or config.supabase.serviceRoleKey) is required in production');
+      } else {
+        supabaseKey = config?.supabase?.anonKey || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY;
+        initLogger.warn('Using anon/dev key for Supabase. Some operations may fail due to RLS policies.');
       }
-      initLogger.info('Using service role key for Supabase in production.');
     } else {
-      supabaseKey = config?.supabase?.anonKey || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY;
-       if (!supabaseKey) {
-        throw new Error('Anon key (SUPABASE_ANON_KEY/config.supabase.anonKey) or SUPABASE_KEY is required in non-production');
-      }
-      initLogger.info('Using anon/dev key for Supabase in non-production.');
+      initLogger.info('Using service role key for Supabase (bypasses RLS).');
     }
 
     if (!supabaseUrl) {

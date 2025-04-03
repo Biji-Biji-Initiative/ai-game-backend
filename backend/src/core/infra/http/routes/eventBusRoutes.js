@@ -1,7 +1,5 @@
 import express from 'express';
 import { requireAdmin } from "#app/core/infra/http/middleware/auth.js";
-import { robustEventBus } from "#app/core/common/events/RobustEventBus.js";
-import { deadLetterQueueService } from "#app/core/common/events/DeadLetterQueueService.js";
 import { logger } from "#app/core/infra/logging/logger.js";
 import { createValidationMiddleware } from "#app/core/infra/http/middleware/validationFactory.js";
 import { z } from "zod";
@@ -30,9 +28,13 @@ const retryAllSchema = z.object({
  * 
  * Provides monitoring and management endpoints for the event bus system,
  * including Dead Letter Queue management.
+ * @param {Object} options - Dependencies
+ * @param {Object} options.deadLetterQueueService - DLQ service instance
+ * @param {Object} options.eventBus - Event bus instance
  */
-export default function eventBusRoutes() {
+export default function eventBusRoutes(options = {}) {
   const router = express.Router();
+  const { deadLetterQueueService, eventBus } = options;
   
   // Apply authentication and admin middleware to all routes
   router.use(requireAdmin);
@@ -43,7 +45,7 @@ export default function eventBusRoutes() {
    */
   router.get('/metrics', (req, res) => {
     try {
-      const metrics = robustEventBus.getMetrics();
+      const metrics = eventBus.getMetrics();
       res.json({
         success: true,
         data: metrics
@@ -70,7 +72,7 @@ export default function eventBusRoutes() {
       if (correlationId) options.correlationId = correlationId;
       if (limit) options.limit = parseInt(limit, 10);
       
-      const history = robustEventBus.getEventHistory(options);
+      const history = eventBus.getEventHistory(options);
       
       res.json({
         success: true,
@@ -101,7 +103,7 @@ export default function eventBusRoutes() {
         if (limit) options.limit = limit;
         if (offset) options.offset = offset;
         
-        const failedEvents = await robustEventBus.getFailedEvents(options);
+        const failedEvents = await eventBus.getFailedEvents(options);
         
         res.json({
           success: true,
@@ -129,7 +131,7 @@ export default function eventBusRoutes() {
       try {
         const { id } = req.params;
         
-        const success = await robustEventBus.retryFromDLQ(id);
+        const success = await eventBus.retryFromDLQ(id);
         
         res.json({
           success,
@@ -160,7 +162,7 @@ export default function eventBusRoutes() {
         if (status) options.status = status;
         if (eventName) options.eventName = eventName;
         
-        const results = await robustEventBus.retryFailedEvents(options);
+        const results = await eventBus.retryFailedEvents(options);
         
         res.json({
           success: true,

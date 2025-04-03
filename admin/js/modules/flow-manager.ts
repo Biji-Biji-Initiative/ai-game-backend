@@ -320,31 +320,42 @@ export class FlowManager {
       if (typeof body === 'string') {
         fetchOptions.body = body;
         // Might need to set Content-Type if it wasn't set in headers
-        if (!fetchOptions.headers || !(fetchOptions.headers as Record<string,string>)['Content-Type']) {
-            if (!fetchOptions.headers) fetchOptions.headers = {};
-            (fetchOptions.headers as Record<string,string>)['Content-Type'] = 'text/plain';
+        if (
+          !fetchOptions.headers ||
+          !(fetchOptions.headers as Record<string, string>)['Content-Type']
+        ) {
+          if (!fetchOptions.headers) fetchOptions.headers = {};
+          (fetchOptions.headers as Record<string, string>)['Content-Type'] = 'text/plain';
         }
-      } else if (body instanceof Blob || body instanceof FormData || body instanceof URLSearchParams || typeof (body as any).pipe === 'function') {
+      } else if (
+        body instanceof Blob ||
+        body instanceof FormData ||
+        body instanceof URLSearchParams ||
+        typeof (body as any).pipe === 'function'
+      ) {
         // Directly assign if it's a known BodyInit type (Blob, FormData, etc.)
         fetchOptions.body = body as BodyInit;
         // Content-Type is typically set automatically by fetch for these types
       } else if (typeof body === 'object') {
         // Stringify other objects as JSON
         try {
-            fetchOptions.body = JSON.stringify(body);
-            if (!fetchOptions.headers) fetchOptions.headers = {};
-            (fetchOptions.headers as Record<string,string>)['Content-Type'] = 'application/json';
+          fetchOptions.body = JSON.stringify(body);
+          if (!fetchOptions.headers) fetchOptions.headers = {};
+          (fetchOptions.headers as Record<string, string>)['Content-Type'] = 'application/json';
         } catch (e) {
-            logger.error('Failed to stringify request body:', e);
-            throw new Error('Invalid request body object');
+          logger.error('Failed to stringify request body:', e);
+          throw new Error('Invalid request body object');
         }
       } else {
-          // Convert other primitives to string
-          fetchOptions.body = String(body);
-          if (!fetchOptions.headers || !(fetchOptions.headers as Record<string,string>)['Content-Type']) {
-              if (!fetchOptions.headers) fetchOptions.headers = {};
-              (fetchOptions.headers as Record<string,string>)['Content-Type'] = 'text/plain';
-          }
+        // Convert other primitives to string
+        fetchOptions.body = String(body);
+        if (
+          !fetchOptions.headers ||
+          !(fetchOptions.headers as Record<string, string>)['Content-Type']
+        ) {
+          if (!fetchOptions.headers) fetchOptions.headers = {};
+          (fetchOptions.headers as Record<string, string>)['Content-Type'] = 'text/plain';
+        }
       }
     }
 

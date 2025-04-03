@@ -7,6 +7,7 @@ import { UserNotFoundError, UserValidationError, UserError } from "#app/core/use
 import { BaseRepository, EntityNotFoundError, ValidationError, DatabaseError } from "#app/core/infra/repositories/BaseRepository.js";
 import { withRepositoryErrorHandling, createErrorMapper, createErrorCollector } from "#app/core/infra/errors/errorStandardization.js";
 import { EventTypes } from "#app/core/common/events/eventTypes.js";
+import { v4 as uuidv4 } from 'uuid';
 
 // Create an error mapper for the user domain
 const userErrorMapper = createErrorMapper({
@@ -24,29 +25,35 @@ class UserRepository extends BaseRepository {
      * @param {Object} options - Repository options
      * @param {Object} options.db - Database client
      * @param {Object} options.logger - Logger instance
-     * @param {Object} options.eventBus - Event bus instance (INJECTED)
+     * @param {Object} options.eventBus - Event bus instance
      */
     constructor(options = {}) {
         super({
-            db: options.db, // Expect db to be provided via dependency injection
+            db: options.db,
             tableName: 'users',
             domainName: 'user',
             logger: options.logger,
             maxRetries: 3,
         });
+        
+        // Revert validation changes
+        if (!options.db) {
+            // Throw if critical dependency is missing during construction
+            // Log if db is missing
+            this.logger?.warn('No database client provided to UserRepository');
+        }
+        
+        this.db = options.db;
         this.eventBus = options.eventBus;
         this.validateUuids = true;
         
-        // Log if db is missing
-        if (!this.db) {
-            this.logger?.warn('No database client provided to UserRepository');
-        }
+        // Log warnings for optional dependencies
         if (!this.eventBus) {
-            // Decide how critical eventBus is. Warn or throw?
             this.logger?.warn('No eventBus provided to UserRepository. Domain events will not be published.');
         }
         
         // Apply standardized error handling to methods
+        // Bind methods ensures 'this' context is correct when wrapped
         this.findById = withRepositoryErrorHandling(this.findById.bind(this), {
             methodName: 'findById',
             domainName: 'user',
@@ -65,7 +72,28 @@ class UserRepository extends BaseRepository {
             logger: this.logger,
             errorMapper: userErrorMapper,
         });
-        // Apply to other methods...
+        this.delete = withRepositoryErrorHandling(this.delete.bind(this), {
+            methodName: 'delete',
+            domainName: 'user',
+            logger: this.logger,
+            errorMapper: userErrorMapper,
+        });
+        this.findAll = withRepositoryErrorHandling(this.findAll.bind(this), {
+            methodName: 'findAll',
+            domainName: 'user',
+            logger: this.logger,
+            errorMapper: userErrorMapper,
+        });
+        
+        // Add error handling for our new createMinimalUser method
+        this.createMinimalUser = withRepositoryErrorHandling(this.createMinimalUser.bind(this), {
+            methodName: 'createMinimalUser',
+            domainName: 'user',
+            logger: this.logger,
+            errorMapper: userErrorMapper,
+        });
+        
+        // Note: findByIds is not wrapped here, assumes BaseRepository handles its errors or it's called internally.
     }
     /**
      * Find a user by ID
@@ -446,6 +474,94 @@ class UserRepository extends BaseRepository {
         } catch (err) {
             this._log('error', 'Exception checking user existence', { id, error: err.message });
             return false;
+        }
+    }
+
+    /**
+     * Create a minimal user record directly, bypassing the domain model validation
+     * Intended only for the user interest registration flow
+     * 
+     * @param {Object} userData - Basic user data (email, name)
+     * @returns {Promise<Object>} - Created user database record
+     */
+    async createMinimalUser(userData) {
+        if (!userData.email || !userData.name) {
+            throw new ValidationError('Email and name are required for minimal user creation');
+        }
+        
+        try {
+            const now = new Date().toISOString();
+            const userId = uuidv4();
+            
+            // Ensure this matches the actual DB schema from migrations (id, email, name, created_at, updated_at)
+            const minimalUserData = {
+                id: userId,
+                email: userData.email,
+                name: userData.name, 
+                created_at: now,    
+                updated_at: now
+            };
+            
+            this._log('debug', 'Attempting to insert minimal user record', { 
+                email: userData.email
+            });
+            
+            // Insert using the service_role key which bypasses RLS
+            // This avoids the need to use Supabase Auth directly 
+            const { data, error } = await this.db
+                .from(this.tableName)
+                .insert(minimalUserData)
+                .select()
+                .single();
+                
+            if (error) {
+                // Log the raw database error *before* wrapping it
+                this._log('error', 'RAW DATABASE ERROR during createMinimalUser', {
+                    errorMessage: error.message,
+                    errorCode: error.code,
+                    errorDetails: error.details,
+                    errorHint: error.hint
+                });
+                
+                throw new DatabaseError(`Failed to create minimal user: ${error.message}`, {
+                    cause: error, // Pass the original error
+                    entityType: this.domainName,
+                    operation: 'createMinimalUser',
+                    details: error.details || {},
+                    code: error.code || 'UNKNOWN'
+                });
+            }
+            
+            this._log('info', 'Successfully inserted minimal user record', { userId: data.id, email: data.email });
+            return data;
+
+        } catch (error) {
+             // Catch errors thrown within the try block (like ValidationError or re-thrown DatabaseError)
+            this._log('error', 'Caught error in createMinimalUser catch block', {
+                email: userData?.email,
+                errorName: error.name,
+                errorMessage: error.message,
+                // Log additional properties if they exist
+                ...(error.cause && { cause: error.cause.message }),
+                ...(error.code && { code: error.code }),
+                ...(error.details && { details: error.details }),
+                // Avoid logging full stack in production, but useful for debug
+                stack: process.env.NODE_ENV === 'development' ? error.stack : undefined 
+            });
+            
+            // Re-throw the error to be handled by the standardized error handler 
+            // (applied via withRepositoryErrorHandling in the constructor)
+            // If it's already a DatabaseError or ValidationError, throw it as is.
+            // Otherwise, wrap it in a generic UserError.
+            if (error instanceof DatabaseError || error instanceof ValidationError) {
+                throw error;
+            } else {
+                // Wrap unexpected errors
+                throw new UserError(`Unexpected error during minimal user creation: ${error.message}`, {
+                    cause: error,
+                    metadata: { email: userData?.email }
+                });
+            }
         }
     }
 }

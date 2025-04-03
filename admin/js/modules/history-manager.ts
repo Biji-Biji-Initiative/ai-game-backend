@@ -5,6 +5,9 @@
  */
 
 import { HistoryManagerOptions } from '../types/ui';
+import { StorageService, LocalStorageService, SessionStorageService, MemoryStorageService } from '../services/StorageService';
+import { Logger } from '../core/Logger';
+import { EventBus } from '../core/EventBus';
 
 export interface HistoryEntry {
   id: string;
@@ -18,11 +21,11 @@ export interface HistoryEntry {
   request: {
     headers: Record<string, string>;
     params?: Record<string, string>;
-    body?: any;
+    body?: Record<string, unknown>;
   };
   response: {
     headers: Record<string, string>;
-    data: any[] | Record<string, unknown>;
+    data: unknown[] | Record<string, unknown>;
     size: number;
   };
 }
@@ -31,17 +34,18 @@ export interface HistoryEntry {
  * HistoryManager class
  * Manages request/response history for the API tester
  */
-export class HistoryManager extends EventTarget {
+export class HistoryManager {
   private history: HistoryEntry[] = [];
   private options: HistoryManagerOptions;
+  private storageService: StorageService;
+  private eventBus: EventBus;
+  private logger = Logger.getLogger('HistoryManager');
 
   /**
    * Constructor
    * @param options Configuration options
    */
   constructor(options: HistoryManagerOptions = {}) {
-    super();
-
     this.options = {
       maxEntries: 50,
       persistHistory: true,
@@ -53,6 +57,27 @@ export class HistoryManager extends EventTarget {
       ...options,
     };
 
+    // Initialize event bus
+    this.eventBus = options.eventBus || EventBus.getInstance();
+    
+    // Initialize the appropriate storage service based on options
+    if (options.storageService) {
+      this.storageService = options.storageService;
+    } else {
+      switch(this.options.storageType) {
+        case 'sessionStorage':
+          this.storageService = new SessionStorageService();
+          break;
+        case 'memory':
+          this.storageService = new MemoryStorageService();
+          break;
+        case 'localStorage':
+        default:
+          this.storageService = new LocalStorageService();
+          break;
+      }
+    }
+
     this.loadHistory();
   }
 
@@ -61,48 +86,28 @@ export class HistoryManager extends EventTarget {
    */
   private loadHistory(): void {
     try {
-      if (this.options.storageType === 'localStorage') {
-        const storageKey = this.options.storageKey || 'api_tester_history';
-        const storedHistory = localStorage.getItem(storageKey);
-
-        if (storedHistory) {
+      const storageKey = this.options.storageKey || 'api_tester_history';
+      const storedHistory = this.storageService.get<string | HistoryEntry[]>(storageKey);
+      
+      if (storedHistory) {
+        if (typeof storedHistory === 'string') {
           if (storedHistory.startsWith('COMPRESSED:')) {
             // Handle decompression (placeholder)
-            this.history = JSON.parse(storedHistory.substring(11)); // Property added
+            this.history = JSON.parse(storedHistory.substring(11));
           } else {
-            this.history = JSON.parse(storedHistory); // Property added
+            this.history = JSON.parse(storedHistory);
           }
-
-          // Fire event
-          this.dispatchEvent(
-            new CustomEvent('history:loaded', {
-              detail: { history: this.history },
-            }),
-          );
+        } else if (Array.isArray(storedHistory)) {
+          // If directly retrieved as array, use it
+          this.history = storedHistory;
         }
-      } else if (this.options.storageType === 'sessionStorage') {
-        const storageKey = this.options.storageKey || 'api_tester_history';
-        const storedHistory = sessionStorage.getItem(storageKey);
 
-        if (storedHistory) {
-          if (storedHistory.startsWith('COMPRESSED:')) {
-            // Handle decompression (placeholder)
-            this.history = JSON.parse(storedHistory.substring(11)); // Property added
-          } else {
-            this.history = JSON.parse(storedHistory); // Property added
-          }
-
-          // Fire event
-          this.dispatchEvent(
-            new CustomEvent('history:loaded', {
-              detail: { history: this.history },
-            }),
-          );
-        }
+        // Publish event for history loaded
+        this.eventBus.publish('history:loaded', { history: this.history });
       }
     } catch (error) {
-      console.error('Failed to load history:', error);
-      this.history = []; // Property added
+      this.logger.error('Failed to load history:', error);
+      this.history = [];
     }
   }
 
@@ -113,19 +118,14 @@ export class HistoryManager extends EventTarget {
     if (!this.options.persistHistory) return;
 
     try {
-      // Simple implementation without compression for now
-      const historyStr = JSON.stringify(this.history);
       const storageKey = this.options.storageKey || 'api_tester_history';
-
-      if (this.options.storageType === 'localStorage') {
-        localStorage.setItem(storageKey, historyStr);
-      } else if (this.options.storageType === 'sessionStorage') {
-        sessionStorage.setItem(storageKey, historyStr);
-      }
+      this.storageService.set(storageKey, this.history);
     } catch (error) {
-      console.error('Failed to save history:', error);
+      this.logger.error('Failed to save history:', error);
+      
       // If storage fails, switch to memory-only
       this.options.storageType = 'memory';
+      this.storageService = new MemoryStorageService();
     }
   }
 
@@ -177,7 +177,7 @@ export class HistoryManager extends EventTarget {
             : undefined,
         body:
           typeof requestInfo === 'object' && requestInfo !== null && 'body' in requestInfo
-            ? requestInfo.body
+            ? (requestInfo.body as Record<string, unknown>)
             : undefined,
       },
       response: {
@@ -209,18 +209,14 @@ export class HistoryManager extends EventTarget {
     // Trim history if needed
     const maxEntries = this.options.maxEntries || 50;
     if (this.history.length > maxEntries) {
-      this.history = this.history.slice(0, maxEntries); // Property added
+      this.history = this.history.slice(0, maxEntries);
     }
 
     // Save to storage
     this.saveHistory();
 
-    // Fire event
-    this.dispatchEvent(
-      new CustomEvent('history:changed', {
-        detail: { history: this.history },
-      }),
-    );
+    // Publish event
+    this.eventBus.publish('history:changed', { history: this.history });
   }
 
   /**
@@ -247,19 +243,15 @@ export class HistoryManager extends EventTarget {
    */
   deleteEntry(id: string): boolean {
     const initialLength = this.history.length;
-    this.history = this.history.filter(entry => entry.id !== id); // Property added
+    this.history = this.history.filter(entry => entry.id !== id);
 
     // Check if anything was deleted
     if (this.history.length !== initialLength) {
       // Save to storage
       this.saveHistory();
 
-      // Fire event
-      this.dispatchEvent(
-        new CustomEvent('history:changed', {
-          detail: { history: this.history },
-        }),
-      );
+      // Publish event
+      this.eventBus.publish('history:changed', { history: this.history });
 
       return true;
     }
@@ -271,18 +263,14 @@ export class HistoryManager extends EventTarget {
    * Clear all history
    */
   clearHistory(): void {
-    this.history = []; // Property added
+    this.history = [];
 
     // Save to storage
     this.saveHistory();
 
-    // Fire events
-    this.dispatchEvent(new CustomEvent('history:cleared'));
-    this.dispatchEvent(
-      new CustomEvent('history:changed', {
-        detail: { history: this.history },
-      }),
-    );
+    // Publish events
+    this.eventBus.publish('history:cleared', null);
+    this.eventBus.publish('history:changed', { history: this.history });
   }
 
   /**

@@ -55,6 +55,8 @@ paths:
     $ref: './paths/auth.yaml#/login'
   /auth/register:
     $ref: './paths/auth.yaml#/register'
+  /auth/refresh:
+    $ref: './paths/auth.yaml#/refresh'
   # Challenges paths
   /challenges:
     $ref: './paths/challenges.yaml#/challenges'

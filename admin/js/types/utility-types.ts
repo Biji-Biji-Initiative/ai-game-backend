@@ -84,7 +84,7 @@ export function applyDefaults<T>(options: Partial<T>, defaults: T): T {
  * @returns Non-empty string
  */
 export function valu(e: string | undefined | null, defaultValue: string): string {
-  return value === undefined || value === null ? defaultValue : value;
+  return e === undefined || e === null ? defaultValue : e;
 }
 
 /**
@@ -94,8 +94,8 @@ export function valu(e: string | undefined | null, defaultValue: string): string
  * @param defaultValue Default value to use if value is undefined
  * @returns Number
  */
-export function valu(e: number | undefined | null, defaultValue: number): number {
-  return value === undefined || value === null ? defaultValue : value;
+export function valNum(e: number | undefined | null, defaultValue: number): number {
+  return e === undefined || e === null ? defaultValue : e;
 }
 
 /**

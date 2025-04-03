@@ -194,15 +194,32 @@ class Logger {
     }
     /**
      * Create a child logger with a new namespace
-     * @param {string} namespace - Child namespace
+     * @param {string} namespaceOrMeta - Child namespace or metadata
      * @param {Object} options - Logger options
      * @param {string} [options.correlationId] - Correlation ID for the child logger
      * @returns {Logger} New logger instance
      */
-    child(namespace, options = {}) {
-        return new Logger(`${this.namespace}:${namespace}`, {
-            correlationId: options.correlationId || this.correlationId,
-        });
+    child(namespaceOrMeta, options = {}) {
+        let childNamespace = 'child'; // Default child identifier
+        let combinedOptions = { ...options };
+
+        if (typeof namespaceOrMeta === 'string') {
+            childNamespace = namespaceOrMeta;
+        } else if (typeof namespaceOrMeta === 'object' && namespaceOrMeta !== null) {
+            // If an object is passed first, try to find a meaningful key for the namespace
+            childNamespace = namespaceOrMeta.service || namespaceOrMeta.component || namespaceOrMeta.name || 'child';
+            // Merge this object into the options/metadata for the child logger
+            combinedOptions = { ...namespaceOrMeta, ...options }; 
+        }
+
+        // Ensure correlation ID is inherited or overridden correctly
+        const correlationId = combinedOptions.correlationId || this.correlationId;
+
+        // Construct the full namespace path
+        const fullNamespace = `${this.namespace}:${childNamespace}`;
+
+        // Create the new logger, passing combined options for potential metadata logging
+        return new Logger(fullNamespace, { ...combinedOptions, correlationId });
     }
     /**
      * Set the correlation ID for this logger instance

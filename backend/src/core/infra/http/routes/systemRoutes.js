@@ -5,6 +5,7 @@ import { EventTypes } from "#app/core/common/events/eventTypes.js";
 // Fix the import path to point to the correct file
 import { requireAdmin } from "../middleware/auth.js";
 import { infraLogger as domainLogger } from "#app/core/infra/logging/domainLogger.js"; // Import logger
+import { captureException } from "#app/config/setup/sentry.js";
 'use strict';
 
 /**
@@ -246,6 +247,113 @@ export default function systemRoutes(container) {
         router.get('/logs', systemController.getLogs.bind(systemController));
         logger.info('Mounted GET /system/logs endpoint');
     }
+    
+    /**
+     * @route GET /system/info
+     * @description Get system information
+     * @access Private
+     */
+    router.get('/info', (req, res) => {
+        res.status(200).json({
+            success: true,
+            data: {
+                nodeVersion: process.version,
+                platform: process.platform,
+                arch: process.arch,
+                uptime: process.uptime(),
+                memoryUsage: process.memoryUsage(),
+                env: process.env.NODE_ENV
+            }
+        });
+    });
+    
+    /**
+     * @route GET /system/error-test
+     * @description Test error handling and Sentry integration
+     * @access Private
+     */
+    router.get('/error-test', (req, res, next) => {
+        try {
+            // Simulate different error types based on query param
+            const errorType = req.query.type || 'default';
+            
+            switch (errorType) {
+                case 'reference':
+                    // Reference error
+                    const nonExistentVariable = undefinedVariable.property;
+                    break;
+                case 'type':
+                    // Type error
+                    const num = 42;
+                    num.toLowerCase();
+                    break;
+                case 'syntax':
+                    // Syntax error (would normally be caught at compile time)
+                    // We'll create it explicitly
+                    throw new SyntaxError('Simulated syntax error');
+                case 'custom':
+                    // Custom application error
+                    const customError = new Error('Custom application error');
+                    customError.code = 'CUSTOM_ERROR';
+                    customError.metadata = { 
+                        userId: req.user?.id || 'anonymous',
+                        requestId: req.id,
+                        timestamp: new Date().toISOString()
+                    };
+                    throw customError;
+                case 'async':
+                    // Simulate async error
+                    setTimeout(() => {
+                        try {
+                            throw new Error('Async operation failed');
+                        } catch (asyncError) {
+                            captureException(asyncError, {
+                                async: true,
+                                requestId: req.id
+                            });
+                        }
+                    }, 100);
+                    return res.status(200).json({ 
+                        success: true, 
+                        message: 'Async error triggered, check Sentry for details'
+                    });
+                default:
+                    // Default error
+                    throw new Error('Test error for Sentry');
+            }
+        } catch (error) {
+            // The error will be caught and sent to Sentry by the error middleware
+            next(error);
+        }
+    });
+    
+    /**
+     * @route GET /system/version
+     * @description Get API version information
+     * @access Private
+     */
+    router.get('/version', (req, res) => {
+        // Get config from container if available
+        let versionConfig = {};
+        try {
+            const config = container.get('config');
+            versionConfig = config.api.versioning || {};
+        } catch (error) {
+            logger.error('Failed to get version config from container', { error: error.message });
+        }
+        
+        res.status(200).json({
+            success: true,
+            data: {
+                currentVersion: versionConfig.current || 'v1',
+                requestedVersion: req.apiVersion || 'unknown',
+                supportedVersions: versionConfig.supported || ['v1'],
+                deprecatedVersions: versionConfig.deprecated || [],
+                sunsetVersions: versionConfig.sunset || [],
+                strategy: versionConfig.strategy || 'uri-path'
+            }
+        });
+    });
     
     logger.info('System routes created.');
     return router;

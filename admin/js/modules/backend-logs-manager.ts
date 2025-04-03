@@ -3,12 +3,8 @@
  * Backend Logs Manager Module
  * Handles fetching and managing logs from the backend
  */
-import { logger } from '../utils/logger';
-// import { EventEmitter } from 'events'; // Removed Node.js dependency
-import { ApiClient } from '../api/api-client';
+import { EventBus } from '../core/EventBus';
 import { ComponentLogger } from '../core/Logger';
-import { Logger } from '../utils/logger';
-import { EventEmitter } from '../utils/event-emitter';
 import { APIClient } from '../api/api-client';
 
 interface LogEntry {
@@ -17,18 +13,20 @@ interface LogEntry {
   message: string;
   correlationId?: string;
   context?: Record<string, unknown>;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface BackendLogsManagerOptions {
   logsEndpoint?: string;
   fetchInterval?: number;
   maxLogEntries?: number;
-  apiClient?: any;
+  apiClient?: APIClient;
   maxLogsToFetch?: number;
   refreshInterval?: number | null;
   autoRefresh?: boolean;
   apiUrl?: string;
+  eventBus: EventBus;
+  logger: ComponentLogger;
 }
 
 interface LogsResponse {
@@ -46,7 +44,7 @@ interface FetchLogsOptions {
   limit?: number;
   search?: string | undefined;
   source?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface FilterOptions {
@@ -55,16 +53,15 @@ interface FilterOptions {
   search?: string;
   startTime?: Date | string;
   endTime?: Date | string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
  * Class for managing backend logs
  */
-export class BackendLogsManager extends EventEmitter {
-  // Removed inheritance
+export class BackendLogsManager {
   private options: BackendLogsManagerOptions;
-  private apiClient: unknown | null;
+  private apiClient: APIClient | undefined;
   private logs: LogEntry[] = [];
   private logSource: EventSource | null = null;
   private reconnectInterval = 5000; // Interval in ms to attempt reconnection
@@ -73,82 +70,28 @@ export class BackendLogsManager extends EventEmitter {
   private logger: ComponentLogger;
   private isLoadingLogs: boolean;
   private lastError: Error | null;
-  private eventListeners: Map<string, Function[]>;
   private refreshIntervalId: ReturnType<typeof setInterval> | null;
+  private eventBus: EventBus;
 
   /**
    * Creates a new BackendLogsManager instance
    * @param options - Configuration options
    */
   constructor(options: BackendLogsManagerOptions) {
-    super(); // Call super constructor for EventEmitter
     this.options = {
       apiUrl: '/api/logs/stream',
-      apiClient: null,
       ...options,
     };
     this.apiClient = this.options.apiClient;
-    this.logger = ComponentLogger.getLogger('BackendLogsManager');
+    this.logger = options.logger;
+    this.eventBus = options.eventBus;
     this.isLoadingLogs = false;
     this.lastError = null;
-    this.eventListeners = new Map();
     this.refreshIntervalId = null;
 
     // Start auto-refresh if enabled
     if (this.options.autoRefresh && this.options.refreshInterval) {
       this.startAutoRefresh();
-    }
-  }
-
-  /**
-   * Adds an event listener
-   * @param event - The event name
-   * @param callback - The callback function
-   */
-  on(event: string, callback: Function): void {
-    if (!this.eventListeners.has(event)) {
-      this.eventListeners.set(event, []);
-    }
-
-    const listeners = this.eventListeners.get(event);
-    if (listeners) {
-      listeners.push(callback);
-    }
-  }
-
-  /**
-   * Removes an event listener
-   * @param event - The event name
-   * @param callback - The callback function to remove
-   */
-  off(event: string, callback: Function): void {
-    if (this.eventListeners.has(event)) {
-      const listeners = this.eventListeners.get(event);
-      if (listeners) {
-        const index = listeners.indexOf(callback);
-        if (index !== -1) {
-          listeners.splice(index, 1);
-        }
-      }
-    }
-  }
-
-  /**
-   * Emits an event to listeners.
-   * Make this public to match EventEmitter
-   */
-  public emit(event: string, data: any[] | Record<string, unknown> = null): void {
-    if (this.eventListeners.has(event)) {
-      const listeners = this.eventListeners.get(event);
-      if (listeners) {
-        listeners.forEach((callback: Function) => {
-          try {
-            callback(data);
-          } catch (error) {
-            this.logger.error(`Error in event listener for ${event}:`, error);
-          }
-        });
-      }
     }
   }
 
@@ -167,7 +110,7 @@ export class BackendLogsManager extends EventEmitter {
     };
 
     this.isLoadingLogs = true;
-    this.emit('logs:loading', { options: fetchOptions });
+    this.eventBus.publish('logs:loading', { options: fetchOptions });
 
     try {
       // Build the URL with query parameters
@@ -176,7 +119,7 @@ export class BackendLogsManager extends EventEmitter {
       if (fetchOptions.correlationId) {
         url.searchParams.append('correlationId', fetchOptions.correlationId);
       }
-      if (fetchOptions.level) url.searchParams.append('level', fetchOptions.level);
+      if (fetchOptions.level) url.searchParams.append('level', String(fetchOptions.level));
       if (fetchOptions.limit) url.searchParams.append('limit', String(fetchOptions.limit));
       if (fetchOptions.search) url.searchParams.append('search', fetchOptions.search);
 
@@ -202,23 +145,23 @@ export class BackendLogsManager extends EventEmitter {
       this.logs = data.data.logs;
       this.lastError = null;
 
-      // Emit loaded event
-      this.emit('logs:loaded', {
+      // Publish loaded event
+      this.eventBus.publish('logs:loaded', {
         logs: this.logs,
         count: this.logs.length,
         source: option.source || 'manual',
         logFile: data.data.logFile,
       });
 
-      // Also emit logsReceived for compatibility
-      this.emit('logsReceived', this.logs);
+      // Also publish logsReceived for compatibility
+      this.eventBus.publish('logsReceived', this.logs);
 
       return this.logs;
     } catch (error) {
       this.lastError = error instanceof Error ? error : new Error(String(error));
 
-      // Emit error event
-      this.emit('logs:error', {
+      // Publish error event
+      this.eventBus.publish('logs:error', {
         error: this.lastError,
         message: this.lastError.message,
       });
@@ -235,18 +178,14 @@ export class BackendLogsManager extends EventEmitter {
    * @returns The refreshed logs
    */
   async refreshLogs(options: FetchLogsOptions = {}): Promise<LogEntry[]> {
-    // Emit refreshing event
-    this.emit('logs:refreshing', { options });
+    // Publish refreshing event
+    this.eventBus.publish('logs:refreshing', { options });
 
-    try {
-      return await this.fetchLogs({
-        ...options,
-        source: 'refresh',
-      });
-    } catch (error) {
-      // Error is already emitted in fetchLogs
-      throw error;
-    }
+    // No need for try/catch as fetchLogs already handles errors
+    return this.fetchLogs({
+      ...options,
+      source: 'refresh',
+    });
   }
 
   /**
@@ -261,7 +200,6 @@ export class BackendLogsManager extends EventEmitter {
       this.refreshIntervalId = setInterval(() => {
         this.fetchLogs();
       }, refreshInterval);
-      this.emit('logs:autoRefreshStarted', { interval: refreshInterval });
       this.logger.info(`Backend logs auto-refresh started with interval: ${refreshInterval}ms`);
     } else {
       this.logger.info('Backend logs auto-refresh not started (no interval configured).');
@@ -275,8 +213,6 @@ export class BackendLogsManager extends EventEmitter {
     if (this.refreshIntervalId) {
       clearInterval(this.refreshIntervalId);
       this.refreshIntervalId = null;
-
-      this.emit('logs:autoRefreshStopped');
     }
   }
 
@@ -378,7 +314,6 @@ export class BackendLogsManager extends EventEmitter {
    */
   clearLogs(): void {
     this.logs = [];
-    this.emit('logs:cleared');
   }
 
   /**
@@ -391,9 +326,6 @@ export class BackendLogsManager extends EventEmitter {
       // Fallback or alternative log fetching method if needed
       this.logger.warn('No API URL configured for log streaming.');
     }
-
-    // Consider auto-refresh logic if apiUrl is not used
-    // this.startAutoRefresh();
   }
 
   /**
@@ -401,7 +333,6 @@ export class BackendLogsManager extends EventEmitter {
    */
   stop(): void {
     this.disconnectFromStream();
-    // this.stopAutoRefresh();
   }
 
   /**
@@ -417,7 +348,6 @@ export class BackendLogsManager extends EventEmitter {
     this.logSource.onopen = () => {
       this.logger.info('Log stream connected.');
       this.currentReconnectAttempts = 0;
-      this.emit('logs:connected');
     };
 
     this.logSource.onmessage = event => {
@@ -428,15 +358,13 @@ export class BackendLogsManager extends EventEmitter {
         if (this.logs.length > (this.options.maxLogEntries || 1000)) {
           this.logs.shift();
         }
-        this.emit('logs:new', logEntry);
       } catch (error) {
-        this.logger.error('Failed to parse log entry:', error, event.data);
+        this.logger.error(`Failed to parse log entry: ${event.data}`, error);
       }
     };
 
     this.logSource.onerror = error => {
       this.logger.error('Log stream error:', error);
-      this.emit('logs:error', { error });
       this.handleStreamDisconnect();
     };
   }
@@ -465,7 +393,6 @@ export class BackendLogsManager extends EventEmitter {
       ); // Exponential backoff
     } else {
       this.logger.error('Max reconnect attempts reached. Stopping reconnection attempts.');
-      this.emit('logs:disconnected');
     }
   }
 
@@ -478,10 +405,6 @@ export class BackendLogsManager extends EventEmitter {
       this.logger.info('Disconnecting from log stream.');
       this.logSource.close();
       this.logSource = null;
-      this.emit('logs:disconnected');
-      this.currentReconnectAttempts = 0; // Reset attempts on manual disconnect
     }
   }
-
-  // ... rest of the class ...
 }

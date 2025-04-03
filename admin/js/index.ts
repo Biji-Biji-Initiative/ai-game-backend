@@ -6,7 +6,6 @@
 
 import { AppBootstrapper } from './core/AppBootstrapper';
 import { LogLevel } from './core/Logger';
-import { logger } from './utils/logger';
 
 /**
  * Main application entry point
@@ -23,15 +22,11 @@ async function main(): Promise<void> {
       apiUrl: '/api/v1',
       registerDefaultServices: true,
     });
-
-    // Log bootstrap status
-    logger.info('Application bootstrap complete');
-    logger.info('Application ready');
   } catch (error) {
-    // Log any bootstrap errors
-    logger.error('Failed to start application:', error);
-
-    // Display error in UI
+    // This is a fatal error during bootstrap
+    // Log will be handled by AppBootstrapper
+    
+    // Fallback display in case AppBootstrapper's error handling fails
     const appContainer = document.getElementById('app');
     if (appContainer) {
       const errorMessage = error instanceof Error ? error.message : String(error);

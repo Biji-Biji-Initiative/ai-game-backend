@@ -5,7 +5,7 @@
  */
 
 import { IUIManager } from './ui';
-import { ApiClient } from '../services/api-client';
+import { APIClient } from '../api/api-client';
 import { VariableManager } from '../modules/variable-manager';
 import { EndpointManager } from '../modules/endpoint-manager';
 import { HistoryManager } from '../modules/history-manager';
@@ -37,7 +37,7 @@ export interface VariableManagerOptions {
 export interface StatusManagerOptions {
   containerId?: string;
   updateInterval?: number;
-  apiClient?: ApiClient;
+  apiClient?: APIClient;
   statusEndpoint?: string;
 }
 
@@ -50,7 +50,7 @@ export interface FlowControllerOptions {
   variableManager?: VariableManager;
   endpointManager?: EndpointManager;
   historyManager?: HistoryManager;
-  apiClient?: ApiClient;
+  apiClient?: APIClient;
   autoInit?: boolean;
   appController?: AppController;
   config?: Record<string, unknown>;
@@ -107,7 +107,7 @@ export interface Endpoint {
  * Domain State Manager Options
  */
 export interface DomainStateManagerOptions {
-  apiClient?: ApiClient;
+  apiClient?: APIClient;
   localStorageKey?: string;
   autoSave?: boolean;
   diffingEnabled?: boolean;

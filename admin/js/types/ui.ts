@@ -5,10 +5,12 @@
  */
 
 // Add necessary imports
-import { ResponseViewer } from '../ui/response-viewer';
+import { ResponseViewer } from '../components/ResponseViewer';
+import { DomainStateViewer } from '../ui/domain-state-viewer';
+import { EventBus } from '../core/EventBus';
 import { DomainStateManager } from '../modules/domain-state-manager';
 import { APIClient } from '../api/api-client';
-import { DomainStateViewer } from '../components/DomainStateViewer';
+import { StorageService } from '../services/StorageService';
 
 // UI Manager types
 export interface IUIManager {
@@ -47,6 +49,44 @@ export interface IUIManager {
 }
 
 /**
+ * Toast notification options
+ */
+export interface ToastOptions {
+  id?: string;
+  title: string;
+  message: string;
+  type?: 'success' | 'error' | 'warning' | 'info';
+  duration?: number;
+  position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'top-center' | 'bottom-center';
+  closable?: boolean;
+  dismissable?: boolean;
+  onClose?: () => void;
+  callback?: () => void;
+}
+
+/**
+ * Modal dialog options
+ */
+export interface ModalOptions {
+  id?: string;
+  title?: string;
+  content?: string | HTMLElement;
+  size?: 'small' | 'medium' | 'large' | 'fullscreen';
+  closable?: boolean;
+  showClose?: boolean;
+  customClass?: string;
+  buttons?: Array<{
+    text: string;
+    type?: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info';
+    callback?: (modal: HTMLElement) => void;
+    onClick?: (modal: HTMLElement) => void;
+    closeOnClick?: boolean;
+  }>;
+  onClose?: () => void;
+  onOpen?: () => void;
+}
+
+/**
  * UI Manager Options
  */
 export interface UIManagerOptions {
@@ -60,45 +100,7 @@ export interface UIManagerOptions {
   onUiReady?: () => void;
   config?: Record<string, unknown>;
   debug?: boolean;
-}
-
-export interface ToastOptions {
-  id?: string;
-  message: string;
-  type?: 'success' | 'error' | 'warning' | 'info';
-  duration?: number;
-  title?: string;
-  position?:
-    | 'top-right'
-    | 'top-left'
-    | 'bottom-right'
-    | 'bottom-left'
-    | 'top-center'
-    | 'bottom-center';
-  closable?: boolean;
-  onClose?: () => void;
-  dismissable?: boolean;
-}
-
-export interface ModalOptions {
-  id?: string;
-  title?: string;
-  content?: string | HTMLElement;
-  size?: 'small' | 'medium' | 'large' | 'fullscreen';
-  buttons?: ModalButton[];
-  closable?: boolean;
-  showClose?: boolean;
-  onClose?: () => void;
-  onOpen?: () => void;
-  className?: string;
-  customClass?: string;
-}
-
-export interface ModalButton {
-  text: string;
-  type?: 'primary' | 'secondary' | 'danger' | 'success' | 'info' | 'warning';
-  onClick?: (modal) => void;
-  closeOnClick?: boolean;
+  eventBus?: EventBus;
 }
 
 // ResponseViewer types
@@ -155,4 +157,6 @@ export interface HistoryManagerOptions {
   compressionThreshold?: number;
   storageQuotaWarningThreshold?: number;
   maxItems?: number;
+  storageService?: StorageService;
+  eventBus?: EventBus;
 }

@@ -150,6 +150,32 @@ const formatErrorResponse = (err, includeDetails = false) => {
  * @returns {void}
  */
 const errorHandler = (err, req, res, _next) => {
+  // Handle special case where err is a repository error object from errorStandardization.js
+  if (typeof err === 'object' && err.methodName && err.domainName && err.cause) {
+    // Create a properly formatted error object with a valid status code
+    const originalError = typeof err.cause === 'object' ? err.cause : { message: err.cause };
+    const statusCode = originalError.statusCode || 500;
+    const errorCode = originalError.errorCode || StandardErrorCodes.DATABASE_ERROR;
+    
+    const simplifiedError = {
+      name: originalError.name || 'DatabaseError',
+      message: `Error in ${err.domainName}: ${originalError.message || 'Unknown error'}`,
+      statusCode: statusCode,
+      status: 'error',
+      isOperational: true,
+      errorCode: errorCode,
+      requestId: req.id,
+      metadata: {
+        domain: err.domainName,
+        method: err.methodName,
+        operation: originalError.operation || 'unknown'
+      },
+      cause: originalError
+    };
+    
+    err = simplifiedError;
+  }
+
   // Set default status code and error status if not provided
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';

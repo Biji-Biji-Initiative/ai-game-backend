@@ -40,13 +40,14 @@ export class UserInterfaceController {
     this.domService = options.domService;
     this.storageService = options.storageService;
     this.loggingService = options.loggingService;
-    this.options = options.uiOptions || this.loadStoredOptions() || {
-      theme: 'light',
-      layout: 'default',
-      animations: true,
-      compactMode: false,
-      defaultExpand: true
-    };
+    this.options = options.uiOptions ||
+      this.loadStoredOptions() || {
+        theme: 'light',
+        layout: 'default',
+        animations: true,
+        compactMode: false,
+        defaultExpand: true,
+      };
 
     this.loggingService.info('UserInterfaceController initialized');
   }
@@ -63,16 +64,16 @@ export class UserInterfaceController {
     try {
       // Cache important DOM elements
       this.cacheElements();
-      
+
       // Apply stored UI preferences
       this.applyTheme(this.options.theme || 'light');
       this.applyLayout(this.options.layout || 'default');
       this.toggleAnimations(this.options.animations !== false);
       this.toggleCompactMode(this.options.compactMode === true);
-      
+
       // Setup event listeners
       this.setupEventListeners();
-      
+
       this.initialized = true;
       this.loggingService.info('UI initialized with options', this.options);
     } catch (error) {
@@ -90,17 +91,17 @@ export class UserInterfaceController {
       this.elements.sidebar = this.domService.getElementById('sidebar');
       this.elements.main = this.domService.getElementById('main-content');
       this.elements.footer = this.domService.getElementById('footer');
-      
+
       // Theme controls
       this.elements.themeToggle = this.domService.getElementById('theme-toggle');
       this.elements.layoutSelector = this.domService.getElementById('layout-selector');
       this.elements.compactModeToggle = this.domService.getElementById('compact-mode-toggle');
       this.elements.animationsToggle = this.domService.getElementById('animations-toggle');
-      
+
       // Configuration panels
       this.elements.configPanel = this.domService.getElementById('config-panel');
       this.elements.uiSettingsPanel = this.domService.getElementById('ui-settings-panel');
-      
+
       this.loggingService.debug('UI elements cached');
     } catch (error) {
       this.loggingService.error('Failed to cache UI elements', error);
@@ -118,21 +119,21 @@ export class UserInterfaceController {
         this.elements.themeToggle.addEventListener('click', themeHandler);
         this.eventHandlers.set('theme-toggle', themeHandler);
       }
-      
+
       // Compact mode toggle
       if (this.elements.compactModeToggle) {
         const compactHandler = (e: Event) => this.toggleCompactMode();
         this.elements.compactModeToggle.addEventListener('click', compactHandler);
         this.eventHandlers.set('compact-mode-toggle', compactHandler);
       }
-      
+
       // Animations toggle
       if (this.elements.animationsToggle) {
         const animationsHandler = (e: Event) => this.toggleAnimations();
         this.elements.animationsToggle.addEventListener('click', animationsHandler);
         this.eventHandlers.set('animations-toggle', animationsHandler);
       }
-      
+
       // Layout selector
       if (this.elements.layoutSelector) {
         const layoutHandler = (e: Event) => {
@@ -142,7 +143,7 @@ export class UserInterfaceController {
         this.elements.layoutSelector.addEventListener('change', layoutHandler);
         this.eventHandlers.set('layout-selector', layoutHandler);
       }
-      
+
       this.loggingService.debug('UI event listeners setup');
     } catch (error) {
       this.loggingService.error('Failed to setup UI event listeners', error);
@@ -169,17 +170,17 @@ export class UserInterfaceController {
         this.loggingService.error('Root HTML element not found');
         return;
       }
-      
+
       // Remove existing theme classes
       (rootElement as HTMLElement).classList.remove('theme-light', 'theme-dark');
-      
+
       // Add new theme class
       (rootElement as HTMLElement).classList.add(`theme-${theme}`);
-      
+
       // Update stored preferences
       this.options.theme = theme;
       this.saveOptions();
-      
+
       this.loggingService.info(`Theme changed to ${theme}`);
     } catch (error) {
       this.loggingService.error('Failed to apply theme', error);
@@ -197,17 +198,17 @@ export class UserInterfaceController {
         this.loggingService.error('Main content element not found');
         return;
       }
-      
+
       // Remove existing layout classes
       mainElement.classList.remove('layout-default', 'layout-compact', 'layout-expanded');
-      
+
       // Add new layout class
       mainElement.classList.add(`layout-${layout}`);
-      
+
       // Update stored preferences
       this.options.layout = layout;
       this.saveOptions();
-      
+
       this.loggingService.info(`Layout changed to ${layout}`);
     } catch (error) {
       this.loggingService.error('Failed to apply layout', error);
@@ -222,7 +223,7 @@ export class UserInterfaceController {
     try {
       const newState = enable !== undefined ? enable : !this.options.compactMode;
       const rootElement = this.domService.querySelector('html');
-      
+
       if (rootElement) {
         if (newState) {
           (rootElement as HTMLElement).classList.add('compact-mode');
@@ -230,11 +231,11 @@ export class UserInterfaceController {
           (rootElement as HTMLElement).classList.remove('compact-mode');
         }
       }
-      
+
       // Update stored preferences
       this.options.compactMode = newState;
       this.saveOptions();
-      
+
       this.loggingService.info(`Compact mode ${newState ? 'enabled' : 'disabled'}`);
     } catch (error) {
       this.loggingService.error('Failed to toggle compact mode', error);
@@ -249,7 +250,7 @@ export class UserInterfaceController {
     try {
       const newState = enable !== undefined ? enable : !this.options.animations;
       const rootElement = this.domService.querySelector('html');
-      
+
       if (rootElement) {
         if (newState) {
           (rootElement as HTMLElement).classList.remove('no-animations');
@@ -257,11 +258,11 @@ export class UserInterfaceController {
           (rootElement as HTMLElement).classList.add('no-animations');
         }
       }
-      
+
       // Update stored preferences
       this.options.animations = newState;
       this.saveOptions();
-      
+
       this.loggingService.info(`Animations ${newState ? 'enabled' : 'disabled'}`);
     } catch (error) {
       this.loggingService.error('Failed to toggle animations', error);
@@ -410,15 +411,15 @@ export class UserInterfaceController {
           }
         }
       });
-      
+
       // Clear maps and caches
       this.eventHandlers.clear();
       this.elements = {};
-      
+
       this.initialized = false;
       this.loggingService.info('UserInterfaceController destroyed');
     } catch (error) {
       this.loggingService.error('Failed to destroy UserInterfaceController', error);
     }
   }
-} 
+}

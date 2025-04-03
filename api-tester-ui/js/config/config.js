@@ -11,7 +11,7 @@ export class Config {
     constructor(initialConfig = {}) {
         this.config = {
             // Default configuration
-            apiBaseUrl: 'http://localhost:3000', // Base URL for API requests
+            apiBaseUrl: 'http://localhost:3080', // Base URL for API requests
             apiVersion: 'v1', // API version
             useApiVersionPrefix: true, // Whether to use API version in URL
             requestTimeout: 30000, // Request timeout in milliseconds
@@ -72,7 +72,7 @@ export class Config {
     async reset() {
         // Reset to defaults
         this.config = {
-            apiBaseUrl: 'http://localhost:3000',
+            apiBaseUrl: 'http://localhost:3080',
             apiVersion: 'v1',
             useApiVersionPrefix: true,
             requestTimeout: 30000,

@@ -6,6 +6,9 @@ import { withControllerErrorHandling } from "#app/core/infra/errors/errorStandar
 import { UserDTOMapper } from "#app/core/user/dtos/UserDTO.js";
 import { updateUserSchema } from "#app/core/user/schemas/userApiSchemas.js"; // Import validation schema
 import { preferencesSchema, validatePreferenceCategory, isValidPreferenceCategory } from "#app/core/user/schemas/preferencesSchema.js"; // Import preference schemas/validators
+import { userSchema, difficultyLevelSchema } from "#app/core/user/schemas/userSchema.js"; // Import main user schema
+import User from "#app/core/user/models/User.js"; // Import User model
+import { v4 as uuidv4 } from 'uuid';
 /**
  * User Controller (Refactored with Standardized Error Handling)
  *
@@ -138,6 +141,14 @@ class UserController {
     
     this.resetPreference = withControllerErrorHandling(this.resetPreference.bind(this), {
       methodName: 'resetPreference',
+      domainName: 'user',
+      logger: this.logger,
+      errorMappings: this.errorMappings
+    });
+
+    // Bind the new method
+    this.registerUserInterest = withControllerErrorHandling(this.registerUserInterest.bind(this), {
+      methodName: 'registerUserInterest',
       domainName: 'user',
       logger: this.logger,
       errorMappings: this.errorMappings
@@ -558,6 +569,92 @@ class UserController {
     this.logger.info('User deleted', { userId: id });
     
     return res.success({ deleted: true, userId: id }, 'User deleted successfully');
+  }
+
+  /**
+   * Register user interest (minimal profile creation)
+   * Public endpoint, no authentication required.
+   */
+  async registerUserInterest(req, res, next) {
+    const { email, name } = req.body;
+    
+    this.logger.info('Processing user interest registration', { email });
+    
+    try {
+      // Check if user exists first (using the repository)
+      let existingUser = null;
+      try {
+        // Attempt to find the user, but don't fail the whole request if this errors
+        existingUser = await this.userRepository.findByEmail(email);
+      } catch (lookupError) {
+        this.logger.warn('Error checking for existing user during registration, proceeding...', { 
+          email, 
+          errorMessage: lookupError.message 
+        });
+        // Continue, as the main goal is registration if they don't exist.
+      }
+      
+      if (existingUser) {
+        this.logger.info('User interest registration attempt for existing email', { email });
+        // Return 409 Conflict if user already exists
+        return res.status(409).json({
+          status: 'fail',
+          message: 'Email address is already registered. Please log in or reset your password.'
+        });
+      }
+      
+      // Ensure repository is available
+      if (!this.userRepository) {
+          this.logger.error('User repository is not available for registration');
+          // Use next to pass the error to the central handler
+          return next(new Error('User repository is not available')); 
+      }
+      
+      // Create minimal user using the repository method
+      const userData = await this.userRepository.createMinimalUser({
+        email,
+        name
+      });
+      
+      // Check if userData was returned (should always have data on success)
+      if (!userData || !userData.id) {
+          this.logger.error('createMinimalUser returned invalid data', { email });
+          return next(new Error('Failed to create user profile after registration.'));
+      }
+
+      this.logger.info('User interest registered successfully via repository', { 
+        email, 
+        userId: userData.id 
+      });
+      
+      // Convert database model (snake_case) to a simplified DTO (camelCase) for response
+      const userDto = {
+        id: userData.id,
+        email: userData.email,
+        name: userData.name, // DB field is 'name'
+        createdAt: userData.created_at // DB field is 'created_at'
+      };
+      
+      // Return 201 Created
+      return res.status(201).json({
+        status: 'success',
+        data: { user: userDto },
+        message: 'User profile created successfully.'
+      });
+      
+    } catch (error) {
+      // Catch errors from findByEmail (if not handled above) or createMinimalUser
+      this.logger.error('Error during user interest registration process', {
+        email,
+        errorName: error.name,
+        errorMessage: error.message,
+        // Avoid logging full stack in production, but useful for debug
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined 
+      });
+      
+      // Pass the error to the centralized error handler
+      next(error); 
+    }
   }
 }
 export default UserController;

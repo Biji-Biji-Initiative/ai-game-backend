@@ -159,52 +159,59 @@ export class StatusManager {
   }
   
   /**
-   * Fetches status from the health endpoint
-   * @returns {Promise<Object>} - The status data
+   * Fetches the current system status
    */
   async fetchStatus() {
-    this.isLoading = true;
-    this.error = null;
-    
-    this.emit('status:loading', {
-      endpoint: this.options.healthEndpoint
-    });
-    
     try {
-      const response = await fetch(this.options.healthEndpoint);
+      this.emit('status:loading');
+
+      // Configure headers with authentication
+      const headers = {};
       
-      if (!response.ok) {
-        throw new Error(`Failed to fetch health status: ${response.status} ${response.statusText}`);
+      // Add auth token if available
+      const authToken = localStorage.getItem('authToken');
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
       }
       
+      // Add API key if available
+      const apiKey = localStorage.getItem('apiKey');
+      if (apiKey) {
+        headers['x-api-key'] = apiKey;
+        headers['api-key'] = apiKey;
+        headers['X-Api-Key'] = apiKey;
+      }
+
+      const response = await fetch(this.options.healthEndpoint, {
+        headers: headers
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+      }
+
       const data = await response.json();
+      this.status = data;
+
+      // Ensure we have a dependencies array to render
+      if (!this.status.dependencies) {
+        this.status.dependencies = [];
+      }
+
+      this.emit('status:updated', data);
       
-      // Process the health data
-      this.status = this.processHealthData(data);
+      // Render the status in our UI
+      this.renderStatus();
       
-      // Update UI
-      this.updateUI();
-      
-      this.isLoading = false;
-      
-      this.emit('status:loaded', {
-        status: this.status
-      });
-      
-      return this.status;
+      // Return the data
+      return data;
     } catch (error) {
-      this.isLoading = false;
-      this.error = error;
+      const errorMessage = error.message || 'Unknown error';
+      this.emit('status:error', { error: errorMessage });
+      console.warn('Failed to fetch system status:', error);
       
-      // Set status to unhealthy on error
-      this.status.overall = 'unhealthy';
-      
-      // Update UI to show error
-      this.updateUI();
-      
-      this.emit('status:error', {
-        error: error.message
-      });
+      // Try to render status with error
+      this.renderStatus(errorMessage);
       
       throw error;
     }
@@ -270,107 +277,48 @@ export class StatusManager {
    * Updates the UI with the current status
    */
   updateUI() {
-    // Update status indicator
-    if (this.elements.dot) {
-      this.elements.dot.className = 'status-dot';
-      if (this.status.overall === 'healthy' || this.status.overall === 'ok') {
-        this.elements.dot.classList.add('healthy');
-      } else if (this.status.overall === 'degraded' || this.status.overall === 'warning') {
-        this.elements.dot.classList.add('degraded');
-      } else if (this.status.overall === 'unhealthy' || this.status.overall === 'error') {
-        this.elements.dot.classList.add('unhealthy');
-      }
+    if (!this.elements.dot || !this.elements.text) return;
+    
+    // Remove existing status classes
+    this.elements.dot.classList.remove('healthy', 'unhealthy');
+    
+    // Update status dot and text based on overall status
+    if (this.status.overall === 'healthy') {
+      this.elements.dot.classList.add('healthy');
+      this.elements.text.textContent = 'Healthy';
+    } else if (this.status.overall === 'unhealthy') {
+      this.elements.dot.classList.add('unhealthy');
+      this.elements.text.textContent = 'Unhealthy';
+    } else {
+      this.elements.text.textContent = 'Unknown';
     }
     
-    // Update status text
-    if (this.elements.text) {
-      let statusText = 'Unknown';
-      
-      if (this.status.overall === 'healthy' || this.status.overall === 'ok') {
-        statusText = 'Healthy';
-      } else if (this.status.overall === 'degraded' || this.status.overall === 'warning') {
-        statusText = 'Degraded';
-      } else if (this.status.overall === 'unhealthy' || this.status.overall === 'error') {
-        statusText = 'Unhealthy';
-      }
-      
-      this.elements.text.textContent = statusText;
-    }
-    
-    // Update modal status
+    // Update modal content if it exists
     if (this.elements.modalStatus) {
-      this.elements.modalStatus.className = '';
-      let statusText = 'Unknown';
-      
-      if (this.status.overall === 'healthy' || this.status.overall === 'ok') {
-        this.elements.modalStatus.classList.add('healthy');
-        statusText = 'Healthy';
-      } else if (this.status.overall === 'degraded' || this.status.overall === 'warning') {
-        this.elements.modalStatus.classList.add('degraded');
-        statusText = 'Degraded';
-      } else if (this.status.overall === 'unhealthy' || this.status.overall === 'error') {
-        this.elements.modalStatus.classList.add('unhealthy');
-        statusText = 'Unhealthy';
-      }
-      
-      this.elements.modalStatus.textContent = statusText;
+      this.elements.modalStatus.textContent = this.capitalizeFirstLetter(this.status.overall);
     }
     
     // Update last updated time
     if (this.elements.lastUpdated && this.status.lastUpdated) {
-      const formattedTime = this.status.lastUpdated.toLocaleTimeString();
-      this.elements.lastUpdated.textContent = formattedTime;
+      this.elements.lastUpdated.textContent = new Date(this.status.lastUpdated).toLocaleString();
     }
     
     // Update dependency list
     if (this.elements.dependencyList) {
-      if (this.status.dependencies.length === 0) {
-        this.elements.dependencyList.innerHTML = `
-          <div class="empty-dependency-message">No dependencies reported by the system.</div>
-        `;
-      } else {
-        this.elements.dependencyList.innerHTML = '';
-        
-        this.status.dependencies.forEach(dep => {
-          const depItem = document.createElement('div');
-          depItem.className = 'dependency-item';
-          
-          let statusClass = '';
-          if (dep.status === 'healthy' || dep.status === 'ok') {
-            statusClass = 'healthy';
-          } else if (dep.status === 'degraded' || dep.status === 'warning') {
-            statusClass = 'degraded';
-          } else if (dep.status === 'unhealthy' || dep.status === 'error') {
-            statusClass = 'unhealthy';
-          }
-          
-          depItem.innerHTML = `
-            <div class="dependency-name">
-              ${dep.name}
-            </div>
-            <div class="dependency-status">
-              <span class="dependency-status-dot ${statusClass}"></span>
-              ${dep.status.charAt(0).toUpperCase() + dep.status.slice(1)}
-              ${dep.message ? `<span class="dependency-message">(${dep.message})</span>` : ''}
-            </div>
-          `;
-          
-          this.elements.dependencyList.appendChild(depItem);
-        });
-      }
+      this.renderDependencies();
     }
     
     // Update environment info
-    if (this.elements.envMode) {
-      this.elements.envMode.textContent = this.status.environment.mode || 'Unknown';
-    }
-    
-    if (this.elements.envVersion) {
-      this.elements.envVersion.textContent = this.status.environment.version || 'Unknown';
-    }
-    
-    if (this.elements.envNode) {
-      this.elements.envNode.textContent = this.status.environment.node || 'Unknown';
+    if (this.status.environment) {
+      if (this.elements.envMode) {
+        this.elements.envMode.textContent = this.status.environment.mode || 'Unknown';
+      }
+      if (this.elements.envVersion) {
+        this.elements.envVersion.textContent = this.status.environment.version || 'Unknown';
+      }
+      if (this.elements.envNode) {
+        this.elements.envNode.textContent = this.status.environment.node || 'Unknown';
+      }
     }
   }
   
@@ -431,5 +379,172 @@ export class StatusManager {
    */
   getError() {
     return this.error;
+  }
+  
+  /**
+   * Capitalizes the first letter of a string
+   * @param {string} string - The string to capitalize
+   * @returns {string} - The capitalized string
+   */
+  capitalizeFirstLetter(string) {
+    if (!string) return '';
+    return string.charAt(0).toUpperCase() + string.slice(1);
+  }
+  
+  /**
+   * Renders the status in the UI
+   * @param {string} errorMessage - Optional error message to display
+   */
+  renderStatus(errorMessage = null) {
+    try {
+      // Find status container
+      const statusContainer = document.querySelector('.system-status');
+      if (!statusContainer) return;
+      
+      // Find status indicator
+      const statusIndicator = statusContainer.querySelector('.status-indicator');
+      if (!statusIndicator) return;
+      
+      if (errorMessage) {
+        // Show error state
+        statusIndicator.className = 'status-indicator status-unhealthy';
+        statusIndicator.textContent = 'Unhealthy';
+        
+        // Add error message
+        const errorElement = document.createElement('div');
+        errorElement.className = 'status-error';
+        errorElement.textContent = errorMessage;
+        
+        // Replace any existing error message
+        const existingError = statusContainer.querySelector('.status-error');
+        if (existingError) {
+          existingError.replaceWith(errorElement);
+        } else {
+          statusIndicator.after(errorElement);
+        }
+        return;
+      }
+      
+      // Get overall status
+      const overall = this.status?.overall?.toLowerCase() || 'unknown';
+      
+      // Update status indicator
+      statusIndicator.className = `status-indicator status-${overall}`;
+      statusIndicator.textContent = this.capitalizeFirstLetter(overall);
+      
+      // Remove any error messages
+      const existingError = statusContainer.querySelector('.status-error');
+      if (existingError) {
+        existingError.remove();
+      }
+      
+      // Update dependencies list if it exists
+      this.renderDependencies();
+      
+      // Update environment info if available
+      if (this.status?.environment) {
+        this.renderEnvironment(this.status.environment);
+      }
+    } catch (error) {
+      console.error('Error rendering status:', error);
+    }
+  }
+  
+  /**
+   * Renders the dependencies section
+   */
+  renderDependencies() {
+    try {
+      const dependenciesContainer = document.querySelector('.dependencies-list');
+      if (!dependenciesContainer) return;
+      
+      // Clear existing dependencies
+      dependenciesContainer.innerHTML = '';
+      
+      // Get dependencies array safely
+      const dependencies = this.status?.dependencies || [];
+      
+      if (dependencies.length === 0) {
+        const emptyMessage = document.createElement('div');
+        emptyMessage.className = 'empty-dependencies';
+        emptyMessage.textContent = 'No dependencies information available';
+        dependenciesContainer.appendChild(emptyMessage);
+        return;
+      }
+      
+      // Sort dependencies - critical first, then by status (unhealthy first)
+      const sortedDeps = [...dependencies].sort((a, b) => {
+        // Critical dependencies first
+        if (a.critical !== b.critical) {
+          return a.critical ? -1 : 1;
+        }
+        
+        // Then sort by status (unhealthy first)
+        const statusPriority = { 'unhealthy': 0, 'degraded': 1, 'healthy': 2, 'unknown': 3 };
+        const aStatus = a.status?.toLowerCase() || 'unknown';
+        const bStatus = b.status?.toLowerCase() || 'unknown';
+        
+        return (statusPriority[aStatus] || 3) - (statusPriority[bStatus] || 3);
+      });
+      
+      // Create dependency items
+      sortedDeps.forEach(dep => {
+        const item = document.createElement('div');
+        item.className = 'dependency-item';
+        
+        const status = (dep.status || 'unknown').toLowerCase();
+        
+        item.innerHTML = `
+          <div class="dependency-header">
+            <span class="dependency-name">${dep.name || 'Unknown'}</span>
+            <span class="dependency-status status-${status}">${this.capitalizeFirstLetter(status)}</span>
+            ${dep.critical ? '<span class="dependency-critical">Critical</span>' : ''}
+          </div>
+          ${dep.message ? `<div class="dependency-message">${dep.message}</div>` : ''}
+          ${dep.latency ? `<div class="dependency-latency">Latency: ${dep.latency}ms</div>` : ''}
+        `;
+        
+        dependenciesContainer.appendChild(item);
+      });
+    } catch (error) {
+      console.error('Error rendering dependencies:', error);
+    }
+  }
+  
+  /**
+   * Renders the environment information
+   * @param {Object} env - Environment information object
+   */
+  renderEnvironment(env) {
+    try {
+      const envContainer = document.querySelector('.environment-info');
+      if (!envContainer) return;
+      
+      const mode = env.mode || 'unknown';
+      const version = env.version || 'unknown';
+      const node = env.node || 'unknown';
+      
+      envContainer.innerHTML = `
+        <div class="env-item">
+          <span class="env-label">Mode:</span>
+          <span class="env-value env-mode">${mode}</span>
+        </div>
+        <div class="env-item">
+          <span class="env-label">Version:</span>
+          <span class="env-value">${version}</span>
+        </div>
+        <div class="env-item">
+          <span class="env-label">Node:</span>
+          <span class="env-value">${node}</span>
+        </div>
+      `;
+      
+      // Also update the environment indicator in the header if it exists
+      if (typeof updateEnvironmentIndicator === 'function') {
+        updateEnvironmentIndicator(mode);
+      }
+    } catch (error) {
+      console.error('Error rendering environment info:', error);
+    }
   }
 } 

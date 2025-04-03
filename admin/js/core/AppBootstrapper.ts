@@ -3,11 +3,10 @@ import { Component } from '../types/component-base';
 import { ConfigManager } from './ConfigManager';
 import { DependencyContainer } from './DependencyContainer';
 import { EventBus } from './EventBus';
-import { ApiClient } from './ApiClient';
 import { Logger, LogLevel, ComponentLogger } from './Logger';
 import { UIController } from '../types/ui-controller';
 import { AppController } from '../types/app-controller';
-import { APIClient } from '../api/api-client';
+import { APIClient, ApiErrorHandler } from '../api/api-client';
 import { EndpointManager } from '../modules/endpoint-manager';
 import { DomainStateManager } from '../modules/domain-state-manager';
 import { VariableManager } from '../modules/variable-manager';
@@ -20,11 +19,14 @@ import { UIManager } from '../components/UIManagerNew';
 import LogsViewer from '../components/LogsViewer';
 import { FlowController } from '../controllers/FlowController';
 import { AuthManager } from '../modules/auth-manager';
-import { UserFriendlyFlowManager } from '../modules/user-friendly-flow-manager';
-import { UserFriendlyUI } from '../components/UserFriendlyUI';
+import { UserFriendlyFlowManager } from '../components/UserFriendlyFlowManager';
 import { VariableExtractor } from '../components/VariableExtractor';
 import { BrowserDomService } from '../services/DomService';
-import { LocalStorageService, StorageService } from '../services/StorageService';
+import {
+  LocalStorageService,
+  SessionStorageService,
+  MemoryStorageService,
+} from '../services/StorageService';
 import { FetchNetworkService, NetworkRequestOptions } from '../services/NetworkService';
 import { ConsoleLoggingService, LogLevel as LoggingLevel } from '../services/LoggingService';
 import {
@@ -38,8 +40,24 @@ import {
   UserFriendlyUIOptions,
   ResponseViewerOptions,
   DomainStateViewerOptions,
-  VariableExtractorOptions
+  VariableExtractorOptions,
+  OpenApiServiceOptions,
+  UIManagerOptions,
+  AuthManagerOptions,
+  FlowControllerOptions,
+  ResponseControllerOptions,
+  UserInterfaceControllerOptions,
+  LogsViewerOptions,
 } from '../types/service-options';
+import { ResponseController } from '../controllers/ResponseController';
+import { UserInterfaceController } from '../controllers/UserInterfaceController';
+import { OpenApiService } from '../services/OpenApiService';
+
+// Service interfaces
+import { DomService } from '../services/DomService';
+import { StorageService } from '../services/StorageService';
+import { NetworkService } from '../services/NetworkService';
+import { LoggingService } from '../services/LoggingService';
 
 /**
  * Bootstrap options for the application
@@ -103,11 +121,10 @@ export class AppBootstrapper implements Component {
   private initStatus: Map<string, InitStatus> = new Map();
   private eventBus: EventBus;
   private isBootstrapped = false;
-  private container: HTMLElement;
-  private configManager: ConfigManager;
+  private container!: HTMLElement;
+  private configManager!: ConfigManager;
   private uiController: UIController | null = null;
   private appController: AppController | null = null;
-  private apiClient: ApiClient | null = null;
 
   /**
    * Get singleton instance
@@ -124,16 +141,15 @@ export class AppBootstrapper implements Component {
    */
   private constructor() {
     this.options = { ...DEFAULT_OPTIONS };
-    this.logger = Logger.getLogger('AppBootstrapper'); // Property added
-    this.dependencyContainer = DependencyContainer.getInstance(); // Property added
-    this.eventBus = EventBus.getInstance(); // Property added
+    this.logger = Logger.getLogger('AppBootstrapper');
+    this.dependencyContainer = DependencyContainer.getInstance();
+    this.eventBus = EventBus.getInstance();
 
     // Set initial status for core components
     this.initStatus.set('logger', InitStatus.NOT_STARTED);
     this.initStatus.set('config', InitStatus.NOT_STARTED);
     this.initStatus.set('eventBus', InitStatus.NOT_STARTED);
     this.initStatus.set('dependencyContainer', InitStatus.NOT_STARTED);
-    this.initStatus.set('httpClient', InitStatus.NOT_STARTED);
     this.initStatus.set('apiClient', InitStatus.NOT_STARTED);
   }
 
@@ -185,17 +201,8 @@ export class AppBootstrapper implements Component {
       if (this.options.registerDefaultServices) {
         this.registerDefaultServices();
       }
-      
-      // Register all core components
-      await this.registerCoreServices();
-      
-      // Register all managers
-      await this.registerManagers();
-      
-      // Register all controllers
-      await this.registerControllers();
 
-      this.isBootstrapped = true; // Property added
+      this.isBootstrapped = true;
       this.logger.info('Application bootstrapped successfully', 'All components initialized');
 
       // Initialize the application
@@ -270,6 +277,7 @@ export class AppBootstrapper implements Component {
         configManager.set('apiUrl', this.options.apiUrl);
       }
 
+      this.configManager = configManager;
       this.updateStatus('config', InitStatus.COMPLETED);
       this.logger.info('Config initialized', 'Configuration ready');
     } catch (error) {
@@ -307,8 +315,16 @@ export class AppBootstrapper implements Component {
     try {
       // Register core components in the container
       this.dependencyContainer.register('logger', () => Logger.getInstance());
-      this.dependencyContainer.register('configManager', () => ConfigManager.getInstance());
+      this.dependencyContainer.register('configManager', () => this.configManager);
       this.dependencyContainer.register('eventBus', () => this.eventBus);
+
+      // Register storage services
+      this.dependencyContainer.register('localStorage', () => new LocalStorageService());
+      this.dependencyContainer.register('sessionStorage', () => new SessionStorageService());
+      this.dependencyContainer.register('memoryStorage', () => new MemoryStorageService());
+
+      // Register the default storage service
+      this.dependencyContainer.register('storageService', () => new LocalStorageService());
 
       this.updateStatus('dependencyContainer', InitStatus.COMPLETED);
       this.logger.info('DependencyContainer initialized', 'Dependency injection system ready');
@@ -321,78 +337,46 @@ export class AppBootstrapper implements Component {
   }
 
   /**
-   * Initialize the API client
+   * Initialize API client
    */
   private async initializeApiClient(): Promise<void> {
     this.updateStatus('apiClient', InitStatus.IN_PROGRESS);
 
     try {
-      const configManager = ConfigManager.getInstance();
-      const apiUrl = (configManager.get('apiUrl') as string) || this.options.apiUrl;
+      // Create the API error handler
+      const apiErrorHandler: ApiErrorHandler = {
+        processApiError: (error: unknown) => {
+          this.logger.error('API Error', error);
+        },
+        processTimeoutError: (error: unknown) => {
+          this.logger.error('API Timeout Error', error);
+        },
+        processNetworkError: (error: unknown) => {
+          this.logger.error('API Network Error', error);
+        },
+      };
 
-      if (!apiUrl) {
-        throw new Error('API URL not configured');
-      }
+      // Get network service for API client
+      const networkService = new FetchNetworkService();
+      this.dependencyContainer.register('networkService', () => networkService);
 
-      // Initialize the ApiClient instance (with lowercase 'i')
-      const apiClient = ApiClient.getInstance();
-      apiClient.initialize({
-        baseUrl: apiUrl,
-      });
+      // Create main API client
+      const apiConfig = {
+        apiBaseUrl: this.options.apiUrl || this.configManager.get('api.baseUrl', '/api'),
+        apiVersion: this.configManager.get('api.version', 'v1'),
+        useApiVersionPrefix: true,
+      };
 
-      // Register it in the container
-      this.dependencyContainer.register('apiClient', () => apiClient);
-
-      try {
-        // Create a new APIClient instance (with uppercase 'I')
-        // Use dynamic import to avoid circular dependencies
-        const apiClientModule = await import('../api/api-client');
-        const APIClient = apiClientModule.APIClient;
-
-        // Create a basic error handler for the new APIClient
-        const errorHandler = {
-          processApiError: error => {
-            this.logger.error('API Error', error);
-          },
-          processTimeoutError: error => {
-            this.logger.error('Timeout Error', error);
-          },
-          processNetworkError: error => {
-            this.logger.error('Network Error', error);
-          },
-        };
-
-        // Create a new instance with the error handler
-        const mainApiClient = new APIClient(errorHandler, {});
-
-        // Configure the client using setter methods (not direct property assignment)
-        mainApiClient.setBaseUrl(apiUrl);
-        mainApiClient.setApiVersion('v1');
-        mainApiClient.setUseApiVersionPrefix(true);
-
-        // Store the API client instance for further use
-        // Note: We're ignoring the type mismatch for now as we transition from ApiClient to APIClient
-        this.apiClient = apiClient; // Using apiClient (old) for compatibility
-
-        // Register it as the main API client to use in other components
-        this.dependencyContainer.register('mainApiClient', () => mainApiClient);
-      } catch (importError) {
-        this.logger.warn(
-          'Failed to initialize APIClient from api/api-client',
-          `Using ApiClient as mainApiClient instead: ${importError instanceof Error ? importError.message : String(importError)}`,
-        );
-
-        // If the import fails, use the original apiClient for both service names
-        this.dependencyContainer.register('mainApiClient', () => apiClient);
-        this.apiClient = apiClient;
-      }
+      const mainApiClient = new APIClient(apiErrorHandler, apiConfig);
+      
+      // Register main API client
+      this.dependencyContainer.register('mainApiClient', () => mainApiClient);
 
       this.updateStatus('apiClient', InitStatus.COMPLETED);
-      this.logger.info('API clients initialized', `API clients ready with base URL: ${apiUrl}`);
+      this.logger.info('API client initialized successfully');
     } catch (error) {
       this.updateStatus('apiClient', InitStatus.FAILED);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to initialize API client', errorMessage);
+      this.logger.error('Failed to initialize API client', error);
       throw error;
     }
   }
@@ -401,55 +385,58 @@ export class AppBootstrapper implements Component {
    * Register default services
    */
   private registerDefaultServices(): void {
-    // Register core services
-    this.dependencyContainer.register('appBootstrapper', () => this);
+    this.logger.info('Registering default services');
 
-    // Make sure mainApiClient is registered
-    if (!this.dependencyContainer.has('mainApiClient')) {
-      const apiClient = this.dependencyContainer.get('apiClient');
-      this.dependencyContainer.register('mainApiClient', () => apiClient);
-      this.logger.warn('mainApiClient not found, using apiClient as a fallback');
-    }
+    // Register DomService
+    this.dependencyContainer.register('domService', () => {
+      return new BrowserDomService();
+    });
 
-    // Initialize and register AuthManager synchronously if possible
-    try {
-      // Use a synchronous import (this should be done before this module is loaded)
-      const AuthManagerModulePath = '../modules/auth-manager';
-      // This approach allows for synchronous registration but assumes the AuthManager is available
-      import(AuthManagerModulePath)
-        .then(module => {
-          const AuthManager = module.AuthManager;
-          const mainApiClient = this.dependencyContainer.get('mainApiClient');
-          const storageService = this.dependencyContainer.get<LocalStorageService>('storageService');
+    // Register StorageService implementations
+    this.dependencyContainer.register('localStorageService', () => {
+      return new LocalStorageService();
+    });
 
-          // Create auth manager instance with the proper options
-          const authManager = new AuthManager({
-            storageService: storageService,
-            tokenKey: 'admin_auth_token',
-            userKey: 'admin_user_info',
-          });
+    this.dependencyContainer.register('sessionStorageService', () => {
+      return new SessionStorageService();
+    });
 
-          // Register it in the dependency container
-          this.dependencyContainer.register('authManager', () => authManager);
-          this.logger.info('AuthManager registered', 'Authentication service available');
-        })
-        .catch(error => {
-          this.logger.error(
-            'Failed to load AuthManager module',
-            error instanceof Error ? error.message : String(error),
-          );
-        });
-    } catch (error) {
-      this.logger.error(
-        'Failed to initialize AuthManager',
-        error instanceof Error ? error.message : String(error),
-      );
-    }
+    this.dependencyContainer.register('memoryStorageService', () => {
+      return new MemoryStorageService();
+    });
 
-    this.logger.info(
-      'Default services registered',
-      'Core services available in dependency container',
-    );
+    // Register default storage service (localStorage)
+    this.dependencyContainer.register('storageService', c => {
+      return c.get('localStorageService');
+    });
+
+    // Register NetworkService
+    this.dependencyContainer.register('networkService', () => {
+      return new FetchNetworkService();
+    });
+
+    // Register LoggingService
+    this.dependencyContainer.register('loggingService', () => {
+      return new ConsoleLoggingService(LoggingLevel.INFO.toString());
+    });
+
+    // Register OpenAPI service
+    this.dependencyContainer.register('openApiService', () => {
+      // Create with required properties only to avoid type mismatches
+      const networkService = new FetchNetworkService();
+      return new OpenApiService({
+        apiClient: this.dependencyContainer.get('mainApiClient'),
+        networkService,
+      });
+    });
+
+    // Register theme from config
+    const theme = this.configManager.get('ui.theme', 'light');
+    this.dependencyContainer.register('theme', () => theme);
+
+    this.registerCoreServices();
+    this.registerManagers();
+    this.registerControllers();
   }
 
   /**
@@ -457,12 +444,12 @@ export class AppBootstrapper implements Component {
    * @param component Component name
    * @param status New status
    */
-  private updateStatus(componen: string, status: InitStatus): void {
-    this.initStatus.set(componen, status);
+  private updateStatus(component: string, status: InitStatus): void {
+    this.initStatus.set(component, status);
 
     // Emit status change event
     this.eventBus.publish('app:component:status', {
-      component: componen,
+      component,
       status,
       timestamp: new Date(),
     });
@@ -472,8 +459,8 @@ export class AppBootstrapper implements Component {
    * Get initialization status
    * @param component Component name
    */
-  public getStatus(componen: string): InitStatus {
-    return this.initStatus.get(componen) || InitStatus.NOT_STARTED;
+  public getStatus(component: string): InitStatus {
+    return this.initStatus.get(component) || InitStatus.NOT_STARTED;
   }
 
   /**
@@ -486,327 +473,282 @@ export class AppBootstrapper implements Component {
   /**
    * Register core services
    */
-  private async registerCoreServices(): Promise<void> {
-    this.updateStatus('coreServices', InitStatus.IN_PROGRESS);
+  private registerCoreServices(): void {
+    // Register EventBus
+    this.dependencyContainer.register('eventBus', () => this.eventBus);
 
-    try {
-      // Register basic services
-      // Storage Service - use the already registered one in bootstrap.ts
-      const storageService = this.dependencyContainer.get<LocalStorageService>('storageService');
-      
-      // DOM Service
-      const domService = new BrowserDomService();
-      this.dependencyContainer.register('domService', () => domService);
-      
-      // Network Service
-      const networkServiceOptions: NetworkRequestOptions = {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        timeout: 30000,
-      };
-      const networkService = new FetchNetworkService(networkServiceOptions);
-      networkService.setBaseUrl(this.configManager.get('apiUrl') as string);
-      this.dependencyContainer.register('networkService', () => networkService);
-      
-      // Logging Service
-      const loggingService = new ConsoleLoggingService({
-        minLevel: LoggingLevel.INFO,
-        includeTimestamp: true,
-        includeSource: true,
-      });
-      this.dependencyContainer.register('loggingService', () => loggingService);
-      
-      // Get config manager
-      this.configManager = this.dependencyContainer.get<ConfigManager>('configManager');
-      
-      // Register the API client (which is already initialized)
-      if (this.apiClient) {
-        this.dependencyContainer.register('mainApiClient', () => this.apiClient);
-      }
-      
-      // Create and register UI Manager
-      const uiManagerOptions = {
-        debug: this.configManager.get('debug') as boolean || false,
-      };
-      const uiManager = new UIManager(uiManagerOptions);
-      this.dependencyContainer.register('uiManager', () => uiManager);
-      
-      // Register response and domain state viewers
-      const responseContainer = document.getElementById('response-content');
-      if (responseContainer) {
-        const responseViewer = new ResponseViewer({
-          containerId: 'response-content',
-        });
-        this.dependencyContainer.register('responseViewer', () => responseViewer);
-      } else {
-        this.logger.warn('Response content container not found');
-      }
-      
-      const stateContainer = document.getElementById('domain-state-content');
-      if (stateContainer) {
-        // Get domain state manager from container
-        const domainStateManager = this.dependencyContainer.get<DomainStateManager>('domainStateManager');
-        
-        // Create a dummy getCurrentRequest function
-        const getCurrentRequest = () => null;
-        
-        const domainStateViewer = new DomainStateViewer({
-          container: stateContainer,
-          domainStateManager,
-          getCurrentRequest
-        });
-        this.dependencyContainer.register('domainStateViewer', () => domainStateViewer);
-      } else {
-        this.logger.warn('Domain state content container not found');
-      }
-      
-      // Variable extractor
-      const variableContainer = document.getElementById('variable-extractor');
-      if (variableContainer) {
-        // Get variable manager from container
-        const variableManager = this.dependencyContainer.get<VariableManager>('variableManager');
-        
-        const variableExtractor = new VariableExtractor({
-          container: variableContainer,
-          variableManager, // Add required variableManager
-          debug: this.configManager.get('debug') as boolean || false
-        });
-        this.dependencyContainer.register('variableExtractor', () => variableExtractor);
-      } else {
-        this.logger.warn('Variable extractor container not found');
-      }
-      
-      this.updateStatus('coreServices', InitStatus.COMPLETED);
-      this.logger.info('Core services registered', 'All core services are available in the container');
-    } catch (error) {
-      this.updateStatus('coreServices', InitStatus.FAILED);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to register core services', errorMessage);
-      throw error;
-    }
+    // Register ConfigManager
+    this.dependencyContainer.register('configManager', () => this.configManager);
+
+    // Register Logger
+    this.dependencyContainer.register('logger', () => this.logger);
   }
 
   /**
    * Register managers
    */
-  private async registerManagers(): Promise<void> {
-    this.updateStatus('managers', InitStatus.IN_PROGRESS);
-
-    try {
-      // Get dependencies
-      const apiClient = this.dependencyContainer.get<APIClient>('mainApiClient');
-      const storageService = this.dependencyContainer.get<LocalStorageService>('storageService');
-      const eventBus = this.dependencyContainer.get<EventBus>('eventBus');
-      const configManager = this.dependencyContainer.get<ConfigManager>('configManager');
-      const uiManager = this.dependencyContainer.get<UIManager>('uiManager');
-      
-      // Create and register auth manager - use proper options
-      const authManager = new AuthManager({
-        storageService,
-        tokenKey: 'admin_auth_token',
-        userKey: 'admin_user_info'
-      });
-      this.dependencyContainer.register('authManager', () => authManager);
-      
-      // Create and register endpoint manager with all required options
-      const endpointOptions: EndpointManagerOptions = {
-        apiClient,
-        storageService,
-        eventBus,
-        useLocalEndpoints: true,
-        supportMultipleFormats: true,
-        maxRetries: 3,
-        endpointsFilePath: 'data/endpoints.json',
-        config: configManager,
-        // Add missing required properties with default values
-        retryDelay: 1000,
-        dynamicEndpointsPath: '',
-        useDynamicEndpoints: false,
-        useStorage: true,
-        endpointsUrl: ''
-      };
-      const endpointManager = new EndpointManager(endpointOptions);
-      this.dependencyContainer.register('endpointManager', () => endpointManager);
-      
-      // Create and register variable manager
-      const variableOptions = {
-        storageService,
-        eventBus,
-        storageKey: 'api_variables',
-        persistVariables: true,
-      };
-      const variableManager = new VariableManager(variableOptions);
-      this.dependencyContainer.register('variableManager', () => variableManager);
-      
-      // Create and register domain state manager
-      const domainStateOptions = {
-        apiClient,
-        eventBus,
-        apiBasePath: configManager.get('endpoints.domainStateBase', '/api/v1/api-tester'),
-      };
-      const domainStateManager = new DomainStateManager(domainStateOptions);
-      this.dependencyContainer.register('domainStateManager', () => domainStateManager);
-      
-      // Create and register history manager with proper storage type
-      const historyOptions = {
-        storageService,
-        eventBus,
-        maxEntries: configManager.get('maxHistoryItems', 50),
-        persistHistory: true,
-        storageKey: 'api_history',
-        storageType: 'localStorage' as 'localStorage' | 'sessionStorage' | 'memory',
-      };
-      const historyManager = new HistoryManager(historyOptions);
-      this.dependencyContainer.register('historyManager', () => historyManager);
-      
-      // Create and register status manager
-      const statusOptions = {
-        apiClient,
-        eventBus,
-        updateInterval: 30000,
-        statusEndpoint: configManager.get('endpoints.statusEndpoint', '/api/v1/status'),
-      };
-      const statusManager = new StatusManager(statusOptions);
-      this.dependencyContainer.register('statusManager', () => statusManager);
-      
-      // Create and register backend logs manager
-      const logsOptions = {
-        apiClient,
-        eventBus,
-        logsEndpoint: configManager.get('endpoints.logsEndpoint', '/api/v1/logs'),
-      };
-      const backendLogsManager = new BackendLogsManager(logsOptions);
-      this.dependencyContainer.register('backendLogsManager', () => backendLogsManager);
-      
-      // Create and register user friendly flow manager
-      // Use type assertion to avoid compatibility issues between interfaces
-      const flowManagerOptions = {
-        apiClient,
-        endpointManager,
-        variableManager,
-        historyManager,
-        uiManager,
-      };
-      const userFriendlyFlowManager = new UserFriendlyFlowManager(flowManagerOptions as any);
-      this.dependencyContainer.register('userFriendlyFlowManager', () => userFriendlyFlowManager);
-      
-      this.updateStatus('managers', InitStatus.COMPLETED);
-      this.logger.info('Managers registered', 'All application managers are available in the container');
-    } catch (error) {
-      this.updateStatus('managers', InitStatus.FAILED);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to register managers', errorMessage);
-      throw error;
+  private registerManagers(): void {
+    // First register UIManager so it's available to components that need it
+    // Find the main app container
+    this.container = document.getElementById('app') as HTMLElement;
+    if (!this.container) {
+      this.logger.warn('Main app container not found, using body as container');
+      this.container = document.body;
     }
+
+    // Register UIManager first
+    this.dependencyContainer.register('uiManager', c => {
+      const uiOptions: UIManagerOptions = {
+        container: this.container,
+        eventBus: this.eventBus,
+        theme: c.get('theme'),
+      };
+      return new UIManager(uiOptions);
+    });
+
+    // Register AuthManager
+    this.dependencyContainer.register('authManager', c => {
+      const authOptions: AuthManagerOptions = {
+        storageService: c.get('storageService'),
+        eventBus: this.eventBus,
+        logger: Logger.getLogger('AuthManager'),
+      };
+      return new AuthManager(authOptions);
+    });
+
+    // Register EndpointManager
+    this.dependencyContainer.register('endpointManager', c => {
+      const endpointOptions: EndpointManagerOptions = {
+        apiClient: c.get('mainApiClient'),
+        storageService: c.get('storageService'),
+        eventBus: this.eventBus,
+        logger: Logger.getLogger('EndpointManager'),
+      };
+      return new EndpointManager(endpointOptions);
+    });
+
+    // Register VariableManager
+    this.dependencyContainer.register('variableManager', c => {
+      const variableOptions: VariableManagerOptions = {
+        persistVariables: true,
+        storageKey: 'admin_api_variables',
+        eventBus: this.eventBus,
+        logger: Logger.getLogger('VariableManager'),
+      };
+      return new VariableManager(variableOptions);
+    });
+
+    // Register DomainStateManager
+    this.dependencyContainer.register('domainStateManager', c => {
+      const domainStateOptions: DomainStateManagerOptions = {
+        apiBasePath: '/api/v1/domain-state',
+        eventBus: this.eventBus,
+        logger: Logger.getLogger('DomainStateManager'),
+      };
+      return new DomainStateManager(domainStateOptions);
+    });
+
+    // Register HistoryManager
+    this.dependencyContainer.register('historyManager', c => {
+      const historyOptions: HistoryManagerOptions = {
+        storageService: c.get('storageService'),
+        eventBus: this.eventBus,
+        maxItems: 100,
+        logger: Logger.getLogger('HistoryManager'),
+      };
+      return new HistoryManager(historyOptions);
+    });
+
+    // Register StatusManager
+    this.dependencyContainer.register('statusManager', c => {
+      const statusOptions: StatusManagerOptions = {
+        apiClient: c.get('mainApiClient'),
+        eventBus: this.eventBus,
+        refreshInterval: 30000,
+        logger: Logger.getLogger('StatusManager'),
+      };
+      return new StatusManager(statusOptions);
+    });
+
+    // Register BackendLogsManager
+    this.dependencyContainer.register('backendLogsManager', c => {
+      const logsOptions: BackendLogsManagerOptions = {
+        apiClient: c.get('mainApiClient'),
+        eventBus: this.eventBus,
+        logger: Logger.getLogger('BackendLogsManager'),
+      };
+      return new BackendLogsManager(logsOptions);
+    });
+
+    // Register UserFriendlyFlowManager if available
+    this.dependencyContainer.register('userFriendlyFlowManager', c => {
+      const uiManager = c.get('uiManager');
+      if (!uiManager) {
+        throw new Error('UIManager must be registered before UserFriendlyFlowManager');
+      }
+      
+      // Using type assertion to avoid complex typing issues
+      /* eslint-disable @typescript-eslint/no-explicit-any */
+      const options = {
+        apiClient: c.get('mainApiClient') as any,
+        endpointManager: c.get('endpointManager') as any,
+        variableManager: c.get('variableManager') as any,
+        historyManager: c.get('historyManager') as any,
+        uiManager: uiManager as any,
+        eventBus: this.eventBus,
+        logger: Logger.getLogger('UserFriendlyFlowManager'),
+      };
+      /* eslint-enable @typescript-eslint/no-explicit-any */
+      return new UserFriendlyFlowManager(options);
+    });
   }
 
   /**
    * Register controllers
    */
-  private async registerControllers(): Promise<void> {
-    this.updateStatus('controllers', InitStatus.IN_PROGRESS);
-
-    try {
-      // Get dependencies
-      const apiClient = this.dependencyContainer.get<APIClient>('mainApiClient');
-      const endpointManager = this.dependencyContainer.get<EndpointManager>('endpointManager');
-      const variableManager = this.dependencyContainer.get<VariableManager>('variableManager');
-      const historyManager = this.dependencyContainer.get<HistoryManager>('historyManager');
-      const uiManager = this.dependencyContainer.get<UIManager>('uiManager');
-      const statusManager = this.dependencyContainer.get<StatusManager>('statusManager');
-      const backendLogsManager = this.dependencyContainer.get<BackendLogsManager>('backendLogsManager');
-      const domainStateManager = this.dependencyContainer.get<DomainStateManager>('domainStateManager');
-      const responseViewer = this.dependencyContainer.get<ResponseViewer>('responseViewer');
-      const variableExtractor = this.dependencyContainer.get<VariableExtractor>('variableExtractor');
-      const authManager = this.dependencyContainer.get<AuthManager>('authManager');
-      const userFriendlyFlowManager = this.dependencyContainer.get<UserFriendlyFlowManager>('userFriendlyFlowManager');
-      
-      // Create and register app controller
-      const appController = new AppController({
-        apiClient,
-        endpointManager,
-        variableManager,
-        historyManager,
-        uiManager,
-        statusManager,
-        backendLogsManager,
-        domainStateManager,
-        responseViewer,
-        variableExtractor,
-        authManager,
-      });
-      this.dependencyContainer.register('appController', () => appController);
-      this.appController = appController;
-      
-      // Create and register flow controller
-      const flowController = new FlowController({
-        apiClient,
-        endpointManager,
-        variableManager,
-        historyManager,
-        uiManager,
-        appController,
-      });
-      this.dependencyContainer.register('flowController', () => flowController);
-      
-      // Create and register user friendly UI
-      // Use type assertion to avoid compatibility issues between interfaces
-      const userFriendlyOptions = {
-        apiClient,
-        endpointManager,
-        variableManager,
-        historyManager,
-        appController,
-        userFriendlyFlowManager,
+  private registerControllers(): void {
+    // Register ResponseViewer
+    this.dependencyContainer.register('responseViewer', () => {
+      const options = {
+        containerId: 'response-content',
       };
-      const userFriendlyUI = new UserFriendlyUI(userFriendlyOptions as any);
-      this.dependencyContainer.register('userFriendlyUI', () => userFriendlyUI);
+      return new ResponseViewer(options);
+    });
+
+    // Register DomainStateViewer if available
+    this.dependencyContainer.register('domainStateViewer', c => {
+      const container = document.querySelector('#domain-state-viewer');
+      if (!container) {
+        console.warn('No container found for DomainStateViewer');
+        return {};
+      }
       
-      // Create UI Controller
-      // Note: This should be refactored to be an interface with multiple implementations
-      this.uiController = appController; // For now, reusing AppController as UI controller
+      /* eslint-disable @typescript-eslint/no-explicit-any */
+      const options = {
+        container: container as HTMLElement,
+        domainStateManager: c.get('domainStateManager') as DomainStateManager,
+        getCurrentRequest: (): Record<string, unknown> => {
+          return { id: 'current-request' };
+        },
+        eventBus: this.eventBus,
+        logger: Logger.getLogger('DomainStateViewer'),
+      };
+      /* eslint-enable @typescript-eslint/no-explicit-any */
+      return new DomainStateViewer(options);
+    });
+
+    // Register LogsViewer
+    this.dependencyContainer.register('logsViewer', () => {
+      const options = {
+        logsContainerId: 'logs-container',
+      };
+      return new LogsViewer(options);
+    });
+
+    // Register VariableExtractor if available
+    this.dependencyContainer.register('variableExtractor', c => {
+      const container = document.querySelector('#variable-extractor');
+      if (!container) {
+        console.warn('No container found for VariableExtractor');
+        return {};
+      }
       
-      this.updateStatus('controllers', InitStatus.COMPLETED);
-      this.logger.info('Controllers registered', 'All application controllers are available in the container');
-    } catch (error) {
-      this.updateStatus('controllers', InitStatus.FAILED); 
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to register controllers', errorMessage);
-      throw error;
-    }
+      /* eslint-disable @typescript-eslint/no-explicit-any */
+      const options = {
+        container: container as HTMLElement,
+        variableManager: c.get('variableManager') as any,
+        eventBus: this.eventBus,
+        logger: Logger.getLogger('VariableExtractor'),
+      };
+      /* eslint-enable @typescript-eslint/no-explicit-any */
+      return new VariableExtractor(options);
+    });
+
+    // Get all required services for controllers
+    const domService = this.dependencyContainer.get('domService');
+    const storageService = this.dependencyContainer.get('storageService');
+    const networkService = this.dependencyContainer.get('networkService');
+    const loggingService = this.dependencyContainer.get('loggingService');
+
+    // Register FlowController - pass required services directly
+    this.dependencyContainer.register('flowController', c => {
+      // Pass all required services directly
+      return new FlowController({
+        apiClient: c.get('mainApiClient'),
+        endpointManager: c.get('endpointManager'),
+        variableManager: c.get('variableManager'),
+        historyManager: c.get('historyManager'),
+        // Add required services by the actual constructor
+        uiManager: c.get('uiManager'),
+        appController: null, // This is optional
+      });
+    });
+
+    // Register ResponseController
+    this.dependencyContainer.register('responseController', c => {
+      const options = {
+        domService: c.get('domService') as DomService,
+        storageService: c.get('storageService') as StorageService,
+        networkService: c.get('networkService') as NetworkService,
+        loggingService: c.get('loggingService') as LoggingService,
+        responseViewerId: 'response-viewer',
+      };
+      return new ResponseController(options);
+    });
+
+    // Register UserInterfaceController
+    this.dependencyContainer.register('userInterfaceController', c => {
+      const options = {
+        domService: c.get('domService') as DomService,
+        storageService: c.get('storageService') as StorageService,
+        loggingService: c.get('loggingService') as LoggingService,
+        uiOptions: {
+          theme: 'light',
+          layout: 'default',
+          animations: true,
+          compactMode: false,
+          defaultExpand: true,
+        },
+      };
+      return new UserInterfaceController(options);
+    });
   }
-  
+
   /**
    * Initialize the application
    */
   private async initializeApp(): Promise<void> {
     this.logger.info('Initializing application');
-    
+
     try {
       // Initialize AppController
       const appController = this.dependencyContainer.get<AppController>('appController');
       if (appController && appController.initialize) {
         appController.initialize();
       }
-      
+
       // Update DomainStateViewer with actual getCurrentRequest
       const domainStateViewer = this.dependencyContainer.get('domainStateViewer');
       const appController2 = this.dependencyContainer.get<AppController>('appController');
-      
+
       if (domainStateViewer && appController2 && appController2.getCurrentRequestDetails) {
         // Use type assertion for domainStateViewer since we know its structure
-        const typedViewer = domainStateViewer as { updateGetCurrentRequest?: (fn: () => any) => void };
-        
+        const typedViewer = domainStateViewer as {
+          updateGetCurrentRequest?: (fn: () => Record<string, unknown>) => void;
+        };
+
         // Check if the method exists on the typed object
         if (typedViewer.updateGetCurrentRequest) {
-          typedViewer.updateGetCurrentRequest(() => appController2.getCurrentRequestDetails());
+          typedViewer.updateGetCurrentRequest(() => {
+            // First convert to unknown, then to Record<string, unknown>
+            const requestDetails = appController2.getCurrentRequestDetails();
+            return requestDetails ? (requestDetails as unknown as Record<string, unknown>) : { id: 'no-request' };
+          });
         } else {
           this.logger.warn('DomainStateViewer does not have updateGetCurrentRequest method');
         }
       }
-      
+
       this.logger.info('Application initialized successfully');
     } catch (error) {
       this.logger.error('Failed to initialize application', String(error));

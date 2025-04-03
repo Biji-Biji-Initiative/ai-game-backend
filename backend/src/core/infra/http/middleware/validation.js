@@ -35,8 +35,33 @@ export function validateBody(schema) {
   // Return the validation middleware
   return (req, res, next) => {
     try {
+      // Handle Zod schema (check if it has a parse method)
+      if (typeof schema.parse === 'function') {
+        try {
+          const validatedData = schema.parse(req.body);
+          // Replace request body with validated data
+          req.body = validatedData;
+          return next();
+        } catch (error) {
+          logger.debug('Body validation failed', { 
+            path: req.path, 
+            method: req.method,
+            errors: error.errors
+          });
+          
+          // Format Zod validation errors
+          if (error.errors) {
+            const formattedErrors = error.errors.map(err => ({
+              field: err.path.join('.'), 
+              message: err.message
+            }));
+            return sendValidationErrorResponse(formattedErrors, req, res);
+          }
+          throw error; // Let it be caught by the outer catch
+        }
+      }
       // If schema is a function, assume it's a validator function
-      if (typeof schema === 'function') {
+      else if (typeof schema === 'function') {
         const result = schema(req.body);
         if (result !== true && result !== undefined) {
           return sendValidationErrorResponse(
@@ -101,8 +126,33 @@ export function validateQuery(schema) {
   // but operates on req.query instead of req.body
   return (req, res, next) => {
     try {
+      // Handle Zod schema (check if it has a parse method)
+      if (typeof schema.parse === 'function') {
+        try {
+          const validatedData = schema.parse(req.query);
+          // Replace request query with validated data
+          req.query = validatedData;
+          return next();
+        } catch (error) {
+          logger.debug('Query validation failed', { 
+            path: req.path, 
+            method: req.method,
+            errors: error.errors
+          });
+          
+          // Format Zod validation errors
+          if (error.errors) {
+            const formattedErrors = error.errors.map(err => ({
+              field: err.path.join('.'), 
+              message: err.message
+            }));
+            return sendValidationErrorResponse(formattedErrors, req, res);
+          }
+          throw error; // Let it be caught by the outer catch
+        }
+      }
       // If schema is a function, assume it's a validator function
-      if (typeof schema === 'function') {
+      else if (typeof schema === 'function') {
         const result = schema(req.query);
         if (result !== true && result !== undefined) {
           return sendValidationErrorResponse(

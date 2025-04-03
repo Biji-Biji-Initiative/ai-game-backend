@@ -1,0 +1,5 @@
+Creating a list of files that need to be updated with proper formatting
+1. All responses should use status: string (not success: boolean)
+2. Data should be nested with a descriptive key: data: { users: [...] }
+3. Error responses should use status: error and message: string
+4. Create backup copies before making changes

@@ -1,0 +1,116 @@
+evaluations:
+  get:
+    summary: Get all evaluations
+    description: Retrieves a list of all evaluations with pagination
+    operationId: getAllEvaluations
+    tags:
+      - Evaluations
+    security:
+      - bearerAuth: []
+    parameters:
+      - $ref: '../components/parameters/common.yaml#/limitParam'
+      - $ref: '../components/parameters/common.yaml#/offsetParam'
+      - $ref: '../components/parameters/common.yaml#/sortParam'
+      - $ref: '../components/parameters/common.yaml#/filterParam'
+    responses:
+      '200':
+        description: Evaluations retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  type: array
+                  items:
+                    $ref: '../components/schemas/Evaluation.yaml'
+                pagination:
+                  $ref: '../components/schemas/common/PaginationParams.yaml'
+      '401':
+        $ref: '../components/responses/common.yaml#/UnauthorizedError'
+
+  post:
+    summary: Create a new evaluation
+    description: Creates a new evaluation for a challenge
+    operationId: createEvaluation
+    tags:
+      - Evaluations
+    security:
+      - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - challengeId
+              - userId
+              - response
+            properties:
+              challengeId:
+                type: string
+                format: uuid
+                description: ID of the challenge being evaluated
+              userId:
+                type: string
+                format: uuid
+                description: ID of the user who submitted the response
+              response:
+                type: string
+                description: User's response to evaluate
+    responses:
+      '201':
+        description: Evaluation created successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  $ref: '../components/schemas/Evaluation.yaml'
+      '400':
+        $ref: '../components/responses/common.yaml#/ValidationError'
+      '401':
+        $ref: '../components/responses/common.yaml#/UnauthorizedError'
+
+evaluations_id:
+  get:
+    summary: Get evaluation by ID
+    description: Retrieves an evaluation by its unique identifier
+    operationId: getEvaluationById
+    tags:
+      - Evaluations
+    security:
+      - bearerAuth: []
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID of the evaluation to retrieve
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '200':
+        description: Evaluation found
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  $ref: '../components/schemas/Evaluation.yaml'
+      '401':
+        $ref: '../components/responses/common.yaml#/UnauthorizedError'
+      '404':
+        $ref: '../components/responses/common.yaml#/NotFoundError' 

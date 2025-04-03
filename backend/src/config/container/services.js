@@ -32,6 +32,10 @@ import ChallengeEvaluationService from "#app/application/challenge/ChallengeEval
 import { UserContextService } from "#app/application/evaluation/UserContextService.js";
 import AuthorizationService from "#app/core/auth/services/AuthorizationService.js";
 import PersonalityPromptBuilder from "#app/core/prompt/builders/PersonalityPromptBuilder.js";
+// Import the AuthService
+import AuthService from "#app/core/auth/services/AuthService.js";
+// Import the AdminService
+import AdminService from "#app/core/admin/services/AdminService.js";
 
 /**
  * Service Components Registration
@@ -358,6 +362,21 @@ function registerServiceComponents(container, logger) {
         userService: c.get('userService'), // Needs user data for roles/permissions
         logger: c.get('infraLogger')
     }), true); // Singleton
+
+    // Auth Service
+    serviceLogger.info('Registering authService...');
+    container.register('authService', c => new AuthService({
+        db: c.get('db'),
+        logger: c.get('userLogger'),
+        refreshTokenRepository: c.get('refreshTokenRepository')
+    }), true); // singleton
+
+    // Admin Service (for operations that bypass RLS)
+    serviceLogger.info('Registering adminService...');
+    container.register('adminService', c => new AdminService({
+        supabase: c.get('db'), // Use the service role Supabase client
+        logger: c.get('infraLogger')
+    }), true); // singleton
 
     serviceLogger.info('Service registration complete.');
 }

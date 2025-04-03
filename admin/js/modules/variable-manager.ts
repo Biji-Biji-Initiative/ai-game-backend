@@ -6,8 +6,8 @@
  * to be used in subsequent requests
  */
 
-import { logger } from '../utils/logger';
-import { EventEmitter } from '../utils/event-emitter';
+import { ComponentLogger } from '../core/Logger';
+import { EventBus } from '../core/EventBus';
 
 interface VariableManagerOptions {
   persistVariables?: boolean;
@@ -17,28 +17,30 @@ interface VariableManagerOptions {
     suffix: string;
     jsonPathIndicator: string;
   };
+  eventBus?: EventBus;
+  logger?: ComponentLogger;
 }
 
 interface ExtractionRule {
   name: string;
   path: string;
-  defaultValue?: any;
+  defaultValue?: unknown;
 }
 
 /**
  * Variable Manager for storing and using variables across API requests
  */
-export class VariableManager extends EventEmitter {
-  private variables: Map<string, any>;
+export class VariableManager {
+  private variables: Map<string, unknown>;
   private options: VariableManagerOptions;
+  private eventBus: EventBus;
+  private logger?: ComponentLogger;
 
   /**
    * Constructor
    * @param options Configuration options
    */
   constructor(options: VariableManagerOptions = {}) {
-    super();
-
     this.options = {
       // Whether to persist variables to localStorage
       persistVariables: true,
@@ -53,14 +55,16 @@ export class VariableManager extends EventEmitter {
       ...options,
     };
 
-    this.variables = new Map(); // Property added
+    this.variables = new Map();
+    this.eventBus = this.options.eventBus || EventBus.getInstance();
+    this.logger = this.options.logger;
 
     // Load variables from localStorage if enabled
     if (this.options.persistVariables) {
       this.loadVariables();
     }
 
-    logger.debug('VariableManager initialized', { variableCount: this.variables.size });
+    this.logger?.debug('VariableManager initialized', { variableCount: this.variables.size });
   }
 
   /**
@@ -76,13 +80,13 @@ export class VariableManager extends EventEmitter {
           this.variables.set(key, value);
         });
 
-        this.emit('variables:loaded', {
+        this.eventBus.publish('variables:loaded', {
           count: this.variables.size,
           variables: this.getVariables(),
         });
       }
     } catch (error) {
-      logger.error('Error loading variables from localStorage:', error);
+      this.logger?.error('Error loading variables from localStorage:', error);
     }
   }
 
@@ -97,7 +101,7 @@ export class VariableManager extends EventEmitter {
       const variables = Object.fromEntries(this.variables.entries());
       localStorage.setItem(this.options.storageKey!, JSON.stringify(variables));
     } catch (error) {
-      logger.error('Error saving variables to localStorage:', error);
+      this.logger?.error('Error saving variables to localStorage:', error);
     }
   }
 
@@ -117,7 +121,7 @@ export class VariableManager extends EventEmitter {
     const parts = actualPath.split('.');
 
     // Traverse the response object
-    let current = response;
+    let current = response as Record<string, unknown>;
     for (const part of parts) {
       if (current === null || current === undefined) {
         return undefined;
@@ -128,17 +132,18 @@ export class VariableManager extends EventEmitter {
         const [arrayName, indexStr] = part.split('[');
         const index = parseInt(indexStr.replace(']', ''), 10);
 
+        const currentArray = current[arrayName] as unknown[];
         if (
-          current[arrayName] &&
-          Array.isArray(current[arrayName]) &&
-          current[arrayName][index] !== undefined
+          currentArray &&
+          Array.isArray(currentArray) &&
+          currentArray[index] !== undefined
         ) {
-          current = current[arrayName][index];
+          current = currentArray[index] as Record<string, unknown>;
         } else {
           return undefined;
         }
       } else {
-        current = current[part];
+        current = current[part] as Record<string, unknown>;
       }
     }
 
@@ -161,7 +166,7 @@ export class VariableManager extends EventEmitter {
       const { name, path, defaultValue } = rule;
 
       if (!name || !path) {
-        logger.warn('Invalid extraction rule: name and path are required', rule);
+        this.logger?.warn('Invalid extraction rule: name and path are required', rule);
         return;
       }
 
@@ -174,7 +179,7 @@ export class VariableManager extends EventEmitter {
           extractedVariables.set(name, defaultValue);
         }
       } catch (error) {
-        logger.error(`Error extracting variable '${name}' from path '${path}':`, error);
+        this.logger?.error(`Error extracting variable '${name}' from path '${path}':`, error);
 
         if (defaultValue !== undefined) {
           extractedVariables.set(name, defaultValue);
@@ -210,7 +215,7 @@ export class VariableManager extends EventEmitter {
     }
 
     // Emit event
-    this.emit('variable:set', {
+    this.eventBus.publish('variable:set', {
       name,
       value,
       oldValue,
@@ -250,7 +255,7 @@ export class VariableManager extends EventEmitter {
       }
 
       // Emit event
-      this.emit('variable:deleted', { name });
+      this.eventBus.publish('variable:deleted', { name });
     }
 
     return deleted;
@@ -268,7 +273,7 @@ export class VariableManager extends EventEmitter {
     }
 
     // Emit event
-    this.emit('variables:cleared');
+    this.eventBus.publish('variables:cleared');
   }
 
   /**
@@ -403,7 +408,7 @@ export class VariableManager extends EventEmitter {
     try {
       processedRequest = JSON.parse(JSON.stringify(request));
     } catch (e) {
-      logger.error('Could not deep copy request object in processRequest', e);
+      this.logger?.error('Could not deep copy request object in processRequest', e);
       return request; // Return original if copy fails
     }
 
@@ -463,6 +468,24 @@ export class VariableManager extends EventEmitter {
     // Ensure input is a string before calling replace
     if (typeof string !== 'string') return '';
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+  }
+  
+  /**
+   * Subscribe to an event
+   * @param event Event name
+   * @param handler Event handler
+   */
+  on(event: string, handler: (data: unknown) => void): void {
+    this.eventBus.subscribe(event, handler);
+  }
+
+  /**
+   * Unsubscribe from an event
+   * @param event Event name
+   * @param handler Event handler
+   */
+  off(event: string, handler: (data: unknown) => void): void {
+    this.eventBus.unsubscribe(event, handler);
   }
 }
 

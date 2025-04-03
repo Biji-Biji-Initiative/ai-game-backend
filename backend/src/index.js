@@ -5,6 +5,8 @@
  * It properly loads the environment configuration and initializes all components.
  */
 
+import 'dotenv/config';
+
 // === Global Error Handlers (Add these FIRST) ===
 process.on('unhandledRejection', (reason, promise) => {
   console.error('>>> UNHANDLED REJECTION <<<');
@@ -27,6 +29,7 @@ process.on('uncaughtException', (error) => {
 'use strict';
 
 import app from './app.js';
+import { startServer } from './server.js';
 import { logger } from './core/infra/logging/logger.js';
 import { fileURLToPath } from 'url'; // Import necessary function
 
@@ -50,13 +53,24 @@ const isMainModule = (metaUrl, argv1) => {
 const runningAsMain = isMainModule(import.meta.url, process.argv[1]);
 
 if (runningAsMain) {
-  const PORT = process.env.PORT || 3000;
+  // Parse command line arguments for port override
+  const args = process.argv.slice(2);
+  let portArg = null;
+  for (let i = 0; i < args.length; i++) {
+    if (args[i].startsWith('--port=')) {
+      portArg = parseInt(args[i].split('=')[1], 10);
+      break;
+    }
+  }
   
-  app.listen(PORT, () => {
-    logger.info(`Server is running on port ${PORT}`);
-    logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  }).on('error', (err) => { // Added error handler for listen
-    logger.error(`Failed to start server on port ${PORT}`, { error: err.message, code: err.code });
+  // Use either command line port or .env port
+  const PORT = portArg || parseInt(process.env.PORT) || 3081;
+  
+  logger.info(`Starting server with port ${PORT}`);
+  
+  // Use the startServer function instead of app.listen
+  startServer(PORT).catch(err => {
+    logger.error(`Failed to start server: ${err.message}`, { error: err });
     process.exit(1);
   });
 } 

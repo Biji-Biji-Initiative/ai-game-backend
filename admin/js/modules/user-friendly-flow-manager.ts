@@ -5,7 +5,8 @@
  */
 
 import { Flow, StepType } from '../types/flow-types';
-import { logger } from '../utils/logger';
+import { ComponentLogger } from '../core/Logger';
+import { EventBus } from '../core/EventBus';
 // Remove FlowManager import if not extending
 // import { FlowManager, FlowManagerOptions as BaseFlowManagerOptions } from '../modules/flow-manager';
 
@@ -28,15 +29,25 @@ export type CategorizedFlow = Flow & {
  */
 export interface UserFriendlyFlowManagerOptions {
   /** API client instance */
-  apiClient: any;
+  apiClient?: unknown;
   /** Endpoint manager instance */
-  endpointManager: any;
+  endpointManager?: unknown;
   /** Variable manager instance */
-  variableManager: any;
+  variableManager?: unknown;
   /** History manager instance */
-  historyManager: any;
+  historyManager?: unknown;
   /** Optional UI manager instance */
-  uiManager?: any;
+  uiManager?: unknown;
+  /** Event bus instance */
+  eventBus?: EventBus;
+  /** Logger instance */
+  logger?: ComponentLogger;
+  /** Storage key for flows */
+  storageKey?: string;
+  /** Whether to load from local storage */
+  loadFromLocalStorage?: boolean;
+  /** Default categories */
+  defaultCategories?: FlowCategory[];
   /** Optional debug flag */
   debug?: boolean;
 }
@@ -50,11 +61,16 @@ export class UserFriendlyFlowManager {
   private storageKey: string;
   // Add options if needed independently from FlowManager
   private options: UserFriendlyFlowManagerOptions;
+  private eventBus: EventBus;
+  private logger?: ComponentLogger;
 
   constructor(options: UserFriendlyFlowManagerOptions = {}) {
     // No super() call needed now
     this.options = options; // Store options
     this.storageKey = options.storageKey || 'user_friendly_flows';
+    this.eventBus = options.eventBus || EventBus.getInstance();
+    this.logger = options.logger;
+    
     // We need a way to load flows now - let's call loadFromStorage
     if (options.loadFromLocalStorage !== false) {
       this.loadFromStorage();
@@ -65,6 +81,11 @@ export class UserFriendlyFlowManager {
     } else if (this.categories.length === 0) {
       this.initializeDefaultCategories();
     }
+    
+    this.logger?.debug('UserFriendlyFlowManager initialized', {
+      categoriesCount: this.categories.length,
+      flowsCount: this.flows.length,
+    });
   }
 
   /**
@@ -125,7 +146,7 @@ export class UserFriendlyFlowManager {
         if (Array.isArray(data.categories)) {
           this.categories = data.categories; // Property added
         } else {
-          logger.warn(
+          this.logger?.warn(
             'Skipping invalid category data: expected array but got',
             typeof data.categories,
           );
@@ -136,12 +157,12 @@ export class UserFriendlyFlowManager {
         if (Array.isArray(data.flows)) {
           this.flows = data.flows; // Property added
         } else {
-          logger.warn('Skipping invalid flows data: expected array but got', typeof data.flows);
+          this.logger?.warn('Skipping invalid flows data: expected array but got', typeof data.flows);
           this.flows = []; // Property added
         }
       }
     } catch (error) {
-      logger.error('Failed to load categories and flows from storage:', error);
+      this.logger?.error('Failed to load categories and flows from storage:', error);
       this.categories = []; // Property added
       this.flows = []; // Property added
     }
@@ -158,7 +179,7 @@ export class UserFriendlyFlowManager {
       };
       localStorage.setItem(this.storageKey, JSON.stringify(data));
     } catch (error) {
-      logger.error('Failed to save categories and flows to storage:', error);
+      this.logger?.error('Failed to save categories and flows to storage:', error);
     }
   }
 
@@ -286,8 +307,8 @@ export class UserFriendlyFlowManager {
     const deleted = this.categories.length < initialLength;
     if (deleted) {
       this.saveToStorage();
-      // this.emit('category:deleted', categoryId); // Comment out emit
-      // this.emit('flows:updated'); // Comment out emit
+      this.eventBus.publish('category:deleted', categoryId);
+      this.eventBus.publish('flows:updated');
     }
     return deleted;
   }

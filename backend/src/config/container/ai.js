@@ -12,14 +12,17 @@ import { OpenAIStateManagerAdapter } from "#app/core/ai/adapters/OpenAIStateMana
 import FocusAreaThreadStateAdapter from "#app/core/infra/openai/adapters/FocusAreaThreadStateAdapter.js";
 import OpenAI from "openai";
 import config from "#app/config/env.js";
+import { OpenAIStateManager } from "#app/core/infra/openai/stateManager.js";
 
 /**
- * Register AI components in the DI container following hexagonal architecture
- * @param {object} container - The DI container 
+ * Register AI related components in the container
+ * @param {DIContainer} container - The DI container
+ * @param {Logger} logger - The logger instance passed down from container registration
  */
-function registerAIComponents(container) {
-    const aiLogger = container.get('logger').child({ context: 'DI-AI' });
-    aiLogger.info('[DI AI] Registering AI components...');
+function registerAIComponents(container, logger) {
+    // Use passed-in logger or fallback
+    const aiLogger = logger || container.get('logger').child({ context: 'DI-AI' });
+    aiLogger.info('Registering AI components...');
     
     // Register the OpenAI SDK client FIRST (external dependency)
     try {
@@ -33,32 +36,40 @@ function registerAIComponents(container) {
         container.register('openAIClient', () => openAIClient, true);
         aiLogger.info('[DI AI] OpenAI client registered.');
         
+        // 2. Register the OpenAIStateManager IMPLEMENTATION
+        aiLogger.info('[DI AI] Registering OpenAIStateManager implementation...');
+        container.register('openAIStateManager', c => new OpenAIStateManager({
+            openAIClient: c.get('openAIClient'),
+            logger: c.get('logger') // Or a specific AI logger
+            // redisCache: c.get('redisCache') // Optional: Add if redis is registered
+        }), true); // Singleton
+        aiLogger.info('[DI AI] OpenAIStateManager implementation registered.');
+        
+        // 3. Register the AI Client ADAPTER (Port Implementation)
         aiLogger.info('[DI AI] Registering AI client adapter...');
-        // NOTE: Instantiate adapters here, but register the *instance* using registerInstance or a factory
         const aiClientAdapter = new OpenAIClientAdapter({
-            openAIClient: openAIClient,
+            openAIClient: container.get('openAIClient'), // Use the already registered SDK client
             logger: container.get('logger')
         });
         container.register('aiClient', () => aiClientAdapter, true);
         aiLogger.info('[DI AI] AI client adapter registered.');
         
+        // 4. Register the AI State Manager ADAPTER (Port Implementation)
         aiLogger.info('[DI AI] Registering AI state manager adapter...');
-        // NOTE: Passing openAIClient (the SDK instance) to OpenAIStateManagerAdapter might be incorrect.
-        // It likely expects the OpenAIStateManager *implementation* registered in infrastructure.js.
-        // Let's assume it expects the SDK client for now based on the original code.
         const stateManagerAdapter = new OpenAIStateManagerAdapter({
-            openAIStateManager: container.get('openAIStateManager'), // Corrected: Inject the implementation
+            openAIStateManager: container.get('openAIStateManager'), // Now gets the registered implementation
             logger: container.get('logger')
         });
         container.register('aiStateManager', () => stateManagerAdapter, true);
         aiLogger.info('[DI AI] AI state manager adapter registered.');
         
+        // 5. Register FocusAreaThreadState ADAPTER (Port Implementation)
         aiLogger.info('[DI AI] Registering FocusAreaThreadState adapter...');
-        const focusAreaAdapter = new FocusAreaThreadStateAdapter({
-            openAIStateManager: stateManagerAdapter, // This adapter depends on the previous adapter
-            logger: container.get('focusAreaLogger') || container.get('logger')
+        const focusAreaThreadAdapter = new FocusAreaThreadStateAdapter({
+            openAIStateManager: container.get('openAIStateManager'), // Uses the implementation
+            logger: container.get('focusAreaLogger') // Specific logger
         });
-        container.register('focusAreaThreadState', () => focusAreaAdapter, true);
+        container.register('focusAreaThreadState', () => focusAreaThreadAdapter, true);
         aiLogger.info('[DI AI] FocusAreaThreadState adapter registered.');
         
         aiLogger.info('[DI AI] AI components registered successfully.');

@@ -13,13 +13,17 @@ import { APIClient } from '../api/api-client';
 // import { ConfigManager } from '../modules/config-manager';
 
 /**
- * Enum for different step types in a flow
+ * Flow Types
  */
+
+export type StepStatus = 'pending' | 'running' | 'success' | 'error' | 'skipped';
+
 export enum StepType {
   REQUEST = 'request',
-  DELAY = 'delay',
+  SCRIPT = 'script',
   CONDITION = 'condition',
-  LOG = 'log', // Added Log type for example
+  DELAY = 'delay',
+  LOG = 'log'
 }
 
 /**

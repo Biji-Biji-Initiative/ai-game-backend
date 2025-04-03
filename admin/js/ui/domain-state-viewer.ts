@@ -45,7 +45,11 @@ interface DiffResult {
 
 // Define JSONFormatterInterface if not already present
 interface JSONFormatterInterface {
-  new (data: unknown, maxDepth?: number, options?: Record<string, unknown>): {
+  new (
+    data: unknown,
+    maxDepth?: number,
+    options?: Record<string, unknown>,
+  ): {
     render(): HTMLElement;
     openAtDepth?(depth?: number): void;
     expandAll?(): void;
@@ -293,7 +297,10 @@ export class DomainStateViewer extends EventEmitter {
     });
 
     this.domainStateManager.on('error', (data: unknown) => {
-      const message = typeof data === 'object' && data !== null && 'message' in data ? String(data.message) : 'Unknown domain state error';
+      const message =
+        typeof data === 'object' && data !== null && 'message' in data
+          ? String(data.message)
+          : 'Unknown domain state error';
       this.showStatus(message, 'error');
     });
   }
@@ -647,8 +654,11 @@ export class DomainStateViewer extends EventEmitter {
 
     try {
       this.showStatus('Taking snapshot...', 'info');
-      // Pass only selected entity types
-      await this.domainStateManager.takeBeforeSnapshot(this.selectedEntityTypes);
+      // Fix the type mismatch by using the method signature correctly
+      await this.domainStateManager.takeBeforeSnapshot({
+        path: '/entities/snapshot/before',
+        body: { entityTypes: this.selectedEntityTypes },
+      });
       this.showStatus('Before snapshot taken successfully. You can now run the step.', 'success');
       this.takeAfterSnapshotButton.disabled = false;
     } catch (error) {
@@ -672,8 +682,11 @@ export class DomainStateViewer extends EventEmitter {
 
     try {
       this.showStatus('Taking snapshot...', 'info');
-      // Pass only selected entity types
-      await this.domainStateManager.takeAfterSnapshot(this.selectedEntityTypes);
+      // Fix the type mismatch by using the method signature correctly
+      await this.domainStateManager.takeAfterSnapshot({
+        path: '/entities/snapshot/after',
+        body: { entityTypes: this.selectedEntityTypes },
+      });
       this.showStatus('After snapshot taken successfully. You can now run the step.', 'success');
 
       if (this.lastBeforeSnapshot && this.lastAfterSnapshot) {

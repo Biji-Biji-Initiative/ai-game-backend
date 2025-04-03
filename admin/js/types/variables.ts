@@ -6,7 +6,7 @@
 // Assuming necessary imports
 import { ResponseViewer } from '../ui/response-viewer';
 import { DomainStateManager } from '../modules/domain-state-manager';
-import { ApiClient } from '../services/api-client';
+import { APIClient } from '../api/api-client';
 
 /**
  * Variable definition
@@ -39,7 +39,7 @@ export interface VariableExtractorOptions {
   containerId?: string;
   responseViewer?: ResponseViewer;
   domainStateManager?: DomainStateManager;
-  apiClient?: ApiClient;
+  apiClient?: APIClient;
   variablePrefix?: string;
   suggestionsEnabled?: boolean;
   autoExtract?: boolean;

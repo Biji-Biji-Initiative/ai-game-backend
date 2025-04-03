@@ -15,6 +15,16 @@ const ENGAGEMENT_LEVELS = {
   INACTIVE: 'inactive'
 };
 
+// User journey phases
+const USER_JOURNEY_PHASES = {
+  ONBOARDING: 'onboarding',
+  BEGINNER: 'beginner',
+  EXPLORER: 'explorer',
+  PRACTITIONER: 'practitioner',
+  ADVANCED: 'advanced',
+  MASTER: 'master'
+};
+
 /**
  * Represents the overall journey and progress of a single user.
  * This acts as an Aggregate Root for User Journey events and state.
@@ -31,6 +41,7 @@ class UserJourney extends Entity {
      * @param {number} [data.sessionCount=0] - Number of distinct sessions.
      * @param {Date|string} [data.currentSessionStartedAt=null] - Start time of the current session.
      * @param {string} [data.engagementLevel=ENGAGEMENT_LEVELS.NEW] - Current engagement level.
+     * @param {string} [data.currentPhase=USER_JOURNEY_PHASES.ONBOARDING] - Current user journey phase.
      * @param {Object} [data.metrics={}] - Calculated metrics (e.g., totalChallenges, averageScore).
      * @param {Object} [data.metadata={}] - Additional metadata.
      * @param {Object} [options={}] - Options like EventTypes definition.
@@ -53,6 +64,7 @@ class UserJourney extends Entity {
         this.sessionCount = data.sessionCount || 0;
         this.currentSessionStartedAt = data.currentSessionStartedAt ? new Date(data.currentSessionStartedAt) : null;
         this.engagementLevel = data.engagementLevel || ENGAGEMENT_LEVELS.NEW;
+        this.currentPhase = data.currentPhase || USER_JOURNEY_PHASES.ONBOARDING;
         this.metrics = data.metrics || { totalChallenges: 0, averageScore: 0, streakDays: 0, lastChallenge: null }; // Initialize metrics object
         this.metadata = data.metadata || {};
         this.createdAt = data.createdAt ? new Date(data.createdAt) : new Date();
@@ -172,7 +184,39 @@ class UserJourney extends Entity {
         }
     }
     
-    // Phase calculation method (_determineUserPhase) removed
+    /**
+     * Determine user journey phase based on activity history and onboarding status.
+     * @param {number} totalChallenges - Total number of challenges completed.
+     * @param {boolean} onboardingCompleted - Whether user has completed onboarding.
+     * @private
+     */
+    _determineUserPhase(totalChallenges, onboardingCompleted) {
+        // Default to onboarding phase if onboarding not completed
+        if (!onboardingCompleted) {
+            this.currentPhase = USER_JOURNEY_PHASES.ONBOARDING;
+            return;
+        }
+        
+        // Base phase determination on challenges completed
+        if (totalChallenges >= 100) {
+            this.currentPhase = USER_JOURNEY_PHASES.MASTER;
+        } else if (totalChallenges >= 50) {
+            this.currentPhase = USER_JOURNEY_PHASES.ADVANCED;
+        } else if (totalChallenges >= 20) {
+            this.currentPhase = USER_JOURNEY_PHASES.PRACTITIONER;
+        } else if (totalChallenges >= 5) {
+            this.currentPhase = USER_JOURNEY_PHASES.EXPLORER;
+        } else {
+            this.currentPhase = USER_JOURNEY_PHASES.BEGINNER;
+        }
+        
+        // Note: In a more sophisticated implementation, you could consider:
+        // - Average scores
+        // - Diversity of challenge types attempted
+        // - Time spent in the application
+        // - Skill levels in different areas
+        // - And many other factors
+    }
 
     /**
      * Generate insights and recommendations based on the current journey state.
@@ -181,12 +225,36 @@ class UserJourney extends Entity {
     generateInsightsAndRecommendations() {
         const insights = [];
         const recommendations = [];
-        // Phase is no longer stored here, so remove phase-based insights/recommendations
-        // const phase = this.currentPhase; 
+        const phase = this.currentPhase;
         const engagement = this.engagementLevel;
         
-        // // Add phase-based insights (REMOVED)
-        // switch (phase) { ... }
+        // Add phase-based insights
+        switch (phase) {
+            case USER_JOURNEY_PHASES.ONBOARDING:
+                insights.push('Welcome to your learning journey!');
+                recommendations.push('Complete the onboarding to unlock more challenges');
+                break;
+            case USER_JOURNEY_PHASES.BEGINNER:
+                insights.push('You are at the beginning of your learning path');
+                recommendations.push('Try completing at least 5 more challenges to advance');
+                break;
+            case USER_JOURNEY_PHASES.EXPLORER:
+                insights.push('You are exploring different challenge types');
+                recommendations.push('Try a variety of focus areas to discover your strengths');
+                break;
+            case USER_JOURNEY_PHASES.PRACTITIONER:
+                insights.push('You are building consistent practice habits');
+                recommendations.push('Focus on challenges that target your weaker areas');
+                break;
+            case USER_JOURNEY_PHASES.ADVANCED:
+                insights.push('You have developed strong skills across multiple areas');
+                recommendations.push('Challenge yourself with the most difficult problems');
+                break;
+            case USER_JOURNEY_PHASES.MASTER:
+                insights.push('You have mastered a wide range of challenges');
+                recommendations.push('Share your knowledge by encouraging others in the community');
+                break;
+        }
 
         // Add engagement-based insights
         switch (engagement) {
@@ -318,7 +386,13 @@ class UserJourney extends Entity {
         return this.engagementLevel;
     }
     
-    // getCurrentPhase removed as phase is calculated externally
+    /**
+     * Get the current user journey phase
+     * @returns {string} The current phase
+     */
+    getCurrentPhase() {
+        return this.currentPhase || USER_JOURNEY_PHASES.ONBOARDING;
+    }
     
     getActivityMetrics() {
         // Ensure metrics are calculated if needed
@@ -328,5 +402,5 @@ class UserJourney extends Entity {
 
 }
 
-export { UserJourney, ENGAGEMENT_LEVELS }; // Removed USER_JOURNEY_PHASES
+export { UserJourney, ENGAGEMENT_LEVELS, USER_JOURNEY_PHASES };
 export default UserJourney; 

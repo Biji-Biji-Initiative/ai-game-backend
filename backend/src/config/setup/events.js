@@ -9,16 +9,16 @@ import { infraLogger } from "#app/core/infra/logging/domainLogger.js";
  * Registers all application and domain event handlers.
  * @param {DIContainer} container - The Dependency Injection container.
  */
-function registerAllEventHandlers(container) {
+async function registerAllEventHandlers(container) {
     const logger = container.get('infraLogger') || infraLogger;
     logger.info('[Setup] Registering event handlers...');
     try {
         // Register application event handlers 
-        registerEventHandlers(container);
+        await registerEventHandlers(container);
         logger.debug('[Setup] Application event handlers registered.');
 
-        // Register domain event handlers 
-        setupDomainEventHandlers(container); 
+        // Register domain event handlers (now async)
+        await setupDomainEventHandlers(container); 
         logger.debug('[Setup] Domain event handlers registered.');
         
         logger.info('[Setup] Event handler registration complete.');

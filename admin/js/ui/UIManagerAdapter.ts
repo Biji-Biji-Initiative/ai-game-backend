@@ -6,7 +6,7 @@
  * by implementing the expected UIManager interface while using the new components.
  */
 
-import { UIManager as NewUIManager } from '../components/UIManager';
+import { IUIManager as NewUIManager } from '../types/ui';
 
 export class UIManager {
   private uiManager: NewUIManager;

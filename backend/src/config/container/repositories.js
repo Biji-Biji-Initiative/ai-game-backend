@@ -12,6 +12,7 @@ import ChallengeTypeRepository from "#app/core/challenge/repositories/config/Cha
 import FormatTypeRepository from "#app/core/challenge/repositories/config/FormatTypeRepository.js";
 import { FocusAreaConfigRepository } from "#app/core/challenge/repositories/config/FocusAreaConfigRepository.js";
 import DifficultyLevelRepository from "#app/core/challenge/repositories/config/DifficultyLevelRepository.js";
+import RefreshTokenRepository from "#app/core/auth/repositories/RefreshTokenRepository.js";
 
 // Import Mappers needed *only* for DI registration factory functions below
 // Remove static import of UserMapper
@@ -155,6 +156,13 @@ function registerRepositoryComponents(container, logger) {
         db: dbInstance,
         logger: c.get('challengeLogger'),
         cache: configCacheInstance
+    }), true);
+
+    repoLogger.info('Registering RefreshTokenRepository...');
+    container.register('refreshTokenRepository', c => new RefreshTokenRepository({
+        db: dbInstance,
+        logger: c.get('refreshTokenLogger'),
+        eventBus: eventBusInstance
     }), true);
     
     repoLogger.info('Repository registration complete.');

@@ -52,14 +52,30 @@ class DIContainer {
     }
     /**
      * Register multiple components from a module
-     * @param {Function} registerFn - Registration function that takes this container as an argument
+     * @param {Function} registerFn - Registration function that takes this container and optionally a logger as arguments
+     * @param {string} [moduleName] - Optional name for this module (used for logging)
      * @returns {DIContainer} This container instance for chaining
      */
-    registerModule(registerFn) {
+    registerModule(registerFn, moduleName) {
         if (typeof registerFn !== 'function') {
             throw new Error('Module registrar must be a function');
         }
-        registerFn(this);
+        
+        let childLogger = this.logger; // Default to container's logger
+        // Ensure the container HAS a logger and a child method before trying to use it
+        if (moduleName && this.logger && typeof this.logger.child === 'function') {
+            try {
+                childLogger = this.logger.child(moduleName);
+            } catch (e) {
+                this.logger.error(`Failed to create child logger for module: ${moduleName}`, e);
+                // Proceed with the parent logger
+            }
+        } else if (moduleName && (!this.logger || typeof this.logger.child !== 'function')) {
+            this.logger?.warn?.(`Container logger doesn't support .child() method, cannot create specific logger for module: ${moduleName}`);
+        }
+
+        // Pass the container AND the potentially specific child logger to the registration function
+        registerFn(this, childLogger); 
         return this;
     }
     /**

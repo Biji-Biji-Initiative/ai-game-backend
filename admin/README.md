@@ -1,89 +1,209 @@
-# AI Backend Game - Admin UI
+# Admin Dashboard Architecture
 
-The Admin UI is a powerful tool for managing and testing the AI Backend Game. It provides two modes to accommodate both developers and non-technical users.
+This project implements a modern, modular frontend architecture for an admin dashboard application.
 
-## Quick Start Guide
+## Architecture Overview
 
-1. **Start the server**:
-   ```bash
-   cd admin
-   npm install
-   npm start
-   ```
+The architecture follows these key design principles:
 
-2. **Access the UI**:
-   Open your browser and go to: http://localhost:8080
+1. **Modular Structure**: Components are organized into modules by function
+2. **Service-Based Design**: Core functionalities are implemented as services
+3. **Dependency Injection**: Services use dependency injection for better testability and loose coupling
+4. **Event-Driven Communication**: Services communicate through an event bus
+5. **Single Page Application**: Client-side routing for smooth transitions
 
-3. **Switch to Simple Mode**:
-   Click the "Switch to Simple Mode" button in the header.
-   
-4. **Choose a Category and Flow**:
-   - Select a category from the sidebar (e.g., "Authentication")
-   - Pick a pre-configured flow 
-   - Follow the step-by-step instructions
+## Core Components
 
-## Features
+### 1. Service Manager
 
-- **Developer Mode**: Advanced interface with full control over API calls, request formatting, and raw response viewing
-- **Simple Mode**: User-friendly interface with guided flows, step-by-step instructions, and simplified forms
-- **Status Monitoring**: Visual indicators for system health and dependencies
-- **Log Viewing**: Detailed frontend and backend logs with filtering capabilities
-- **Variable Management**: Ability to extract and reuse variables from API responses
+The `ServiceManager` handles service lifecycle management, including initialization, dependencies, and disposal. It ensures services are initialized in the correct order based on their dependencies.
+
+Key features:
+- Dependency tracking
+- Lifecycle management (initialization, disposal)
+- Service state monitoring
+- Singleton access
+
+### 2. Dependency Container
+
+The `DependencyContainer` implements a dependency injection system, allowing services to be registered, retrieved, and managed centrally.
+
+Key features:
+- Component registration
+- Dependency resolution
+- Singleton management
+- Factory pattern support
+
+### 3. Event Bus
+
+The `EventBus` provides a publish-subscribe mechanism for services to communicate without tight coupling.
+
+Key features:
+- Event publishing
+- Event subscription
+- Event unsubscription
+- Scoped events
+
+### 4. Router
+
+The `Router` manages client-side navigation for the Single Page Application (SPA).
+
+Key features:
+- Route registration
+- Path-based navigation
+- Route parameters
+- Authentication-aware routing
+- History API integration
+
+## Services
+
+### API Client
+
+The `ApiClient` manages HTTP communication with the backend services.
+
+Key features:
+- Request/response handling
+- Error handling
+- Interceptors for request/response
+- Retry mechanism
+- Authentication header management
+
+### Authentication Service
+
+The `AuthService` handles user authentication, session management, and permission checks.
+
+Key features:
+- Login/logout
+- Token management
+- Permission checking
+- Role-based authorization
+- Session persistence
+
+### User Service
+
+The `UserService` provides user management functionality.
+
+Key features:
+- User listing
+- User creation/update/deletion
+- Role management
+- User search
+
+### UI Manager
+
+The `UIManager` provides UI components and utilities for the application.
+
+Key features:
+- Toast notifications
+- Modal dialogs
+- Confirmation dialogs
+- Alert messages
+- Prompt dialogs
 
 ## Getting Started
 
-1. Navigate to the admin directory
-2. Install dependencies: `npm install`
-3. Start the server: `npm start`
-4. Open your browser at `http://localhost:8080`
+1. **Installation**
 
-## Using Developer Mode
+```bash
+npm install
+```
 
-Developer Mode provides full control and visibility into the API:
+2. **Development**
 
-- **Flow Management**: Create, edit, and organize complex API request flows
-- **Request Builder**: Manually construct requests with headers, params, and JSON body
-- **Response Viewer**: Inspect raw responses with detailed headers and status codes
-- **Domain State**: Examine the complete application state
+```bash
+npm run dev
+```
 
-This mode is intended for developers who need detailed control and understanding of the API.
+3. **Build**
 
-## Using Simple Mode
+```bash
+npm run build
+```
 
-Simple Mode provides a guided, user-friendly experience:
+## Directory Structure
 
-- **Step-by-Step Flows**: Pre-configured sequences of API calls organized by category
-- **Simplified Forms**: Easy-to-understand input fields with helpful descriptions
-- **Guided Testing**: Clear instructions for each step of the testing process
-- **User-Friendly Error Messages**: Helpful explanations when something goes wrong
+```
+admin/
+├── js/
+│   ├── api/                # API communication
+│   │   └── ApiClient.ts
+│   ├── core/               # Core architecture
+│   │   ├── DependencyContainer.ts
+│   │   ├── EventBus.ts
+│   │   ├── Router.ts
+│   │   └── ServiceManager.ts
+│   ├── services/           # Business logic services
+│   │   ├── AuthService.ts
+│   │   └── UserService.ts
+│   ├── ui/                 # UI components
+│   │   └── UIManager.ts
+│   ├── utils/              # Utility functions
+│   │   ├── logger.ts
+│   │   └── storage-utils.ts
+│   └── main.ts             # Application entry point
+├── styles/                 # CSS styles
+├── index.html              # Main HTML file
+└── README.md               # Documentation
+```
 
-To switch to Simple Mode, click the "Switch to Simple Mode" button in the top-right corner of the interface.
+## Usage Examples
 
-### Flow Categories
+### Service Registration
 
-The Simple Mode organizes flows into logical categories:
+```typescript
+// Register service with the service manager
+serviceManager.register('authService', () => {
+  return new AuthService(apiClient, authConfig);
+}, {
+  dependencies: ['apiClient'],
+  autoInit: true,
+});
+```
 
-- **Authentication**: User registration, login, and token management
-- **User Management**: Creating and managing user profiles
-- **Challenges**: Working with game challenges and puzzles
-- **Game Flow**: Game progression and state management
-- **System**: System health, status, and configuration
+### Event Communication
 
-## Development
+```typescript
+// Subscribe to an event
+eventBus.on('auth:login', (data) => {
+  console.log('User logged in:', data.user);
+});
 
-If you need to extend or modify the Admin UI, the codebase is organized as follows:
+// Publish an event
+eventBus.emit('auth:login', { user });
+```
 
-- `/js/controllers`: Core application controllers
-- `/js/modules`: Functional modules for different aspects of the app
-- `/js/components`: UI components and renderers
-- `/js/utils`: Utility functions
-- `/js/types`: TypeScript type definitions
+### Route Registration
 
-The user-friendly interface is implemented using:
+```typescript
+// Register a route
+router.register({
+  path: '/users/:id',
+  title: 'User Details',
+  requiresAuth: true,
+  handler: async (params) => {
+    // Handle route
+    const user = await userService.getUserById(params.id);
+    renderUserDetails(user);
+  },
+});
+```
 
-- `UserFriendlyFlowManager`: Manages categorized flows for non-technical users
-- `UserFriendlyUI`: Renders the simplified UI components
+### API Client Usage
 
-## Contributing
+```typescript
+// Make an API request
+const response = await apiClient.get<User[]>('/users', {
+  limit: 10,
+  page: 1,
+});
 
-If you're adding new features, please ensure they work in both Developer and Simple modes, providing appropriate interfaces for each user type. 
+// Post data
+await apiClient.post('/users', {
+  username: 'newuser',
+  email: 'user@example.com',
+});
+```
+
+## License
+
+MIT 

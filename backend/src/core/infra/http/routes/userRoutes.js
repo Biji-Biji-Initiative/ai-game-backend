@@ -4,6 +4,8 @@ import { requireAdmin } from "#app/core/infra/http/middleware/auth.js";
 import { authorizeUserSpecificResource } from "#app/core/infra/http/middleware/resourceAuth.js";
 import { createValidationMiddleware } from "#app/core/infra/http/middleware/validationFactory.js";
 import { logger as appLogger } from '#app/core/infra/logging/logger.js';
+import { container } from "#app/config/container.js";
+import { v4 as uuidv4 } from 'uuid';
 'use strict';
 
 /**
@@ -30,64 +32,89 @@ export default function userRoutes(options) {
     return router;
   }
 
+  // --- Public Routes --- 
+
   /**
-   * /users:
-   *   post:
-   *     summary: Create a new user
-   *     description: Creates a new user account
-   *     tags: [Users]
-   *     requestBody:
-   *       required: true
+   * POST /register: 
+   *   summary: Register user interest (minimal profile)
+   *   description: Creates a basic user profile with just name and email, without authentication.
+   *   tags: [Users, Public]
+   *   requestBody:
+   *     required: true
+   *     content:
+   *       application/json:
+   *         schema:
+   *           $ref: '#/components/schemas/RegisterUserInterestRequest'
+   *   responses:
+   *     201:
+   *       description: User profile created successfully.
    *       content:
    *         application/json:
    *           schema:
-   *             type: object
-   *             required:
-   *               - email
-   *               - password
-   *               - fullName
-   *             properties:
-   *               email:
-   *                 type: string
-   *                 format: email
-   *                 description: User's email address
-   *               password:
-   *                 type: string
-   *                 format: password
-   *                 description: User's password
-   *               fullName:
-   *                 type: string
-   *                 description: User's full name
-   *     responses:
-   *       201:
-   *         description: User created successfully
-   *       400:
-   *         $ref: '#/components/responses/ValidationError'
-   *       409:
-   *         description: Email already in use
+   *             $ref: '#/components/schemas/RegisterUserInterestResponse'
+   *     400:
+   *       $ref: '#/components/responses/ValidationError'
+   *     409:
+   *       description: Email already in use.
    */
-  // Create user (public endpoint for signup)
-  router.post('/', 
-    ...createValidationMiddleware({ body: userApiSchemas.createUserSchema }),
-    userController.createUser.bind(userController)
-  );
-  
+  // Check if controller has registerUserInterest method before binding
+  if (typeof userController.registerUserInterest === 'function') {
+    router.post('/register', 
+      ...createValidationMiddleware({ body: userApiSchemas.registerUserInterestSchema }),
+      userController.registerUserInterest.bind(userController)
+    );
+    logger.info('Mounted /register route with controller method');
+  } else {
+    logger.error('registerUserInterest method not available on userController');
+  }
+
+  // --- Admin Routes (Require Admin) --- 
+
   // Get user by email (admin only)
   router.get('/email/:email', 
     requireAdmin,
     ...createValidationMiddleware({ params: userApiSchemas.emailParamSchema }),
     userController.getUserByEmail.bind(userController)
   );
+
+  // List all users (admin only)
+  router.get('/', 
+    requireAdmin, 
+    ...createValidationMiddleware({ query: userApiSchemas.listUsersQuerySchema }),
+    userController.listUsers.bind(userController)
+  );
   
+  // Delete a user (admin only)
+  if (typeof userController.deleteUser === 'function') {
+    router.delete('/:id',
+      requireAdmin,
+      ...createValidationMiddleware({ params: userApiSchemas.userIdSchema }),
+      userController.deleteUser.bind(userController)
+    );
+  }
+
+  // --- Authenticated User Routes --- 
+  // Note: Auth middleware is applied globally before these routes are hit
+
+  // Create user (POST /) - Might be confusing, consider if this should be admin only or removed?
+  // This looks like the old signup route that required a password.
+  // Let's comment it out for now to avoid confusion with the new /register route.
+  /*
+  router.post('/', 
+    ...createValidationMiddleware({ body: userApiSchemas.createUserSchema }), // This schema likely requires password
+    userController.createUser.bind(userController)
+  );
+  */
+
   // Current user profile endpoints
   router.get('/me', 
     userController.getCurrentUser.bind(userController)
   );
   
-  // Get user profile
-  router.get('/profile', 
-    userController.getUserProfile.bind(userController)
-  );
+  // Get user profile (assuming this is for the current user? duplicates /me?)
+  // router.get('/profile', 
+  //   userController.getUserProfile.bind(userController)
+  // );
   
   // Update current user profile
   router.put('/me', 
@@ -102,32 +129,17 @@ export default function userRoutes(options) {
   );
   
   // User preferences routes
-  /**
-   * Get all preferences for the current user
-   */
   router.get('/me/preferences',
     userController.getUserPreferences.bind(userController)
   );
-
-  /**
-   * Get preferences for a specific category for the current user
-   */
   router.get('/me/preferences/:category',
     ...createValidationMiddleware({ params: userApiSchemas.preferencesCategoryParamSchema }),
     userController.getUserPreferencesByCategory.bind(userController)
   );
-
-  /**
-   * Update all preferences for the current user
-   */
   router.put('/me/preferences',
     ...createValidationMiddleware({ body: userApiSchemas.preferencesUpdateSchema }),
     userController.updateUserPreferences.bind(userController)
   );
-
-  /**
-   * Update preferences for a specific category for the current user
-   */
   router.put('/me/preferences/:category',
     ...createValidationMiddleware({ 
       params: userApiSchemas.preferencesCategoryParamSchema,
@@ -135,10 +147,6 @@ export default function userRoutes(options) {
     }),
     userController.updateUserPreferencesByCategory.bind(userController)
   );
-
-  /**
-   * Update a single preference for the current user
-   */
   router.patch('/me/preferences/:key',
     ...createValidationMiddleware({ 
       params: userApiSchemas.preferencesKeyParamSchema,
@@ -146,15 +154,13 @@ export default function userRoutes(options) {
     }),
     userController.updateSinglePreference.bind(userController)
   );
-
-  /**
-   * Reset a preference to its default value for the current user
-   */
   router.delete('/me/preferences/:key',
     ...createValidationMiddleware({ params: userApiSchemas.preferencesKeyParamSchema }),
     userController.resetPreference.bind(userController)
   );
   
+  // --- Specific User Routes (Admin or Self) --- 
+
   // Get a specific user by ID (only if admin or same user)
   router.get('/:id', 
     authorizeUserSpecificResource('id'),
@@ -173,22 +179,7 @@ export default function userRoutes(options) {
       userController.updateUser.bind(userController)
     );
   }
-  
-  // List all users (admin only)
-  router.get('/', 
-    requireAdmin, 
-    ...createValidationMiddleware({ query: userApiSchemas.listUsersQuerySchema }),
-    userController.listUsers.bind(userController)
-  );
-  
-  // Delete a user (admin only)
-  if (typeof userController.deleteUser === 'function') {
-    router.delete('/:id',
-      requireAdmin,
-      ...createValidationMiddleware({ params: userApiSchemas.userIdSchema }),
-      userController.deleteUser.bind(userController)
-    );
-  }
 
+  logger.info('User routes configured.');
   return router;
 }

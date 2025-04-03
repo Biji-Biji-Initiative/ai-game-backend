@@ -197,7 +197,7 @@ export class APIClient {
   async makeRequest<T = unknown>(
     method: string,
     endpoint: string,
-    body = null,
+    body: unknown = null,
     options: ApiRequestOptions = {},
   ): Promise<T> {
     const requestId =

@@ -7,10 +7,16 @@
 import { VariableManager } from '../modules/variable-manager';
 import { VariableExtractorOptions } from '../types/ui';
 
+// Extended interface
+interface ExtendedVariableExtractorOptions extends VariableExtractorOptions {
+  suggestionLimit?: number;
+  variableManager?: VariableManager;
+}
+
 interface SuggestedVariable {
   name: string;
   path: string;
-  value: string;
+  value: any; // Changed from string to any since values can be of different types
   description?: string;
 }
 
@@ -20,22 +26,19 @@ interface SuggestedVariable {
  */
 export class VariableExtractor {
   private variableManager?: VariableManager;
-  private options: Omit<Required<VariableExtractorOptions>, 'variableManager'> & {
-    variableManager?: VariableManager;
-  };
+  private options: ExtendedVariableExtractorOptions;
 
   /**
    * Constructor
    * @param options Configuration options
    */
-  constructor(options: VariableExtractorOptions) {
+  constructor(options: ExtendedVariableExtractorOptions) {
     this.options = {
       autoExtract: true,
       suggestionLimit: 5,
       ...options,
     };
-    // @ts-ignore - Complex type issues
-    this.variableManager = options.variableManager; // Property added
+    this.variableManager = options.variableManager;
   }
 
   /**
@@ -81,12 +84,17 @@ export class VariableExtractor {
     const extractedVars: Record<string, unknown> = {};
 
     // Common response structures
-    if (response.data && typeof response.data === 'object') {
+    const responseObj = response as Record<string, unknown>;
+    if (responseObj.data && typeof responseObj.data === 'object') {
       // Most APIs wrap their response in a data property
-      this.extractCommonVariables(response.data, extractedVars, 'data');
+      this.extractCommonVariables(
+        responseObj.data as Record<string, unknown>,
+        extractedVars,
+        'data',
+      );
     } else {
       // Direct response object
-      this.extractCommonVariables(response, extractedVars);
+      this.extractCommonVariables(responseObj, extractedVars);
     }
 
     // Save extracted variables
@@ -203,11 +211,11 @@ export class VariableExtractor {
     };
 
     // Helper function to search for interesting values
-    const findInterestingValues = (obj: Record<string, unknown>, basePath = '$'): void => {
+    const findInterestingValues = (obj: any, basePath = '$'): void => {
       if (!obj || typeof obj !== 'object') return;
 
       // Stop if we've reached the suggestion limit
-      if (suggestions.length >= this.options.suggestionLimit) return;
+      if (suggestions.length >= (this.options.suggestionLimit || 5)) return;
 
       if (Array.isArray(obj)) {
         // Handle arrays
@@ -219,7 +227,7 @@ export class VariableExtractor {
         // Handle objects
         for (const [key, value] of Object.entries(obj)) {
           // Skip if we've reached the limit
-          if (suggestions.length >= this.options.suggestionLimit) break;
+          if (suggestions.length >= (this.options.suggestionLimit || 5)) break;
 
           const currentPath = buildPath(basePath, key);
 
@@ -359,14 +367,13 @@ export class VariableExtractor {
    * @param value Value to format
    * @returns Formatted string representation
    */
-  private formatValuePreview(valu: string): string {
+  private formatValuePreview(value: any): string {
     if (value === undefined || value === null) {
       return '<span class="null-value">null</span>';
     }
 
     if (typeof value === 'string') {
       // Truncate long strings
-      // @ts-ignore - Complex type issues
       if (value.length > 30) {
         return `<span class="string-value">"${this.escapeHtml(value.substring(0, 30))}..."</span>`;
       }
@@ -383,7 +390,6 @@ export class VariableExtractor {
 
     if (typeof value === 'object') {
       if (Array.isArray(value)) {
-        // @ts-ignore - Complex type issues
         return `<span class="array-value">Array[${value.length}]</span>`;
       }
       return '<span class="object-value">Object</span>';
@@ -397,12 +403,77 @@ export class VariableExtractor {
    * @param str String to escape
    * @returns Escaped string
    */
-  private escapeHtml(st: string): string {
+  private escapeHtml(str: string): string {
     return str
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
+  }
+
+  /**
+   * Find JSON paths in an object recursively
+   * @param obj Object to analyze
+   * @param path Base path
+   * @param maxDepth Maximum recursion depth
+   * @returns Array of paths with their values and types
+   */
+  private findJsonPaths(
+    obj: any,
+    path = '',
+    maxDepth = 3,
+    currentDepth = 0,
+  ): Array<{ path: string; value: any; type: string }> {
+    if (!obj || typeof obj !== 'object' || currentDepth > maxDepth) {
+      return [];
+    }
+
+    const paths: Array<{ path: string; value: any; type: string }> = [];
+
+    if (Array.isArray(obj)) {
+      if (obj.length > 0) {
+        // Add only the first item from arrays to avoid too many suggestions
+        if (typeof obj[0] === 'object' && obj[0] !== null) {
+          paths.push(...this.findJsonPaths(obj[0], `${path}[0]`, maxDepth, currentDepth + 1));
+        } else {
+          paths.push({
+            path: `${path}[0]`,
+            value: obj[0],
+            type: typeof obj[0],
+          });
+        }
+      }
+    } else {
+      for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          const value = obj[key];
+          const newPath = path ? `${path}.${key}` : key;
+
+          if (value === null) {
+            paths.push({
+              path: newPath,
+              value: null,
+              type: 'null',
+            });
+          } else if (typeof value === 'object') {
+            paths.push({
+              path: newPath,
+              value: value,
+              type: Array.isArray(value) ? 'array' : 'object',
+            });
+            paths.push(...this.findJsonPaths(value, newPath, maxDepth, currentDepth + 1));
+          } else {
+            paths.push({
+              path: newPath,
+              value: value,
+              type: typeof value,
+            });
+          }
+        }
+      }
+    }
+
+    return paths;
   }
 }

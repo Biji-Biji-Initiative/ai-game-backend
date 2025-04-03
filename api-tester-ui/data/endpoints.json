@@ -1,778 +1,320 @@
 {
   "endpoints": [
     {
+      "id": "auth-login",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "category": "Authentication",
       "name": "Login",
-      "method": "POST",
-      "path": "/api/v1/auth/login",
-      "description": "Authenticates a user and returns a JWT token",
-      "category": "Authentication",
-      "parameters": [],
-      "requestBody": {
-        "name": "Login credentials",
-        "required": true,
-        "content": {
-          "application/json": {
-            "schema": {
-              "type": "object",
-              "properties": {
-                "email": {
-                  "type": "string",
-                  "example": "user@example.com"
-                },
-                "password": {
-                  "type": "string",
-                  "example": "securePassword123"
-                }
-              },
-              "required": ["email", "password"]
-            }
-          }
+      "description": "Authenticate with email and password",
+      "params": [
+        {
+          "name": "email",
+          "type": "string",
+          "required": true,
+          "description": "User email address"
+        },
+        {
+          "name": "password",
+          "type": "string",
+          "required": true,
+          "description": "User password"
         }
-      },
-      "responseExample": {
-        "success": true,
-        "data": {
-          "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-          "user": {
-            "id": "550e8400-e29b-41d4-a716-446655440000",
-            "email": "user@example.com",
-            "fullName": "John Doe",
-            "role": "user",
-            "createdAt": "2023-01-15T08:30:25.000Z"
-          }
-        }
-      }
+      ]
     },
     {
-      "name": "Sign Up",
+      "id": "auth-register",
       "method": "POST",
-      "path": "/api/v1/auth/signup",
-      "description": "Creates a new user account and returns a JWT token",
+      "path": "/api/auth/register",
       "category": "Authentication",
-      "parameters": [],
-      "requestBody": {
-        "name": "Signup details",
-        "required": true,
-        "content": {
-          "application/json": {
-            "schema": {
-              "type": "object",
-              "properties": {
-                "email": {
-                  "type": "string",
-                  "example": "newuser@example.com"
-                },
-                "password": {
-                  "type": "string",
-                  "example": "securePassword123"
-                },
-                "fullName": {
-                  "type": "string",
-                  "example": "Jane Smith"
-                }
-              },
-              "required": ["email", "password", "fullName"]
-            }
-          }
+      "name": "Register",
+      "description": "Create a new user account",
+      "params": [
+        {
+          "name": "email",
+          "type": "string",
+          "required": true,
+          "description": "User email address"
+        },
+        {
+          "name": "password",
+          "type": "string",
+          "required": true,
+          "description": "User password"
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": true,
+          "description": "Desired username"
         }
-      },
-      "responseExample": {
-        "success": true,
-        "data": {
-          "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-          "user": {
-            "id": "6729a051-f5da-42e1-9626-142157770000",
-            "email": "newuser@example.com",
-            "fullName": "Jane Smith",
-            "role": "user",
-            "createdAt": "2023-05-22T14:56:38.000Z"
-          }
-        }
-      }
+      ]
     },
     {
-      "name": "Refresh Token",
+      "id": "auth-logout",
       "method": "POST",
-      "path": "/api/v1/auth/refresh",
-      "description": "Refreshes an authentication token",
+      "path": "/api/auth/logout",
       "category": "Authentication",
-      "parameters": [],
-      "requestBody": {
-        "name": "Refresh token",
-        "required": true,
-        "content": {
-          "application/json": {
-            "schema": {
-              "type": "object",
-              "properties": {
-                "refreshToken": {
-                  "type": "string",
-                  "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                }
-              },
-              "required": ["refreshToken"]
-            }
-          }
-        }
-      },
-      "responseExample": {
-        "success": true,
-        "data": {
-          "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-          "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-        }
-      }
-    },
-    {
       "name": "Logout",
-      "method": "POST",
-      "path": "/api/v1/auth/logout",
-      "description": "Logs out the current user",
-      "category": "Authentication",
-      "parameters": [],
-      "responseExample": {
-        "success": true,
-        "message": "Successfully logged out"
-      }
+      "description": "End the current session",
+      "params": []
     },
     {
-      "name": "Get Current User",
+      "id": "user-profile",
       "method": "GET",
-      "path": "/api/v1/users/me",
-      "description": "Retrieves the current user's profile",
-      "category": "Users",
-      "parameters": [],
-      "responseExample": {
-        "success": true,
-        "data": {
-          "id": "550e8400-e29b-41d4-a716-446655440000",
-          "email": "user@example.com",
-          "fullName": "John Doe",
-          "role": "user",
-          "createdAt": "2023-01-15T08:30:25.000Z"
-        }
-      }
+      "path": "/api/users/profile",
+      "category": "User Management",
+      "name": "Get Profile",
+      "description": "Retrieve current user profile",
+      "params": []
     },
     {
-      "name": "Update User Profile",
+      "id": "user-update",
       "method": "PUT",
-      "path": "/api/v1/users/me",
-      "description": "Updates the current user's profile",
-      "category": "Users",
-      "parameters": [],
-      "requestBody": {
-        "name": "User profile update",
-        "required": true,
-        "content": {
-          "application/json": {
-            "schema": {
-              "type": "object",
-              "properties": {
-                "fullName": {
-                  "type": "string",
-                  "example": "John Smith"
-                },
-                "preferences": {
-                  "type": "object",
-                  "example": {
-                    "theme": "dark",
-                    "notifications": true
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "responseExample": {
-        "success": true,
-        "data": {
-          "id": "550e8400-e29b-41d4-a716-446655440000",
-          "email": "user@example.com",
-          "fullName": "John Smith",
-          "role": "user",
-          "preferences": {
-            "theme": "dark",
-            "notifications": true
-          },
-          "updatedAt": "2023-06-10T12:30:00Z"
-        }
-      }
-    },
-    {
-      "name": "Get All Challenges",
-      "method": "GET",
-      "path": "/api/v1/challenges",
-      "description": "Retrieves a list of all challenges",
-      "category": "Challenges",
-      "parameters": [
+      "path": "/api/users/profile",
+      "category": "User Management",
+      "name": "Update Profile",
+      "description": "Update user profile information",
+      "params": [
         {
-          "name": "page",
-          "in": "query",
+          "name": "username",
+          "type": "string",
           "required": false,
-          "type": "integer",
-          "description": "Page number",
-          "default": "1"
+          "description": "New username"
         },
         {
-          "name": "limit",
-          "in": "query",
+          "name": "bio",
+          "type": "string",
           "required": false,
-          "type": "integer",
-          "description": "Results per page",
-          "default": "10"
-        }
-      ],
-      "responseExample": {
-        "success": true,
-        "data": {
-          "challenges": [
-            {
-              "id": "c1",
-              "title": "Basic Array Operations",
-              "description": "Practice basic operations on arrays",
-              "difficulty": "beginner",
-              "type": "coding"
-            },
-            {
-              "id": "c2",
-              "title": "Async/Await in JavaScript",
-              "description": "Master asynchronous operations",
-              "difficulty": "intermediate",
-              "type": "coding"
-            }
-          ],
-          "pagination": {
-            "total": 50,
-            "page": 1,
-            "limit": 10
-          }
-        }
-      }
-    },
-    {
-      "name": "Get Challenge by ID",
-      "method": "GET",
-      "path": "/api/v1/challenges/{id}",
-      "description": "Retrieves a specific challenge by ID",
-      "category": "Challenges",
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "type": "string",
-          "description": "Challenge ID"
-        }
-      ],
-      "responseExample": {
-        "success": true,
-        "data": {
-          "id": "c1",
-          "title": "Basic Array Operations",
-          "description": "Practice basic operations on arrays",
-          "content": "In this challenge, you'll implement several array manipulation functions...",
-          "difficulty": "beginner",
-          "type": "coding",
-          "createdAt": "2023-02-10T10:00:00Z"
-        }
-      }
-    },
-    {
-      "name": "Submit Challenge Response",
-      "method": "POST",
-      "path": "/api/v1/challenges/{id}/responses",
-      "description": "Submits a response to a challenge",
-      "category": "Challenges",
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "type": "string",
-          "description": "Challenge ID"
-        }
-      ],
-      "requestBody": {
-        "name": "Challenge response",
-        "required": true,
-        "content": {
-          "application/json": {
-            "schema": {
-              "type": "object",
-              "properties": {
-                "code": {
-                  "type": "string",
-                  "example": "function solution(arr) { return arr.map(x => x*2); }"
-                },
-                "language": {
-                  "type": "string",
-                  "example": "javascript"
-                }
-              },
-              "required": ["code", "language"]
-            }
-          }
-        }
-      },
-      "responseExample": {
-        "success": true,
-        "data": {
-          "id": "r1",
-          "challengeId": "c1",
-          "evaluation": {
-            "status": "passed",
-            "score": 95,
-            "feedback": "Good job! Your solution passes all test cases."
-          },
-          "submittedAt": "2023-06-10T15:30:00Z"
-        }
-      }
-    },
-    {
-      "name": "Generate Challenge",
-      "method": "POST",
-      "path": "/api/v1/challenges/generate",
-      "description": "Generates a personalized challenge",
-      "category": "Challenges",
-      "parameters": [],
-      "requestBody": {
-        "name": "Challenge preferences",
-        "required": true,
-        "content": {
-          "application/json": {
-            "schema": {
-              "type": "object",
-              "properties": {
-                "difficulty": {
-                  "type": "string",
-                  "example": "intermediate"
-                },
-                "type": {
-                  "type": "string",
-                  "example": "coding"
-                },
-                "focusArea": {
-                  "type": "string",
-                  "example": "algorithms"
-                }
-              }
-            }
-          }
-        }
-      },
-      "responseExample": {
-        "success": true,
-        "data": {
-          "id": "c3",
-          "title": "Depth-First Graph Traversal",
-          "description": "Implement a depth-first traversal algorithm",
-          "content": "In this challenge, you'll implement a depth-first traversal of a graph...",
-          "difficulty": "intermediate",
-          "type": "coding",
-          "focusArea": "algorithms",
-          "createdAt": "2023-06-10T15:45:00Z"
-        }
-      }
-    },
-    {
-      "name": "Get Personality Profile",
-      "method": "GET",
-      "path": "/api/v1/personality/profile",
-      "description": "Retrieves the current user's personality profile",
-      "category": "Personality",
-      "parameters": [],
-      "responseExample": {
-        "success": true,
-        "data": {
-          "traits": [
-            {
-              "name": "openness",
-              "score": 85,
-              "description": "High openness to new experiences"
-            },
-            {
-              "name": "conscientiousness",
-              "score": 70,
-              "description": "Above average conscientiousness"
-            }
-          ],
-          "insights": {
-            "learningStyle": "visual",
-            "strengths": ["problem-solving", "creativity"],
-            "weaknesses": ["time management"]
-          },
-          "lastUpdated": "2023-05-20T09:15:00Z"
-        }
-      }
-    },
-    {
-      "name": "Submit Personality Assessment",
-      "method": "POST",
-      "path": "/api/v1/personality/assessment/submit",
-      "description": "Submits answers to a personality assessment",
-      "category": "Personality",
-      "parameters": [],
-      "requestBody": {
-        "name": "Assessment answers",
-        "required": true,
-        "content": {
-          "application/json": {
-            "schema": {
-              "type": "object",
-              "properties": {
-                "answers": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "questionId": {
-                        "type": "string"
-                      },
-                      "answer": {
-                        "type": "string"
-                      }
-                    }
-                  },
-                  "example": [
-                    {
-                      "questionId": "q1",
-                      "answer": "strongly_agree"
-                    },
-                    {
-                      "questionId": "q2",
-                      "answer": "neutral"
-                    }
-                  ]
-                }
-              },
-              "required": ["answers"]
-            }
-          }
-        }
-      },
-      "responseExample": {
-        "success": true,
-        "data": {
-          "profileUpdated": true,
-          "newInsights": true
-        }
-      }
-    },
-    {
-      "name": "Get Progress History",
-      "method": "GET",
-      "path": "/api/v1/progress/history",
-      "description": "Retrieves the user's progress history",
-      "category": "Progress",
-      "parameters": [],
-      "responseExample": {
-        "success": true,
-        "data": {
-          "overallProgress": 65,
-          "completedChallenges": 28,
-          "domains": [
-            {
-              "name": "frontend",
-              "progress": 80,
-              "challenges": 15
-            },
-            {
-              "name": "algorithms",
-              "progress": 60,
-              "challenges": 10
-            }
-          ],
-          "timeline": [
-            {
-              "date": "2023-05-01",
-              "progress": 45
-            },
-            {
-              "date": "2023-06-01",
-              "progress": 65
-            }
-          ]
-        }
-      }
-    },
-    {
-      "name": "Get Evaluation Results",
-      "method": "GET",
-      "path": "/api/v1/evaluations/{id}",
-      "description": "Retrieves the results of a specific evaluation",
-      "category": "Evaluations",
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "type": "string",
-          "description": "Evaluation ID"
-        }
-      ],
-      "responseExample": {
-        "success": true,
-        "data": {
-          "id": "e1",
-          "challengeId": "c1",
-          "userId": "550e8400-e29b-41d4-a716-446655440000",
-          "status": "completed",
-          "score": 95,
-          "feedback": "Good job! Your solution passes all test cases with good performance.",
-          "details": {
-            "testCases": [
-              {
-                "name": "Test Case 1",
-                "passed": true,
-                "output": "[2, 4, 6, 8]"
-              },
-              {
-                "name": "Test Case 2",
-                "passed": true,
-                "output": "[]"
-              }
-            ],
-            "metrics": {
-              "efficiency": 90,
-              "readability": 85,
-              "robustness": 92
-            }
-          },
-          "completedAt": "2023-06-01T14:30:00Z"
-        }
-      }
-    },
-    {
-      "name": "Get Adaptive Recommendations",
-      "method": "GET",
-      "path": "/api/v1/adaptive/profile",
-      "description": "Retrieves personalized learning recommendations",
-      "category": "Adaptive",
-      "parameters": [],
-      "responseExample": {
-        "success": true,
-        "data": {
-          "recommendedChallenges": [
-            {
-              "id": "c4",
-              "title": "Dynamic Programming Basics",
-              "relevance": 0.95,
-              "reason": "Based on your progress in algorithms"
-            },
-            {
-              "id": "c5",
-              "title": "Responsive Design Challenge",
-              "relevance": 0.85,
-              "reason": "Matches your learning style and interests"
-            }
-          ],
-          "learningProfile": {
-            "strengths": ["problem-solving", "creativity"],
-            "areasForImprovement": ["time complexity optimization"],
-            "lastUpdated": "2023-06-05T11:20:00Z"
-          },
-          "nextSteps": [
-            "Complete the Dynamic Programming challenge",
-            "Review your previous algorithms submissions"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Get User Journey Events",
-      "method": "GET",
-      "path": "/api/v1/user-journey/events",
-      "description": "Retrieves events from the user's learning journey",
-      "category": "UserJourney",
-      "parameters": [
-        {
-          "name": "startDate",
-          "in": "query",
-          "required": false,
-          "type": "string",
-          "description": "Start date (YYYY-MM-DD)",
-          "format": "date"
+          "description": "User biography"
         },
         {
-          "name": "endDate",
-          "in": "query",
-          "required": false,
+          "name": "avatarUrl",
           "type": "string",
-          "description": "End date (YYYY-MM-DD)",
-          "format": "date"
+          "required": false,
+          "description": "URL to user avatar image"
         }
-      ],
-      "responseExample": {
-        "success": true,
-        "data": {
-          "events": [
-            {
-              "id": "evt1",
-              "type": "challenge_completed",
-              "timestamp": "2023-06-01T14:30:00Z",
-              "details": {
-                "challengeId": "c1",
-                "score": 95
-              }
-            },
-            {
-              "id": "evt2",
-              "type": "assessment_completed",
-              "timestamp": "2023-05-20T09:15:00Z",
-              "details": {
-                "assessmentType": "personality",
-                "insights": ["visual_learner", "creative_thinker"]
-              }
-            }
-          ],
-          "pagination": {
-            "total": 15,
-            "count": 2
-          }
-        }
-      }
+      ]
     },
     {
-      "name": "Get Focus Areas",
+      "id": "game-state",
       "method": "GET",
-      "path": "/api/v1/focus-areas",
-      "description": "Retrieves available focus areas for learning",
-      "category": "FocusAreas",
-      "parameters": [],
-      "responseExample": {
-        "success": true,
-        "data": {
-          "focusAreas": [
-            {
-              "id": "fa1",
-              "name": "Algorithms",
-              "description": "Data structures and algorithms for efficient problem solving",
-              "topics": ["sorting", "searching", "dynamic programming"]
-            },
-            {
-              "id": "fa2",
-              "name": "Frontend Development",
-              "description": "Building user interfaces and client-side applications",
-              "topics": ["html/css", "javascript", "react", "responsive design"]
-            },
-            {
-              "id": "fa3",
-              "name": "Backend Development",
-              "description": "Server-side programming and API development",
-              "topics": ["node.js", "express", "databases", "api design"]
-            }
-          ]
-        }
-      }
+      "path": "/api/game/state",
+      "category": "Game Management",
+      "name": "Get Game State",
+      "description": "Retrieve current game state",
+      "params": []
     },
     {
-      "name": "Get User Focus Areas",
+      "id": "game-start",
+      "method": "POST",
+      "path": "/api/game/start",
+      "category": "Game Management",
+      "name": "Start New Game",
+      "description": "Begin a new game session",
+      "params": [
+        {
+          "name": "difficulty",
+          "type": "string",
+          "required": false,
+          "description": "Game difficulty (easy, medium, hard)",
+          "default": "medium"
+        }
+      ]
+    },
+    {
+      "id": "game-save",
+      "method": "POST",
+      "path": "/api/game/save",
+      "category": "Game Management",
+      "name": "Save Game",
+      "description": "Save current game progress",
+      "params": []
+    },
+    {
+      "id": "game-load",
+      "method": "POST",
+      "path": "/api/game/load",
+      "category": "Game Management",
+      "name": "Load Game",
+      "description": "Load a saved game",
+      "params": [
+        {
+          "name": "saveId",
+          "type": "string",
+          "required": true,
+          "description": "ID of the saved game to load"
+        }
+      ]
+    },
+    {
+      "id": "character-create",
+      "method": "POST",
+      "path": "/api/character/create",
+      "category": "Character Management",
+      "name": "Create Character",
+      "description": "Create a new game character",
+      "params": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "description": "Character name"
+        },
+        {
+          "name": "class",
+          "type": "string",
+          "required": true,
+          "description": "Character class (warrior, mage, rogue, etc.)"
+        },
+        {
+          "name": "attributes",
+          "type": "object",
+          "required": true,
+          "description": "Character starting attributes"
+        }
+      ]
+    },
+    {
+      "id": "character-get",
       "method": "GET",
-      "path": "/api/v1/focus-areas/user",
-      "description": "Retrieves the user's selected focus areas",
-      "category": "FocusAreas",
-      "parameters": [],
-      "responseExample": {
-        "success": true,
-        "data": {
-          "userFocusAreas": [
-            {
-              "id": "fa1",
-              "name": "Algorithms",
-              "progress": 75,
-              "priorityLevel": "high"
-            },
-            {
-              "id": "fa3",
-              "name": "Backend Development",
-              "progress": 45,
-              "priorityLevel": "medium"
-            }
-          ]
+      "path": "/api/character/{characterId}",
+      "category": "Character Management",
+      "name": "Get Character",
+      "description": "Retrieve character details",
+      "params": [
+        {
+          "name": "characterId",
+          "type": "string",
+          "required": true,
+          "description": "ID of the character",
+          "in": "path"
         }
-      }
+      ]
     },
     {
-      "name": "Update User Focus Areas",
+      "id": "character-update",
       "method": "PUT",
-      "path": "/api/v1/focus-areas/user",
-      "description": "Updates the user's selected focus areas",
-      "category": "FocusAreas",
-      "parameters": [],
-      "requestBody": {
-        "name": "Focus area preferences",
-        "required": true,
-        "content": {
-          "application/json": {
-            "schema": {
-              "type": "object",
-              "properties": {
-                "focusAreas": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "string"
-                      },
-                      "priorityLevel": {
-                        "type": "string",
-                        "enum": ["high", "medium", "low"]
-                      }
-                    }
-                  },
-                  "example": [
-                    {
-                      "id": "fa1",
-                      "priorityLevel": "high"
-                    },
-                    {
-                      "id": "fa3",
-                      "priorityLevel": "medium"
-                    }
-                  ]
-                }
-              },
-              "required": ["focusAreas"]
-            }
-          }
+      "path": "/api/character/{characterId}",
+      "category": "Character Management",
+      "name": "Update Character",
+      "description": "Update character information",
+      "params": [
+        {
+          "name": "characterId",
+          "type": "string",
+          "required": true,
+          "description": "ID of the character",
+          "in": "path"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": false,
+          "description": "New character name"
+        },
+        {
+          "name": "attributes",
+          "type": "object",
+          "required": false,
+          "description": "Updated character attributes"
         }
-      },
-      "responseExample": {
-        "success": true,
-        "data": {
-          "updated": true,
-          "userFocusAreas": [
-            {
-              "id": "fa1",
-              "name": "Algorithms",
-              "progress": 75,
-              "priorityLevel": "high"
-            },
-            {
-              "id": "fa3",
-              "name": "Backend Development",
-              "progress": 45,
-              "priorityLevel": "medium"
-            }
-          ]
-        }
-      }
+      ]
     },
     {
-      "name": "API Health Check",
+      "id": "inventory-list",
       "method": "GET",
-      "path": "/api/v1/health",
-      "description": "Checks the health status of the API",
+      "path": "/api/inventory/{characterId}",
+      "category": "Inventory Management",
+      "name": "List Inventory",
+      "description": "List all items in character inventory",
+      "params": [
+        {
+          "name": "characterId",
+          "type": "string",
+          "required": true,
+          "description": "ID of the character",
+          "in": "path"
+        }
+      ]
+    },
+    {
+      "id": "inventory-add",
+      "method": "POST",
+      "path": "/api/inventory/{characterId}/add",
+      "category": "Inventory Management",
+      "name": "Add Item",
+      "description": "Add item to character inventory",
+      "params": [
+        {
+          "name": "characterId",
+          "type": "string",
+          "required": true,
+          "description": "ID of the character",
+          "in": "path"
+        },
+        {
+          "name": "itemId",
+          "type": "string",
+          "required": true,
+          "description": "ID of the item to add"
+        },
+        {
+          "name": "quantity",
+          "type": "number",
+          "required": false,
+          "description": "Number of items to add",
+          "default": 1
+        }
+      ]
+    },
+    {
+      "id": "inventory-remove",
+      "method": "POST",
+      "path": "/api/inventory/{characterId}/remove",
+      "category": "Inventory Management",
+      "name": "Remove Item",
+      "description": "Remove item from character inventory",
+      "params": [
+        {
+          "name": "characterId",
+          "type": "string",
+          "required": true,
+          "description": "ID of the character",
+          "in": "path"
+        },
+        {
+          "name": "itemId",
+          "type": "string",
+          "required": true,
+          "description": "ID of the item to remove"
+        },
+        {
+          "name": "quantity",
+          "type": "number",
+          "required": false,
+          "description": "Number of items to remove",
+          "default": 1
+        }
+      ]
+    },
+    {
+      "id": "system-health",
+      "method": "GET",
+      "path": "/api/system/health",
       "category": "System",
-      "parameters": [],
-      "responseExample": {
-        "status": "ok",
-        "uptime": 1234567,
-        "version": "1.0.0",
-        "timestamp": "2023-06-10T16:30:00Z"
-      }
+      "name": "Health Check",
+      "description": "Check if the system is healthy",
+      "params": []
+    },
+    {
+      "id": "system-status",
+      "method": "GET",
+      "path": "/api/system/status",
+      "category": "System",
+      "name": "System Status",
+      "description": "Get detailed system status",
+      "params": []
     }
   ]
 } 

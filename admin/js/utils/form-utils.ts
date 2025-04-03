@@ -395,7 +395,11 @@ export class FormUtils {
    * @param _rules (Optional) Additional rules - currently unused
    * @returns Validation result
    */
-  static validateForm(schema: FormSchema, data: Record<string, unknown>, _rules?: unknown): ValidationResult {
+  static validateForm(
+    schema: FormSchema,
+    data: Record<string, unknown>,
+    _rules?: unknown,
+  ): ValidationResult {
     const result: ValidationResult = {
       valid: true,
       errors: {},
@@ -413,51 +417,59 @@ export class FormUtils {
       }
 
       if (!isRequired && (value === undefined || value === null || value === '')) {
-          return;
+        return;
       }
 
       const stringValue = String(value);
       const numberValue = Number(value);
 
       if (validation.minLength !== undefined && stringValue.length < validation.minLength) {
-          result.valid = false;
-          result.errors[field.name] = `${field.label || field.name} must be at least ${validation.minLength} characters`;
-          return;
+        result.valid = false;
+        result.errors[field.name] =
+          `${field.label || field.name} must be at least ${validation.minLength} characters`;
+        return;
       }
       if (validation.maxLength !== undefined && stringValue.length > validation.maxLength) {
-          result.valid = false;
-          result.errors[field.name] = `${field.label || field.name} must be no more than ${validation.maxLength} characters`;
-          return;
+        result.valid = false;
+        result.errors[field.name] =
+          `${field.label || field.name} must be no more than ${validation.maxLength} characters`;
+        return;
       }
       if (validation.pattern && !new RegExp(validation.pattern).test(stringValue)) {
-          result.valid = false;
-          result.errors[field.name] = validation.message || `${field.label || field.name} has an invalid format`;
-          return;
+        result.valid = false;
+        result.errors[field.name] =
+          validation.message || `${field.label || field.name} has an invalid format`;
+        return;
       }
 
       if (typeof value === 'number' || !isNaN(numberValue)) {
-          const numToCheck = typeof value === 'number' ? value : numberValue;
-          if (validation.min !== undefined && numToCheck < validation.min) {
-              result.valid = false;
-              result.errors[field.name] = `${field.label || field.name} must be at least ${validation.min}`;
-              return;
-          }
-          if (validation.max !== undefined && numToCheck > validation.max) {
-              result.valid = false;
-              result.errors[field.name] = `${field.label || field.name} must be no more than ${validation.max}`;
-              return;
-          }
+        const numToCheck = typeof value === 'number' ? value : numberValue;
+        if (validation.min !== undefined && numToCheck < validation.min) {
+          result.valid = false;
+          result.errors[field.name] =
+            `${field.label || field.name} must be at least ${validation.min}`;
+          return;
+        }
+        if (validation.max !== undefined && numToCheck > validation.max) {
+          result.valid = false;
+          result.errors[field.name] =
+            `${field.label || field.name} must be no more than ${validation.max}`;
+          return;
+        }
       }
 
       // Custom validation
       if (validation.custom) {
-          // Pass string representation to custom validator
-          const customResult = validation.custom(String(value));
-          if (customResult !== true) {
-              result.valid = false;
-              result.errors[field.name] = typeof customResult === 'string' ? customResult : `${field.label || field.name} is invalid`;
-              return;
-          }
+        // Pass string representation to custom validator
+        const customResult = validation.custom(String(value));
+        if (customResult !== true) {
+          result.valid = false;
+          result.errors[field.name] =
+            typeof customResult === 'string'
+              ? customResult
+              : `${field.label || field.name} is invalid`;
+          return;
+        }
       }
     });
 
@@ -518,7 +530,8 @@ export class FormUtils {
             });
           }
           break;
-        default:
+        }
+        default: {
           if (typeof value === 'object' && value !== null) {
             data[key] = JSON.stringify(value, null, 2);
           } else if (value !== null && value !== undefined) {
@@ -526,6 +539,8 @@ export class FormUtils {
           } else {
             data[key] = '';
           }
+          break;
+        }
       }
     });
 
@@ -556,10 +571,14 @@ export class FormUtils {
         // Handle radio buttons
         elements.forEach(el => {
           if (el instanceof HTMLInputElement) {
-            el.checked = (el.value === String(value));
+            el.checked = el.value === String(value);
           }
         });
-      } else if (firstElement instanceof HTMLInputElement || firstElement instanceof HTMLTextAreaElement || firstElement instanceof HTMLSelectElement) {
+      } else if (
+        firstElement instanceof HTMLInputElement ||
+        firstElement instanceof HTMLTextAreaElement ||
+        firstElement instanceof HTMLSelectElement
+      ) {
         // Handle other input types
         const input = firstElement;
         const inputType = input.type;
@@ -572,11 +591,11 @@ export class FormUtils {
             break;
           case 'select-one':
           case 'select-multiple':
-             Array.from((input as HTMLSelectElement).options).forEach(option => {
-                 option.selected = Array.isArray(value)
-                   ? value.some(val => String(val) === option.value)
-                   : String(value) === option.value;
-             });
+            Array.from((input as HTMLSelectElement).options).forEach(option => {
+              option.selected = Array.isArray(value)
+                ? value.some(val => String(val) === option.value)
+                : String(value) === option.value;
+            });
             break;
           case 'file':
             logger.warn(`Cannot set value for file input '${key}'`);

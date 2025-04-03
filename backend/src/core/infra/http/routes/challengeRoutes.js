@@ -32,7 +32,7 @@ export default function challengeRoutes(challengeController) {
 
   // Get all challenges (no special auth needed - filtering based on user is handled in controller)
   router.get('/', 
-    (req, res) => challengeController.getAllChallenges(req, res)
+    (req, res) => challengeController.listChallenges(req, res)
   );
   
   // Get challenge types (moved before /:id route)
@@ -53,7 +53,7 @@ export default function challengeRoutes(challengeController) {
       action: 'read',
       getResourceOwner: getChallengeOwner
     }),
-    (req, res) => challengeController.getChallenge(req, res)
+    (req, res) => challengeController.getChallengeById(req, res)
   );
   
   // Submit challenge response (must be owner or admin)
@@ -74,7 +74,7 @@ export default function challengeRoutes(challengeController) {
       paramName: 'userId',
       action: 'read'
     }),
-    (req, res) => challengeController.getChallengeHistoryByUserId(req, res)
+    (req, res) => challengeController.getChallengeHistory(req, res)
   );
   
   // Create a new challenge

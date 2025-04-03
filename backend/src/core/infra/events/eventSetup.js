@@ -18,7 +18,7 @@ import { registerCacheInvalidationEventHandlers } from "#app/application/events/
  * 
  * @param {Object} container - Dependency injection container
  */
-export function setupEventHandlers(container) {
+export async function setupEventHandlers(container) {
   if (!container) {
     throw new Error('Container is required for event setup');
   }
@@ -26,18 +26,34 @@ export function setupEventHandlers(container) {
   logger.info('Setting up event handlers...');
   
   try {
-    // Register all domain event handlers
-    registerEvaluationEventHandlers(container);
-    registerPersonalityEventHandlers(container);
-    registerProgressEventHandlers(container);
-    registerAdaptiveEventHandlers(container);
-    registerUserJourneyEventHandlers(container);
-    registerFocusAreaEventHandlers(container);
-    registerChallengeEventHandlers(container);
-    registerUserEventHandlers(container);
+    // Get the eventBus first to ensure it's properly resolved
+    const eventBus = await container.get('eventBus');
+    
+    if (!eventBus || typeof eventBus.on !== 'function') {
+      throw new Error('Invalid eventBus: missing .on() method');
+    }
+    
+    // Create a container wrapper that provides a synchronous eventBus
+    const containerWithEventBus = {
+      ...container,
+      get: (name) => {
+        if (name === 'eventBus') return eventBus;
+        return container.get(name);
+      }
+    };
+    
+    // Register all domain event handlers with the wrapped container
+    registerEvaluationEventHandlers(containerWithEventBus);
+    registerPersonalityEventHandlers(containerWithEventBus);
+    registerProgressEventHandlers(containerWithEventBus);
+    registerAdaptiveEventHandlers(containerWithEventBus);
+    registerUserJourneyEventHandlers(containerWithEventBus);
+    registerFocusAreaEventHandlers(containerWithEventBus);
+    registerChallengeEventHandlers(containerWithEventBus);
+    registerUserEventHandlers(containerWithEventBus);
     
     // Register application event handlers
-    registerCacheInvalidationEventHandlers(container);
+    registerCacheInvalidationEventHandlers(containerWithEventBus);
     
     logger.info('Event handlers setup complete');
   } catch (error) {

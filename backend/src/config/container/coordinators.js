@@ -18,35 +18,74 @@ import ApplicationEventHandlers from "#app/application/EventHandlers.js";
 /**
  * Register coordinator components in the container
  * @param {DIContainer} container - The DI container
+ * @param {Logger} logger - The logger instance passed down from container registration
  */
-function registerCoordinatorComponents(container) {
-    const coordinatorLogger = container.get('logger').child({ context: 'DI-Coordinators' });
-    coordinatorLogger.info('[DI Coordinators] Starting coordinator registration...');
+function registerCoordinatorComponents(container, logger) {
+    // Use passed-in logger or fallback
+    const coordinatorLogger = logger || container.get('logger').child({ context: 'DI-Coordinators' });
+    coordinatorLogger.info('Starting coordinator registration...');
 
-    coordinatorLogger.info('[DI Coordinators] Registering personalityCoordinator...');
+    // Register personalityCoordinator
+    coordinatorLogger.info('Registering personalityCoordinator...');
     container.register('personalityCoordinator', c => {
+        // Get dependencies
+        const userService = c.get('userService');
+        const personalityService = c.get('personalityService');
+        const personalityDataLoader = c.get('personalityDataLoader'); // Corrected dependency name
+        const logger = c.get('personalityLogger');
+
+        // Validate dependencies (add more checks if needed)
+        if (!userService || !personalityService || !personalityDataLoader || !logger) {
+            coordinatorLogger.error('Missing dependency for personalityCoordinator');
+            throw new Error('Failed to resolve dependencies for personalityCoordinator');
+        }
+
         return new PersonalityCoordinator({
-            userService: c.get('userService'),
-            personalityService: c.get('personalityService'),
-            personalityDataLoader: c.get('personalityDataLoader'),
-            logger: c.get('personalityLogger')
+            userService: userService,
+            personalityService: personalityService,
+            personalityDataLoader: personalityDataLoader,
+            logger: logger,
         });
-    }, false // Transient: orchestrates user-specific personality operations
+    }, false // Transient
     );
-    coordinatorLogger.info('[DI Coordinators] Registering challengeCoordinator...');
+    
+    // Register challengeCoordinator
+    coordinatorLogger.info('Registering challengeCoordinator...');
     container.register('challengeCoordinator', c => {
+        // Resolve dependencies
+        const userService = c.get('userService');
+        const challengeService = c.get('challengeService');
+        const configService = c.get('challengeConfigServiceProxy');
+        const challengeFactory = c.get('challengeFactory');
+        const generationService = c.get('challengeGenerationService');
+        const evaluationService = c.get('challengeEvaluationService');
+        const logger = c.get('challengeLogger');
+        
+        // Validate dependencies
+        if (!userService || !challengeService || !configService || !challengeFactory || !generationService || !evaluationService || !logger) {
+            coordinatorLogger.error('Missing one or more dependencies for challengeCoordinator', { 
+                userService: !!userService, challengeService: !!challengeService, 
+                configService: !!configService, challengeFactory: !!challengeFactory,
+                generationService: !!generationService, evaluationService: !!evaluationService,
+                logger: !!logger
+            });
+            throw new Error('Failed to resolve dependencies for challengeCoordinator');
+        }
+
         return new ChallengeCoordinator({
-            userService: c.get('userService'),
-            challengeService: c.get('challengeService'),
-            challengeConfigService: c.get('challengeConfigService'),
-            challengeFactory: c.get('challengeFactory'),
-            challengeGenerationService: c.get('challengeGenerationService'),
-            challengeEvaluationService: c.get('challengeEvaluationService'),
-            logger: c.get('challengeLogger'),
+            userService,
+            challengeService,
+            challengeConfigService: configService,
+            challengeFactory,
+            challengeGenerationService: generationService,
+            challengeEvaluationService: evaluationService,
+            logger,
         });
     }, false // Transient: manages user-specific challenge operations
     );
-    coordinatorLogger.info('[DI Coordinators] Registering userJourneyCoordinator...');
+    
+    // Register userJourneyCoordinator
+    coordinatorLogger.info('Registering userJourneyCoordinator...');
     container.register('userJourneyCoordinator', c => {
         return new UserJourneyCoordinator({
             userJourneyRepository: c.get('userJourneyRepository'),
@@ -55,8 +94,9 @@ function registerCoordinatorComponents(container) {
         });
     }, false // Transient: handles user-specific journey progress
     );
+    
     // Register more specialized focus area coordinators
-    coordinatorLogger.info('[DI Coordinators] Registering focusAreaGenerationCoordinator...');
+    coordinatorLogger.info('Registering focusAreaGenerationCoordinator...');
     container.register('focusAreaGenerationCoordinator', c => {
         return new FocusAreaGenerationCoordinator({
             userService: c.get('userService'),
@@ -71,7 +111,8 @@ function registerCoordinatorComponents(container) {
         });
     }, false // Transient: generates user-specific focus areas
     );
-    coordinatorLogger.info('[DI Coordinators] Registering focusAreaManagementCoordinator...');
+    
+    coordinatorLogger.info('Registering focusAreaManagementCoordinator...');
     container.register('focusAreaManagementCoordinator', c => {
         return new FocusAreaManagementCoordinator({
             userService: c.get('userService'),
@@ -84,7 +125,8 @@ function registerCoordinatorComponents(container) {
         });
     }, false // Transient: manages user-specific focus areas
     );
-    coordinatorLogger.info('[DI Coordinators] Registering progressCoordinator...');
+    
+    coordinatorLogger.info('Registering progressCoordinator...');
     container.register('progressCoordinator', c => {
         return new ProgressCoordinator({
             progressService: c.get('progressService'),
@@ -95,16 +137,22 @@ function registerCoordinatorComponents(container) {
         });
     }, false // Transient: tracks user-specific progress
     );
-    // Register event handlers that use coordinators
-    coordinatorLogger.info('[DI Coordinators] Registering applicationEventHandlers...');
-    container.register('applicationEventHandlers', c => new ApplicationEventHandlers({
-        personalityCoordinator: c.get('personalityCoordinator'),
-        logger: c.get('eventsLogger'),
-        eventBus: c.get('eventBus'),
-        EventTypes: c.get('eventTypes')
-    }), true); // Singleton
     
-    coordinatorLogger.info('[DI Coordinators] Coordinator registration complete.');
+    // Register event handlers that use coordinators
+    coordinatorLogger.info('Registering applicationEventHandlers...');
+    container.register('applicationEventHandlers', async c => {
+        const eventBus = await c.get('eventBus');
+        coordinatorLogger.debug('Successfully resolved eventBus for applicationEventHandlers');
+        
+        return new ApplicationEventHandlers({
+            personalityCoordinator: c.get('personalityCoordinator'),
+            logger: c.get('eventsLogger'),
+            eventBus: eventBus,
+            EventTypes: c.get('eventTypes')
+        });
+    }, true); // Singleton
+    
+    coordinatorLogger.info('Coordinator registration complete.');
 }
 export { registerCoordinatorComponents };
 export default {

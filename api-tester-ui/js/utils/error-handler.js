@@ -1,405 +1,279 @@
 /**
- * Error Handler Module
- * Handles error processing and display for API errors
+ * Error Handler Utility
+ * Provides centralized error handling with different error types and severities
  */
 
+import store, { uiHelpers } from "../state/index.js";
+
+// Error types
+export const ERROR_TYPES = {
+    NETWORK: "network",
+    AUTH: "authentication",
+    VALIDATION: "validation",
+    API: "api",
+    SYSTEM: "system",
+    UNKNOWN: "unknown"
+};
+
+// Error severities
+export const ERROR_SEVERITIES = {
+    INFO: "info",
+    WARNING: "warning",
+    ERROR: "error",
+    CRITICAL: "critical"
+};
+
 /**
- *
+ * Error handler class
  */
-export class ErrorHandler {
+class ErrorHandler {
+    constructor() {
+        this.errorHistory = [];
+        this.maxErrorHistory = 50;
+    }
+
     /**
-     * Creates a new ErrorHandler instance
-     * @param {Object} options - Configuration options
+     * Handle an error
+     * @param {Error|Object} error - Error object or message
+     * @param {Object} options - Error handling options
+     * @param {string} options.type - Error type (from ERROR_TYPES)
+     * @param {string} options.severity - Error severity (from ERROR_SEVERITIES)
+     * @param {string} options.userMessage - User-friendly error message
+     * @param {boolean} options.showToUser - Whether to show the error to the user
+     * @param {Object} options.context - Additional context for the error
+     * @returns {Object} Processed error object
      */
-    constructor(options = {}) {
-        this.options = {
-            showNotifications: true,
-            logErrors: true,
-            notificationContainer: null, // DOM element to contain notifications
-            notificationDuration: 5000, // Default 5 seconds
-            maxNotifications: 3, // Maximum number of notifications to show at once
+    handleError(error, options = {}) {
+        // Default options
+        const defaults = {
+            type: ERROR_TYPES.UNKNOWN,
+            severity: ERROR_SEVERITIES.ERROR,
+            userMessage: "An error occurred",
+            showToUser: true,
+            context: {}
+        };
+
+        const settings = { ...defaults, ...options };
+        
+        // Process the error object
+        const processedError = this._processError(error, settings);
+        
+        // Add to history
+        this._addToHistory(processedError);
+        
+        // Log the error
+        this._logError(processedError);
+        
+        // Show to user if needed
+        if (settings.showToUser) {
+            this._showErrorToUser(processedError);
+        }
+        
+        return processedError;
+    }
+
+    /**
+     * Handle a network error
+     * @param {Error|Object} error - Error object or message
+     * @param {Object} options - Additional options
+     * @returns {Object} Processed error object
+     */
+    handleNetworkError(error, options = {}) {
+        const userMessage = this._getNetworkErrorMessage(error);
+        
+        return this.handleError(error, {
+            type: ERROR_TYPES.NETWORK,
+            severity: ERROR_SEVERITIES.ERROR,
+            userMessage,
             ...options
-        };
-        
-        this.listeners = new Map();
-        this.activeNotifications = [];
-        this.notificationCounter = 0;
-        
-        // Initialize notification container
-        this.initNotificationContainer();
+        });
     }
-    
+
     /**
-     * Initializes the notification container
+     * Handle an authentication error
+     * @param {Error|Object} error - Error object or message
+     * @param {Object} options - Additional options
+     * @returns {Object} Processed error object
      */
-    initNotificationContainer() {
-        // If container is provided, use it
-        if (this.options.notificationContainer && typeof this.options.notificationContainer === "string") {
-            this.notificationContainer = document.getElementById(this.options.notificationContainer);
-        }
+    handleAuthError(error, options = {}) {
+        return this.handleError(error, {
+            type: ERROR_TYPES.AUTH,
+            severity: ERROR_SEVERITIES.WARNING,
+            userMessage: "Authentication failed. Please log in again.",
+            ...options
+        });
+    }
+
+    /**
+     * Handle an API error
+     * @param {Error|Object} error - Error object or message
+     * @param {Object} options - Additional options
+     * @returns {Object} Processed error object
+     */
+    handleApiError(error, options = {}) {
+        const { status, statusText } = error.response || {};
+        let userMessage = "API request failed";
+        let severity = ERROR_SEVERITIES.ERROR;
         
-        // If no container provided or not found, create one
-        if (!this.notificationContainer) {
-            this.notificationContainer = document.createElement("div");
-            this.notificationContainer.className = "error-notification-container";
-            this.notificationContainer.style.position = "fixed";
-            this.notificationContainer.style.top = "20px";
-            this.notificationContainer.style.right = "20px";
-            this.notificationContainer.style.zIndex = "9999";
-            this.notificationContainer.style.maxWidth = "400px";
-            
-            // Add to body when it's available
-            if (document.body) {
-                document.body.appendChild(this.notificationContainer);
+        // Determine user message based on status code
+        if (status) {
+            if (status === 401) {
+                userMessage = "You need to log in to access this resource";
+                severity = ERROR_SEVERITIES.WARNING;
+            } else if (status === 403) {
+                userMessage = "You don't have permission to access this resource";
+                severity = ERROR_SEVERITIES.WARNING;
+            } else if (status === 404) {
+                userMessage = "The requested resource was not found";
+                severity = ERROR_SEVERITIES.WARNING;
+            } else if (status === 429) {
+                userMessage = "Too many requests. Please try again later";
+                severity = ERROR_SEVERITIES.WARNING;
+            } else if (status >= 500) {
+                userMessage = "Server error. Please try again later";
+                severity = ERROR_SEVERITIES.ERROR;
             } else {
-                // If body is not available yet, wait for it
-                window.addEventListener("DOMContentLoaded", () => {
-                    document.body.appendChild(this.notificationContainer);
-                });
+                userMessage = `API error (${status}: ${statusText})`;
             }
         }
+        
+        return this.handleError(error, {
+            type: ERROR_TYPES.API,
+            severity,
+            userMessage,
+            ...options
+        });
     }
-    
+
     /**
-     * Adds an event listener for error events
-     * @param {string} event - The event name
-     * @param {Function} callback - The callback function
+     * Get all errors from history
+     * @returns {Array} Error history
      */
-    addEventListener(event, callback) {
-        if (!this.listeners.has(event)) {
-            this.listeners.set(event, []);
-        }
-        this.listeners.get(event).push(callback);
+    getErrorHistory() {
+        return [...this.errorHistory];
     }
-    
+
     /**
-     * Removes an event listener
-     * @param {string} event - The event name
-     * @param {Function} callback - The callback function to remove
+     * Clear error history
      */
-    removeEventListener(event, callback) {
-        if (this.listeners.has(event)) {
-            const listeners = this.listeners.get(event);
-            const index = listeners.indexOf(callback);
-            if (index !== -1) {
-                listeners.splice(index, 1);
+    clearErrorHistory() {
+        this.errorHistory = [];
+    }
+
+    // Private methods
+
+    /**
+     * Process an error to create a standardized error object
+     * @private
+     */
+    _processError(error, settings) {
+        const isErrorObject = error instanceof Error;
+        
+        const processedError = {
+            timestamp: new Date(),
+            type: settings.type,
+            severity: settings.severity,
+            originalError: error,
+            message: isErrorObject ? error.message : String(error),
+            userMessage: settings.userMessage,
+            stack: isErrorObject ? error.stack : null,
+            context: {
+                ...settings.context,
+                url: window.location.href
             }
-        }
-    }
-    
-    /**
-     * Emits an event to all registered listeners
-     * @param {string} event - The event name
-     * @param {Object} data - The event data
-     */
-    emit(event, data) {
-        if (this.listeners.has(event)) {
-            this.listeners.get(event).forEach(callback => callback(data));
-        }
-    }
-    
-    /**
-     * Processes an API error from the server
-     * @param {Object} errorData - Error data from the API
-     * @returns {Object} The processed error object
-     */
-    processApiError(errorData) {
-        // Log the error if enabled
-        if (this.options.logErrors) {
-            console.error("API Error:", errorData);
-        }
-        
-        // Extract error details
-        const { statusCode, statusText, message, errorCode, endpoint, method } = errorData;
-        
-        // Format a user-friendly error message
-        let userMessage = `Error ${statusCode}: ${message || statusText || "Unknown error"}`;
-        if (errorCode) {
-            userMessage += ` (Code: ${errorCode})`;
-        }
-        
-        // Create an error object
-        const error = {
-            type: "api",
-            raw: errorData,
-            userMessage,
-            timestamp: new Date(),
-            statusCode,
-            endpoint,
-            method
         };
-        
-        // Show notification if enabled
-        if (this.options.showNotifications) {
-            this.showErrorNotification(error);
+
+        // Add response data for API errors
+        if (error.response) {
+            processedError.response = {
+                status: error.response.status,
+                statusText: error.response.statusText,
+                data: error.response.data
+            };
         }
-        
-        // Emit the error event for subscribers
-        this.emit("error", error);
-        this.emit("api:error", error);
-        
-        return error;
+
+        return processedError;
     }
-    
+
     /**
-     * Processes a network error (like connection refused)
-     * @param {Object} errorData - Error data
-     * @returns {Object} The processed error object
+     * Add error to history
+     * @private
      */
-    processNetworkError(errorData) {
-        // Log the error if enabled
-        if (this.options.logErrors) {
-            console.error("Network Error:", errorData);
+    _addToHistory(error) {
+        this.errorHistory.push(error);
+        
+        // Limit history size
+        if (this.errorHistory.length > this.maxErrorHistory) {
+            this.errorHistory.shift();
         }
-        
-        // Extract error details
-        const { message, endpoint, method } = errorData;
-        
-        // Format a user-friendly error message
-        const userMessage = `Network Error: ${message || "Could not connect to the server"}`;
-        
-        // Create an error object
-        const error = {
-            type: "network",
-            raw: errorData,
-            userMessage,
-            timestamp: new Date(),
-            endpoint,
-            method
-        };
-        
-        // Show notification if enabled
-        if (this.options.showNotifications) {
-            this.showErrorNotification(error);
-        }
-        
-        // Emit the error event for subscribers
-        this.emit("error", error);
-        this.emit("network:error", error);
-        
-        return error;
     }
-    
+
     /**
-     * Processes a timeout error
-     * @param {Object} errorData - Error data
-     * @returns {Object} The processed error object
+     * Log the error to console
+     * @private
      */
-    processTimeoutError(errorData) {
-        // Log the error if enabled
-        if (this.options.logErrors) {
-            console.error("Timeout Error:", errorData);
+    _logError(error) {
+        const { severity, userMessage, message, context, type } = error;
+        
+        // Log to console based on severity
+        if (severity === ERROR_SEVERITIES.CRITICAL || severity === ERROR_SEVERITIES.ERROR) {
+            console.error(`[${type.toUpperCase()}] ${userMessage}`, {
+                details: message,
+                context
+            });
+        } else if (severity === ERROR_SEVERITIES.WARNING) {
+            console.warn(`[${type.toUpperCase()}] ${userMessage}`, {
+                details: message,
+                context
+            });
+        } else {
+            console.info(`[${type.toUpperCase()}] ${userMessage}`, {
+                details: message,
+                context
+            });
         }
-        
-        // Extract error details
-        const { message, endpoint, method, duration } = errorData;
-        
-        // Format a user-friendly error message
-        const userMessage = `Timeout Error: ${message || `Request took too long (${duration || "?"}ms)`}`;
-        
-        // Create an error object
-        const error = {
-            type: "timeout",
-            raw: errorData,
-            userMessage,
-            timestamp: new Date(),
-            endpoint,
-            method,
-            duration
-        };
-        
-        // Show notification if enabled
-        if (this.options.showNotifications) {
-            this.showErrorNotification(error);
-        }
-        
-        // Emit the error event for subscribers
-        this.emit("error", error);
-        this.emit("timeout:error", error);
-        
-        return error;
     }
-    
+
     /**
-     * Processes a validation error
-     * @param {Object} errorData - Error data
-     * @returns {Object} The processed error object
+     * Show error to user
+     * @private
      */
-    processValidationError(errorData) {
-        // Log the error if enabled
-        if (this.options.logErrors) {
-            console.error("Validation Error:", errorData);
+    _showErrorToUser(error) {
+        const { severity, userMessage, message } = error;
+        
+        // Show different types of notifications based on severity
+        if (severity === ERROR_SEVERITIES.CRITICAL) {
+            // Show modal error banner for critical errors
+            uiHelpers.showErrorBanner(userMessage, message);
+        } else {
+            // Show notification for less severe errors
+            // This would call showNotification which will be implemented as part of UI module
+            console.log("Show notification:", userMessage);
         }
-        
-        // Extract error details
-        const { message, field, value } = errorData;
-        
-        // Format a user-friendly error message
-        let userMessage = `Validation Error: ${message || "Invalid input"}`;
-        if (field) {
-            userMessage += ` (Field: ${field})`;
-        }
-        
-        // Create an error object
-        const error = {
-            type: "validation",
-            raw: errorData,
-            userMessage,
-            timestamp: new Date(),
-            field,
-            value
-        };
-        
-        // Show notification if enabled
-        if (this.options.showNotifications) {
-            this.showErrorNotification(error);
-        }
-        
-        // Emit the error event for subscribers
-        this.emit("error", error);
-        this.emit("validation:error", error);
-        
-        return error;
     }
-    
+
     /**
-     * Displays an error notification to the user
-     * @param {Object} error - The error object
-     * @returns {string} The notification ID
+     * Get a user-friendly message for network errors
+     * @private
      */
-    showErrorNotification(error) {
-        // Make sure container exists
-        if (!this.notificationContainer) {
-            this.initNotificationContainer();
+    _getNetworkErrorMessage(error) {
+        // Determine network error type
+        if (error.message && error.message.includes("Network Error")) {
+            return "Cannot connect to the server. Please check your internet connection.";
         }
         
-        // Manage notification limit - remove oldest if at max
-        if (this.activeNotifications.length >= this.options.maxNotifications) {
-            this.removeNotification(this.activeNotifications[0].id);
+        if (error.message && error.message.includes("timeout")) {
+            return "The server is taking too long to respond. Please try again later.";
         }
         
-        // Create notification ID
-        const notificationId = `notification-${++this.notificationCounter}`;
-        
-        // Create notification element
-        const notification = document.createElement("div");
-        notification.id = notificationId;
-        notification.className = `error-notification error-notification-${error.type}`;
-        notification.style.marginBottom = "10px";
-        notification.style.padding = "12px";
-        notification.style.borderRadius = "4px";
-        notification.style.boxShadow = "0 2px 8px rgba(0,0,0,0.2)";
-        notification.style.backgroundColor = "#fff";
-        notification.style.border = "1px solid #f0f0f0";
-        notification.style.borderLeft = "4px solid";
-        
-        // Set border color based on type
-        switch (error.type) {
-        case "api":
-            notification.style.borderLeftColor = "#e74c3c";
-            break;
-        case "network":
-            notification.style.borderLeftColor = "#e67e22";
-            break;
-        case "timeout":
-            notification.style.borderLeftColor = "#f39c12";
-            break;
-        case "validation":
-            notification.style.borderLeftColor = "#3498db";
-            break;
-        default:
-            notification.style.borderLeftColor = "#95a5a6";
+        if (error.message && error.message.includes("aborted")) {
+            return "The request was cancelled.";
         }
         
-        // Set notification content
-        notification.innerHTML = `
-            <div class="error-notification-header" style="display: flex; justify-content: space-between; align-items: center;">
-                <span class="error-type" style="font-weight: bold; color: #333;">${error.type.toUpperCase()}</span>
-                <button class="close-button" style="background: none; border: none; font-size: 18px; cursor: pointer; color: #999;">×</button>
-            </div>
-            <div class="error-notification-body">
-                <p style="margin: 8px 0;">${this.escapeHtml(error.userMessage)}</p>
-                <p class="error-details" style="margin: 4px 0; font-size: 0.8em; color: #777;">
-                    ${error.endpoint ? `Endpoint: ${error.method} ${this.escapeHtml(error.endpoint)}<br>` : ""}
-                    ${error.statusCode ? `Status: ${error.statusCode}<br>` : ""}
-                    ${error.timestamp ? `Time: ${error.timestamp.toLocaleTimeString()}<br>` : ""}
-                </p>
-            </div>
-        `;
-        
-        // Track notification
-        this.activeNotifications.push({
-            id: notificationId,
-            element: notification,
-            timestamp: new Date()
-        });
-        
-        // Add event listener to close button
-        const closeButton = notification.querySelector(".close-button");
-        closeButton.addEventListener("click", () => {
-            this.removeNotification(notificationId);
-        });
-        
-        // Add to container
-        this.notificationContainer.appendChild(notification);
-        
-        // Auto-remove after duration
-        if (this.options.notificationDuration > 0) {
-            setTimeout(() => {
-                this.removeNotification(notificationId);
-            }, this.options.notificationDuration);
-        }
-        
-        return notificationId;
+        return "Network error. Please check your connection and try again.";
     }
-    
-    /**
-     * Removes a notification by ID
-     * @param {string} notificationId - The notification ID
-     */
-    removeNotification(notificationId) {
-        const index = this.activeNotifications.findIndex(n => n.id === notificationId);
-        if (index !== -1) {
-            const notification = this.activeNotifications[index];
-            
-            // Remove from DOM with animation
-            notification.element.style.transition = "all 0.3s ease-out";
-            notification.element.style.opacity = "0";
-            notification.element.style.transform = "translateX(30px)";
-            
-            setTimeout(() => {
-                if (this.notificationContainer.contains(notification.element)) {
-                    this.notificationContainer.removeChild(notification.element);
-                }
-            }, 300);
-            
-            // Remove from tracking array
-            this.activeNotifications.splice(index, 1);
-        }
-    }
-    
-    /**
-     * Clears all active notifications
-     */
-    clearAllNotifications() {
-        // Clone array to avoid modification during iteration
-        const notifications = [...this.activeNotifications];
-        notifications.forEach(notification => {
-            this.removeNotification(notification.id);
-        });
-    }
-    
-    /**
-     * Escapes HTML characters
-     * @param {string} html - The HTML string
-     * @returns {string} The escaped HTML
-     */
-    escapeHtml(html) {
-        if (typeof html !== "string") return "";
-        
-        const text = document.createTextNode(html);
-        const div = document.createElement("div");
-        div.appendChild(text);
-        return div.innerHTML;
-    }
-} 
+}
+
+// Export a singleton instance
+const errorHandler = new ErrorHandler();
+export default errorHandler; 

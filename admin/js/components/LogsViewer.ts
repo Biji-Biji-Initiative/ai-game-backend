@@ -5,7 +5,10 @@
  */
 
 import { BackendLogsManager } from '../modules/backend-logs-manager';
-import { logger } from '../utils/logger';
+import { Logger } from '../core/Logger';
+import { DomService, BrowserDomService } from '../services/DomService';
+import { StorageService, LocalStorageService } from '../services/StorageService';
+import { EventBus } from '../core/EventBus';
 
 // Define log level type
 export enum LogLevel {
@@ -21,10 +24,12 @@ export interface LogEntry {
   level: string;
   message: string;
   correlationId?: string;
-  meta?: any;
-  context?: any;
+  meta?: Record<string, unknown>;
+  context?: Record<string, unknown>;
   service?: string;
-  data?: any;
+  data?: Record<string, unknown>;
+  role?: string;
+  content?: string;
 }
 
 // Define options interface
@@ -40,6 +45,19 @@ export interface LogsViewerOptions {
   enableSearchFiltering?: boolean;
   autoRefreshBackendLogs?: boolean;
   refreshInterval?: number;
+  domService?: DomService;
+  storageService?: StorageService;
+  eventBus?: EventBus;
+}
+
+// Extension of DomService to add missing methods needed by this component
+interface ExtendedDomService extends DomService {
+  /**
+   * Adds a CSS class to an element
+   * @param element Element to add class to
+   * @param className Class name to add
+   */
+  addClass?(element: HTMLElement, className: string): void;
 }
 
 /**
@@ -59,7 +77,11 @@ export class LogsViewer {
   private frontendLogs: LogEntry[];
   private refreshIntervalId: number | null;
   private backendLogsManager: BackendLogsManager | null;
-  private originalConsole: Record<string, unknown>;
+  private originalConsole: Record<string, Function>;
+  private domService: ExtendedDomService;
+  private storageService: StorageService;
+  private eventBus: EventBus;
+  private logger = Logger.getLogger('LogsViewer');
 
   /**
    * Creates a new LogsViewer instance
@@ -79,21 +101,35 @@ export class LogsViewer {
       enableSearchFiltering: true,
       autoRefreshBackendLogs: false,
       refreshInterval: 10000, // 10 seconds
+      domService: new BrowserDomService(),
+      storageService: option.storageService || new LocalStorageService(), // Default to LocalStorageService
+      eventBus: option.eventBus || EventBus.getInstance(),
       ...option,
     };
 
     // Initialize properties
-    this.container = document.getElementById(this.options.logsContainerId); // Property added
-    this.frontendLogsTab = null; // Property added
-    this.backendLogsTab = null; // Property added
-    this.frontendLogsContainer = null; // Property added
-    this.backendLogsContainer = null; // Property added
-    this.frontendLogsList = null; // Property added
-    this.backendLogsList = null; // Property added
-    this.activeTab = 'backend'; // Property added
-    this.frontendLogs = []; // Property added
-    this.refreshIntervalId = null; // Property added
-    this.backendLogsManager = this.options.backendLogsManager; // Property added
+    this.domService = this.options.domService as ExtendedDomService;
+    
+    // Add missing addClass method if not present
+    if (!this.domService.addClass) {
+      this.domService.addClass = (element: HTMLElement, className: string) => {
+        element.classList.add(className);
+      };
+    }
+    
+    this.storageService = this.options.storageService;
+    this.eventBus = this.options.eventBus;
+    this.container = this.domService.getElementById(this.options.logsContainerId);
+    this.frontendLogsTab = null;
+    this.backendLogsTab = null;
+    this.frontendLogsContainer = null;
+    this.backendLogsContainer = null;
+    this.frontendLogsList = null;
+    this.backendLogsList = null;
+    this.activeTab = 'backend';
+    this.frontendLogs = [];
+    this.refreshIntervalId = null;
+    this.backendLogsManager = this.options.backendLogsManager;
     this.originalConsole = {
       log: console.log,
       info: console.info,
@@ -119,45 +155,42 @@ export class LogsViewer {
    */
   private initializeUI(): void {
     if (!this.container) {
-      console.error(
-        'LogsViewer: Cannot find container element with ID',
-        this.options.logsContainerId,
-      );
+      this.logger.error('Cannot find container element with ID', this.options.logsContainerId);
       return;
     }
 
     // Create frontend/backend tabs UI if both are enabled
     if (this.options.showFrontendLogs && this.options.showBackendLogs) {
       // Create tabs container
-      const tabsContainer = document.createElement('div');
-      tabsContainer.className = 'logs-tabs mb-4 border-b border-border';
+      const tabsContainer = this.domService.createElement('div');
+      this.domService.setAttributes(tabsContainer, { className: 'logs-tabs mb-4 border-b border-border' });
 
       // Create frontend tab
-      this.frontendLogsTab = document.createElement('button'); // Property added
-      this.frontendLogsTab.className = 'logs-tab px-4 py-2 mr-2';
-      this.frontendLogsTab.textContent = 'Frontend Logs';
+      this.frontendLogsTab = this.domService.createElement('button');
+      this.domService.setAttributes(this.frontendLogsTab, { className: 'logs-tab px-4 py-2 mr-2' });
+      this.domService.setTextContent(this.frontendLogsTab, 'Frontend Logs');
       this.frontendLogsTab.addEventListener('click', () => this.switchTab('frontend'));
 
       // Create backend tab
-      this.backendLogsTab = document.createElement('button'); // Property added
-      this.backendLogsTab.className = 'logs-tab px-4 py-2';
-      this.backendLogsTab.textContent = 'Backend Logs';
+      this.backendLogsTab = this.domService.createElement('button');
+      this.domService.setAttributes(this.backendLogsTab, { className: 'logs-tab px-4 py-2' });
+      this.domService.setTextContent(this.backendLogsTab, 'Backend Logs');
       this.backendLogsTab.addEventListener('click', () => this.switchTab('backend'));
 
       // Add tabs to container
-      tabsContainer.appendChild(this.frontendLogsTab);
-      tabsContainer.appendChild(this.backendLogsTab);
+      this.domService.appendChild(tabsContainer, this.frontendLogsTab);
+      this.domService.appendChild(tabsContainer, this.backendLogsTab);
 
       // Add tabs container to main container
-      this.container.appendChild(tabsContainer);
+      this.domService.appendChild(this.container, tabsContainer);
 
       // Create frontend logs container
-      this.frontendLogsContainer = document.createElement('div'); // Property added
-      this.frontendLogsContainer.className = 'logs-container hidden';
+      this.frontendLogsContainer = this.domService.createElement('div');
+      this.domService.setAttributes(this.frontendLogsContainer, { className: 'logs-container hidden' });
 
       // Create frontend logs filter controls
-      const frontendFiltersContainer = document.createElement('div');
-      frontendFiltersContainer.className = 'logs-filter-container mb-4 flex items-center space-x-2';
+      const frontendFiltersContainer = this.domService.createElement('div');
+      this.domService.setAttributes(frontendFiltersContainer, { className: 'logs-filter-container mb-4 flex items-center space-x-2' });
       frontendFiltersContainer.innerHTML = `
         <div class="flex space-x-2">
           <label class="flex items-center">
@@ -180,23 +213,23 @@ export class LogsViewer {
       `;
 
       // Create frontend logs list
-      this.frontendLogsList = document.createElement('div'); // Property added
-      this.frontendLogsList.id = 'frontend-logs-list';
-      this.frontendLogsList.className = 'logs-list overflow-y-auto max-h-[calc(100vh: any-300px)]';
+      this.frontendLogsList = this.domService.createElement('div');
+      this.domService.setAttributes(this.frontendLogsList, { id: 'frontend-logs-list' });
+      this.domService.setAttributes(this.frontendLogsList, { className: 'logs-list overflow-y-auto max-h-[calc(100vh: any-300px)]' });
       this.frontendLogsList.innerHTML =
         '<div class="text-center text-text-muted p-4">No frontend logs to display</div>';
 
       // Add everything to frontend container
-      this.frontendLogsContainer.appendChild(frontendFiltersContainer);
-      this.frontendLogsContainer.appendChild(this.frontendLogsList);
+      this.domService.appendChild(this.frontendLogsContainer, frontendFiltersContainer);
+      this.domService.appendChild(this.frontendLogsContainer, this.frontendLogsList);
 
       // Create backend logs container
-      this.backendLogsContainer = document.createElement('div'); // Property added
-      this.backendLogsContainer.className = 'logs-container';
+      this.backendLogsContainer = this.domService.createElement('div');
+      this.domService.setAttributes(this.backendLogsContainer, { className: 'logs-container' });
 
       // Create backend logs filter controls
-      const backendFiltersContainer = document.createElement('div');
-      backendFiltersContainer.className = 'logs-filter-container mb-4';
+      const backendFiltersContainer = this.domService.createElement('div');
+      this.domService.setAttributes(backendFiltersContainer, { className: 'logs-filter-container mb-4' });
       backendFiltersContainer.innerHTML = `
         <div class="flex items-center justify-between mb-2">
           <div class="flex space-x-2">
@@ -230,20 +263,19 @@ export class LogsViewer {
       `;
 
       // Create backend logs list
-      this.backendLogsList = document.createElement('div'); // Property added
-      this.backendLogsList.id = 'backend-logs-list';
-      this.backendLogsList.className =
-        'logs-list overflow-y-auto max-h-[calc(100vh: any-350px)] mt-4';
+      this.backendLogsList = this.domService.createElement('div');
+      this.domService.setAttributes(this.backendLogsList, { id: 'backend-logs-list' });
+      this.domService.setAttributes(this.backendLogsList, { className: 'logs-list overflow-y-auto max-h-[calc(100vh: any-350px)] mt-4' });
       this.backendLogsList.innerHTML =
         '<div class="text-center text-text-muted p-4">No backend logs to display</div>';
 
       // Add everything to backend container
-      this.backendLogsContainer.appendChild(backendFiltersContainer);
-      this.backendLogsContainer.appendChild(this.backendLogsList);
+      this.domService.appendChild(this.backendLogsContainer, backendFiltersContainer);
+      this.domService.appendChild(this.backendLogsContainer, this.backendLogsList);
 
       // Add both containers to main container
-      this.container.appendChild(this.frontendLogsContainer);
-      this.container.appendChild(this.backendLogsContainer);
+      this.domService.appendChild(this.container, this.frontendLogsContainer);
+      this.domService.appendChild(this.container, this.backendLogsContainer);
 
       // Set up event listeners for filter controls
       this.setupFilterEventListeners();
@@ -252,11 +284,11 @@ export class LogsViewer {
       this.switchTab(this.activeTab);
     } else if (this.options.showBackendLogs) {
       // Only backend logs are enabled - simpler UI
-      this.backendLogsContainer = this.container; // Property added
+      this.backendLogsContainer = this.container;
 
       // Create backend logs filter controls
-      const filtersContainer = document.createElement('div');
-      filtersContainer.className = 'logs-filter-container mb-4';
+      const filtersContainer = this.domService.createElement('div');
+      this.domService.setAttributes(filtersContainer, { className: 'logs-filter-container mb-4' });
       filtersContainer.innerHTML = `
         <div class="flex items-center justify-between mb-2">
           <div class="flex space-x-2">
@@ -290,26 +322,25 @@ export class LogsViewer {
       `;
 
       // Create backend logs list
-      this.backendLogsList = document.createElement('div'); // Property added
-      this.backendLogsList.id = 'backend-logs-list';
-      this.backendLogsList.className =
-        'logs-list overflow-y-auto max-h-[calc(100vh: any-250px)] mt-4';
+      this.backendLogsList = this.domService.createElement('div');
+      this.domService.setAttributes(this.backendLogsList, { id: 'backend-logs-list' });
+      this.domService.setAttributes(this.backendLogsList, { className: 'logs-list overflow-y-auto max-h-[calc(100vh: any-250px)] mt-4' });
       this.backendLogsList.innerHTML =
         '<div class="text-center text-text-muted p-4">No logs to display</div>';
 
       // Add everything to container
-      this.container.appendChild(filtersContainer);
-      this.container.appendChild(this.backendLogsList);
+      this.domService.appendChild(this.container, filtersContainer);
+      this.domService.appendChild(this.container, this.backendLogsList);
 
       // Set up event listeners
       this.setupFilterEventListeners();
     } else if (this.options.showFrontendLogs) {
       // Only frontend logs are enabled - simpler UI
-      this.frontendLogsContainer = this.container; // Property added
+      this.frontendLogsContainer = this.container;
 
       // Create frontend logs filter controls
-      const filtersContainer = document.createElement('div');
-      filtersContainer.className = 'logs-filter-container mb-4';
+      const filtersContainer = this.domService.createElement('div');
+      this.domService.setAttributes(filtersContainer, { className: 'logs-filter-container mb-4' });
       filtersContainer.innerHTML = `
         <div class="flex items-center justify-between">
           <div class="flex space-x-2">
@@ -334,16 +365,15 @@ export class LogsViewer {
       `;
 
       // Create frontend logs list
-      this.frontendLogsList = document.createElement('div'); // Property added
-      this.frontendLogsList.id = 'frontend-logs-list';
-      this.frontendLogsList.className =
-        'logs-list overflow-y-auto max-h-[calc(100vh: any-200px)] mt-4';
+      this.frontendLogsList = this.domService.createElement('div');
+      this.domService.setAttributes(this.frontendLogsList, { id: 'frontend-logs-list' });
+      this.domService.setAttributes(this.frontendLogsList, { className: 'logs-list overflow-y-auto max-h-[calc(100vh: any-200px)] mt-4' });
       this.frontendLogsList.innerHTML =
         '<div class="text-center text-text-muted p-4">No logs to display</div>';
 
       // Add everything to container
-      this.container.appendChild(filtersContainer);
-      this.container.appendChild(this.frontendLogsList);
+      this.domService.appendChild(this.container, filtersContainer);
+      this.domService.appendChild(this.container, this.frontendLogsList);
 
       // Set up event listeners
       this.setupFilterEventListeners();
@@ -359,7 +389,7 @@ export class LogsViewer {
     }
 
     // Listen for logs loaded event
-    this.backendLogsManager.on('logs:loaded', (data: any[] | Record<string, unknown>) => {
+    this.backendLogsManager.on('logs:loaded', (data: LogEntry[] | Record<string, unknown>) => {
       this.renderBackendLogs();
     });
 
@@ -380,20 +410,20 @@ export class LogsViewer {
     if (this.options.showFrontendLogs) {
       // Level filters
       ['debug', 'info', 'warning', 'error'].forEach(level => {
-        const checkbox = document.getElementById(`filter-${level}`);
+        const checkbox = this.domService.getElementById(`filter-${level}`);
         if (checkbox) {
           checkbox.addEventListener('change', () => this.renderFrontendLogs());
         }
       });
 
       // Search filter
-      const searchInput = document.getElementById('frontend-logs-search');
+      const searchInput = this.domService.getElementById('frontend-logs-search');
       if (searchInput) {
         searchInput.addEventListener('input', () => this.renderFrontendLogs());
       }
 
       // Clear button
-      const clearButton = document.getElementById('clear-frontend-logs-btn');
+      const clearButton = this.domService.getElementById('clear-frontend-logs-btn');
       if (clearButton) {
         clearButton.addEventListener('click', () => this.clearFrontendLogs());
       }
@@ -403,32 +433,32 @@ export class LogsViewer {
     if (this.options.showBackendLogs) {
       // Level filters
       ['debug', 'info', 'warning', 'error'].forEach(level => {
-        const checkbox = document.getElementById(`backend-filter-${level}`);
+        const checkbox = this.domService.getElementById(`backend-filter-${level}`);
         if (checkbox) {
           checkbox.addEventListener('change', () => this.renderBackendLogs());
         }
       });
 
       // Search filter
-      const searchInput = document.getElementById('backend-logs-search');
+      const searchInput = this.domService.getElementById('backend-logs-search');
       if (searchInput) {
         searchInput.addEventListener('input', () => this.renderBackendLogs());
       }
 
       // Correlation ID filter
-      const correlationIdInput = document.getElementById('backend-correlation-id');
+      const correlationIdInput = this.domService.getElementById('backend-correlation-id');
       if (correlationIdInput) {
         correlationIdInput.addEventListener('input', () => this.renderBackendLogs());
       }
 
       // Refresh button
-      const refreshButton = document.getElementById('refresh-backend-logs-btn');
+      const refreshButton = this.domService.getElementById('refresh-backend-logs-btn');
       if (refreshButton) {
         refreshButton.addEventListener('click', () => this.refreshBackendLogs());
       }
 
       // Auto-refresh checkbox
-      const autoRefreshCheckbox = document.getElementById(
+      const autoRefreshCheckbox = this.domService.getElementById(
         'backend-auto-refresh',
       ) as HTMLInputElement;
       if (autoRefreshCheckbox) {
@@ -442,7 +472,7 @@ export class LogsViewer {
       }
 
       // Clear button
-      const clearButton = document.getElementById('clear-backend-logs-btn');
+      const clearButton = this.domService.getElementById('clear-backend-logs-btn');
       if (clearButton) {
         clearButton.addEventListener('click', () => this.clearBackendLogs());
       }
@@ -458,7 +488,7 @@ export class LogsViewer {
       return;
     }
 
-    this.activeTab = ta; // Property added
+    this.activeTab = ta;
 
     // Update tab buttons
     if (this.frontendLogsTab && this.backendLogsTab) {
@@ -516,8 +546,8 @@ export class LogsViewer {
 
     // Render logs
     filteredLogs.forEach(log => {
-      const logElement = document.createElement('div');
-      logElement.className = 'log-entry border-b border-border p-2';
+      const logElement = this.domService.createElement('div');
+      this.domService.setAttributes(logElement, { className: 'log-entry border-b border-border p-2' });
 
       const formattedTime = new Date(log.timestamp).toLocaleTimeString();
       const formattedDate = new Date(log.timestamp).toLocaleDateString();
@@ -535,7 +565,7 @@ export class LogsViewer {
       `;
 
       if (this.frontendLogsList) {
-        this.frontendLogsList.appendChild(logElement);
+        this.domService.appendChild(this.frontendLogsList, logElement);
       }
     });
   }
@@ -569,8 +599,8 @@ export class LogsViewer {
 
     // Add counters if we have special logs
     if (aiLogCount > 0 || domainEventCount > 0) {
-      const countersElement = document.createElement('div');
-      countersElement.className = 'flex space-x-2 mb-2 text-xs';
+      const countersElement = this.domService.createElement('div');
+      this.domService.setAttributes(countersElement, { className: 'flex space-x-2 mb-2 text-xs' });
 
       if (aiLogCount > 0) {
         countersElement.innerHTML += `
@@ -588,7 +618,7 @@ export class LogsViewer {
         `;
       }
 
-      this.backendLogsList.appendChild(countersElement);
+      this.domService.appendChild(this.backendLogsList, countersElement);
     }
 
     // Sort logs by timestamp (newest first)
@@ -600,8 +630,8 @@ export class LogsViewer {
 
     // Render logs
     filteredLogs.forEach(log => {
-      const logElement = document.createElement('div');
-      logElement.className = 'log-entry border-b border-border p-2 mb-2';
+      const logElement = this.domService.createElement('div');
+      this.domService.setAttributes(logElement, { className: 'log-entry border-b border-border p-2 mb-2' });
 
       const formattedTime = new Date(log.timestamp).toLocaleTimeString();
       const formattedDate = new Date(log.timestamp).toLocaleDateString();
@@ -614,6 +644,7 @@ export class LogsViewer {
 
       const logType = isDomainEvent ? 'domain-event-log' : isAiLog ? 'ai-log' : '';
 
+      // Add classes safely
       if (isAiLog) {
         logElement.classList.add('border-l-2', 'border-l-green-500', 'bg-green-50/10');
       } else if (isDomainEvent) {
@@ -629,7 +660,7 @@ export class LogsViewer {
           <span class="log-timestamp mr-2">${formattedDate} ${formattedTime}</span>
           ${
             log.meta?.correlationId
-              ? `<span class="log-correlation-id bg-bg-sidebar px-1.5 py-0.5 rounded text-xs mr-2" title="${log.meta.correlationId}">ID: ${log.meta.correlationId.substring(0, 8)}...</span>`
+              ? `<span class="log-correlation-id bg-bg-sidebar px-1.5 py-0.5 rounded text-xs mr-2" title="${String(log.meta.correlationId)}">ID: ${String(log.meta.correlationId).substring(0, 8)}...</span>`
               : ''
           }
           ${log.service ? `<span class="log-service-badge bg-gray-500 text-white px-1.5 py-0.5 rounded text-xs mr-2">${log.service}</span>` : ''}
@@ -666,30 +697,30 @@ export class LogsViewer {
               ${
                 log.context
                   ? `
-              <div class="log-tab-content hidden" data-tab="context">
-                <pre class="text-xs bg-bg-sidebar p-2 rounded overflow-auto max-h-60">${this.formatJson(log.context)}</pre>
-              </div>
-              `
+                <div class="log-tab-content hidden" data-tab="context">
+                  <pre class="text-xs bg-bg-sidebar p-2 rounded overflow-auto max-h-60">${this.formatJson(log.context)}</pre>
+                </div>
+                `
                   : ''
               }
               
               ${
                 isAiLog
                   ? `
-              <div class="log-tab-content hidden" data-tab="ai">
-                ${this.formatAiLogDetails(log)}
-              </div>
-              `
+                <div class="log-tab-content hidden" data-tab="ai">
+                  ${this.formatAiLogDetails(log)}
+                </div>
+                `
                   : ''
               }
               
               ${
                 isDomainEvent
                   ? `
-              <div class="log-tab-content hidden" data-tab="event">
-                ${this.formatDomainEventDetails(log)}
-              </div>
-              `
+                <div class="log-tab-content hidden" data-tab="event">
+                  ${this.formatDomainEventDetails(log)}
+                </div>
+                `
                   : ''
               }
             </div>
@@ -737,7 +768,7 @@ export class LogsViewer {
       });
 
       if (this.backendLogsList) {
-        this.backendLogsList.appendChild(logElement);
+        this.domService.appendChild(this.backendLogsList, logElement);
       }
     });
   }
@@ -752,20 +783,20 @@ export class LogsViewer {
     // Apply level filters
     const levelFilters: Record<string, boolean> = {
       debug:
-        document.getElementById('filter-debug') instanceof HTMLInputElement
-          ? (document.getElementById('filter-debug') as HTMLInputElement).checked
+        this.domService.getElementById('filter-debug') instanceof HTMLInputElement
+          ? (this.domService.getElementById('filter-debug') as HTMLInputElement).checked
           : true,
       info:
-        document.getElementById('filter-info') instanceof HTMLInputElement
-          ? (document.getElementById('filter-info') as HTMLInputElement).checked
+        this.domService.getElementById('filter-info') instanceof HTMLInputElement
+          ? (this.domService.getElementById('filter-info') as HTMLInputElement).checked
           : true,
       warning:
-        document.getElementById('filter-warning') instanceof HTMLInputElement
-          ? (document.getElementById('filter-warning') as HTMLInputElement).checked
+        this.domService.getElementById('filter-warning') instanceof HTMLInputElement
+          ? (this.domService.getElementById('filter-warning') as HTMLInputElement).checked
           : true,
       error:
-        document.getElementById('filter-error') instanceof HTMLInputElement
-          ? (document.getElementById('filter-error') as HTMLInputElement).checked
+        this.domService.getElementById('filter-error') instanceof HTMLInputElement
+          ? (this.domService.getElementById('filter-error') as HTMLInputElement).checked
           : true,
     };
 
@@ -775,7 +806,7 @@ export class LogsViewer {
     });
 
     // Apply search filter
-    const searchInput = document.getElementById('frontend-logs-search') as HTMLInputElement;
+    const searchInput = this.domService.getElementById('frontend-logs-search') as HTMLInputElement;
     if (searchInput && searchInput.value.trim()) {
       const searchTerm = searchInput.value.trim().toLowerCase();
       filteredLogs = filteredLogs.filter(log => {
@@ -795,48 +826,39 @@ export class LogsViewer {
    * @param logs The logs to filter
    * @returns Array of filtered log entries
    */
-  private getFilteredBackendLogs(log: anys[]): any[] {
+  private getFilteredBackendLogs(logs: LogEntry[]): LogEntry[] {
     if (!logs || !Array.isArray(logs)) {
       return [];
     }
 
-    let filteredLogs = [...logs];
-
-    // Apply level filters
-    const levelFilters: Record<string, boolean> = {
-      debug:
-        document.getElementById('backend-filter-debug') instanceof HTMLInputElement
-          ? (document.getElementById('backend-filter-debug') as HTMLInputElement).checked
-          : true,
-      info:
-        document.getElementById('backend-filter-info') instanceof HTMLInputElement
-          ? (document.getElementById('backend-filter-info') as HTMLInputElement).checked
-          : true,
-      warning:
-        document.getElementById('backend-filter-warning') instanceof HTMLInputElement
-          ? (document.getElementById('backend-filter-warning') as HTMLInputElement).checked
-          : true,
-      error:
-        document.getElementById('backend-filter-error') instanceof HTMLInputElement
-          ? (document.getElementById('backend-filter-error') as HTMLInputElement).checked
-          : true,
+    // Filter by level
+    const levelFilters = {
+      debug: this.domService.getElementById('backend-filter-debug') as HTMLInputElement,
+      info: this.domService.getElementById('backend-filter-info') as HTMLInputElement,
+      warning: this.domService.getElementById('backend-filter-warning') as HTMLInputElement,
+      error: this.domService.getElementById('backend-filter-error') as HTMLInputElement,
     };
 
-    filteredLogs = filteredLogs.filter(log => {
-      const level = log.level ? log.level.toLowerCase() : 'info';
-      return levelFilters[level] || false;
+    let filteredLogs = logs.filter(log => {
+      const level = log.level.toLowerCase();
+      // Handle the level string index safely
+      if (level === 'debug') return levelFilters.debug?.checked ?? true;
+      if (level === 'info') return levelFilters.info?.checked ?? true;
+      if (level === 'warning') return levelFilters.warning?.checked ?? true;
+      if (level === 'error') return levelFilters.error?.checked ?? true;
+      return true; // Default to showing unknown levels
     });
 
     // Apply correlation ID filter if enabled
     if (this.options.enableCorrelationIdFiltering) {
-      const correlationIdInput = document.getElementById(
+      const correlationIdInput = this.domService.getElementById(
         'backend-correlation-id',
       ) as HTMLInputElement;
       if (correlationIdInput && correlationIdInput.value.trim()) {
         const correlationId = correlationIdInput.value.trim();
         filteredLogs = filteredLogs.filter(log => {
           return (
-            (log.meta?.correlationId && log.meta.correlationId.includes(correlationId)) ||
+            (log.meta?.correlationId && String(log.meta.correlationId).includes(correlationId)) ||
             (log.correlationId && log.correlationId.includes(correlationId))
           );
         });
@@ -845,7 +867,7 @@ export class LogsViewer {
 
     // Apply search filter if enabled
     if (this.options.enableSearchFiltering) {
-      const searchInput = document.getElementById('backend-logs-search') as HTMLInputElement;
+      const searchInput = this.domService.getElementById('backend-logs-search') as HTMLInputElement;
       if (searchInput && searchInput.value.trim()) {
         const searchTerm = searchInput.value.trim().toLowerCase();
         filteredLogs = filteredLogs.filter(log => {
@@ -867,7 +889,7 @@ export class LogsViewer {
    * @param level The log level
    * @returns CSS color value for the level
    */
-  private getLevelColor(leve: string): string {
+  private getLevelColor(level: string): string {
     switch (level.toUpperCase()) {
       case 'DEBUG':
         return '#6b7280'; // Gray
@@ -916,7 +938,7 @@ export class LogsViewer {
 
       return formattedJson;
     } catch (e) {
-      console.error('Error formatting JSON:', e);
+      this.logger.error('Error formatting JSON:', e);
       return String(ob);
     }
   }
@@ -926,102 +948,17 @@ export class LogsViewer {
    * @param log The log entry
    * @returns Formatted HTML
    */
-  private formatAiLogDetails(lo: anyg): string {
+  private formatAiLogDetails(log: LogEntry): string {
     if (!log || !this.options.enableAiLogFormatting) {
       return '<p class="text-xs text-text-muted">No AI details available</p>';
     }
 
-    try {
-      // Check for prompt/completion specific fields in either log.data or log.meta
-      const data = log.data || log.meta || {};
-
-      if (!data.prompt && !data.completion && !data.messages) {
-        return '<p class="text-xs text-text-muted">No AI details available</p>';
-      }
-
-      let html = '<div class="ai-log-details space-y-3">';
-
-      // Add prompt if available
-      if (data.prompt) {
-        html += `
-          <div class="prompt-section">
-            <div class="font-medium text-xs mb-1">Prompt:</div>
-            <div class="bg-bg-sidebar p-2 rounded text-xs whitespace-pre-wrap">${data.prompt}</div>
-          </div>
-        `;
-      }
-
-      // Add messages if available (for chat models)
-      if (data.messages && Array.isArray(data.messages)) {
-        html += `
-          <div class="messages-section">
-            <div class="font-medium text-xs mb-1">Messages:</div>
-            <div class="space-y-2">
-        `;
-
-        data.messages.forEach((message: string, index: number) => {
-          const role = message.role || 'unknown';
-          const content = message.content || '';
-          const roleColorClass =
-            role === 'user'
-              ? 'bg-blue-100 text-blue-800'
-              : role === 'assistant'
-                ? 'bg-green-100 text-green-800'
-                : role === 'system'
-                  ? 'bg-purple-100 text-purple-800'
-                  : 'bg-gray-100 text-gray-800';
-
-          html += `
-            <div class="message-item">
-              <div class="font-medium text-xs inline-block ${roleColorClass} px-2 py-0.5 rounded mb-1">${role}</div>
-              <div class="bg-bg-sidebar p-2 rounded text-xs whitespace-pre-wrap">${content}</div>
-            </div>
-          `;
-        });
-
-        html += `
-            </div>
-          </div>
-        `;
-      }
-
-      // Add completion if available
-      if (data.completion) {
-        html += `
-          <div class="completion-section">
-            <div class="font-medium text-xs mb-1">Completion:</div>
-            <div class="bg-bg-sidebar p-2 rounded text-xs whitespace-pre-wrap">${data.completion}</div>
-          </div>
-        `;
-      }
-
-      // Add model information if available
-      if (data.model && typeof data.model === 'string' && data.model.includes('gpt-')) {
-        html += `
-          <div class="model-info">
-            <div class="font-medium text-xs inline-block bg-gray-100 text-gray-800 px-2 py-0.5 rounded">Model: ${data.model}</div>
-          </div>
-        `;
-      }
-
-      // Add token count information if available
-      if (data.usage) {
-        html += `
-          <div class="token-info flex flex-wrap gap-2">
-            ${data.usage.prompt_tokens ? `<div class="font-medium text-xs inline-block bg-blue-100 text-blue-800 px-2 py-0.5 rounded">Prompt tokens: ${data.usage.prompt_tokens}</div>` : ''}
-            ${data.usage.completion_tokens ? `<div class="font-medium text-xs inline-block bg-green-100 text-green-800 px-2 py-0.5 rounded">Completion tokens: ${data.usage.completion_tokens}</div>` : ''}
-            ${data.usage.total_tokens ? `<div class="font-medium text-xs inline-block bg-gray-100 text-gray-800 px-2 py-0.5 rounded">Total tokens: ${data.usage.total_tokens}</div>` : ''}
-          </div>
-        `;
-      }
-
-      html += '</div>';
-
-      return html;
-    } catch (e) {
-      console.error('Error formatting AI log details:', e);
-      return '<p class="text-xs text-text-muted">Error formatting AI log details</p>';
+    let details = '';
+    if ('role' in log && 'content' in log && log.role && log.content) {
+      details += `<div class="log-ai-role">${log.role}</div>`;
+      details += `<div class="log-ai-content">${log.content}</div>`;
     }
+    return details;
   }
 
   /**
@@ -1029,7 +966,7 @@ export class LogsViewer {
    * @param log The log entry
    * @returns Formatted HTML
    */
-  private formatDomainEventDetails(lo: anyg): string {
+  private formatDomainEventDetails(log: LogEntry): string {
     if (!log || !this.options.enableDomainEventFormatting) {
       return '<p class="text-xs text-text-muted">No event details available</p>';
     }
@@ -1042,8 +979,10 @@ export class LogsViewer {
         return '<p class="text-xs text-text-muted">No event details available</p>';
       }
 
-      const eventType = data.eventType || data.type || data.event || 'Unknown Event';
+      const eventType = String(data.eventType || data.type || data.event || 'Unknown Event');
       const payload = data.payload || data.data || data;
+
+      const timestamp = data.timestamp ? new Date(String(data.timestamp)).toLocaleString() : '';
 
       const html = `
         <div class="event-details space-y-3">
@@ -1051,33 +990,33 @@ export class LogsViewer {
             <div class="font-medium text-xs inline-block bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
               ${eventType}
             </div>
-            ${data.timestamp ? `<div class="text-xs text-text-muted ml-2">${new Date(data.timestamp).toLocaleString()}</div>` : ''}
+            ${timestamp ? `<div class="text-xs text-text-muted ml-2">${timestamp}</div>` : ''}
           </div>
           
           <div class="event-payload">
             <div class="font-medium text-xs mb-1">Payload:</div>
-            <pre class="text-xs bg-bg-sidebar p-2 rounded overflow-auto max-h-60">${this.formatJson(payload)}</pre>
+            <pre class="text-xs bg-bg-sidebar p-2 rounded overflow-auto max-h-60">${this.formatJson(payload as Record<string, unknown>)}</pre>
           </div>
           
           ${
             data.source
               ? `
-          <div class="event-source">
-            <div class="font-medium text-xs mb-1">Source:</div>
-            <div class="text-xs">${data.source}</div>
-          </div>
-          `
+            <div class="event-source">
+              <div class="font-medium text-xs mb-1">Source:</div>
+              <div class="text-xs">${String(data.source)}</div>
+            </div>
+            `
               : ''
           }
           
           ${
             data.correlationId
               ? `
-          <div class="event-correlation">
-            <div class="font-medium text-xs mb-1">Correlation ID:</div>
-            <div class="text-xs font-mono">${data.correlationId}</div>
-          </div>
-          `
+            <div class="event-correlation">
+              <div class="font-medium text-xs mb-1">Correlation ID:</div>
+              <div class="text-xs font-mono">${String(data.correlationId)}</div>
+            </div>
+            `
               : ''
           }
         </div>
@@ -1085,7 +1024,7 @@ export class LogsViewer {
 
       return html;
     } catch (e) {
-      console.error('Error formatting domain event details:', e);
+      this.logger.error('Error formatting domain event details:', e);
       return '<p class="text-xs text-text-muted">Error formatting event details</p>';
     }
   }
@@ -1095,51 +1034,8 @@ export class LogsViewer {
    * @param log The log entry to check
    * @returns True if the log is AI-related
    */
-  private isAiLog(lo: anyg): boolean {
-    if (!log) return false;
-
-    // Check message content for AI-related keywords
-    const messageIndicators = [
-      'openai',
-      'gpt-',
-      'ai response',
-      'ai request',
-      'ai completion',
-      'llm',
-      'model response',
-      'prompt',
-    ];
-
-    if (log.message && typeof log.message === 'string') {
-      for (const indicator of messageIndicators) {
-        if (log.message.toLowerCase().includes(indicator)) {
-          return true;
-        }
-      }
-    }
-
-    // Check data or meta for AI-specific fields
-    const data = log.data || log.meta || {};
-
-    if (data.model && typeof data.model === 'string' && data.model.includes('gpt-')) {
-      return true;
-    }
-
-    if (data.prompt || data.completion || (data.messages && Array.isArray(data.messages))) {
-      return true;
-    }
-
-    // Check service name
-    if (log.service && typeof log.service === 'string') {
-      const serviceIndicators = ['openai', 'ai', 'llm', 'gpt'];
-      for (const indicator of serviceIndicators) {
-        if (log.service.toLowerCase().includes(indicator)) {
-          return true;
-        }
-      }
-    }
-
-    return false;
+  private isAiLog(log: LogEntry): boolean {
+    return log && typeof log === 'object' && 'role' in log && 'content' in log;
   }
 
   /**
@@ -1147,107 +1043,49 @@ export class LogsViewer {
    * @param log The log entry to check
    * @returns True if the log is a domain event
    */
-  private isDomainEventLog(lo: anyg): boolean {
-    if (!log) return false;
-
-    // Check message content for event-related keywords
-    const messageIndicators = [
-      'event emitted',
-      'event received',
-      'domain event',
-      'event dispatched',
-      'dispatching event',
-      'event published',
-      'event processed',
-    ];
-
-    if (log.message && typeof log.message === 'string') {
-      for (const indicator of messageIndicators) {
-        if (log.message.toLowerCase().includes(indicator)) {
-          return true;
-        }
-      }
-    }
-
-    // Check data or meta for event-specific fields
-    const data = log.data || log.meta || {};
-
-    if (data.eventType || data.type || data.event) {
-      return true;
-    }
-
-    // Check if message contains event name pattern
-    const eventPatterns = [
-      /Event\s+[A-Z][a-zA-Z]+Event/,
-      /[A-Z][a-zA-Z]+Event/,
-      /Event\s+[A-Z][a-zA-Z]+/,
-    ];
-
-    if (log.message && typeof log.message === 'string') {
-      for (const pattern of eventPatterns) {
-        if (pattern.test(log.message)) {
-          return true;
-        }
-      }
-    }
-
-    return false;
+  private isDomainEventLog(log: LogEntry): boolean {
+    return log && typeof log === 'object' && 'data' in log && typeof log.data === 'object';
   }
 
   /**
    * Hooks into console methods to capture frontend logs
    */
   private hookConsole(): void {
-    const addFrontendLog = (level: string, ...args: any[]) => {
-      // Create log entry
-      const entry: LogEntry = {
-        timestamp: new Date().toISOString(),
-        level: level.toUpperCase(),
-        message: args
-          .map(arg => (typeof arg === 'object' ? JSON.stringify(arg) : String(arg)))
-          .join(' '),
+    const addFrontendLog = (level: string, ...args: unknown[]) => {
+      const timestamp = new Date().toISOString();
+      const message = args
+        .map(arg => (typeof arg === 'object' ? JSON.stringify(arg) : String(arg)))
+        .join(' ');
+
+      const logEntry: LogEntry = {
+        timestamp,
+        level,
+        message,
         correlationId: this.getCurrentCorrelationId(),
-        data: args.length === 1 && typeof args[0] === 'object' ? args[0] : null,
       };
 
-      // Add to frontend logs
-      this.frontendLogs.push(entry);
-
-      // Limit number of logs
-      if (this.frontendLogs.length > this.options.maxFrontendLogs) {
-        this.frontendLogs.shift();
-      }
-
-      // Render if frontend tab is active
-      if (this.activeTab === 'frontend') {
-        this.renderFrontendLogs();
-      }
+      this.addLog(logEntry);
     };
 
-    // Override console methods
-    console.debug = (...args) => {
-      this.originalConsole.debug.apply(console, args);
-      addFrontendLog('debug', args);
+    // Type assertion for console methods
+    (console.debug as Function) = (...args: unknown[]) => {
+      (this.originalConsole.debug as Function)?.apply(console, args);
+      addFrontendLog(LogLevel.DEBUG, ...args);
     };
 
-    console.log = (...args) => {
-      this.originalConsole.log.apply(console, args);
-      addFrontendLog('info', args);
+    (console.info as Function) = (...args: unknown[]) => {
+      (this.originalConsole.info as Function)?.apply(console, args);
+      addFrontendLog(LogLevel.INFO, ...args);
     };
 
-    console.info = (...args) => {
-      this.originalConsole.info.apply(console, args);
-      addFrontendLog('info', args);
+    (console.warn as Function) = (...args: unknown[]) => {
+      (this.originalConsole.warn as Function)?.apply(console, args);
+      addFrontendLog(LogLevel.WARNING, ...args);
     };
 
-    console.warn = (...args) => {
-      this.originalConsole.warn.apply(console, args);
-      addFrontendLog('warning', args);
-    };
-
-    console.error = (...args) => {
-      this.originalConsole.error.apply(console, args);
-      addFrontendLog('error', args);
+    (console.error as Function) = (...args: unknown[]) => {
+      (this.originalConsole.error as Function)?.apply(console, args);
+      addFrontendLog(LogLevel.ERROR, ...args);
     };
   }
 
@@ -1264,17 +1102,23 @@ export class LogsViewer {
   }
 
   /**
-   * Gets the current correlation ID from meta elements or localStorage
+   * Gets the current correlation ID from meta elements or storage
    */
   private getCurrentCorrelationId(): string | undefined {
     // Try to get from meta tag
-    const metaCorrelationId = document.querySelector('meta[name="correlation-id"]');
+    const metaCorrelationId = this.domService.querySelector('meta[name="correlation-id"]');
     if (metaCorrelationId && metaCorrelationId.getAttribute('content')) {
       return metaCorrelationId.getAttribute('content') || undefined;
     }
 
-    // Try to get from localStorage
-    return localStorage.getItem('correlationId') || undefined;
+    // Try to get from storage service
+    if (this.storageService) {
+      return this.storageService.get<string>('correlationId') || undefined;
+    }
+    
+    // Fallback if no storage service
+    this.logger.warn('No StorageService available, cannot get correlationId');
+    return undefined;
   }
 
   /**
@@ -1284,13 +1128,17 @@ export class LogsViewer {
     this.stopAutoRefresh();
 
     if (this.options.refreshInterval > 0) {
+      // Using window.setInterval directly as it's challenging to fully abstract timer functionality
+      // In a real implementation, we would create a TimerService abstraction
       this.refreshIntervalId = window.setInterval(() => {
         this.refreshBackendLogs();
       }, this.options.refreshInterval);
+      
+      this.logger.debug('Started auto-refresh with interval', this.options.refreshInterval);
     }
 
     // Update UI
-    const autoRefreshCheckbox = document.getElementById('backend-auto-refresh') as HTMLInputElement;
+    const autoRefreshCheckbox = this.domService.getElementById('backend-auto-refresh') as HTMLInputElement;
     if (autoRefreshCheckbox) {
       autoRefreshCheckbox.checked = true;
     }
@@ -1301,12 +1149,16 @@ export class LogsViewer {
    */
   private stopAutoRefresh(): void {
     if (this.refreshIntervalId !== null) {
+      // Using window.clearInterval directly as it's challenging to fully abstract timer functionality
+      // In a real implementation, we would create a TimerService abstraction
       window.clearInterval(this.refreshIntervalId);
-      this.refreshIntervalId = null; // Property added
+      this.refreshIntervalId = null;
+      
+      this.logger.debug('Stopped auto-refresh');
     }
 
     // Update UI
-    const autoRefreshCheckbox = document.getElementById('backend-auto-refresh') as HTMLInputElement;
+    const autoRefreshCheckbox = this.domService.getElementById('backend-auto-refresh') as HTMLInputElement;
     if (autoRefreshCheckbox) {
       autoRefreshCheckbox.checked = false;
     }
@@ -1325,7 +1177,7 @@ export class LogsViewer {
    * Public method to clear frontend logs
    */
   public clearFrontendLogs(): void {
-    this.frontendLogs = []; // Property added
+    this.frontendLogs = [];
     this.renderFrontendLogs();
   }
 
@@ -1343,18 +1195,14 @@ export class LogsViewer {
    * Public method to add a log entry programmatically
    * @param entry LogEntry to add
    */
-  public addLog(entr: LogEntry): void {
-    this.frontendLogs.push(entry);
+  public addLog(entry: LogEntry): void {
+    if (!entry) return;
 
-    // Limit number of logs
+    this.frontendLogs.push(entry);
     if (this.frontendLogs.length > this.options.maxFrontendLogs) {
       this.frontendLogs.shift();
     }
-
-    // Render if frontend tab is active
-    if (this.activeTab === 'frontend') {
-      this.renderFrontendLogs();
-    }
+    this.renderFrontendLogs();
   }
 
   /**
@@ -1369,7 +1217,7 @@ export class LogsViewer {
    * Public method to get all backend logs
    * @returns Array of log entries or null if not available
    */
-  public getBackendLogs(): any[] | null {
+  public getBackendLogs(): LogEntry[] | null {
     if (this.backendLogsManager) {
       return this.backendLogsManager.getLogs();
     }
@@ -1393,14 +1241,14 @@ export class LogsViewer {
     }
 
     // Reset properties
-    this.frontendLogsTab = null; // Property added
-    this.backendLogsTab = null; // Property added
-    this.frontendLogsContainer = null; // Property added
-    this.backendLogsContainer = null; // Property added
-    this.frontendLogsList = null; // Property added
-    this.backendLogsList = null; // Property added
-    this.frontendLogs = []; // Property added
-    this.backendLogsManager = null; // Property added
+    this.frontendLogsTab = null;
+    this.backendLogsTab = null;
+    this.frontendLogsContainer = null;
+    this.backendLogsContainer = null;
+    this.frontendLogsList = null;
+    this.backendLogsList = null;
+    this.frontendLogs = [];
+    this.backendLogsManager = null;
   }
 }
 

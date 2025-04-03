@@ -177,7 +177,7 @@ export class ComponentLogger {
   private log(level: string, message: string, data?: unknown): void {
     const timestamp = this.includeTimestamps ? new Date().toISOString() : '';
     const prefix = `[${this.componentName}]${timestamp ? ` ${timestamp}` : ''}`;
-    
+
     if (data !== undefined) {
       switch (level) {
         case 'debug':
@@ -255,7 +255,7 @@ export class Logger {
    */
   public setLevel(level: LogLevel): void {
     this.logLevel = level;
-    
+
     // Update all component loggers
     this.componentLoggers.forEach(logger => {
       logger.setLevel(level);
@@ -275,7 +275,7 @@ export class Logger {
       });
       this.componentLoggers.set(component, logger);
     }
-    
+
     return this.componentLoggers.get(component)!;
   }
 

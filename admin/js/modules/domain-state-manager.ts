@@ -5,11 +5,13 @@
  * Handles fetching, storing, and comparing domain entity states for snapshots.
  */
 
-import { logger } from '../utils/logger';
-import { EventEmitter } from '../utils/event-emitter';
+import { ComponentLogger } from '../core/Logger';
+import { EventBus } from '../core/EventBus';
 
 interface DomainStateManagerOptions {
   apiBasePath?: string;
+  eventBus: EventBus;
+  logger: ComponentLogger;
 }
 
 interface EntityType {
@@ -19,7 +21,7 @@ interface EntityType {
 
 interface Snapshot {
   id: string;
-  state: Event;
+  state: unknown;
 }
 
 interface Snapshots {
@@ -30,21 +32,25 @@ interface Snapshots {
 /**
  * Manages domain state snapshots before and after API calls.
  */
-export class DomainStateManager extends EventEmitter {
+export class DomainStateManager {
   private options: Required<DomainStateManagerOptions>;
   private snapshots: Snapshots;
   private entityTypes: EntityType[];
+  private eventBus: EventBus;
+  private logger: ComponentLogger;
 
   /**
    * Constructor
    * @param options Configuration options
    */
-  constructor(options: DomainStateManagerOptions = {}) {
-    super();
+  constructor(options: DomainStateManagerOptions) {
     this.options = {
       apiBasePath: '/api/v1/api-tester', // Default endpoint base path
       ...options,
     };
+    
+    this.eventBus = options.eventBus;
+    this.logger = options.logger;
 
     this.snapshots = {
       before: {},
@@ -62,7 +68,7 @@ export class DomainStateManager extends EventEmitter {
       // Add more entity types as needed
     ];
 
-    logger.debug('DomainStateManager initialized');
+    this.logger.debug('DomainStateManager initialized');
   }
 
   /**
@@ -101,18 +107,20 @@ export class DomainStateManager extends EventEmitter {
 
     // Look in body for entity IDs
     if (request.body && typeof request.body === 'object') {
-      const bodyObj = request.body as Record<string, any>; // Assert as indexable, keep any for flexibility here
-      if (bodyObj.userId) entityIds.user = bodyObj.userId;
-      if (bodyObj.challengeId) entityIds.challenge = bodyObj.challengeId;
-      if (bodyObj.progressId) entityIds.progress = bodyObj.progressId;
-      if (bodyObj.evaluationId) entityIds.evaluation = bodyObj.evaluationId;
-      if (bodyObj.focusAreaId) entityIds.focusArea = bodyObj.focusAreaId;
-      if (bodyObj.personalityId) entityIds.personality = bodyObj.personalityId;
+      const bodyObj = request.body as Record<string, unknown>; // Use unknown instead of any
+      if (bodyObj.userId) entityIds.user = String(bodyObj.userId);
+      if (bodyObj.challengeId) entityIds.challenge = String(bodyObj.challengeId);
+      if (bodyObj.progressId) entityIds.progress = String(bodyObj.progressId);
+      if (bodyObj.evaluationId) entityIds.evaluation = String(bodyObj.evaluationId);
+      if (bodyObj.focusAreaId) entityIds.focusArea = String(bodyObj.focusAreaId);
+      if (bodyObj.personalityId) entityIds.personality = String(bodyObj.personalityId);
       // Also check for nested IDs, e.g., body.user.id
-      if (bodyObj.user?.id) entityIds.user = String(bodyObj.user.id); // Ensure string conversion if needed
+      if (bodyObj.user && typeof bodyObj.user === 'object' && 'id' in bodyObj.user) {
+        entityIds.user = String((bodyObj.user as Record<string, unknown>).id);
+      }
     }
 
-    logger.debug('Detected entity IDs from request', {
+    this.logger.debug('Detected entity IDs from request', {
       requestPath: request.path,
       detectedIds: entityIds,
     });
@@ -121,61 +129,61 @@ export class DomainStateManager extends EventEmitter {
 
   /**
    * Take a snapshot of entity states before the API call.
+   * @param request The API request object (containing path, body, etc.)
    * @param selectedEntityTypeIds Array of entity type IDs to snapshot.
    * @returns Promise resolving when snapshots are taken.
    */
   async takeBeforeSnapshot(
+    request: { path?: string; body?: unknown },
     selectedEntityTypeIds?: string[],
   ): Promise<void> {
     try {
-      // Cannot detect entity IDs without request object anymore.
-      // Need alternative way to get IDs or snapshot all possible entities.
-      // For now, let's assume we try to snapshot all known types if specific IDs aren't needed/provided.
-      // This might require changes to fetchEntityState if it relies on specific IDs.
-      // const entityIds = this.detectEntityIds(request);
+      // Use the request object to detect entity IDs
+      const entityIds = this.detectEntityIds(request);
       const entityIdsToSnapshot = selectedEntityTypeIds || this.entityTypes.map(et => et.id);
 
       const snapshots: Record<string, Snapshot> = {};
       this.snapshots.before = {};
       this.snapshots.after = {};
 
-      logger.info('Taking BEFORE domain state snapshot...', {
+      this.logger.info('Taking BEFORE domain state snapshot...', {
         selectedTypes: entityIdsToSnapshot,
+        detectedIds: entityIds,
       });
 
       for (const typeId of entityIdsToSnapshot) {
-          // We might need an entity ID here depending on fetchEntityState
-          // This simplified approach might break if fetchEntityState NEEDS an ID
-          // Let's assume fetchEntityState can handle just the type for now,
-          // OR that this function should only work if selectedEntityTypeIds provides specific IDs to fetch.
-          // A more robust solution is needed depending on API capabilities.
-          logger.warn(`Attempting to fetch state for type ${typeId} without specific ID - this might fail.`);
-          // Passing a placeholder ID - THIS IS LIKELY WRONG and needs adjustment based on API
-          const placeholderEntityId = 'placeholder';
-          try {
-            const state = await this.fetchEntityState(typeId, placeholderEntityId);
-            if (state !== null) {
-              snapshots[typeId] = { id: placeholderEntityId, state };
-              logger.debug(`Snapshot taken for ${typeId}:${placeholderEntityId}`, { state });
-            } else {
-              logger.warn(`Could not fetch state for ${typeId}:${placeholderEntityId}`);
-            }
-          } catch (fetchError: unknown) {
-              logger.error(`Failed to fetch ${typeId} state for ID ${placeholderEntityId}:`, fetchError);
-              // Ensure emitted object matches Record<string, unknown>
-              const errorPayload: Record<string, unknown> = { message: `Failed to fetch state for ${typeId} (${placeholderEntityId})`, error: fetchError };
-              this.emit('error', errorPayload);
+        // Use detected entity ID if available, otherwise use placeholder
+        const entityId = entityIds[typeId] || 'placeholder';
+        try {
+          const state = await this.fetchEntityState(typeId, entityId);
+          if (state !== null) {
+            snapshots[typeId] = { id: entityId, state };
+            this.logger.debug(`Snapshot taken for ${typeId}:${entityId}`, { state });
+          } else {
+            this.logger.warn(`Could not fetch state for ${typeId}:${entityId}`);
           }
+        } catch (fetchError: unknown) {
+          this.logger.error(`Failed to fetch ${typeId} state for ID ${entityId}:`, fetchError);
+          // Ensure emitted object matches Record<string, unknown>
+          const errorPayload: Record<string, unknown> = {
+            message: `Failed to fetch state for ${typeId} (${entityId})`,
+            error: fetchError,
+          };
+          this.eventBus.publish('error', errorPayload);
+        }
       }
 
       this.snapshots.before = snapshots;
-      this.emit('snapshotChange', { phase: 'before', snapshots: this.snapshots.before });
+      this.eventBus.publish('snapshotChange', { phase: 'before', snapshots: this.snapshots.before });
       // ... logging ...
     } catch (error: unknown) {
-      logger.error('Failed to take before snapshot:', error);
+      this.logger.error('Failed to take before snapshot:', error);
       // Ensure emitted object matches Record<string, unknown>
-      const errorPayload: Record<string, unknown> = { message: 'Failed to take before snapshot', error: error };
-      this.emit('error', errorPayload);
+      const errorPayload: Record<string, unknown> = {
+        message: 'Failed to take before snapshot',
+        error: error,
+      };
+      this.eventBus.publish('error', errorPayload);
     }
   }
 
@@ -190,40 +198,48 @@ export class DomainStateManager extends EventEmitter {
     try {
       const snapshots: Record<string, Snapshot> = {};
       this.snapshots.after = {};
-      logger.info('Taking AFTER domain state snapshot...');
+      this.logger.info('Taking AFTER domain state snapshot...');
 
       // Determine which types/IDs to fetch based on 'before' snapshot or passed selection
       const typesAndIdsToFetch = selectedEntityTypeIds
-          ? selectedEntityTypeIds
-          : Object.keys(this.snapshots.before);
+        ? selectedEntityTypeIds
+        : Object.keys(this.snapshots.before);
 
       for (const typeId of typesAndIdsToFetch) {
         // Need the entity ID from the 'before' snapshot
         const entityId = this.snapshots.before[typeId]?.id;
         if (!entityId) {
-            logger.warn(`Cannot take 'after' snapshot for ${typeId}, missing ID from 'before' snapshot.`);
-            continue; // Skip if we don't have an ID from the 'before' phase
+          this.logger.warn(
+            `Cannot take 'after' snapshot for ${typeId}, missing ID from 'before' snapshot.`,
+          );
+          continue; // Skip if we don't have an ID from the 'before' phase
         }
         try {
           const state = await this.fetchEntityState(typeId, entityId);
           snapshots[typeId] = { id: entityId, state: state ?? null }; // Store null if fetch failed/deleted
-          logger.debug(`Snapshot taken for ${typeId}:${entityId}`, { state });
+          this.logger.debug(`Snapshot taken for ${typeId}:${entityId}`, { state });
         } catch (fetchError: unknown) {
-           logger.error(`Failed to fetch ${typeId} state for ID ${entityId}:`, fetchError);
-           // Ensure emitted object matches Record<string, unknown>
-           const errorPayload: Record<string, unknown> = { message: `Failed to fetch state for ${typeId} (${entityId})`, error: fetchError };
-           this.emit('error', errorPayload);
+          this.logger.error(`Failed to fetch ${typeId} state for ID ${entityId}:`, fetchError);
+          // Ensure emitted object matches Record<string, unknown>
+          const errorPayload: Record<string, unknown> = {
+            message: `Failed to fetch state for ${typeId} (${entityId})`,
+            error: fetchError,
+          };
+          this.eventBus.publish('error', errorPayload);
         }
       }
 
       this.snapshots.after = snapshots;
-      this.emit('snapshotChange', { phase: 'after', snapshots: this.snapshots.after });
+      this.eventBus.publish('snapshotChange', { phase: 'after', snapshots: this.snapshots.after });
       // ... logging ...
     } catch (error: unknown) {
-       logger.error('Failed to take after snapshot:', error);
-       // Ensure emitted object matches Record<string, unknown>
-       const errorPayload: Record<string, unknown> = { message: 'Failed to take after snapshot', error: error };
-       this.emit('error', errorPayload);
+      this.logger.error('Failed to take after snapshot:', error);
+      // Ensure emitted object matches Record<string, unknown>
+      const errorPayload: Record<string, unknown> = {
+        message: 'Failed to take after snapshot',
+        error: error,
+      };
+      this.eventBus.publish('error', errorPayload);
     }
   }
 
@@ -236,7 +252,7 @@ export class DomainStateManager extends EventEmitter {
    */
   async fetchEntityState(typeId: string, entityId: string): Promise<unknown | null> {
     const url = `${this.options.apiBasePath}/entity-state?type=${encodeURIComponent(typeId)}&id=${encodeURIComponent(entityId)}`;
-    logger.debug(`Fetching entity state from: ${url}`);
+    this.logger.debug(`Fetching entity state from: ${url}`);
 
     try {
       const response = await fetch(url, {
@@ -249,7 +265,7 @@ export class DomainStateManager extends EventEmitter {
       });
 
       if (response.status === 404) {
-        logger.warn(`Entity not found: ${typeId}:${entityId}`);
+        this.logger.warn(`Entity not found: ${typeId}:${entityId}`);
         return null; // Entity doesn't exist
       }
 
@@ -262,201 +278,106 @@ export class DomainStateManager extends EventEmitter {
       // Assuming the API returns { entity: { ...state } } or similar
       return data.entity || data; // Return the entity state or the whole data object as fallback
     } catch (error: unknown) {
-      logger.error(`Failed to fetch ${typeId} state for ID ${entityId}:`, error);
-      // Ensure emitted object matches Record<string, unknown>
-      const errorPayload: Record<string, unknown> = { message: `Failed to fetch state for ${typeId} (${entityId})`, error: error };
-      this.emit('error', errorPayload);
-      return null; // Return null on error
+      this.logger.error(`Failed to fetch ${typeId} state for ID ${entityId}:`, error);
+      return null; // Return null if there's an error
     }
   }
 
   /**
-   * Get the current snapshots.
-   * @returns The snapshots object containing 'before' and 'after' states.
-   */
-  getSnapshots(): Readonly<Snapshots> {
-    return this.snapshots;
-  }
-
-  /**
-   * Calculate differences between the 'before' and 'after' snapshots.
-   * @returns Object containing differences categorized by entity type.
+   * Calculate differences between before and after snapshots
+   * @returns Object of differences by entity type
    */
   calculateDiff(): Record<string, unknown> {
-    const diffs: Record<string, unknown> = {};
+    const diff: Record<string, unknown> = {};
 
-    // Get all unique entity types present in either snapshot
-    const allEntityTypeIds = new Set([
-      ...Object.keys(this.snapshots.before),
-      ...Object.keys(this.snapshots.after),
-    ]);
+    // For each entity type in before, compare with after
+    for (const typeId in this.snapshots.before) {
+      if (Object.prototype.hasOwnProperty.call(this.snapshots.before, typeId)) {
+        const beforeState = this.snapshots.before[typeId]?.state;
+        const afterState = this.snapshots.after[typeId]?.state;
 
-    logger.debug('Calculating diff between snapshots', { types: Array.from(allEntityTypeIds) });
-
-    for (const typeId of allEntityTypeIds) {
-      const beforeSnapshot = this.snapshots.before[typeId]?.state;
-      const afterSnapshot = this.snapshots.after[typeId]?.state;
-      const entityId = this.snapshots.before[typeId]?.id || this.snapshots.after[typeId]?.id;
-
-      // Ensure entityId is defined before proceeding
-      if (!entityId) continue;
-
-      // Case 1: New entity (only exists in 'after')
-      if (beforeSnapshot === undefined && afterSnapshot !== undefined) {
-        diffs[typeId] = {
-          id: entityId,
-          type: 'new',
-          added: afterSnapshot,
-        };
-        logger.debug(`Diff for ${typeId}:${entityId} - Type: new`);
-        continue;
-      }
-
-      // Case 2: Deleted entity (only exists in 'before' or is null in 'after')
-      if (beforeSnapshot !== undefined && (afterSnapshot === undefined || afterSnapshot === null)) {
-        diffs[typeId] = {
-          id: entityId,
-          type: 'deleted',
-          removed: beforeSnapshot,
-        };
-        logger.debug(`Diff for ${typeId}:${entityId} - Type: deleted`);
-        continue;
-      }
-
-      // Case 3: Entity exists in both, calculate property diffs
-      if (beforeSnapshot !== undefined && afterSnapshot !== undefined && afterSnapshot !== null) {
-        const changes = this._getObjectDiff(beforeSnapshot, afterSnapshot);
-
-        if (Object.keys(changes).length > 0) {
-          diffs[typeId] = {
-            id: entityId,
-            type: 'modified',
-            changes,
-          };
-          logger.debug(`Diff for ${typeId}:${entityId} - Type: modified`, { changes });
-        } else {
-          diffs[typeId] = {
-            id: entityId,
-            type: 'unchanged',
-          };
-          logger.debug(`Diff for ${typeId}:${entityId} - Type: unchanged`);
-        }
-        continue;
-      }
-
-      // Case 4: Unchanged (both undefined or null - should ideally not happen if fetched correctly)
-      if (beforeSnapshot === afterSnapshot) {
-        // Handles both undefined or both null
-        diffs[typeId] = {
-          id: entityId,
-          type: 'unchanged',
-        };
-        logger.debug(`Diff for ${typeId}:${entityId} - Type: unchanged (both null/undefined)`);
+        // Calculate difference
+        diff[typeId] = this.getObjectDiff(beforeState, afterState);
       }
     }
 
-    return diffs;
+    return diff;
   }
 
   /**
-   * Recursively calculates the difference between two objects or values.
-   * @param before The 'before' value/object.
-   * @param after The 'after' value/object.
-   * @returns An object describing the differences, or an empty object if no differences.
-   * @private
+   * Calculate the difference between two objects
+   * @param before Before object
+   * @param after After object
+   * @returns Difference object
    */
-  _getObjectDiff(before: unknown, after: unknown): Record<string, unknown> {
-    const changes: Record<string, unknown> = {};
-
-    // If they are identical primitive values or JSON strings, no changes
-    if (before === after || JSON.stringify(before) === JSON.stringify(after)) {
-      return changes;
+  private getObjectDiff(before: unknown, after: unknown): Record<string, unknown> {
+    // Handle cases where either object is null/undefined
+    if (before === null || before === undefined) {
+      return { _diff_type: 'created', value: after };
+    }
+    if (after === null || after === undefined) {
+      return { _diff_type: 'deleted', value: before };
     }
 
-    // Handle null/undefined cases
-    if (before === null || before === undefined || after === null || after === undefined) {
-      // If one is null/undefined and the other isn't, it's a simple modification
-      // (The parent caller handles add/remove based on key presence)
+    // If types don't match, return full objects
+    if (typeof before !== typeof after) {
       return {
-        action: 'modified',
-        from: before,
-        to: after,
+        _diff_type: 'changed_type',
+        before: { type: typeof before, value: before },
+        after: { type: typeof after, value: after },
       };
     }
 
-    // Handle arrays (simple comparison for now, could be improved)
-    if (Array.isArray(before) && Array.isArray(after)) {
-      if (JSON.stringify(before) !== JSON.stringify(after)) {
-        return {
-          action: 'modified',
-          from: before,
-          to: after,
-        };
-      }
-      return changes; // Arrays are the same
+    // Handle primitive types
+    if (
+      typeof before === 'string' ||
+      typeof before === 'number' ||
+      typeof before === 'boolean'
+    ) {
+      if (before === after) return {}; // No change
+      return {
+        _diff_type: 'changed_value',
+        before,
+        after,
+      };
     }
 
-    // Handle objects
-    if (
-      typeof before === 'object' &&
-      typeof after === 'object' &&
-      before !== null &&
-      after !== null
-    ) {
-      const allKeys = new Set([...Object.keys(before as object), ...Object.keys(after as object)]);
+    // Ensure we're working with objects
+    if (typeof before !== 'object' || typeof after !== 'object') {
+      return {}; // Not comparable
+    }
 
-      for (const key of allKeys) {
-        const beforeValue = (before as Record<string, unknown>)[key];
-        const afterValue = (after as Record<string, unknown>)[key];
+    const beforeObj = before as Record<string, unknown>;
+    const afterObj = after as Record<string, unknown>;
+    const diff: Record<string, unknown> = {};
 
-        // Key removed
-        if (beforeValue !== undefined && afterValue === undefined) {
-          changes[key] = {
-            action: 'removed',
-            value: beforeValue,
-          };
-          continue;
-        }
-
-        // Key added
-        if (beforeValue === undefined && afterValue !== undefined) {
-          changes[key] = {
-            action: 'added',
-            value: afterValue,
-          };
-          continue;
-        }
-
-        // Key exists in both, compare values recursively
-        if (beforeValue !== undefined && afterValue !== undefined) {
-          const nestedChanges = this._getObjectDiff(beforeValue, afterValue);
-          // Check if nested changes object is not empty or if it represents a direct value change
-          if (nestedChanges.action === 'modified' || Object.keys(nestedChanges).length > 0) {
-            // If the nested change is just a simple modification, flatten it
-            if (
-              nestedChanges.action === 'modified' &&
-              nestedChanges.from !== undefined &&
-              nestedChanges.to !== undefined
-            ) {
-              changes[key] = nestedChanges;
-            } else if (Object.keys(nestedChanges).length > 0) {
-              // Otherwise, report nested structure
-              changes[key] = {
-                action: 'modified',
-                changes: nestedChanges,
-              };
-            }
+    // Check keys in before that may have changed or been removed
+    for (const key in beforeObj) {
+      if (Object.prototype.hasOwnProperty.call(beforeObj, key)) {
+        if (!(key in afterObj)) {
+          // Key was removed
+          diff[key] = { _diff_type: 'removed', value: beforeObj[key] };
+        } else if (JSON.stringify(beforeObj[key]) !== JSON.stringify(afterObj[key])) {
+          // Value changed, recursively get diff
+          const nestedDiff = this.getObjectDiff(beforeObj[key], afterObj[key]);
+          if (Object.keys(nestedDiff).length > 0) {
+            diff[key] = nestedDiff;
           }
         }
       }
-      return changes;
     }
 
-    // If none of the above, it's a simple value change
-    return {
-      action: 'modified',
-      from: before,
-      to: after,
-    };
+    // Check for new keys in after
+    for (const key in afterObj) {
+      if (
+        Object.prototype.hasOwnProperty.call(afterObj, key) &&
+        !(key in beforeObj)
+      ) {
+        // Key was added
+        diff[key] = { _diff_type: 'added', value: afterObj[key] };
+      }
+    }
+
+    return diff;
   }
 }

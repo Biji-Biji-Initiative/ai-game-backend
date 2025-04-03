@@ -17,10 +17,11 @@
     "allowSyntheticDefaultImports": true
   },
   "include": [
-    "js/**/*.ts",
-    "js/**/*.d.ts"
+    "**/*.ts",
+    "**/*.d.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "dist"
   ]
 } 

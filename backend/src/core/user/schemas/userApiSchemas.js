@@ -133,6 +133,18 @@ const preferenceValueSchema = z.object({
   value: z.any()
 }).strict();
 
+/**
+ * Schema for validating user interest registration requests
+ */
+const registerUserInterestSchema = z
+    .object({
+        email: z.string().email('Valid email is required'),
+        name: z.string().min(1, 'Name is required').max(100, 'Name cannot exceed 100 characters'),
+        // Add any other optional fields you might collect here
+        // e.g., company: z.string().max(100).optional(),
+    })
+    .strict();
+
 export { updateUserSchema };
 export { updateFocusAreaSchema };
 export { createUserSchema };
@@ -146,6 +158,7 @@ export { preferencesKeyParamSchema };
 export { preferencesUpdateSchema };
 export { preferencesCategoryUpdateSchema };
 export { preferenceValueSchema };
+export { registerUserInterestSchema };
 
 export default {
     updateUserSchema,
@@ -160,5 +173,6 @@ export default {
     preferencesKeyParamSchema,
     preferencesUpdateSchema,
     preferencesCategoryUpdateSchema,
-    preferenceValueSchema
+    preferenceValueSchema,
+    registerUserInterestSchema
 };

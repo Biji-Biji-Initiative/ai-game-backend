@@ -1,6 +1,6 @@
 /**
  * DOM Service
- * 
+ *
  * Provides an abstraction for DOM manipulations to make components testable
  * and decoupled from direct DOM access
  */
@@ -20,21 +20,21 @@ export interface DomService {
    * @returns The element or null if not found
    */
   getElementById(id: string): HTMLElement | null;
-  
+
   /**
    * Gets elements by class name
    * @param className The class name
    * @returns HTMLCollection of elements
    */
   getElementsByClassName(className: string): HTMLCollectionOf<Element>;
-  
+
   /**
    * Gets elements by tag name
    * @param tagName The tag name
    * @returns HTMLCollection of elements
    */
   getElementsByTagName(tagName: string): HTMLCollectionOf<Element>;
-  
+
   /**
    * Finds elements by selector
    * @param selector CSS selector
@@ -42,7 +42,7 @@ export interface DomService {
    * @returns The found elements
    */
   querySelectorAll(selector: string, parent?: HTMLElement): NodeListOf<Element>;
-  
+
   /**
    * Finds an element by selector
    * @param selector CSS selector
@@ -50,14 +50,14 @@ export interface DomService {
    * @returns The found element or null
    */
   querySelector(selector: string, parent?: HTMLElement): Element | null;
-  
+
   /**
    * Creates an element
    * @param tagName Tag name
    * @returns The created element
    */
   createElement(tagName: string): HTMLElement;
-  
+
   /**
    * Creates an element with content
    * @param tagName Tag name
@@ -68,49 +68,71 @@ export interface DomService {
   createElementWithContent(
     tagName: string,
     attributes?: Attributes,
-    content?: string | HTMLElement | HTMLElement[]
+    content?: string | HTMLElement | HTMLElement[],
   ): HTMLElement;
-  
+
   /**
    * Sets attributes on an element
    * @param element Element to set attributes on
    * @param attributes Attributes to set
    */
   setAttributes(element: HTMLElement, attributes: Attributes): void;
-  
+
   /**
    * Sets text content on an element
    * @param element Element to set text on
    * @param text Text to set
    */
   setTextContent(element: HTMLElement, text: string): void;
-  
+
   /**
    * Sets HTML content on an element
    * @param element Element to set HTML on
    * @param html HTML to set
    */
   setInnerHTML(element: HTMLElement, html: string): void;
-  
+
   /**
    * Appends a child to an element
    * @param parent Parent element
    * @param child Child element
    */
   appendChild(parent: HTMLElement, child: HTMLElement): void;
-  
+
   /**
    * Removes a child from an element
    * @param parent Parent element
    * @param child Child element
    */
   removeChild(parent: HTMLElement, child: HTMLElement): void;
-  
+
   /**
    * Removes all children from an element
    * @param element Element to remove children from
    */
   removeAllChildren(element: HTMLElement): void;
+
+  /**
+   * Attaches an event listener to an element for a specific selector
+   * @param element Element to attach the listener to
+   * @param eventType Event type (e.g., 'click', 'change')
+   * @param selector Selector for event delegation
+   * @param handler Event handler function
+   */
+  on(
+    element: HTMLElement,
+    eventType: string,
+    selector: string,
+    handler: (event: Event) => void,
+  ): void;
+
+  /**
+   * Finds the closest ancestor matching a selector
+   * @param element Starting element
+   * @param selector Selector to match
+   * @returns The matching element or null
+   */
+  closest(element: HTMLElement, selector: string): HTMLElement | null;
 }
 
 /**
@@ -125,7 +147,7 @@ export class BrowserDomService implements DomService {
   getElementById(id: string): HTMLElement | null {
     return document.getElementById(id);
   }
-  
+
   /**
    * Gets elements by class name
    * @param className The class name
@@ -134,7 +156,7 @@ export class BrowserDomService implements DomService {
   getElementsByClassName(className: string): HTMLCollectionOf<Element> {
     return document.getElementsByClassName(className);
   }
-  
+
   /**
    * Gets elements by tag name
    * @param tagName The tag name
@@ -143,7 +165,7 @@ export class BrowserDomService implements DomService {
   getElementsByTagName(tagName: string): HTMLCollectionOf<Element> {
     return document.getElementsByTagName(tagName);
   }
-  
+
   /**
    * Finds elements by selector
    * @param selector CSS selector
@@ -153,7 +175,7 @@ export class BrowserDomService implements DomService {
   querySelectorAll(selector: string, parent: HTMLElement = document.body): NodeListOf<Element> {
     return parent.querySelectorAll(selector);
   }
-  
+
   /**
    * Finds an element by selector
    * @param selector CSS selector
@@ -163,7 +185,7 @@ export class BrowserDomService implements DomService {
   querySelector(selector: string, parent: HTMLElement = document.body): Element | null {
     return parent.querySelector(selector);
   }
-  
+
   /**
    * Creates an element
    * @param tagName Tag name
@@ -172,7 +194,7 @@ export class BrowserDomService implements DomService {
   createElement(tagName: string): HTMLElement {
     return document.createElement(tagName);
   }
-  
+
   /**
    * Creates an element with content
    * @param tagName Tag name
@@ -183,7 +205,7 @@ export class BrowserDomService implements DomService {
   createElementWithContent(
     tagName: string,
     attributes: Attributes = {},
-    content?: string | HTMLElement | HTMLElement[]
+    content?: string | HTMLElement | HTMLElement[],
   ): HTMLElement {
     const element = this.createElement(tagName);
     this.setAttributes(element, attributes);
@@ -202,7 +224,7 @@ export class BrowserDomService implements DomService {
 
     return element;
   }
-  
+
   /**
    * Sets attributes on an element
    * @param element Element to set attributes on
@@ -223,7 +245,7 @@ export class BrowserDomService implements DomService {
       }
     }
   }
-  
+
   /**
    * Sets text content on an element
    * @param element Element to set text on
@@ -232,7 +254,7 @@ export class BrowserDomService implements DomService {
   setTextContent(element: HTMLElement, text: string): void {
     element.textContent = text;
   }
-  
+
   /**
    * Sets HTML content on an element
    * @param element Element to set HTML on
@@ -241,7 +263,7 @@ export class BrowserDomService implements DomService {
   setInnerHTML(element: HTMLElement, html: string): void {
     element.innerHTML = html;
   }
-  
+
   /**
    * Appends a child to an element
    * @param parent Parent element
@@ -250,7 +272,7 @@ export class BrowserDomService implements DomService {
   appendChild(parent: HTMLElement, child: HTMLElement): void {
     parent.appendChild(child);
   }
-  
+
   /**
    * Removes a child from an element
    * @param parent Parent element
@@ -259,7 +281,7 @@ export class BrowserDomService implements DomService {
   removeChild(parent: HTMLElement, child: HTMLElement): void {
     parent.removeChild(child);
   }
-  
+
   /**
    * Removes all children from an element
    * @param element Element to remove children from
@@ -269,4 +291,35 @@ export class BrowserDomService implements DomService {
       element.removeChild(element.firstChild);
     }
   }
-} 
+
+  /**
+   * Attaches an event listener to an element for a specific selector
+   * @param element Element to attach the listener to
+   * @param eventType Event type (e.g., 'click', 'change')
+   * @param selector Selector for event delegation
+   * @param handler Event handler function
+   */
+  on(
+    element: HTMLElement,
+    eventType: string,
+    selector: string,
+    handler: (event: Event) => void,
+  ): void {
+    element.addEventListener(eventType, (event) => {
+      const target = event.target as HTMLElement;
+      if (target.matches(selector) || target.closest(selector)) {
+        handler(event);
+      }
+    });
+  }
+
+  /**
+   * Finds the closest ancestor matching a selector
+   * @param element Starting element
+   * @param selector Selector to match
+   * @returns The matching element or null
+   */
+  closest(element: HTMLElement, selector: string): HTMLElement | null {
+    return element.closest(selector) as HTMLElement | null;
+  }
+}

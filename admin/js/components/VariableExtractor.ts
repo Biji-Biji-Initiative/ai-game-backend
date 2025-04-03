@@ -260,10 +260,10 @@ export class VariableExtractor extends ComponentBase {
     this.extractionRulesContainer.appendChild(ruleEl);
 
     this.extractionRules.push({ name: '', path: '', defaultValue: undefined });
-    this.renderExtractionRules();
+    this.extractionRules;
 
     // Clear input fields
-    if (pathInput) pathInput.value = '';
+    if (pathInput) (pathInput as HTMLInputElement).value = '';
     if (validationEl) validationEl.innerHTML = '';
   }
 
@@ -402,7 +402,7 @@ export class VariableExtractor extends ComponentBase {
     if (nameValue && valueValue !== null) {
       // Check value is not null (can be empty string)
       const name = nameValue.trim();
-      let value: string = valueValue;
+      let value: any = valueValue;
 
       const jsonPathIndicator = '$.';
       const isJsonPath = value.startsWith(jsonPathIndicator);
@@ -618,7 +618,11 @@ export class VariableExtractor extends ComponentBase {
     if (Array.isArray(obj)) {
       if (obj.length > 0) {
         const arrayPath = `${currentPath}[0]`;
-        paths.push({ path: arrayPath, value: this.formatValuePreview(obj[0]), type: 'array_element' });
+        paths.push({
+          path: arrayPath,
+          value: this.formatValuePreview(obj[0]),
+          type: 'array_element',
+        });
         this.findJsonPaths(obj[0], arrayPath, paths);
       }
     } else {
@@ -666,16 +670,16 @@ export class VariableExtractor extends ComponentBase {
     // Implementation...
     // Use a JSONPath library or manual traversal with type checks
     try {
-        const parts = path.split('.');
-        let current: unknown = response;
-        for (const part of parts) {
-            if (current === null || typeof current !== 'object') return null;
-            current = (current as Record<string, unknown>)[part];
-        }
-        return current;
+      const parts = path.split('.');
+      let current: unknown = response;
+      for (const part of parts) {
+        if (current === null || typeof current !== 'object') return null;
+        current = (current as Record<string, unknown>)[part];
+      }
+      return current;
     } catch (e) {
-        logger.error(`Failed to extract variable ${name} with path ${path}`, e);
-        return null;
+      logger.error(`Failed to extract variable ${name} with path ${path}`, e);
+      return null;
     }
   }
 }

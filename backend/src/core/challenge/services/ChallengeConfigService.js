@@ -1,10 +1,10 @@
 import { createErrorMapper, withServiceErrorHandling } from "#app/core/infra/errors/errorStandardization.js";
 import challengeErrors from "#app/core/challenge/errors/ChallengeErrors.js";
+import ConfigurationError from "#app/core/infra/errors/ConfigurationError.js";
 import { challengeLogger } from "#app/core/infra/logging/domainLogger.js";
 'use strict';
 const {
   ChallengeConfigError,
-  ConfigurationError
 } = challengeErrors;
 /**
  * Challenge Config Service class

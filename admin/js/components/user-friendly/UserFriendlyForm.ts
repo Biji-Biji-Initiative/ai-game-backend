@@ -5,7 +5,7 @@
  */
 
 import { logger } from '../../utils/logger';
-import { FlowStep, StepType } from '../../types/flow-types';
+import { FlowStep, StepType, RequestStep } from '../../types/flow-types';
 
 export interface UserFriendlyFormOptions {
   formInputsId?: string;
@@ -18,14 +18,14 @@ export class UserFriendlyForm {
   private formInputsElement: HTMLElement | null = null;
 
   constructor(option: UserFriendlyFormOptions = {}) {
-    this.formInputsElement = document.getElementById(options.formInputsId || 'form-inputs'); // Property added
+    this.formInputsElement = document.getElementById(option.formInputsId || 'form-inputs'); // Property added
   }
 
   /**
    * Render form fields for a step
    * @param step Step to render form for
    */
-  renderStepForm(ste: FlowStep): void {
+  renderStepForm(step: FlowStep): void {
     if (!this.formInputsElement) {
       logger.error('Form inputs element not found');
       return;
@@ -65,11 +65,12 @@ export class UserFriendlyForm {
    * Render URL variables form fields
    * @param step Step containing URL variables
    */
-  private renderUrlVariables(ste: FlowStep): void {
+  private renderUrlVariables(step: FlowStep): void {
     if (!this.formInputsElement) return;
 
-    if (step.url) {
-      const url = step.url as string;
+    // Check if step is a RequestStep with a URL
+    if (step.type === StepType.REQUEST && 'url' in step && step.url) {
+      const url = step.url;
       const variableRegex = /\{\{([^}]+)\}\}/g;
       const matches = [...url.matchAll(variableRegex)];
 
@@ -136,10 +137,11 @@ export class UserFriendlyForm {
    * Render request body form fields
    * @param step Step containing request body
    */
-  private renderRequestBody(ste: FlowStep): void {
+  private renderRequestBody(step: FlowStep): void {
     if (!this.formInputsElement) return;
 
-    if (step.body) {
+    // Check if step is a RequestStep with a body
+    if (step.type === StepType.REQUEST && 'body' in step && step.body) {
       try {
         // Try to parse the body as JSON
         const body = step.body;
@@ -247,7 +249,9 @@ export class UserFriendlyForm {
         bodyInput.id = 'request-body';
         bodyInput.rows = 10;
         bodyInput.value =
-          typeof step.body === 'string' ? step.body : JSON.stringify(step.body, null, 2);
+          typeof (step as RequestStep).body === 'string'
+            ? ((step as RequestStep).body as string)
+            : JSON.stringify((step as RequestStep).body, null, 2);
 
         const helpText = document.createElement('p');
         helpText.className = 'text-xs text-text-muted mt-1';
@@ -266,7 +270,7 @@ export class UserFriendlyForm {
    * Render step instructions
    * @param step Step to render instructions for
    */
-  private renderInstructions(ste: FlowStep): void {
+  private renderInstructions(step: FlowStep): void {
     if (!this.formInputsElement) return;
 
     const instructionsBox = document.createElement('div');
@@ -343,10 +347,11 @@ export class UserFriendlyForm {
   }
 
   /**
-   * Format a camelCase or snake_case label to Title Case with spaces
+   * Format a field key into a user-readable label
    * @param key The key to format
+   * @returns Formatted label
    */
-  private formatLabel(ke: string): string {
+  private formatLabel(key: string): string {
     // Replace underscores and hyphens with spaces
     let formatted = key.replace(/[_-]/g, ' ');
 

@@ -4,7 +4,9 @@
  * Monitors API health and connectivity status
  */
 
-import { logger } from '../utils/logger';
+import { EventBus } from '../core/EventBus';
+import { AppStatus } from '../types/status-types';
+import { ComponentLogger } from '../core/Logger';
 
 /**
  * Interface for StatusManager options
@@ -13,12 +15,14 @@ export interface StatusManagerOptions {
   statusEndpoint?: string;
   updateInterval?: number;
   containerId?: string;
+  eventBus: EventBus;
+  logger: ComponentLogger;
 }
 
 /**
  * Default options
  */
-const DEFAULT_OPTIONS: StatusManagerOptions = {
+const DEFAULT_OPTIONS: Partial<StatusManagerOptions> = {
   statusEndpoint: '/api/health',
   updateInterval: 30000, // 30 seconds
   containerId: 'api-status',
@@ -49,25 +53,25 @@ export class StatusManager {
   private options: Required<StatusManagerOptions>;
   private statusElement: HTMLElement | null = null;
   private updateIntervalId: number | null = null;
-  private currentStatus: StatusInfo = {
-    status: 'unknown',
-    message: 'Initializing...',
-    timestamp: new Date().toISOString(),
-  };
+  private currentStatus: AppStatus = AppStatus.Initializing;
+  private eventBus: EventBus;
+  private logger: ComponentLogger;
 
   /**
    * Creates a new StatusManager instance
    * @param options Manager options
    */
-  constructor(options: StatusManagerOptions = {}) {
-    // Apply default options
+  constructor(options: StatusManagerOptions) {
+    this.eventBus = options.eventBus;
+    this.logger = options.logger;
     this.options = { ...DEFAULT_OPTIONS, ...options } as Required<StatusManagerOptions>;
 
     // Initialize the UI element reference
     this.initializeUI();
 
     // Log initialization
-    logger.debug('StatusManager: Initialized');
+    this.logger.debug('StatusManager: Initialized');
+    this.setupListeners();
   }
 
   /**
@@ -93,7 +97,7 @@ export class StatusManager {
       this.checkStatus();
     }, this.options.updateInterval);
 
-    logger.info('StatusManager: Started monitoring API status');
+    this.logger.info('StatusManager: Started monitoring API status');
   }
 
   /**
@@ -103,7 +107,7 @@ export class StatusManager {
     if (this.updateIntervalId !== null) {
       window.clearInterval(this.updateIntervalId);
       this.updateIntervalId = null; // Property added
-      logger.info('StatusManager: Stopped monitoring API status');
+      this.logger.info('StatusManager: Stopped monitoring API status');
     }
   }
 
@@ -127,7 +131,7 @@ export class StatusManager {
       this.updateStatus(statusData);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error('StatusManager: Failed to check API status', errorMessage);
+      this.logger.error('StatusManager: Failed to check API status', errorMessage);
 
       this.updateStatus({
         status: 'error',
@@ -142,7 +146,7 @@ export class StatusManager {
    * @param statusInfo New status information
    */
   private updateStatus(statusInfo: StatusInfo): void {
-    this.currentStatus = statusInfo;
+    this.currentStatus = statusInfo.status as AppStatus;
 
     // Update the UI if status element exists
     if (this.statusElement) {
@@ -187,20 +191,26 @@ export class StatusManager {
 
     // Log status changes
     if (statusInfo.status !== 'ok') {
-      logger.warn(
+      this.logger.warn(
         `StatusManager: API status - ${statusInfo.status}${statusInfo.message ? ': ' + statusInfo.message : ''}`,
       );
     } else {
-      logger.debug('StatusManager: API status - ok');
+      this.logger.debug('StatusManager: API status - ok');
     }
+
+    this.eventBus.publish('status:changed', {
+      status: this.currentStatus,
+      data: statusInfo.message,
+    });
+    this.eventBus.publish(this.currentStatus, statusInfo.message);
   }
 
   /**
    * Get the current status information
    * @returns Current status information
    */
-  public getStatus(): StatusInfo {
-    return { ...this.currentStatus };
+  public getStatus(): AppStatus {
+    return this.currentStatus;
   }
 
   /**
@@ -208,6 +218,27 @@ export class StatusManager {
    * @returns Whether the API is available
    */
   public isApiAvailable(): boolean {
-    return this.currentStatus.status === 'ok' || this.currentStatus.status === 'degraded';
+    return this.currentStatus === AppStatus.Ready || this.currentStatus === AppStatus.Degraded;
+  }
+
+  private setupListeners(): void {
+    this.eventBus.subscribe(AppStatus.Ready, () => this.setStatus(AppStatus.Ready));
+    this.eventBus.subscribe(AppStatus.Error, (error: unknown) => this.handleErrorStatus(error));
+    // Add other status listeners as needed
+  }
+
+  private setStatus(status: AppStatus, data?: unknown): void {
+    if (this.currentStatus !== status) {
+      this.currentStatus = status;
+      this.logger.info(`Application status changed to: ${status}`);
+      this.eventBus.publish('status:changed', { status, data });
+      this.eventBus.publish(status, data); // Also publish the specific status event
+    }
+  }
+
+  private handleErrorStatus(error: unknown): void {
+    this.currentStatus = AppStatus.Error;
+    this.logger.error('Application entered error state', { error });
+    this.eventBus.publish('status:changed', { status: AppStatus.Error, error });
   }
 }

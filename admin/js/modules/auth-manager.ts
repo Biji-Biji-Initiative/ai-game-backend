@@ -4,8 +4,8 @@
  * Handles authentication and user management
  */
 
-import { logger } from '../utils/logger';
-import { EventEmitter } from '../utils/event-emitter';
+import { ComponentLogger } from '../core/Logger';
+import { EventBus } from '../core/EventBus';
 import { StorageService } from '../services/StorageService';
 import { DependencyContainer } from '../core/DependencyContainer';
 
@@ -27,9 +27,11 @@ export interface AuthManagerOptions {
   storageService?: StorageService;
   tokenKey?: string;
   userKey?: string;
+  eventBus: EventBus;
+  logger: ComponentLogger;
 }
 
-export class AuthManager extends EventEmitter {
+export class AuthManager {
   private authState: AuthState = {
     isAuthenticated: false,
     user: null,
@@ -38,22 +40,27 @@ export class AuthManager extends EventEmitter {
   private storageService: StorageService;
   private tokenKey: string;
   private userKey: string;
+  private eventBus: EventBus;
+  private logger: ComponentLogger;
 
-  constructor(options: AuthManagerOptions = {}) {
-    super();
-    
+  constructor(options: AuthManagerOptions) {
     // Get storage service from options or dependency container
-    this.storageService = options.storageService || 
+    this.storageService =
+      options.storageService ||
       DependencyContainer.getInstance().get<StorageService>('storageService');
-    
+
+    // Set event bus and logger
+    this.eventBus = options.eventBus;
+    this.logger = options.logger;
+
     // Set configuration options with defaults
     this.tokenKey = options.tokenKey || 'authToken';
     this.userKey = options.userKey || 'authUser';
-    
+
     // Initialize token from storage
     this.authState.token = this.storageService.get<string>(this.tokenKey);
-    
-    logger.info('AuthManager initialized');
+
+    this.logger.info('AuthManager initialized');
 
     // Try to restore auth from storage
     this.tryRestoreAuth();
@@ -68,10 +75,10 @@ export class AuthManager extends EventEmitter {
 
     try {
       this.authState.token = token;
-      
+
       // Try to get saved user from storage
       const savedUser = this.storageService.get<User>(this.userKey);
-      
+
       if (savedUser) {
         this.authState.user = savedUser;
       } else {
@@ -86,11 +93,11 @@ export class AuthManager extends EventEmitter {
       }
 
       this.authState.isAuthenticated = true;
-      this.emit('auth-changed', this.authState);
+      this.eventBus.publish('auth-changed', this.authState);
 
-      logger.info('Authentication restored from storage');
+      this.logger.info('Authentication restored from storage');
     } catch (error) {
-      logger.error('Failed to restore authentication', error);
+      this.logger.error('Failed to restore authentication', error);
       this.logout();
     }
   }
@@ -153,12 +160,12 @@ export class AuthManager extends EventEmitter {
         token: mockResponse.token,
       };
 
-      this.emit('auth-changed', this.authState);
-      logger.info('User logged in successfully', { email });
+      this.eventBus.publish('auth-changed', this.authState);
+      this.logger.info('User logged in successfully', { email });
 
       return { ...this.authState };
     } catch (error) {
-      logger.error('Login failed', error);
+      this.logger.error('Login failed', error);
       throw error;
     }
   }
@@ -178,8 +185,8 @@ export class AuthManager extends EventEmitter {
       token: null,
     };
 
-    this.emit('auth-changed', this.authState);
-    logger.info('User logged out');
+    this.eventBus.publish('auth-changed', this.authState);
+    this.logger.info('User logged out');
   }
 
   /**
@@ -213,12 +220,12 @@ export class AuthManager extends EventEmitter {
         token: mockResponse.token,
       };
 
-      this.emit('auth-changed', this.authState);
-      logger.info('User registered successfully', { email });
+      this.eventBus.publish('auth-changed', this.authState);
+      this.logger.info('User registered successfully', { email });
 
       return { ...this.authState };
     } catch (error) {
-      logger.error('Registration failed', error);
+      this.logger.error('Registration failed', error);
       throw error;
     }
   }

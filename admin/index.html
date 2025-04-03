@@ -3,353 +3,250 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>API Admin UI</title>
-    
-    <!-- CSS styles -->
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="css/components.css">
-    <link rel="stylesheet" href="dist/output.css">
-    <link rel="stylesheet" href="css/json-formatter.css">
-    <link rel="icon" href="favicon.ico" type="image/x-icon">
-    <link rel="stylesheet" href="css/variables.css">
-    <link rel="stylesheet" href="css/domain-state.css">
-    
-    <!-- Third-party libraries -->
-    <script src="js/vendor/json-formatter.js"></script>
+    <title>Admin Dashboard</title>
+    <style>
+        /* Basic reset and styles */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 1rem 0;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .nav-links {
+            display: flex;
+            list-style: none;
+        }
+        
+        .nav-links li {
+            margin-left: 20px;
+        }
+        
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            transition: background-color 0.3s;
+        }
+        
+        .nav-links a:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .nav-links a.active {
+            background-color: #3498db;
+        }
+        
+        .user-menu {
+            position: relative;
+            cursor: pointer;
+        }
+        
+        .user-menu-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            background-color: white;
+            min-width: 180px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 4px;
+            z-index: 100;
+        }
+        
+        .user-menu-content a {
+            display: block;
+            color: #333;
+            padding: 10px 15px;
+            text-decoration: none;
+        }
+        
+        .user-menu-content a:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .user-menu:hover .user-menu-content {
+            display: block;
+        }
+        
+        main {
+            padding: 2rem 0;
+            min-height: calc(100vh - 136px);
+        }
+        
+        footer {
+            background-color: #2c3e50;
+            color: white;
+            text-align: center;
+            padding: 1rem 0;
+            margin-top: 2rem;
+        }
+        
+        .btn {
+            display: inline-block;
+            background-color: #3498db;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            text-decoration: none;
+            transition: background-color 0.3s;
+        }
+        
+        .btn:hover {
+            background-color: #2980b9;
+        }
+        
+        #app-error {
+            display: none;
+            background-color: #e74c3c;
+            color: white;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 4px;
+        }
+        
+        /* Form styles */
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 1rem;
+        }
+        
+        /* Component-specific styles */
+        .login-form,
+        .register-form {
+            max-width: 400px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 2rem;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .dashboard {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .users-list,
+        .user-details,
+        .settings {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .not-found {
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        /* Responsive styles */
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+        }
+    </style>
 </head>
-<body class="min-h-screen bg-bg text-text flex flex-col">
-    <div id="app" class="flex flex-col h-screen">
-        <!-- Header -->
-        <header class="bg-primary-700 text-white p-4 shadow-md">
-            <div class="container mx-auto flex justify-between items-center">
-                <div class="flex items-center space-x-4">
-                    <h1 class="text-xl font-bold">API Admin UI</h1>
-                    <div class="flex bg-primary-800 rounded-lg p-1">
-                        <button id="flows-tab-btn" class="px-3 py-1 rounded-md bg-primary-600 text-white">Flows</button>
-                        <button id="state-tab-btn" class="px-3 py-1 rounded-md text-white">State</button>
-                        <button id="logs-tab-btn" class="px-3 py-1 rounded-md text-white">Logs</button>
-                    </div>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <button id="toggle-mode-btn" class="bg-primary-600 text-white px-3 py-1 rounded hover:bg-primary-700 text-sm">
-                        Switch to Simple Mode
-                    </button>
-                    <div class="status-panel" id="status-panel">
-                        <div class="status-indicator">
-                            <span class="status-dot loading" id="status-dot"></span>
-                            <span class="status-text" id="status-text">Checking...</span>
+<body>
+    <div id="app">
+        <div id="app-error"></div>
+        
+        <header>
+            <div class="container">
+                <nav>
+                    <div class="logo">Admin Dashboard</div>
+                    
+                    <ul class="nav-links" id="nav-links">
+                        <li><a href="/dashboard" class="nav-link">Dashboard</a></li>
+                        <li><a href="/users" class="nav-link">Users</a></li>
+                        <li><a href="/settings" class="nav-link">Settings</a></li>
+                    </ul>
+                    
+                    <div class="user-menu" id="user-menu">
+                        <span>User</span>
+                        <div class="user-menu-content">
+                            <a href="/profile">Profile</a>
+                            <a href="/settings">Settings</a>
+                            <a href="#" id="logout-link">Logout</a>
                         </div>
-                        <button class="status-details-btn" id="status-details-btn">
-                            <span class="details-icon">▾</span>
-                        </button>
                     </div>
-                    <button id="refresh-endpoints-btn" class="btn btn-secondary btn-sm">Refresh Endpoints</button>
-                    <button id="theme-toggle" class="p-2 rounded-full hover:bg-primary-600">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
-                        </svg>
-                    </button>
-                </div>
+                </nav>
             </div>
         </header>
-
-        <!-- Main Content -->
-        <main class="flex flex-1 overflow-hidden">
-            <!-- Sidebar -->
-            <aside id="sidebar" class="w-64 bg-bg-sidebar border-r border-border p-4 overflow-y-auto">
-                <!-- Developer Mode Sidebar (Default) -->
-                <div id="dev-sidebar" class="flow-list-container">
-                    <div class="mb-4">
-                        <h2 class="text-lg font-medium mb-2">API Flows</h2>
-                        <div class="flex justify-between items-center mb-2">
-                            <div class="relative w-full">
-                                <input id="flow-search" type="text" placeholder="Search flows..." class="w-full pl-8 pr-4 py-1 rounded border border-border bg-bg">
-                                <svg class="w-4 h-4 absolute left-2 top-2 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                </svg>
-                            </div>
-                            <button id="add-flow-btn" class="ml-2 p-1 text-primary-500 hover:text-primary-600">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                    <div id="flow-list" class="space-y-1">
-                        <!-- Flow items will be populated here -->
-                    </div>
-                </div>
-                
-                <!-- User-Friendly Mode Sidebar (Hidden by default) -->
-                <div id="user-sidebar" class="flow-categories-container hidden">
-                    <div class="mb-4">
-                        <h2 class="text-lg font-medium mb-2">Test Flows</h2>
-                        <div class="relative w-full mb-4">
-                            <input id="user-flow-search" type="text" placeholder="Search flows..." class="w-full pl-8 pr-4 py-1 rounded border border-border bg-bg">
-                            <svg class="w-4 h-4 absolute left-2 top-2 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                            </svg>
-                        </div>
-                    </div>
-                    
-                    <!-- Flow Categories -->
-                    <div id="flow-categories" class="flow-categories space-y-4">
-                        <!-- Categories will be populated by UserFriendlyUI -->
-                    </div>
-                </div>
-            </aside>
-
-            <!-- Content Area -->
-            <div class="flex-1 flex flex-col overflow-hidden">
-                <!-- Tab Content -->
-                <div id="flows-tab" class="flex-1 overflow-hidden p-4">
-                    <!-- Developer Mode UI (Default) -->
-                    <div id="dev-flow-ui" class="flex h-full">
-                        <!-- Flow Steps -->
-                        <div class="w-1/2 pr-2 flex flex-col overflow-hidden">
-                            <h2 class="text-lg font-medium mb-2">Flow Steps</h2>
-                            <div id="flow-steps" class="flex-1 overflow-y-auto border border-border rounded p-4 bg-bg-card">
-                                <!-- Flow steps will be populated here -->
-                            </div>
-                            
-                            <!-- Request Form -->
-                            <div id="request-form" class="mt-4 border border-border rounded p-4 bg-bg-card">
-                                <!-- Request form will be populated by RequestBuilder -->
-                                <div class="flex mb-4 items-center">
-                                    <select id="method-select" class="px-2 py-1 rounded border border-border bg-bg text-sm mr-2">
-                                        <option value="GET">GET</option>
-                                        <option value="POST">POST</option>
-                                        <option value="PUT">PUT</option>
-                                        <option value="PATCH">PATCH</option>
-                                        <option value="DELETE">DELETE</option>
-                                        <option value="OPTIONS">OPTIONS</option>
-                                        <option value="HEAD">HEAD</option>
-                                    </select>
-                                    <input id="url-input" type="text" placeholder="Enter URL" class="flex-1 px-2 py-1 rounded border border-border bg-bg text-sm">
-                                    <button id="send-button" class="ml-2 px-3 py-1 rounded bg-primary-600 text-white text-sm">Send</button>
-                                </div>
-                                <!-- RequestBuilder tabs will be inserted here -->
-                            </div>
-                            
-                            <div id="step-editor" class="mt-4 border border-border rounded p-4 bg-bg-card hidden">
-                                <!-- Step editor will be populated here -->
-                            </div>
-                        </div>
-
-                        <!-- Response Viewer -->
-                        <div class="w-1/2 pl-2 flex flex-col overflow-hidden">
-                            <div class="flex justify-between items-center mb-2">
-                                <h2 class="text-lg font-medium">Response</h2>
-                                <div class="flex gap-2">
-                                    <button id="extract-variables-btn" class="text-sm px-2 py-1 rounded border border-primary-500 text-primary-500 hover:bg-primary-500 hover:text-white">
-                                        Extract Variables
-                                    </button>
-                                    <button id="clear-response-btn" class="text-sm px-2 py-1 rounded border border-border text-text-muted hover:bg-bg-sidebar">
-                                        Clear
-                                    </button>
-                                </div>
-                            </div>
-                            <div id="response-container" class="flex-1 overflow-y-auto border border-border rounded p-4 bg-bg-card">
-                                <div id="response-status" class="mb-2"></div>
-                                <div id="response-headers" class="mb-4"></div>
-                                <div id="response-body" class="text-center text-text-muted py-10">
-                                    No response data to display
-                                </div>
-                            </div>
-                            <div id="variables-container" class="mt-4 border border-border rounded p-4 bg-bg-card">
-                                <div class="flex justify-between items-center mb-2">
-                                    <h3 class="font-medium">Variables</h3>
-                                    <button id="clear-variables-btn" class="text-xs px-2 py-1 rounded border border-border text-text-muted hover:bg-bg-sidebar">
-                                        Clear All
-                                    </button>
-                                </div>
-                                <div id="variables-list" class="text-sm">
-                                    <!-- Variables will be populated here -->
-                                    <div class="text-text-muted italic">No variables defined</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- User-Friendly Mode UI (Hidden by default) -->
-                    <div id="user-flow-ui" class="hidden h-full">
-                        <!-- Welcome Message (shown when no flow is selected) -->
-                        <div id="welcome-message" class="mb-6 p-6 border border-border rounded-lg bg-bg-card">
-                            <h2 class="text-xl font-bold mb-4">Welcome to the AI Backend Game Testing Tool</h2>
-                            <p class="mb-2">This tool helps you test your AI Backend Game step by step.</p>
-                            <p class="mb-4">Select a flow from the menu on the left to begin testing.</p>
-                            <ol class="list-decimal pl-6 mb-4 space-y-2">
-                                <li>Select a flow from a category (like "Authentication")</li>
-                                <li>Follow the steps in order</li>
-                                <li>Fill in the required information</li>
-                                <li>Click "Run This Step" to test each part</li>
-                                <li>View the results and continue to the next step</li>
-                            </ol>
-                            <p class="mb-2">If you encounter any errors, helpful explanations will be provided, and all errors are automatically logged for troubleshooting.</p>
-                            <p>Use the "Refresh Endpoints" button to update the available endpoints from the server.</p>
-                        </div>
-                        
-                        <!-- Test Flow Area (hidden until flow is selected) -->
-                        <div id="test-flow-area" class="hidden">
-                            <div class="flex mb-4">
-                                <!-- Flow Steps Column -->
-                                <div class="w-1/2 pr-2">
-                                    <h2 class="text-lg font-medium mb-2">Flow Steps</h2>
-                                    <div id="user-flow-steps" class="border border-border rounded-lg p-4 bg-bg-card mb-4 min-h-[200px]">
-                                        <!-- Flow steps will be populated here -->
-                                    </div>
-                                    
-                                    <!-- Step Details -->
-                                    <div id="step-details" class="border border-border rounded-lg p-4 bg-bg-card hidden">
-                                        <div class="step-header mb-4">
-                                            <h3 id="step-title" class="text-lg font-medium">Step Details</h3>
-                                            <p id="step-description" class="text-sm text-text-muted"></p>
-                                        </div>
-                                        
-                                        <div class="step-form space-y-4">
-                                            <div id="form-inputs" class="space-y-4">
-                                                <!-- Form inputs will be generated here -->
-                                            </div>
-                                            
-                                            <div class="form-actions flex space-x-2 mt-4">
-                                                <button id="run-step-btn" class="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700">Run This Step</button>
-                                                <button id="clear-form-btn" class="px-4 py-2 border border-border rounded hover:bg-bg-sidebar">Clear Form</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Results Column -->
-                                <div class="w-1/2 pl-2">
-                                    <div class="flex justify-between items-center mb-2">
-                                        <h2 class="text-lg font-medium">Result</h2>
-                                        <div class="flex space-x-2">
-                                            <button id="user-extract-variables-btn" class="text-sm px-2 py-1 rounded border border-primary-500 text-primary-500 hover:bg-primary-500 hover:text-white">
-                                                Extract Variables
-                                            </button>
-                                            <button id="user-clear-result-btn" class="text-sm px-2 py-1 rounded border border-border text-text-muted hover:bg-bg-sidebar">
-                                                Clear
-                                            </button>
-                                        </div>
-                                    </div>
-                                    
-                                    <div id="result-panel" class="border border-border rounded-lg p-4 bg-bg-card min-h-[300px] mb-4">
-                                        <div id="result-status" class="mb-2"></div>
-                                        <div id="result-content" class="overflow-auto">
-                                            <div class="text-center text-text-muted py-10">No results to display yet</div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Variables Panel -->
-                                    <div id="user-variables-container" class="border border-border rounded-lg p-4 bg-bg-card">
-                                        <div class="flex justify-between items-center mb-2">
-                                            <h3 class="font-medium">Variables</h3>
-                                            <button id="user-clear-variables-btn" class="text-xs px-2 py-1 rounded border border-border text-text-muted hover:bg-bg-sidebar">
-                                                Clear All
-                                            </button>
-                                        </div>
-                                        <div id="user-variables-list" class="text-sm">
-                                            <!-- Variables will be populated here -->
-                                            <div class="text-text-muted italic">No variables defined</div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Domain State Container -->
-                                    <div id="domain-state-container" class="mt-4 border border-border rounded-lg p-4 bg-bg-card">
-                                        <!-- Domain state viewer will be populated here -->
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="state-tab" class="flex-1 overflow-y-auto p-4 hidden">
-                    <h2 class="text-lg font-medium mb-2">Domain State</h2>
-                    <div id="domain-state-container" class="border border-border rounded p-4 bg-bg-card min-h-[300px]">
-                        <!-- Domain state will be populated here -->
-                        <div class="text-center text-text-muted py-10">
-                            No domain state data available
-                        </div>
-                    </div>
-                </div>
-
-                <div id="logs-tab" class="flex-1 overflow-y-auto p-4 hidden">
-                    <div class="flex justify-between items-center mb-2">
-                        <h2 class="text-lg font-medium">Logs</h2>
-                        <div class="flex gap-2">
-                            <button id="refresh-logs-btn" class="text-sm px-3 py-1 rounded bg-primary-600 text-white">
-                                Refresh
-                            </button>
-                        </div>
-                    </div>
-                    <div id="logs-container" class="border border-border rounded p-4 bg-bg-card font-mono text-sm min-h-[300px] max-h-[calc(100vh-200px)]">
-                        <!-- Logs will be populated by LogsViewer component -->
-                        <div class="initial-message text-text-muted">Loading logs...</div>
+        
+        <main>
+            <div class="container">
+                <div id="main-content">
+                    <div class="loading">
+                        <p>Loading application...</p>
                     </div>
                 </div>
             </div>
         </main>
-
-        <!-- Loading Indicator -->
-        <div id="loading-indicator" class="fixed inset-0 bg-black bg-opacity-50 items-center justify-center z-50 hidden">
-            <div class="bg-bg-card p-6 rounded-lg shadow-xl text-center">
-                <div class="spinner mb-4"></div>
-                <p id="loading-message">Loading...</p>
-            </div>
-        </div>
         
-        <!-- Status Modal -->
-        <div class="status-modal hidden fixed inset-0 bg-black bg-opacity-50 items-center justify-center z-50" id="status-modal">
-            <div class="status-modal-content bg-bg-card p-6 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-                <div class="status-modal-header flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-bold">System Status</h3>
-                    <button class="status-modal-close text-2xl" id="status-modal-close">×</button>
-                </div>
-                <div class="status-modal-body">
-                    <div class="status-section mb-6">
-                        <h4 class="text-lg font-medium mb-2">Overall Status: <span id="modal-status" class="font-normal">Loading...</span></h4>
-                        <p class="text-sm text-text-muted">Last updated: <span id="status-last-updated">--</span></p>
-                    </div>
-                    
-                    <div class="status-section mb-6">
-                        <h4 class="text-lg font-medium mb-2">Dependencies</h4>
-                        <div class="dependency-list space-y-2" id="dependency-list">
-                            <div class="dependency-item animate-pulse p-2 bg-bg-sidebar rounded"></div>
-                            <div class="dependency-item animate-pulse p-2 bg-bg-sidebar rounded"></div>
-                            <div class="dependency-item animate-pulse p-2 bg-bg-sidebar rounded"></div>
-                        </div>
-                    </div>
-                    
-                    <div class="status-section mb-6">
-                        <h4 class="text-lg font-medium mb-2">Environment</h4>
-                        <div class="env-details grid grid-cols-2 gap-2" id="env-details">
-                            <p>Mode: <span id="env-mode" class="font-medium">--</span></p>
-                            <p>Version: <span id="env-version" class="font-medium">--</span></p>
-                            <p>Node: <span id="env-node" class="font-medium">--</span></p>
-                        </div>
-                    </div>
-                    
-                    <div class="status-actions flex justify-end">
-                        <button id="refresh-status-btn" class="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700">Refresh Status</button>
-                    </div>
-                </div>
+        <footer>
+            <div class="container">
+                <p>&copy; 2023 Admin Dashboard. All rights reserved.</p>
             </div>
-        </div>
-
-        <!-- Toast Container -->
-        <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-4">
-            <!-- Toasts will be dynamically added here -->
-        </div>
+        </footer>
     </div>
     
-    <!-- Footer -->
-    <footer class="bg-bg-sidebar border-t border-border p-2 text-center text-sm text-text-muted">
-        <p>AI Backend Game Testing Tool - All errors are automatically logged for troubleshooting</p>
-    </footer>
-    
-    <!-- Scripts -->
-    <script src="js/vendor/json-formatter.js"></script>
-    <script src="dist/bundle.js"></script>
+    <script type="module" src="js/main.js"></script>
 </body>
 </html> 

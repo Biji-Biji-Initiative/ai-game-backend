@@ -59,7 +59,7 @@ export class RequestBuilder {
    * Creates a new RequestBuilder instance
    */
   constructor(option: RequestBuilderOptions = {}) {
-    this.options = { ...DEFAULT_OPTIONS, ...options } as Required<RequestBuilderOptions>;
+    this.options = { ...DEFAULT_OPTIONS, ...option } as Required<RequestBuilderOptions>;
     // @ts-ignore - Complex type issues
     this.container = getById(this.options.containerId); // Property added
     this.uiManager = this.options.uiManager; // Property added
@@ -167,7 +167,7 @@ export class RequestBuilder {
   /**
    * Handle input change events
    */
-  private handleInputChange(targe: HTMLElement): void {
+  private handleInputChange(target: HTMLElement): void {
     const inputType = target.getAttribute('data-type');
     const inputKey = target.getAttribute('data-key');
 
@@ -281,7 +281,7 @@ export class RequestBuilder {
   /**
    * Create a parameter input row
    */
-  private createParamRow(ke = '', value = ''): string {
+  private createParamRow(key = '', value = ''): string {
     return `
       <div class="flex gap-2 items-center param-row">
         <input 
@@ -315,22 +315,26 @@ export class RequestBuilder {
     const paramsList = getById('params-list');
     if (!paramsList) return;
 
-    const newParam = createElement('div', { class: 'flex gap-2 items-center param-row' });
+    const newParam = createElement('div', {
+      class: 'flex gap-2 items-center param-row',
+    });
 
-    const keyInput = createElement('input', {
-      type: 'text',
+    // Create key input
+    const keyInput = createElement<HTMLInputElement>('input', {
       class: 'w-1/3 px-2 py-1 border border-border rounded bg-bg text-sm',
-      placeholder: 'Parameter name',
-      'data-type': 'param-key',
     });
+    keyInput.type = 'text';
+    keyInput.placeholder = 'Parameter name';
+    keyInput.dataset.type = 'param-key';
 
-    const valueInput = createElement('input', {
-      type: 'text',
+    // Create value input
+    const valueInput = createElement<HTMLInputElement>('input', {
       class: 'flex-1 px-2 py-1 border border-border rounded bg-bg text-sm',
-      placeholder: 'Value',
-      'data-type': 'param',
-      'data-key': '',
     });
+    valueInput.type = 'text';
+    valueInput.placeholder = 'Value';
+    valueInput.dataset.type = 'param';
+    valueInput.dataset.key = '';
 
     const deleteBtn = createElement('button', {
       class: 'text-red-500 hover:text-red-700 delete-param-btn',
@@ -438,7 +442,7 @@ export class RequestBuilder {
   /**
    * Get default value for common headers
    */
-  private getDefaultHeaderValue(heade: string): string {
+  private getDefaultHeaderValue(header: string): string {
     const defaults: Record<string, string> = {
       'Content-Type': 'application/json',
       Accept: 'application/json',
@@ -453,7 +457,7 @@ export class RequestBuilder {
   /**
    * Create a header input row
    */
-  private createHeaderRow(ke = '', value = ''): string {
+  private createHeaderRow(key = '', value = ''): string {
     return `
       <div class="flex gap-2 items-center header-row">
         <input 
@@ -483,28 +487,32 @@ export class RequestBuilder {
   /**
    * Add a new header
    */
-  private addHeader(ke = '', value = ''): void {
+  private addHeader(key = '', value = ''): void {
     const headersList = getById('headers-list');
     if (!headersList) return;
 
-    const newHeader = createElement('div', { class: 'flex gap-2 items-center header-row' });
+    const newHeader = createElement('div', {
+      class: 'flex gap-2 items-center header-row',
+    });
 
-    const keyInput = createElement('input', {
-      type: 'text',
+    // Create key input
+    const keyInput = createElement<HTMLInputElement>('input', {
       class: 'w-1/3 px-2 py-1 border border-border rounded bg-bg text-sm',
-      placeholder: 'Header name',
-      'data-type': 'header-key',
-      value: key,
     });
+    keyInput.type = 'text';
+    keyInput.placeholder = 'Header name';
+    keyInput.value = key;
+    keyInput.dataset.type = 'header-key';
 
-    const valueInput = createElement('input', {
-      type: 'text',
+    // Create value input
+    const valueInput = createElement<HTMLInputElement>('input', {
       class: 'flex-1 px-2 py-1 border border-border rounded bg-bg text-sm',
-      placeholder: 'Value',
-      'data-type': 'header',
-      'data-key': key,
-      value: value,
     });
+    valueInput.type = 'text';
+    valueInput.placeholder = 'Value';
+    valueInput.value = value;
+    valueInput.dataset.type = 'header';
+    valueInput.dataset.key = key;
 
     const deleteBtn = createElement('button', {
       class: 'text-red-500 hover:text-red-700 delete-header-btn',
@@ -707,7 +715,7 @@ export class RequestBuilder {
   /**
    * Set up event listeners for the body tab
    */
-  private setupBodyEventListeners(bodyTyp: string): void {
+  private setupBodyEventListeners(bodyType: string): void {
     // Body type select
     const bodyTypeSelect = getById('body-type-select') as HTMLSelectElement;
     if (bodyTypeSelect) {
@@ -833,7 +841,7 @@ export class RequestBuilder {
   /**
    * Create a form-data input row
    */
-  private createFormDataRow(ke = '', value = ''): string {
+  private createFormDataRow(key = '', value = ''): string {
     return `
       <div class="flex gap-2 items-center form-data-row">
         <input 
@@ -877,21 +885,21 @@ export class RequestBuilder {
     const newRow = createElement('div', { class: 'flex gap-2 items-center form-data-row' });
 
     // Create key input
-    const keyInput = createElement('input', {
-      type: 'text',
+    const keyInput = createElement<HTMLInputElement>('input', {
       class: 'w-1/3 px-2 py-1 border border-border rounded bg-bg text-sm',
-      placeholder: 'Field name',
-      'data-type': 'form-data-key',
     });
+    keyInput.type = 'text';
+    keyInput.placeholder = 'Field name';
+    keyInput.dataset.type = 'form-data-key';
 
     // Create value input
-    const valueInput = createElement('input', {
-      type: 'text',
+    const valueInput = createElement<HTMLInputElement>('input', {
       class: 'flex-1 px-2 py-1 border border-border rounded bg-bg text-sm',
-      placeholder: 'Value',
-      'data-type': 'form-data',
-      'data-key': '',
     });
+    valueInput.type = 'text';
+    valueInput.placeholder = 'Value';
+    valueInput.dataset.type = 'form-data';
+    valueInput.dataset.key = '';
 
     // Create delete button
     const deleteBtn = createElement('button', {
@@ -969,7 +977,7 @@ export class RequestBuilder {
   /**
    * Create a x-www-form-urlencoded input row
    */
-  private createUrlencodedRow(ke = '', value = ''): string {
+  private createUrlencodedRow(key = '', value = ''): string {
     return `
       <div class="flex gap-2 items-center urlencoded-row">
         <input 
@@ -1013,21 +1021,21 @@ export class RequestBuilder {
     const newRow = createElement('div', { class: 'flex gap-2 items-center urlencoded-row' });
 
     // Create key input
-    const keyInput = createElement('input', {
-      type: 'text',
+    const keyInput = createElement<HTMLInputElement>('input', {
       class: 'w-1/3 px-2 py-1 border border-border rounded bg-bg text-sm',
-      placeholder: 'Field name',
-      'data-type': 'urlencoded-key',
     });
+    keyInput.type = 'text';
+    keyInput.placeholder = 'Field name';
+    keyInput.dataset.type = 'urlencoded-key';
 
     // Create value input
-    const valueInput = createElement('input', {
-      type: 'text',
+    const valueInput = createElement<HTMLInputElement>('input', {
       class: 'flex-1 px-2 py-1 border border-border rounded bg-bg text-sm',
-      placeholder: 'Value',
-      'data-type': 'urlencoded',
-      'data-key': '',
     });
+    valueInput.type = 'text';
+    valueInput.placeholder = 'Value';
+    valueInput.dataset.type = 'urlencoded';
+    valueInput.dataset.key = '';
 
     // Create delete button
     const deleteBtn = createElement('button', {
@@ -1233,7 +1241,7 @@ export class RequestBuilder {
    * Load request data
    * @param data Request data to load
    */
-  public loadRequest(dat: Partial<RequestData>): void {
+  public loadRequest(data: Partial<RequestData>): void {
     this.requestData = {
       ...this.requestData,
       ...data,

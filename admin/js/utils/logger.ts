@@ -1,150 +1,107 @@
-// Types improved by ts-improve-types
 /**
- * Logger Utility
- * Provides standardized logging functionality
+ * Simple logger utility
+ * 
+ * Provides basic logging functionality with log levels
  */
 
-export interface LogOptions {
-  timestamp?: boolean;
-  source?: string;
-  context?: Record<string, unknown>;
-  level?: LogLevel;
-  prefix?: string;
-}
-
+/**
+ * Log levels
+ */
 export enum LogLevel {
-  DEBUG = 'DEBUG',
-  INFO = 'INFO',
-  WARN = 'WARNING',
-  ERROR = 'ERROR',
+  DEBUG = 0,
+  INFO = 1,
+  WARN = 2,
+  ERROR = 3,
+  NONE = 4,
 }
 
 /**
- * Logger class
+ * Log level configuration (defaults to INFO in production, DEBUG otherwise)
  */
-export class Logger {
-  private static instance: Logger;
-  private level: LogLevel;
-  private prefix: string;
-  private context: string | null = null;
+let currentLogLevel = process.env.NODE_ENV === 'production' ? LogLevel.INFO : LogLevel.DEBUG;
 
-  private constructor(options?: LogOptions) {
-    this.level = options?.level || LogLevel.INFO;
-    this.prefix = options?.prefix || '';
-  }
+/**
+ * Logger interface
+ */
+export interface Logger {
+  debug(message: string, ...args: unknown[]): void;
+  info(message: string, ...args: unknown[]): void;
+  warn(message: string, ...args: unknown[]): void;
+  error(message: string, ...args: unknown[]): void;
+  setLevel(level: LogLevel): void;
+  getLevel(): LogLevel;
+}
 
-  /**
-   * Get logger instance (singleton)
-   */
-  public static getInstance(): Logger {
-    if (!Logger.instance) {
-      Logger.instance = new Logger();
-    }
-    return Logger.instance;
-  }
+/**
+ * Set the current log level
+ */
+export function setLogLevel(level: LogLevel): void {
+  currentLogLevel = level;
+}
 
-  /**
-   * Set context for all logs
-   * @param context Context name
-   */
-  setContext(context: string): void {
-    this.context = context;
-  }
+/**
+ * Get the current log level
+ */
+export function getLogLevel(): LogLevel {
+  return currentLogLevel;
+}
 
+/**
+ * Logger implementation
+ */
+class LoggerImpl implements Logger {
   /**
    * Log a debug message
-   * @param message Message to log
-   * @param data Additional data
-   * @param options Log options
    */
-  debug(message: string, data?: unknown, options?: LogOptions): void {
-    this.log(LogLevel.DEBUG, message, data, options);
+  debug(message: string, ...args: unknown[]): void {
+    if (currentLogLevel <= LogLevel.DEBUG) {
+      console.debug(`[DEBUG] ${message}`, ...args);
+    }
   }
 
   /**
    * Log an info message
-   * @param message Message to log
-   * @param data Additional data
-   * @param options Log options
    */
-  info(message: string, data?: unknown, options?: LogOptions): void {
-    this.log(LogLevel.INFO, message, data, options);
+  info(message: string, ...args: unknown[]): void {
+    if (currentLogLevel <= LogLevel.INFO) {
+      console.info(`[INFO] ${message}`, ...args);
+    }
   }
 
   /**
    * Log a warning message
-   * @param message Message to log
-   * @param data Additional data
-   * @param options Log options
    */
-  warn(message: string, data?: unknown, options?: LogOptions): void {
-    this.log(LogLevel.WARN, message, data, options);
+  warn(message: string, ...args: unknown[]): void {
+    if (currentLogLevel <= LogLevel.WARN) {
+      console.warn(`[WARN] ${message}`, ...args);
+    }
   }
 
   /**
    * Log an error message
-   * @param message Message to log
-   * @param data Additional data
-   * @param options Log options
    */
-  error(message: string, data?: unknown, options?: LogOptions): void {
-    this.log(LogLevel.ERROR, message, data, options);
-  }
-
-  // Core log method
-  private log(level: LogLevel, message: string, data?: unknown, options?: LogOptions): void {
-    if (level >= this.level) {
-      const logContext = options?.context || this.context || '';
-      const logPrefix = this.prefix ? `[${this.prefix}]` : '';
-      const fullPrefix = `${logPrefix}${logContext ? `[${logContext}]` : ''}`;
-      const timestamp = new Date().toISOString();
-
-      const logArgs: unknown[] = [
-        `%c${timestamp} %c${LogLevel[level as keyof typeof LogLevel]}%c ${fullPrefix} ${message}`,
-        'color: gray',
-        `color: ${this.getColor(level)}`,
-        'color: inherit',
-      ];
-
-      if (data !== undefined) {
-        logArgs.push(data);
-      }
-
-      // Use appropriate console method
-      switch (level) {
-        case LogLevel.DEBUG:
-          console.debug(...logArgs);
-          break;
-        case LogLevel.INFO:
-          console.info(...logArgs);
-          break;
-        case LogLevel.WARN:
-          console.warn(...logArgs);
-          break;
-        case LogLevel.ERROR:
-          console.error(...logArgs);
-          break;
-        default:
-          console.log(...logArgs);
-      }
+  error(message: string, ...args: unknown[]): void {
+    if (currentLogLevel <= LogLevel.ERROR) {
+      console.error(`[ERROR] ${message}`, ...args);
     }
   }
 
-  private getColor(level: LogLevel): string {
-    switch (level) {
-      case LogLevel.DEBUG:
-        return '#909090'; // Gray
-      case LogLevel.INFO:
-        return '#2196F3'; // Blue
-      case LogLevel.WARN:
-        return '#FFC107'; // Amber
-      case LogLevel.ERROR:
-        return '#F44336'; // Red
-      default:
-        return 'inherit';
-    }
+  /**
+   * Set the log level
+   */
+  setLevel(level: LogLevel): void {
+    setLogLevel(level);
+  }
+
+  /**
+   * Get the current log level
+   */
+  getLevel(): LogLevel {
+    return getLogLevel();
   }
 }
 
-// Export singleton instance
-export const logger = Logger.getInstance();
+/**
+ * Export a single logger instance
+ */
+export const logger = new LoggerImpl(); 

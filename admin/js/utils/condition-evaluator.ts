@@ -59,8 +59,8 @@ export function evaluateCondition(
       Object: Object,
       JSON: JSON,
       // Helper functions
-      isEmpty: (val): boolean => val === null || val === undefined || val === '',
-      isNotEmpty: (val): boolean => val !== null && val !== undefined && val !== '',
+      isEmpty: (val: any): boolean => val === null || val === undefined || val === '',
+      isNotEmpty: (val: any): boolean => val !== null && val !== undefined && val !== '',
       includes: (arrOrStr: any[] | string, val: any): boolean => {
         if (Array.isArray(arrOrStr)) {
           return arrOrStr.includes(val);

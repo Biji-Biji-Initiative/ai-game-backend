@@ -6,6 +6,7 @@ import {
     notFoundHandler
 } from "#app/core/infra/errors/ErrorHandler.js";
 import { infraLogger } from "#app/core/infra/logging/domainLogger.js";
+import { captureException } from "#app/config/setup/sentry.js";
 
 /**
  * Configures application error handlers.
@@ -21,7 +22,20 @@ function configureErrorHandlers(app, container) {
     app.use(notFoundHandler);
     logger.debug('[Setup] 404 Not Found handler applied.');
 
-    // 2. Error Logging Middleware is removed since logError doesn't exist
+    // 2. General error logging and capture middleware
+    app.use((err, req, res, next) => {
+        // Capture all errors in Sentry
+        captureException(err, {
+            path: req.path,
+            method: req.method,
+            requestId: req.id,
+            userId: req.user?.id || 'unauthenticated'
+        }, logger);
+        
+        // Continue to the next error handler
+        next(err);
+    });
+    logger.debug('[Setup] Sentry error capture middleware applied.');
 
     // 3. OpenAPI Validation Error Handler (Specific)
     app.use((err, req, res, next) => {

@@ -4,8 +4,15 @@
  * Responsible for creating API sections and endpoints
  */
 
-// Keep the import for now, even if potentially incorrect path
-import { JSONEditor } from '../vendor/jsoneditor.min.js';
+// Remove or comment out the non-existent import
+// import { JSONEditor } from '../vendor/jsoneditor.min.js';
+
+// Define JSONEditor type for TypeScript
+declare global {
+  interface Window {
+    JSONEditor?: any;
+  }
+}
 
 /**
  * Define basic Endpoint/Section types if not imported
@@ -23,8 +30,8 @@ interface Endpoint {
 }
 
 interface SectionInfo {
-    id: string;
-    title: string;
+  id: string;
+  title: string;
 }
 
 /**
@@ -41,7 +48,10 @@ export class SectionBuilder {
    * @param {HTMLElement} container - The container element for API sections
    * @param {Function} executeCallback - Callback function for endpoint execution
    */
-  constructor(container: HTMLElement, executeCallback: (endpoint: Endpoint, method: string) => void) {
+  constructor(
+    container: HTMLElement,
+    executeCallback: (endpoint: Endpoint, method: string) => void,
+  ) {
     this.container = container;
     this.executeCallback = executeCallback || function (): void {}; // Ensure void return
     this.sections = {};
@@ -51,7 +61,9 @@ export class SectionBuilder {
    * Builds all API sections from the provided configuration
    * @param {Object} apiEndpoints - The API_ENDPOINTS configuration object
    */
-  buildSections(apiEndpoints: Record<string, { section: SectionInfo, endpoints: Endpoint[] }>): void {
+  buildSections(
+    apiEndpoints: Record<string, { section: SectionInfo; endpoints: Endpoint[] }>,
+  ): void {
     if (!this.container || !apiEndpoints) {
       console.error('Container element or API endpoints not found');
       return;
@@ -208,10 +220,16 @@ export class SectionBuilder {
 
               let initialJson: unknown;
               try {
-                initialJson = field.defaultValue !== undefined ? JSON.parse(String(field.defaultValue)) : (field.placeholder !== undefined ? JSON.parse(String(field.placeholder)) : {});
-              } catch { initialJson = {}; }
+                initialJson =
+                  field.defaultValue !== undefined
+                    ? JSON.parse(String(field.defaultValue))
+                    : field.placeholder !== undefined
+                      ? JSON.parse(String(field.placeholder))
+                      : {};
+              } catch {
+                initialJson = {};
+              }
               editor.set(initialJson || {});
-
             } catch (e) {
               console.error(`Error creating JSON editor for ${endpoint.id}-${field.id}:`, e);
               // Ensure textarea is defined here
@@ -221,7 +239,9 @@ export class SectionBuilder {
               textarea.placeholder = typeof field.placeholder === 'string' ? field.placeholder : '';
               if (typeof field.defaultValue === 'string') textarea.value = field.defaultValue;
               // Replace container logic
-              const editorContainer = document.getElementById(`${endpoint.id}-${field.id ?? 'unknown'}-container`);
+              const editorContainer = document.getElementById(
+                `${endpoint.id}-${field.id ?? 'unknown'}-container`,
+              );
               editorContainer?.parentNode?.replaceChild(textarea, editorContainer);
             }
           }, 0);
@@ -253,11 +273,11 @@ export class SectionBuilder {
           input.id = `${endpoint.id}-${field.id ?? 'unknown'}`;
           if ('name' in input) input.name = String(field.id ?? '');
           if (typeof field.placeholder === 'string' && 'placeholder' in input) {
-             (input as HTMLInputElement).placeholder = field.placeholder;
+            (input as HTMLInputElement).placeholder = field.placeholder;
           }
           // Assign value only if it exists and input has 'value' prop
           if (field.defaultValue !== undefined && 'value' in input) {
-             input.value = String(field.defaultValue);
+            input.value = String(field.defaultValue);
           }
 
           fieldContainer.appendChild(input);
@@ -412,8 +432,16 @@ export class SectionBuilder {
   }
 
   // Add basic signatures for private helpers if needed
-  private _buildURLField(endpoint: Endpoint): HTMLElement { /* ... */ return document.createElement('div'); }
-  private _buildParametersSection(params: Array<Record<string, unknown>>): HTMLElement { /* ... */ return document.createElement('div'); }
-  private _buildHeadersSection(headers: Array<Record<string, unknown>>): HTMLElement { /* ... */ return document.createElement('div'); }
-  private _buildBodySection(endpoint: Endpoint): HTMLElement { /* ... */ return document.createElement('div'); }
+  private _buildURLField(endpoint: Endpoint): HTMLElement {
+    /* ... */ return document.createElement('div');
+  }
+  private _buildParametersSection(params: Array<Record<string, unknown>>): HTMLElement {
+    /* ... */ return document.createElement('div');
+  }
+  private _buildHeadersSection(headers: Array<Record<string, unknown>>): HTMLElement {
+    /* ... */ return document.createElement('div');
+  }
+  private _buildBodySection(endpoint: Endpoint): HTMLElement {
+    /* ... */ return document.createElement('div');
+  }
 }

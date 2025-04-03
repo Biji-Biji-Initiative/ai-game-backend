@@ -3,7 +3,7 @@
  * Core Modules Types Definition
  */
 
-import { ApiClient } from '../services/api-client'; // Assuming ApiClient is here
+import { APIClient as ApiClient } from '../api/api-client'; // Correct import path
 
 /**
  * Endpoint interface

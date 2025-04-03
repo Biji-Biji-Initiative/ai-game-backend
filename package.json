@@ -4,9 +4,12 @@
   "description": "AI Backend Game Testing Tool",
   "main": "index.js",
   "scripts": {
-    "start": "cd api-tester-ui && node server.js",
-    "dev": "cd api-tester-ui && node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node src/index.js",
+    "start:dev": "npm run swagger:bundle && env-cmd -f .env nodemon src/index.js",
+    "start:dev:custom": "npm run swagger:bundle && env-cmd -f .env nodemon src/index.js --port=3081",
+    "start:3081": "npm run swagger:bundle && env-cmd -f .env PORT=3081 nodemon src/index.js",
+    "start:server": "cd backend && PORT=3081 npm run start",
+    "test": "jest",
     "build": "cd admin && tsc"
   },
   "keywords": [
@@ -18,11 +21,15 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@supabase/supabase-js": "^2.49.4",
     "cors": "^2.8.5",
+    "date-fns": "^4.1.0",
     "express": "^4.21.2",
     "http-proxy-middleware": "^3.0.3"
   },
   "devDependencies": {
+    "env-cmd": "^10.1.0",
+    "node-fetch": "^2.7.0",
     "typescript": "^4.5.5"
   },
   "engines": {

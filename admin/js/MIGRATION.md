@@ -1,118 +1,333 @@
-# Architectural Migration Guide
+# Migration Guide
 
-## Overview
+This document outlines the steps required to migrate from the old architecture to the new TypeScript architecture.
 
-This document outlines the architectural changes that have been implemented to address the major issues in the codebase. The goal of these changes is to create a more maintainable, testable, and scalable codebase by fixing inconsistencies, reducing redundancy, and applying proper dependency injection.
+## Deleted Files
 
-## Key Changes
+The following files have been deleted as part of the migration:
 
-### 1. Centralized Bootstrap Process
+- `admin/js/core/ApiClient.ts` - Replaced by `APIClient` from `api/api-client.ts`
+- `admin/js/config/config.ts` - Replaced by `ConfigManager` from `core/ConfigManager.ts`
+- `admin/js/utils/event-emitter.ts` - Replaced by `EventBus` from `core/EventBus.ts`
+- `admin/js/utils/logger.ts` - Replaced by `Logger` from `core/Logger.ts`
+- `admin/js/utils/dependency-container.ts` - Replaced by `DependencyContainer` from `core/DependencyContainer.ts`
 
-The application now uses a single entry point for initialization:
+## Migration Steps
 
-- `AppBootstrapper.ts` is now the single source of truth for component initialization
-- All components are registered in the dependency container
-- `index.ts` has been simplified to only call the bootstrap process
+### 1. Update Imports
 
-### 2. Standardized Core Components
-
-We've standardized on a single implementation for each core functionality:
-
-- **API Client**: `APIClient` in `api/api-client.ts` is now the standard client
-- **Logger**: `Logger` in `core/Logger.ts` is the standard logger
-- **Config Manager**: `ConfigManager` in `core/ConfigManager.ts`
-- **UI Manager**: `UIManager` in `components/UIManagerNew.ts`
-
-### 3. Abstraction Services
-
-We've created abstractions for browser-specific functionality:
-
-- `StorageService` provides an abstraction over localStorage/sessionStorage
-- `DomService` provides an abstraction for DOM manipulations
-
-### 4. Standardized Type Definitions
-
-All component options now have standard interfaces in `types/app-types.ts`.
-
-## How to Migrate Your Code
-
-### 1. Use Dependency Injection
-
-Instead of creating instances directly, get them from the dependency container:
+Replace imports from deleted files with their replacements:
 
 ```typescript
-// OLD WAY
-const apiClient = new APIClient(errorHandler, config);
+// Old imports
+import { ApiClient } from '../core/ApiClient';
+import { Config } from '../config/config';
+import { EventEmitter } from '../utils/event-emitter';
+import { logger } from '../utils/logger';
 
-// NEW WAY
-const container = DependencyContainer.getInstance();
-const apiClient = container.get<APIClient>('mainApiClient');
+// New imports
+import { APIClient } from '../api/api-client';
+import { ConfigManager } from '../core/ConfigManager';
+import { EventBus } from '../core/EventBus';
+import { Logger } from '../core/Logger';
 ```
 
-### 2. Use Storage Service Instead of localStorage
+### 2. API Client Migration
 
+#### Before:
 ```typescript
-// OLD WAY
+import { ApiClient } from '../core/ApiClient';
+
+// Get singleton instance
+const apiClient = ApiClient.getInstance();
+
+// Make a request
+apiClient.get('/some-endpoint')
+  .then(response => {
+    console.log(response);
+  })
+  .catch(error => {
+    console.error(error);
+  });
+```
+
+#### After:
+```typescript
+import { APIClient } from '../api/api-client';
+
+// Get from dependency container
+const apiClient = dependencyContainer.get('mainApiClient');
+
+// Or in a component constructor, receive it via options
+constructor(options: ComponentOptions) {
+  this.apiClient = options.apiClient;
+}
+
+// Make a request
+this.apiClient.get('/some-endpoint')
+  .then(response => {
+    console.log(response);
+  })
+  .catch(error => {
+    console.error(error);
+  });
+```
+
+### 3. Config Migration
+
+#### Before:
+```typescript
+import { Config } from '../config/config';
+
+// Get singleton instance
+const config = Config.getInstance();
+
+// Get a config value
+const apiUrl = config.get('apiUrl');
+```
+
+#### After:
+```typescript
+import { ConfigManager } from '../core/ConfigManager';
+
+// Get from dependency container
+const configManager = dependencyContainer.get('configManager');
+
+// Or in a component constructor, receive it via options
+constructor(options: ComponentOptions) {
+  this.configManager = options.configManager;
+}
+
+// Get a config value
+const apiUrl = this.configManager.get('api.baseUrl');
+```
+
+### 4. Event Emitter Migration
+
+#### Before:
+```typescript
+import { EventEmitter } from '../utils/event-emitter';
+
+// Create an event emitter instance
+const eventEmitter = new EventEmitter();
+
+// Emit an event
+eventEmitter.emit('event-name', { data: 'value' });
+
+// Listen for an event
+eventEmitter.on('event-name', (data) => {
+  console.log(data);
+});
+```
+
+#### After:
+```typescript
+import { EventBus } from '../core/EventBus';
+
+// Get singleton instance
+const eventBus = EventBus.getInstance();
+// Or from dependency container
+const eventBus = dependencyContainer.get('eventBus');
+// Or in a component constructor, receive it via options
+constructor(options: ComponentOptions) {
+  this.eventBus = options.eventBus;
+}
+
+// Publish an event
+this.eventBus.publish('event-name', { data: 'value' });
+
+// Subscribe to an event
+this.eventBus.subscribe('event-name', (data) => {
+  console.log(data);
+});
+```
+
+### 5. Logger Migration
+
+#### Before:
+```typescript
+import { logger } from '../utils/logger';
+
+// Log messages
+logger.debug('Debug message');
+logger.info('Info message');
+logger.warn('Warning message');
+logger.error('Error message', new Error('Error details'));
+```
+
+#### After:
+```typescript
+import { Logger } from '../core/Logger';
+
+// Get component logger
+const logger = Logger.getLogger('ComponentName');
+// Or from dependency container
+const logger = dependencyContainer.get('logger').getLogger('ComponentName');
+// Or in a component constructor, receive it via options
+constructor(options: ComponentOptions) {
+  this.logger = Logger.getLogger('ComponentName');
+}
+
+// Log messages
+this.logger.debug('Debug message');
+this.logger.info('Info message');
+this.logger.warn('Warning message');
+this.logger.error('Error message', new Error('Error details'));
+```
+
+### 6. Browser API Abstraction
+
+Replace direct browser API usage with abstraction services:
+
+#### Direct localStorage
+```typescript
+// Before
 localStorage.setItem('key', JSON.stringify(value));
-const data = JSON.parse(localStorage.getItem('key') || 'null');
+const data = JSON.parse(localStorage.getItem('key') || '{}');
 
-// NEW WAY
-const storageService = container.get<StorageService>('storageService');
+// After
+const storageService = dependencyContainer.get('storageService');
 storageService.set('key', value);
-const data = storageService.get('key');
+const data = storageService.get('key', {});
 ```
 
-### 3. Use DomService Instead of Direct DOM Access
+#### Direct DOM manipulation
+```typescript
+// Before
+document.getElementById('element-id').textContent = 'New text';
+const element = document.createElement('div');
+document.body.appendChild(element);
+
+// After
+const domService = dependencyContainer.get('domService');
+domService.getElementById('element-id').textContent = 'New text';
+const element = domService.createElement('div');
+domService.appendChild(document.body, element);
+```
+
+#### Direct fetch API
+```typescript
+// Before
+fetch('/api/endpoint')
+  .then(response => response.json())
+  .then(data => console.log(data));
+
+// After
+const networkService = dependencyContainer.get('networkService');
+networkService.get('/api/endpoint')
+  .then(data => console.log(data));
+```
+
+### 7. Dependency Injection
+
+Replace singleton patterns and direct instantiation with dependency injection:
+
+#### Before:
+```typescript
+import { SomeService } from '../services/some-service';
+import { AnotherService } from '../services/another-service';
+
+class MyComponent {
+  private someService: SomeService;
+  private anotherService: AnotherService;
+
+  constructor() {
+    this.someService = SomeService.getInstance();
+    this.anotherService = new AnotherService();
+  }
+}
+```
+
+#### After:
+```typescript
+import { SomeService } from '../services/some-service';
+import { AnotherService } from '../services/another-service';
+
+interface MyComponentOptions {
+  someService: SomeService;
+  anotherService: AnotherService;
+}
+
+class MyComponent {
+  private someService: SomeService;
+  private anotherService: AnotherService;
+
+  constructor(options: MyComponentOptions) {
+    this.someService = options.someService;
+    this.anotherService = options.anotherService;
+  }
+}
+
+// Registration in AppBootstrapper
+dependencyContainer.register('myComponent', c => {
+  return new MyComponent({
+    someService: c.get('someService'),
+    anotherService: c.get('anotherService')
+  });
+});
+```
+
+## Testing with the New Architecture
+
+The new architecture makes testing easier by allowing dependencies to be mocked:
 
 ```typescript
-// OLD WAY
-const element = document.getElementById('someId');
-element.classList.add('active');
+import { MyComponent } from '../components/my-component';
+import { SomeService } from '../services/some-service';
+import { AnotherService } from '../services/another-service';
 
-// NEW WAY
-const domService = container.get<DomService>('domService');
-const element = domService.getElementById('someId');
-domService.addClass(element, 'active');
+describe('MyComponent', () => {
+  let component: MyComponent;
+  let mockSomeService: jest.Mocked<SomeService>;
+  let mockAnotherService: jest.Mocked<AnotherService>;
+
+  beforeEach(() => {
+    mockSomeService = {
+      method1: jest.fn(),
+      method2: jest.fn()
+    } as unknown as jest.Mocked<SomeService>;
+
+    mockAnotherService = {
+      doSomething: jest.fn()
+    } as unknown as jest.Mocked<AnotherService>;
+
+    component = new MyComponent({
+      someService: mockSomeService,
+      anotherService: mockAnotherService
+    });
+  });
+
+  it('should call methods on dependencies', () => {
+    component.doSomething();
+    expect(mockSomeService.method1).toHaveBeenCalled();
+    expect(mockAnotherService.doSomething).toHaveBeenCalled();
+  });
+});
 ```
 
-### 4. Use Proper TypeScript Interfaces
+## Common Migration Patterns
 
-```typescript
-// OLD WAY
-constructor(options = {}) {
-  this.container = options.container || document.getElementById('container');
-}
+### Converting a Class to Use DI
 
-// NEW WAY
-import { ComponentOptions } from '../types/app-types';
+1. Define an options interface for constructor parameters
+2. Update constructor to accept options
+3. Assign dependencies from options
+4. Remove any static getInstance() methods
+5. Register the class in AppBootstrapper with its dependencies
 
-interface MyComponentOptions extends ComponentOptions {
-  container?: HTMLElement;
-  debug?: boolean;
-}
+### Converting Components with Direct Browser API Usage
 
-constructor(options: MyComponentOptions = {}) {
-  this.container = options.container || domService.getElementById('container');
-}
-```
+1. Identify all direct browser API usage
+2. Determine which abstraction service to use
+3. Add the service to the component's options interface
+4. Replace direct API calls with service method calls
 
-## Upcoming Changes
+## Migration Checklist
 
-In the future, we plan to:
-
-1. Replace the remaining direct DOM manipulations with DomService
-2. Continue refining the type system
-3. Implement proper testing
-4. Remove old deprecated components
-
-## Best Practices
-
-1. **Use dependency injection** for all components
-2. **Create proper interfaces** for all options and properties
-3. **Avoid browser-specific code** in core logic
-4. **Register components** in the dependency container
-5. **Use abstractions** for browser environment access
-
-## Questions?
-
-If you have any questions about the migration or need help updating your code, please contact the architecture team. 
+- [ ] Update imports to use new core components
+- [ ] Update class constructors to use dependency injection
+- [ ] Replace direct browser API usage with service abstractions
+- [ ] Register components in AppBootstrapper
+- [ ] Update tests to mock dependencies
+- [ ] Remove any singleton getInstance() patterns
+- [ ] Update property initialization to use constructor options 

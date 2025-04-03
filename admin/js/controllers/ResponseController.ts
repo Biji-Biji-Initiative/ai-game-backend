@@ -63,9 +63,11 @@ export class ResponseController {
   private initResponseViewer(): void {
     // Check if responseViewer is available in DOM
     const responseViewerElement = this.domService.getElementById(this.responseViewerId);
-    
+
     if (!responseViewerElement) {
-      this.loggingService.warn(`Response viewer element with ID "${this.responseViewerId}" not found`);
+      this.loggingService.warn(
+        `Response viewer element with ID "${this.responseViewerId}" not found`,
+      );
       return;
     }
 
@@ -89,7 +91,7 @@ export class ResponseController {
    */
   public handleApiResponse(response: any): void {
     this.loggingService.info('API Response received');
-    
+
     if (!this.responseViewer || !response) {
       this.loggingService.warn('Response viewer not available or response data is missing');
       return;
@@ -103,7 +105,7 @@ export class ResponseController {
         headers: this.extractHeaders(response.headers),
         body: response.data || response.responseData || {},
         time: response.time || 0,
-        size: this.estimateResponseSize(response.data || response.responseData || {})
+        size: this.estimateResponseSize(response.data || response.responseData || {}),
       };
 
       // Format time if available
@@ -145,7 +147,7 @@ export class ResponseController {
         message: error.message || 'Unknown Error',
         code: error.statusCode || error.status || 0,
         details: error.responseData || error.data || undefined,
-        stack: error.stack
+        stack: error.stack,
       };
 
       // Format response for viewer
@@ -155,7 +157,7 @@ export class ResponseController {
         headers: this.extractHeaders(error.headers || {}),
         body: errorData.details || {},
         time: error.time || 0,
-        size: this.estimateResponseSize(errorData.details || {})
+        size: this.estimateResponseSize(errorData.details || {}),
       };
 
       // Display the error in the viewer
@@ -190,8 +192,8 @@ export class ResponseController {
         details: {
           url: error.requestInfo?.url || '',
           method: error.requestInfo?.method || '',
-          error: error.message || 'Connection failed'
-        }
+          error: error.message || 'Connection failed',
+        },
       };
 
       // Display error in viewer
@@ -277,9 +279,9 @@ export class ResponseController {
       statusText: response.statusText,
       headers: response.headers,
       size: response.size || 0,
-      time: response.time || 0
+      time: response.time || 0,
     });
-    
+
     this.loggingService.debug('Response Body:', response.body);
   }
 
@@ -292,7 +294,7 @@ export class ResponseController {
       // Get existing history
       const historyString = this.storageService.get<string>('response_history');
       const history = historyString ? JSON.parse(historyString) : [];
-      
+
       // Add new response with timestamp
       const historyItem = {
         timestamp: new Date().toISOString(),
@@ -300,20 +302,20 @@ export class ResponseController {
           status: response.status,
           statusText: response.statusText,
           time: response.time,
-          size: response.size
-        }
+          size: response.size,
+        },
       };
-      
+
       // Limit history size
       history.unshift(historyItem);
       if (history.length > 50) {
         history.pop();
       }
-      
+
       // Save updated history
       this.storageService.set('response_history', JSON.stringify(history));
     } catch (error) {
       this.loggingService.warn('Failed to save response history', error);
     }
   }
-} 
+}

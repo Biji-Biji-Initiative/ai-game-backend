@@ -131,6 +131,10 @@ function createAuthRoutes({ authController, validation }) {
   router.post('/forgotPassword', authController.forgotPassword.bind(authController));
   router.post('/resetPassword', authController.resetPassword.bind(authController));
 
+  // Email verification endpoints
+  router.get('/verify-email', authController.verifyEmail.bind(authController));
+  router.post('/send-verification-email', authController.sendVerificationEmail.bind(authController));
+
   // Get auth status - this is used by the verification script
   router.get('/status', (req, res) => {
     res.status(200).json({

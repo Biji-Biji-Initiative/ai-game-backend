@@ -1,78 +1,52 @@
 // Types improved by ts-improve-types
 import { Component } from '../types/component-base';
-import { ComponentLogger } from '../types/component-logger';
-import { Logger } from '../utils/logger';
+import { ComponentLogger, Logger } from './Logger';
 
 /**
- * Configuration option types for strong typing
+ * Configuration options
  */
 export interface ConfigOptions {
-  // Application settings
-  appName?: string;
+  apiBasePath?: string;
   debug?: boolean;
-  version?: string;
-
-  // API settings
-  apiUrl?: string;
-  apiKey?: string;
+  theme?: string;
+  endpointsUrl?: string;
   useLocalEndpoints?: boolean;
-
-  // UI settings
-  theme?: 'light' | 'dark' | 'auto';
-  language?: string;
-  toastPosition?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
-
-  // Feature flags
-  enableHistory?: boolean;
-  enableVariables?: boolean;
-  enableDomainState?: boolean;
-
-  // Storage settings
-  storagePrefix?: string;
-  persistHistory?: boolean;
-  historyMaxItems?: number;
-
-  // Advanced settings
-  logLevel?: 'error' | 'warn' | 'info' | 'debug';
-  timeout?: number;
-
-  // Any additional configuration
-  [key: string]: any;
+  useOfflineMode?: boolean;
+  useStorage?: boolean;
+  persistVariables?: boolean;
+  animationsEnabled?: boolean;
+  showLogsPanel?: boolean;
+  [key: string]: unknown;
 }
 
 /**
  * Default configuration values
  */
 const DEFAULT_CONFIG: ConfigOptions = {
-  appName: 'API Client',
+  apiBasePath: '/api',
   debug: false,
-  version: '1.0.0',
-  apiUrl: '/api',
-  useLocalEndpoints: true,
   theme: 'light',
-  language: 'en',
-  toastPosition: 'top-right',
-  enableHistory: true,
-  enableVariables: true,
-  enableDomainState: true,
-  storagePrefix: 'api_client_',
-  persistHistory: true,
-  historyMaxItems: 50,
-  logLevel: 'error',
-  timeout: 30000,
+  endpointsUrl: '/endpoints.json',
+  useLocalEndpoints: true,
+  useOfflineMode: false,
+  useStorage: true,
+  persistVariables: true,
+  animationsEnabled: true,
+  showLogsPanel: false,
 };
 
 /**
- * Configuration manager for application settings
+ * Configuration Manager
  */
 export class ConfigManager {
   private static instance: ConfigManager;
-  private config: Record<string, any> = {};
+  private config: ConfigOptions = {};
+  private listeners: Array<(config: ConfigOptions) => void> = [];
   private logger: ComponentLogger;
-  private initialized = false;
 
   /**
-   * Get the singleton instance of ConfigManager
+   * Get the singleton instance
+   * @returns The instance
    */
   public static getInstance(): ConfigManager {
     if (!ConfigManager.instance) {
@@ -81,30 +55,152 @@ export class ConfigManager {
     return ConfigManager.instance;
   }
 
-  constructor(initialConfig: Record<string, any> = {}) {
-    this.config = { ...initialConfig };
+  /**
+   * Private constructor
+   */
+  private constructor() {
     this.logger = Logger.getLogger('ConfigManager');
-    this.logger.debug('ConfigManager initialized', this.config);
+    this.loadDefaultConfig();
   }
 
   /**
-   * Initialize with configuration
-   * @param options Configuration options
+   * Load the default configuration
    */
-  public initialize(options: Partial<ConfigOptions> = {}): void {
-    this.config = { ...DEFAULT_CONFIG, ...options };
-    this.initialized = true; // Property added
+  private loadDefaultConfig(): void {
+    this.config = { ...DEFAULT_CONFIG };
 
-    // Apply theme if specified
-    if (this.config.theme && this.config.theme !== 'auto') {
-      document.documentElement.setAttribute('data-theme', this.config.theme);
+    // Try to load from localStorage if available
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const storedConfig = window.localStorage.getItem('api_tester_config');
+        if (storedConfig) {
+          const parsedConfig = JSON.parse(storedConfig);
+          this.config = { ...this.config, ...parsedConfig };
+          this.logger.debug('Loaded config from localStorage');
+        }
+      } catch (error) {
+        this.logger.error('Error loading config from localStorage:', error);
+      }
+    }
+  }
+
+  /**
+   * Get the current configuration
+   * @returns The configuration
+   */
+  public getConfig(): ConfigOptions {
+    return { ...this.config };
+  }
+
+  /**
+   * Get a specific configuration value
+   * @param key The configuration key
+   * @param defaultValue Default value if the key doesn't exist
+   * @returns The configuration value
+   */
+  public get<T>(key: string, defaultValue?: T): T {
+    return (this.config[key] as T) ?? (defaultValue as T);
+  }
+
+  /**
+   * Set a configuration value
+   * @param key The configuration key
+   * @param value The value to set
+   */
+  public set<T>(key: string, value: T): void {
+    this.config[key] = value;
+    this.saveConfig();
+    this.notifyListeners();
+  }
+
+  /**
+   * Update configuration with new values
+   * @param option New configuration
+   */
+  public update(option: ConfigOptions): void {
+    Object.assign(this.config, option);
+    this.saveConfig();
+
+    // Apply theme if it changed
+    if (option.theme) {
+      document.documentElement.setAttribute('data-theme', option.theme);
     }
 
+    // Notify listeners of the update
+    this.notifyListeners();
     if (this.config.debug) {
-      console.debug('ConfigManager initialized with:', this.config);
+      this.logger.debug('ConfigManager updated with:', option);
     }
+  }
 
-    this.logger.debug('ConfigManager re-initialized', { options, currentConfig: this.config });
+  /**
+   * Register a listener for configuration changes
+   * @param listener Callback function
+   */
+  public onChange(listener: (config: ConfigOptions) => void): void {
+    this.listeners.push(listener);
+  }
+
+  /**
+   * Remove a listener
+   * @param listener Callback function to remove
+   */
+  public offChange(listener: (config: ConfigOptions) => void): void {
+    this.listeners = this.listeners.filter(l => l !== listener);
+  }
+
+  /**
+   * Load configuration from a URL
+   * @param path URL path
+   */
+  public async loadConfig(path: string): Promise<void> {
+    try {
+      const response = await fetch(path);
+
+      if (!response.ok) {
+        throw new Error(
+          `Failed to load config from ${path}: ${response.status} ${response.statusText}`,
+        );
+      }
+
+      const config = await response.json();
+
+      // Merge with existing config
+      this.update(config);
+
+      if (this.config.debug) {
+        this.logger.debug(`ConfigManager loaded config from ${path}:`, config);
+      }
+    } catch (error) {
+      this.logger.error(`Error loading config from ${path}:`, error);
+    }
+  }
+
+  /**
+   * Save configuration to localStorage
+   */
+  private saveConfig(): void {
+    if (typeof window !== 'undefined' && window.localStorage && this.config.useStorage) {
+      try {
+        window.localStorage.setItem('api_tester_config', JSON.stringify(this.config));
+      } catch (error) {
+        this.logger.error('Error saving config to localStorage:', error);
+      }
+    }
+  }
+
+  /**
+   * Notify all registered listeners of configuration changes
+   */
+  private notifyListeners(): void {
+    const configCopy = { ...this.config };
+    this.listeners.forEach(listener => {
+      try {
+        listener(configCopy);
+      } catch (error) {
+        this.logger.error('Error in config change listener:', error);
+      }
+    });
   }
 
   /**
@@ -116,57 +212,12 @@ export class ConfigManager {
   }
 
   /**
-   * Get a specific configuration value
-   * @param key Configuration key
-   * @param defaultValue Default value if not found
-   * @returns The configuration value or default
-   */
-  public get(key: string, defaultValue?: any): any {
-    return this.config[key] ?? defaultValue;
-  }
-
-  /**
-   * Set a configuration value
-   * @param key Configuration key
-   * @param value New value
-   */
-  public set(key: string, value: any): void {
-    this.config[key] = value;
-
-    // Handle special case for theme changes
-    if (key === 'theme' && typeof value === 'string') {
-      document.documentElement.setAttribute('data-theme', value);
-    }
-
-    if (this.config.debug) {
-      console.debug(`ConfigManager set ${key}:`, value);
-    }
-  }
-
-  /**
    * Check if a configuration value exists
    * @param key Configuration key
    * @returns True if the key exists
    */
   public has(key: string): boolean {
     return key in this.config;
-  }
-
-  /**
-   * Update multiple configuration values
-   * @param options Configuration options to update
-   */
-  public update(option: ConfigOptions): void {
-    Object.assign(this.config, options);
-
-    // Handle theme change if included
-    if (options.theme) {
-      document.documentElement.setAttribute('data-theme', options.theme);
-    }
-
-    if (this.config.debug) {
-      console.debug('ConfigManager updated with:', options);
-    }
   }
 
   /**
@@ -180,35 +231,6 @@ export class ConfigManager {
 
     if (this.config.debug) {
       console.debug('ConfigManager reset to defaults');
-    }
-  }
-
-  /**
-   * Load configuration from a JSON file path
-   * @param path Path to the configuration JSON file
-   * @returns Promise that resolves when configuration is loaded
-   */
-  public async loadConfig(pat: string): Promise<void> {
-    try {
-      const response = await fetch(path);
-
-      if (!response.ok) {
-        throw new Error(
-          `Failed to load config from ${path}: ${response.status} ${response.statusText}`,
-        );
-      }
-
-      const config = await response.json();
-
-      // Merge with current config
-      this.update(config);
-
-      if (this.config.debug) {
-        console.debug(`ConfigManager loaded config from ${path}:`, config);
-      }
-    } catch (error) {
-      console.error(`Error loading config from ${path}:`, error);
-      throw error;
     }
   }
 

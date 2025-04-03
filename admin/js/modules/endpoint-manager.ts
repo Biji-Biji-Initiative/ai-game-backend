@@ -35,7 +35,7 @@ export interface EndpointManagerOptions {
   /** URL for endpoints API */
   endpointsUrl?: string;
   /** Config manager - can be either Record<string, unknown> or ConfigManager */
-  config?: any; 
+  config?: any;
 }
 
 // Export EndpointParameter

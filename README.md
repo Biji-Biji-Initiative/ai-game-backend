@@ -171,4 +171,18 @@ Expected response:
     }
   }
 }
-``` 
+```
+
+## GitHub Codespaces
+
+This project is fully configured to work with GitHub Codespaces for easy development in the cloud.
+
+### Using Codespaces
+
+1. Click the green "Code" button on the GitHub repository
+2. Select the "Codespaces" tab 
+3. Click "Create codespace on main"
+
+The environment will be automatically set up with all necessary dependencies and extensions.
+
+See [.devcontainer/README.codespaces.md](.devcontainer/README.codespaces.md) for detailed instructions on using Codespaces with this project. 

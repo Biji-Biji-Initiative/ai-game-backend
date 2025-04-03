@@ -5,15 +5,17 @@
  * Provides UI for selecting entity types and viewing domain state snapshots and differences.
  */
 
-import { logger } from '../utils/logger';
+import { ComponentLogger } from '../core/Logger';
+import { EventBus } from '../core/EventBus';
 import { DomainStateManager } from '../modules/domain-state-manager';
-import { EventEmitter } from '../utils/event-emitter';
 
 interface DomainStateViewerOptions {
   container: HTMLElement | null;
   domainStateManager: DomainStateManager;
   // Callback to get the current request object needed for snapshots
-  getCurrentRequest: () => { path?: string; body?: any } | null;
+  getCurrentRequest: () => { path?: string; body?: unknown } | null;
+  eventBus: EventBus;
+  logger: ComponentLogger;
 }
 
 interface TabContentElements {
@@ -23,10 +25,12 @@ interface TabContentElements {
 /**
  * UI Component to visualize domain state snapshots and diffs.
  */
-export class DomainStateViewer extends EventEmitter {
+export class DomainStateViewer {
   private options: DomainStateViewerOptions;
   private container: HTMLElement;
   private domainStateManager: DomainStateManager;
+  private eventBus: EventBus;
+  private logger: ComponentLogger;
   private entityTypesListElement: HTMLElement | null = null;
   private takeBeforeSnapshotButton: HTMLButtonElement | null = null;
   private takeAfterSnapshotButton: HTMLButtonElement | null = null;
@@ -43,8 +47,6 @@ export class DomainStateViewer extends EventEmitter {
    * @param options Component options
    */
   constructor(options: DomainStateViewerOptions) {
-    super();
-
     // @ts-ignore - Complex type issues
     if (!options.container) {
       throw new Error('Container element is required for DomainStateViewer');
@@ -55,16 +57,34 @@ export class DomainStateViewer extends EventEmitter {
     if (typeof options.getCurrentRequest !== 'function') {
       throw new Error('getCurrentRequest function is required for DomainStateViewer');
     }
+    if (!options.eventBus) {
+      throw new Error('EventBus is required for DomainStateViewer');
+    }
+    if (!options.logger) {
+      throw new Error('Logger is required for DomainStateViewer');
+    }
 
     this.options = {
-      containerId: '',
-      domainStateManager: null, // Requires a DomainStateManager instance
-      onRequestNeeded: undefined,
       ...options,
     };
 
     this.domainStateManager = this.options.domainStateManager;
-    this.container = document.getElementById(this.options.containerId) as HTMLElement;
+    this.eventBus = this.options.eventBus;
+    this.logger = this.options.logger;
+
+    // Use container from options directly
+    if (options.container instanceof HTMLElement) {
+      this.container = options.container;
+    } else if (typeof options.container === 'string') {
+      // If it's a string, treat it as an ID
+      const containerElement = document.getElementById(options.container);
+      if (!containerElement) {
+        throw new Error(`Container element with ID "${options.container}" not found`);
+      }
+      this.container = containerElement;
+    } else {
+      throw new Error('Container must be an HTMLElement or a string ID');
+    }
 
     // Find elements (assuming they exist in the container)
     this.entityTypesListElement = this.container.querySelector('.entity-types-list') as HTMLElement;
@@ -91,7 +111,7 @@ export class DomainStateViewer extends EventEmitter {
     });
 
     this.initializeUI();
-    logger.debug('DomainStateViewer initialized');
+    this.logger.debug('DomainStateViewer initialized');
   }
 
   /**
@@ -175,12 +195,12 @@ export class DomainStateViewer extends EventEmitter {
       });
     });
 
-    // Listen to domain state manager events
-    this.domainStateManager.on(
+    // Listen to domain state manager events using EventBus
+    this.eventBus.subscribe(
       'snapshotChange',
-      (phase: 'before' | 'after', snapshots: Record<string, unknown>) => {
-        this.renderSnapshots(phase, snapshots);
-        if (phase === 'after') {
+      (data: { phase: 'before' | 'after'; snapshots: Record<string, unknown> }) => {
+        this.renderSnapshots(data.phase, data.snapshots);
+        if (data.phase === 'after') {
           this.renderDiff();
           // Optionally switch to diff view automatically
           // this.setActiveTab('diff-view');
@@ -188,8 +208,8 @@ export class DomainStateViewer extends EventEmitter {
       },
     );
 
-    this.domainStateManager.on('error', (message: string, error?: any) => {
-      this.showStatus(message, 'error');
+    this.eventBus.subscribe('error', (errorData: { message: string; error?: unknown }) => {
+      this.showStatus(errorData.message, 'error');
     });
   }
 
@@ -250,7 +270,7 @@ export class DomainStateViewer extends EventEmitter {
     if (this.takeAfterSnapshotButton) {
       this.takeAfterSnapshotButton.disabled = this.selectedEntityTypeIds.length === 0;
     }
-    logger.debug('Selected entity types updated', { selected: this.selectedEntityTypeIds });
+    this.logger.debug('Selected entity types updated', { selected: this.selectedEntityTypeIds });
   }
 
   /**
@@ -263,10 +283,11 @@ export class DomainStateViewer extends EventEmitter {
       return;
     }
 
-    const request = this.options.getCurrentRequest();
+    // Retrieve current request from options
+    const request = this.options.getCurrentRequest?.();
     if (!request) {
       this.showStatus('Cannot take snapshot: No current request data available.', 'error');
-      logger.warn('Attempted to take snapshot, but getCurrentRequest returned null.');
+      this.logger.warn('Attempted to take snapshot, but getCurrentRequest returned null.');
       return;
     }
 
@@ -275,7 +296,7 @@ export class DomainStateViewer extends EventEmitter {
       await this.domainStateManager.takeBeforeSnapshot(request, this.selectedEntityTypeIds);
       this.showStatus('Before snapshot taken successfully. You can now run the step.', 'success');
     } catch (error) {
-      logger.error('Failed to take before snapshot:', error);
+      this.logger.error('Failed to take before snapshot:', error);
       // Error is likely already emitted by DomainStateManager, but show status just in case
       this.showStatus(
         `Failed to take snapshot: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -299,7 +320,7 @@ export class DomainStateViewer extends EventEmitter {
       await this.domainStateManager.takeAfterSnapshot();
       this.showStatus('After snapshot taken successfully. You can now run the step.', 'success');
     } catch (error) {
-      logger.error('Failed to take after snapshot:', error);
+      this.logger.error('Failed to take after snapshot:', error);
       // Error is likely already emitted by DomainStateManager, but show status just in case
       this.showStatus(
         `Failed to take snapshot: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -314,7 +335,7 @@ export class DomainStateViewer extends EventEmitter {
    * @param snapshots The snapshot data for the given phase.
    * @private
    */
-  private renderSnapshots(phas: 'before' | 'after', snapshots: Record<string, unknown>): void {
+  private renderSnapshots(phase: 'before' | 'after', snapshots: Record<string, unknown>): void {
     const targetElement =
       phase === 'before' ? this.beforeSnapshotDataElement : this.afterSnapshotDataElement;
 
@@ -331,8 +352,11 @@ export class DomainStateViewer extends EventEmitter {
     Object.entries(snapshots).forEach(([typeId, snapshot]) => {
       const entityTypeInfo = entityTypes.find(t => t.id === typeId) || { name: typeId };
       const entityName = entityTypeInfo.name;
-      const entityId = snapshot.id;
-      const state = snapshot.state;
+
+      // Add type checking for snapshot properties
+      const typedSnapshot = snapshot as { id?: string; state?: unknown };
+      const entityId = typedSnapshot.id || 'unknown';
+      const state = typedSnapshot.state;
 
       html += `
         <div class="entity-snapshot collapsed">
@@ -389,10 +413,19 @@ export class DomainStateViewer extends EventEmitter {
     Object.entries(diffs).forEach(([typeId, diff]) => {
       const entityTypeInfo = entityTypes.find(t => t.id === typeId) || { name: typeId };
       const entityName = entityTypeInfo.name;
-      const entityId = diff.id;
+
+      // Add type checking for diff properties
+      const typedDiff = diff as {
+        id?: string;
+        type?: string;
+        added?: unknown;
+        removed?: unknown;
+        changes?: Record<string, unknown>;
+      };
+      const entityId = typedDiff.id || 'unknown';
 
       // Skip unchanged entries unless we want to explicitly show them
-      if (diff.type === 'unchanged') {
+      if (typedDiff.type === 'unchanged') {
         // Optionally add an entry for unchanged items
         // html += `<div class="entity-diff collapsed unchanged">
         //             <div class="entity-diff-header"><h5>${entityName} (ID: ${entityId})</h5><span class="diff-type diff-type-unchanged">unchanged</span><span class="expand-icon">▶</span></div>
@@ -405,18 +438,18 @@ export class DomainStateViewer extends EventEmitter {
         <div class="entity-diff collapsed">
           <div class="entity-diff-header">
             <h5>${entityName} (ID: ${entityId})</h5>
-            <span class="diff-type diff-type-${diff.type}">${diff.type}</span>
+            <span class="diff-type diff-type-${typedDiff.type}">${typedDiff.type}</span>
             <span class="expand-icon">▶</span>
           </div>
           <div class="entity-diff-body">
       `;
 
-      switch (diff.type) {
+      switch (typedDiff.type) {
         case 'new':
           html += `
             <div class="diff-new">
               <h6>New Entity State:</h6>
-              <pre class="diff-json">${this.formatJsonForDisplay(diff.added)}</pre>
+              <pre class="diff-json">${this.formatJsonForDisplay(typedDiff.added)}</pre>
             </div>
           `;
           break;
@@ -424,7 +457,7 @@ export class DomainStateViewer extends EventEmitter {
           html += `
             <div class="diff-deleted">
               <h6>State Before Deletion:</h6>
-              <pre class="diff-json">${this.formatJsonForDisplay(diff.removed)}</pre>
+              <pre class="diff-json">${this.formatJsonForDisplay(typedDiff.removed)}</pre>
             </div>
           `;
           break;
@@ -432,7 +465,7 @@ export class DomainStateViewer extends EventEmitter {
           html += `
             <div class="diff-modified">
               <h6>Modified Properties:</h6>
-              ${this.renderChanges(diff.changes)}
+              ${typedDiff.changes ? this.renderChanges(typedDiff.changes) : 'No changes found'}
             </div>
           `;
           break;
@@ -468,10 +501,19 @@ export class DomainStateViewer extends EventEmitter {
    * @returns HTML string representing the changes.
    * @private
    */
-  private renderChanges(change: Record<string, unknown>): string {
+  private renderChanges(changes: Record<string, unknown>): string {
     let html = '<ul class="changes-list">';
 
-    Object.entries(changes).forEach(([key, change]) => {
+    Object.entries(changes).forEach(([key, changeValue]) => {
+      // Add type checking for change properties
+      const change = changeValue as {
+        action?: string;
+        changes?: Record<string, unknown>;
+        from?: unknown;
+        to?: unknown;
+        value?: unknown;
+      };
+
       html += `<li class="change-item change-item-${change.action}">`;
       html += `<span class="change-path">${key}:</span>`;
 
@@ -511,11 +553,11 @@ export class DomainStateViewer extends EventEmitter {
    * @returns Formatted JSON string or error message.
    * @private
    */
-  private formatJsonForDisplay(valu: string): string {
+  private formatJsonForDisplay(value: unknown): string {
     try {
       return JSON.stringify(value, null, 2);
     } catch (error) {
-      logger.error('Error stringifying JSON for display:', error);
+      this.logger.error('Error stringifying JSON for display:', error);
       return 'Error displaying value';
     }
   }
@@ -526,7 +568,7 @@ export class DomainStateViewer extends EventEmitter {
    * @returns HTML string representation of the value.
    * @private
    */
-  private formatValueForDisplay(valu: string): string {
+  private formatValueForDisplay(value: unknown): string {
     if (value === null) return '<span class="null-value">null</span>';
     if (value === undefined) return '<span class="undefined-value">undefined</span>';
 
@@ -561,7 +603,7 @@ export class DomainStateViewer extends EventEmitter {
    * @returns The escaped string.
    * @private
    */
-  private escapeHtml(st: string): string {
+  private escapeHtml(str: string): string {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
@@ -572,9 +614,9 @@ export class DomainStateViewer extends EventEmitter {
    * @param tabName The name of the tab to activate ('snapshot-view' or 'diff-view').
    * @private
    */
-  private setActiveTab(tabNam: string): void {
+  private setActiveTab(tabName: string): void {
     if (!this.contentPanels[tabName]) {
-      logger.warn(`Attempted to switch to unknown tab: ${tabName}`);
+      this.logger.warn(`Attempted to switch to unknown tab: ${tabName}`);
       return;
     }
 
@@ -594,7 +636,7 @@ export class DomainStateViewer extends EventEmitter {
     if (tabName === 'diff-view') {
       this.renderDiff();
     }
-    logger.debug(`Switched to tab: ${tabName}`);
+    this.logger.debug(`Switched to tab: ${tabName}`);
   }
 
   /**
@@ -604,7 +646,7 @@ export class DomainStateViewer extends EventEmitter {
    * @private
    */
   private showStatus(
-    messag: string,
+    message: string,
     type: 'info' | 'success' | 'error' | 'warning' = 'info',
   ): void {
     if (this.snapshotStatusElement) {
@@ -628,11 +670,20 @@ export class DomainStateViewer extends EventEmitter {
    */
   public async triggerAfterSnapshot(): Promise<void> {
     if (this.selectedEntityTypeIds.length === 0) {
-      logger.debug(
+      this.logger.debug(
         'Skipping after snapshot: No entity types were selected for the before snapshot.',
       );
       return; // Don't take after snapshot if no before snapshot was relevant
     }
     await this.domainStateManager.takeAfterSnapshot();
+  }
+
+  /**
+   * Publish an event through the EventBus
+   * @param event Event name
+   * @param data Event data
+   */
+  protected emit(event: string, data?: unknown): void {
+    this.eventBus.publish(event, data);
   }
 }

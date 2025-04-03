@@ -78,7 +78,7 @@ class ApplicationEventHandlers {
  * Register the application event handlers
  * @param {Object} container - The dependency injection container
  */
-export function registerEventHandlers(container) {
+export async function registerEventHandlers(container) {
     if (!container) {
         throw new Error('Container is required for event handler registration');
     }
@@ -87,7 +87,8 @@ export function registerEventHandlers(container) {
     logger.info('Initializing application event handlers');
 
     // Get the application event handlers directly from the container
-    const applicationEventHandlers = container.get('applicationEventHandlers');
+    // Use await since applicationEventHandlers is registered with an async factory
+    const applicationEventHandlers = await container.get('applicationEventHandlers');
     
     // Register the event handlers
     applicationEventHandlers.registerEventHandlers();

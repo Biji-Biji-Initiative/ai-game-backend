@@ -1,6 +1,8 @@
+'use strict';
+
 import AppError from "#app/core/infra/errors/AppError.js";
 import { StandardErrorCodes } from "#app/core/infra/errors/ErrorHandler.js";
-'use strict';
+
 /**
  * Base class for all infrastructure errors
  * @extends AppError
@@ -60,6 +62,7 @@ class InfraError extends AppError {
         };
     }
 }
+
 /**
  * Database infrastructure error
  * @extends InfraError
@@ -95,6 +98,36 @@ class DatabaseError extends InfraError {
         };
     }
 }
+
+/**
+ * Database Entity Not Found Error
+ * Thrown when a query returns no results for a specific entity
+ * @extends DatabaseError
+ */
+class DatabaseEntityNotFoundError extends DatabaseError {
+    /**
+     * Create a new DatabaseEntityNotFoundError
+     * @param {string} entityType - Type of the entity not found
+     * @param {Object} queryDetails - Details of the query used (e.g., { id: '123' })
+     * @param {Object} options - Additional options
+     */
+    constructor(entityType, queryDetails, options = {}) {
+        const message = `Entity of type '${entityType}' not found.`;
+        super(message, {
+            ...options,
+            errorCode: 'DB_ENTITY_NOT_FOUND',
+            statusCode: 404,
+            operation: options.operation || 'find',
+            entityType: entityType,
+            metadata: {
+                ...options.metadata,
+                queryDetails
+            }
+        });
+        this.name = 'DatabaseEntityNotFoundError';
+    }
+}
+
 /**
  * Cache infrastructure error
  * @extends InfraError
@@ -130,6 +163,7 @@ class CacheError extends InfraError {
         };
     }
 }
+
 /**
  * Cache Key Not Found Error
  * Thrown when attempting to access a cache key that doesn't exist
@@ -156,6 +190,7 @@ class CacheKeyNotFoundError extends CacheError {
         this.name = 'CacheKeyNotFoundError';
     }
 }
+
 /**
  * Cache Initialization Error
  * Thrown when there's an issue initializing the cache
@@ -176,6 +211,7 @@ class CacheInitializationError extends CacheError {
         this.name = 'CacheInitializationError';
     }
 }
+
 /**
  * Cache Operation Error
  * Thrown when there's an issue with a cache operation
@@ -204,20 +240,42 @@ class CacheOperationError extends CacheError {
         this.name = 'CacheOperationError';
     }
 }
+
+/**
+ * Validation Error (Specific to Infra, consider moving to a shared location)
+ * @extends AppError
+ */
+class ValidationError extends AppError {
+    constructor(message, options = {}) {
+        super(message, 400, {
+            ...options,
+            errorCode: 'VALIDATION_ERROR',
+            component: 'validation',
+            validationErrors: options.validationErrors || {}
+        });
+        this.name = 'ValidationError';
+    }
+}
+
 // Export all error classes
 export { 
     InfraError,
     DatabaseError,
+    DatabaseEntityNotFoundError,
     CacheError,
     CacheKeyNotFoundError, 
     CacheInitializationError, 
-    CacheOperationError 
+    CacheOperationError,
+    ValidationError
 };
+
 export default {
     InfraError,
     DatabaseError,
+    DatabaseEntityNotFoundError,
     CacheError,
     CacheKeyNotFoundError,
     CacheInitializationError,
-    CacheOperationError
+    CacheOperationError,
+    ValidationError
 };

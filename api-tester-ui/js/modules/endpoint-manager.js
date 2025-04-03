@@ -107,44 +107,61 @@ export class EndpointManager {
      * @returns {Promise<Array>} The loaded endpoints
      */
     async loadDynamicEndpoints() {
-        const dynamicEndpointsPath = this.options.dynamicEndpointsPath;
-        
         try {
-            // Emit loading event
-            this.emit("endpoints:loading", { path: dynamicEndpointsPath, type: "dynamic" });
+            this.emit('endpoints:loading', { source: 'dynamic', path: this.options.dynamicEndpointsPath });
             
-            // Fetch endpoints from backend
-            const response = await fetch(dynamicEndpointsPath);
+            // Configure headers with authentication
+            const headers = {};
+            
+            // Add auth token if available
+            const authToken = localStorage.getItem('authToken');
+            if (authToken) {
+                headers['Authorization'] = `Bearer ${authToken}`;
+            }
+            
+            // Add API key if available
+            const apiKey = localStorage.getItem('apiKey');
+            if (apiKey) {
+                headers['x-api-key'] = apiKey;
+                headers['api-key'] = apiKey;
+                headers['X-Api-Key'] = apiKey;
+            }
+            
+            const response = await fetch(this.options.dynamicEndpointsPath, {
+                headers: headers
+            });
             
             if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    throw new Error(`Authentication required: ${response.status} ${response.statusText}`);
+                }
                 throw new Error(`Failed to load dynamic endpoints: ${response.status} ${response.statusText}`);
             }
             
             const data = await response.json();
             
-            // Process and store endpoints
-            this.processEndpoints(data);
+            if (!data || !Array.isArray(data.endpoints)) {
+                throw new Error('Invalid endpoint data structure');
+            }
             
-            // Mark as loaded
-            this.loaded = true;
-            this.retryCount = 0;
+            this.dynamicEndpoints = data.endpoints;
+            this.currentSource = 'dynamic';
             
-            // Emit loaded event
-            this.emit("endpoints:loaded", {
-                endpoints: this.endpoints,
-                categories: Array.from(this.categories.entries()),
-                source: "dynamic"
+            this.emit('endpoints:loaded', { 
+                source: 'dynamic',
+                endpoints: this.dynamicEndpoints,
+                count: this.dynamicEndpoints.length
             });
             
-            return this.endpoints;
+            return this.dynamicEndpoints;
         } catch (error) {
-            console.error("Error loading dynamic endpoints:", error);
+            const message = `Failed to load dynamic endpoints: ${error.message}`;
+            console.warn(message);
             
-            // Emit error event
-            this.emit("endpoints:error", {
-                error,
-                message: `Failed to load dynamic endpoints: ${error.message}`,
-                source: "dynamic"
+            this.emit('endpoints:error', { 
+                source: 'dynamic',
+                error: error,
+                message: message
             });
             
             throw error;

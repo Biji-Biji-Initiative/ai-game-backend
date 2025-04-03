@@ -30,10 +30,11 @@ export function registerCacheInvalidationEventHandlers(container) {
   
   // Define event types that trigger cache invalidations
   const INVALIDATION_EVENTS = [
-    'USER_CREATED', 'USER_UPDATED', 'USER_DEACTIVATED',
-    'CHALLENGE_CREATED', 'CHALLENGE_UPDATED', 'CHALLENGE_DELETED',
+    'USER_CREATED', 'USER_UPDATED',
+    'CHALLENGE_CREATED',
     'CHALLENGE_COMPLETED',
-    'EVALUATION_COMPLETED',
+    'CHALLENGE_EVALUATED',
+    'EVALUATION_UPDATED',
     'PROGRESS_UPDATED',
     'FOCUS_AREA_SELECTED',
   ];

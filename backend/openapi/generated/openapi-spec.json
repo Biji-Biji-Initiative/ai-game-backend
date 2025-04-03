@@ -77,7 +77,7 @@
     "/health": {
       "get": {
         "summary": "Health check endpoint",
-        "description": "Returns the health status of the API",
+        "description": "Returns detailed health status of the API including database and OpenAI service availability",
         "tags": [
           "System"
         ],
@@ -106,11 +106,133 @@
                   "properties": {
                     "status": {
                       "type": "string",
-                      "example": "ok"
+                      "example": "success",
+                      "enum": [
+                        "success",
+                        "error"
+                      ]
                     },
-                    "mode": {
+                    "message": {
                       "type": "string",
-                      "example": "development"
+                      "example": "Server is healthy"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time",
+                      "example": "2023-04-01T10:00:00Z"
+                    },
+                    "uptime": {
+                      "type": "number",
+                      "description": "Server uptime in seconds",
+                      "example": 3600
+                    },
+                    "dependencies": {
+                      "type": "object",
+                      "properties": {
+                        "database": {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "healthy",
+                                "unhealthy",
+                                "error",
+                                "unknown"
+                              ],
+                              "example": "healthy"
+                            },
+                            "message": {
+                              "type": "string",
+                              "example": "Database connection successful"
+                            }
+                          }
+                        },
+                        "openai": {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "healthy",
+                                "unhealthy",
+                                "error",
+                                "unknown"
+                              ],
+                              "example": "healthy"
+                            },
+                            "message": {
+                              "type": "string",
+                              "example": "OpenAI service is available"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error during health check",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "error"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Server is error"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "API is unhealthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "error"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Server is unhealthy"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "dependencies": {
+                      "type": "object",
+                      "properties": {
+                        "database": {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "example": "unhealthy"
+                            },
+                            "message": {
+                              "type": "string",
+                              "example": "Database connection failed"
+                            }
+                          }
+                        },
+                        "openai": {
+                          "type": "object"
+                        }
+                      }
                     }
                   }
                 }
@@ -423,6 +545,102 @@
                     "message": {
                       "type": "string",
                       "example": "User with this email already exists"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "summary": "Refresh authentication token",
+        "description": "Uses a refresh token to generate a new JWT access token",
+        "operationId": "refreshToken",
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "refreshToken": {
+                    "type": "string",
+                    "description": "Optional refresh token if not sent via httpOnly cookie"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token refreshed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "token": {
+                          "type": "string",
+                          "description": "New JWT access token"
+                        },
+                        "user": {
+                          "$ref": "#/components/schemas/User"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or expired refresh token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid or expired refresh token"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refresh token has been revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Token has been revoked"
                     }
                   }
                 }

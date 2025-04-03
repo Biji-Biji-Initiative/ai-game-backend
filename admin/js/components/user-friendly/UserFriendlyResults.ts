@@ -4,7 +4,7 @@
  * Handles displaying API responses in a user-friendly format
  */
 
-import { logger } from '../../utils/logger';
+import { Logger } from '../../core/Logger';
 import { FlowStep, StepType } from '../../types/flow-types';
 
 export interface UserFriendlyResultsOptions {
@@ -22,16 +22,17 @@ export class UserFriendlyResults {
   private resultStatusElement: HTMLElement | null = null;
   private resultContentElement: HTMLElement | null = null;
   private variablesPanelElement: HTMLElement | null = null;
+  private logger = Logger.getLogger('UserFriendlyResults');
 
   constructor(option: UserFriendlyResultsOptions = {}) {
-    this.resultPanelElement = document.getElementById(options.resultPanelId || 'result-panel'); // Property added
-    this.resultStatusElement = document.getElementById(options.resultStatusId || 'result-status'); // Property added
+    this.resultPanelElement = document.getElementById(option.resultPanelId || 'result-panel');
+    this.resultStatusElement = document.getElementById(option.resultStatusId || 'result-status');
     this.resultContentElement = document.getElementById(
-      options.resultContentId || 'result-content',
-    ); // Property added
+      option.resultContentId || 'result-content',
+    );
     this.variablesPanelElement = document.getElementById(
-      options.variablesPanelId || 'variables-panel',
-    ); // Property added
+      option.variablesPanelId || 'variables-panel',
+    );
   }
 
   /**
@@ -39,9 +40,9 @@ export class UserFriendlyResults {
    * @param result The result to display
    * @param step The step that was executed
    */
-  displayResult(resul: anyt, step: FlowStep): void {
+  displayResult(result: any, step: FlowStep): void {
     if (!this.resultPanelElement || !this.resultStatusElement || !this.resultContentElement) {
-      logger.error('Result elements not found');
+      this.logger.error('Result elements not found');
       return;
     }
 
@@ -117,9 +118,9 @@ export class UserFriendlyResults {
    * Display an error
    * @param error The error to display
    */
-  displayError(erro: anyr): void {
+  displayError(error: any): void {
     if (!this.resultPanelElement || !this.resultStatusElement || !this.resultContentElement) {
-      logger.error('Result elements not found');
+      this.logger.error('Result elements not found');
       return;
     }
 
@@ -176,18 +177,18 @@ export class UserFriendlyResults {
    * Format response data for better display
    * @param result API response
    */
-  private formatResponseData(resul: anyt): HTMLElement {
+  private formatResponseData(result: any): HTMLElement {
     const container = document.createElement('div');
     container.className = 'response-data';
 
     // If we have a formatted JSON viewer available
-    if (typeof window !== 'undefined' && window.jsonFormatter) {
+    if (typeof window !== 'undefined' && window.JSONFormatter) {
       try {
-        const jsonEl = window.jsonFormatter.formatJSON(result);
+        const jsonEl = window.JSONFormatter.formatJSON(result);
         container.appendChild(jsonEl);
         return container;
       } catch (e) {
-        logger.warn('Failed to use JSON formatter:', e);
+        this.logger.warn('Failed to use JSON formatter:', e);
       }
     }
 
@@ -265,7 +266,7 @@ export class UserFriendlyResults {
    * @param result API response
    * @param step The step that was executed
    */
-  private getResponseExplanation(resul: anyt, step: FlowStep): string | null {
+  private getResponseExplanation(result: any, step: FlowStep): string | null {
     if (!result) return null;
 
     // Generate explanation based on status and step
@@ -342,8 +343,8 @@ export class UserFriendlyResults {
    * @param response API response
    */
   extractVariablesFromResponse(
-    extractRule: Array<{ name: string; path: string; defaultValue?: any }>,
-    response: Event,
+    extractRules: Array<{ name: string; path: string; defaultValue?: any }>,
+    response: any,
   ): void {
     try {
       if (!response || !response.data || !this.variablesPanelElement) return;
@@ -385,10 +386,10 @@ export class UserFriendlyResults {
             // Save to localStorage for persistence
             localStorage.setItem(`var_${rule.name}`, JSON.stringify(value));
 
-            logger.info(`Extracted variable ${rule.name} = ${JSON.stringify(value)}`);
+            this.logger.info(`Extracted variable ${rule.name} = ${JSON.stringify(value)}`);
           }
         } catch (e) {
-          logger.warn(`Failed to extract variable ${rule.name}:`, e);
+          this.logger.warn(`Failed to extract variable ${rule.name}:`, e);
         }
       });
 
@@ -413,7 +414,7 @@ export class UserFriendlyResults {
         `;
       }
     } catch (error) {
-      logger.error('Failed to extract variables:', error);
+      this.logger.error('Failed to extract variables:', error);
     }
   }
 

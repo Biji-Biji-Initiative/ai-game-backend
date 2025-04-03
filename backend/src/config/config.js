@@ -7,13 +7,20 @@
  */
 // Load domain-specific configurations
 import personalityConfig from "#app/core/personality/config/personalityConfig.js";
+
+// Debug environment variables
+console.log('ENV DEBUG: SUPABASE_URL =', process.env.SUPABASE_URL);
+console.log('ENV DEBUG: SUPABASE_KEY =', process.env.SUPABASE_KEY ? 'EXISTS' : 'MISSING');
+console.log('ENV DEBUG: SUPABASE_ANON_KEY =', process.env.SUPABASE_ANON_KEY ? 'EXISTS' : 'MISSING');
+console.log('ENV DEBUG: NODE_ENV =', process.env.NODE_ENV);
+
 // Main application configuration
 const config = {
     // Server configuration
     server: {
-        port: process.env.NODE_ENV === 'production' ? 9000 : (process.env.PORT || 3000),
+        port: process.env.NODE_ENV === 'production' ? 9000 : (process.env.PORT || 3081),
         environment: process.env.NODE_ENV || 'development',
-        baseUrl: process.env.BASE_URL || 'http://localhost:3000',
+        baseUrl: process.env.BASE_URL || `http://localhost:${process.env.PORT || 3081}`,
     },
     // API configuration
     api: {
@@ -23,6 +30,26 @@ const config = {
         docsPath: process.env.API_DOCS_PATH || '/api-docs',
         // API tester UI path - serves static assets from the admin directory
         testerPath: process.env.API_TESTER_PATH || '/tester',
+        // API versioning configuration
+        versioning: {
+            // Current API version (v1, v2, etc.)
+            current: 'v1',
+            // Previous versions that are supported
+            supported: ['v1'],
+            // Deprecated versions still functional but scheduled for removal
+            deprecated: [],
+            // Versions that are no longer supported
+            sunset: [],
+            // Versioning strategy: 'uri-path', 'query-param', 'header', 'content-type'
+            strategy: 'uri-path', 
+            // Format for deprecation notice
+            deprecationFormat: {
+                header: 'X-API-Deprecated',
+                message: 'This API version is deprecated. Please use {replacement} instead.'
+            },
+            // Default version to use if no version is specified
+            default: 'v1'
+        }
     },
     // CORS configuration
     cors: {
@@ -69,7 +96,8 @@ const config = {
     // Supabase configuration
     supabase: {
         url: process.env.SUPABASE_URL,
-        key: process.env.SUPABASE_ANON_KEY,
+        // Use SUPABASE_KEY if available, fall back to SUPABASE_ANON_KEY
+        key: process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY,
         tables: {
             users: 'users',
             challenges: 'challenges',
@@ -90,6 +118,14 @@ const config = {
             combined: process.env.LOG_COMBINED_PATH || 'logs/combined.log',
         },
         console: process.env.LOG_CONSOLE !== 'false',
+    },
+    // Sentry error monitoring configuration
+    sentry: {
+        dsn: process.env.SENTRY_DSN,
+        tracesSampleRate: parseFloat(process.env.SENTRY_TRACES_SAMPLE_RATE || '0.1'),
+        profilesSampleRate: parseFloat(process.env.SENTRY_PROFILES_SAMPLE_RATE || '0.1'),
+        enabled: !!process.env.SENTRY_DSN,
+        environment: process.env.NODE_ENV || 'development',
     },
     // User Journey configuration
     userJourney: {

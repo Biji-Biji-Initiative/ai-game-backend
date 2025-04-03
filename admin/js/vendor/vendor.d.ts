@@ -5,22 +5,22 @@
 
 // Declare the LZString module
 declare var LZString: {
-  compressToBase64(inpu: string): string;
-  decompressFromBase64(inpu: string): string | null;
-  compressToUTF16(inpu: string): string;
-  decompressFromUTF16(inpu: string): string | null;
-  compressToUint8Array(inpu: string): Uint8Array;
-  decompressFromUint8Array(inpu: Uint8Array): string | null;
-  compressToEncodedURIComponent(inpu: string): string;
-  decompressFromEncodedURIComponent(inpu: string): string | null;
-  compress(inpu: string): string;
-  decompress(inpu: string): string | null;
+  compressToBase64(input: string): string;
+  decompressFromBase64(input: string): string | null;
+  compressToUTF16(input: string): string;
+  decompressFromUTF16(input: string): string | null;
+  compressToUint8Array(input: string): Uint8Array;
+  decompressFromUint8Array(input: Uint8Array): string | null;
+  compressToEncodedURIComponent(input: string): string;
+  decompressFromEncodedURIComponent(input: string): string | null;
+  compress(input: string): string;
+  decompress(input: string): string | null;
 };
 
 // Declare the JSONFormatter
 declare class JSONFormatter {
   constructor(
-    data[] | Record<string, unknown>,
+    data: any[] | Record<string, unknown>,
     open?: number,
     options?: {
       hoverPreviewEnabled?: boolean;
@@ -32,8 +32,8 @@ declare class JSONFormatter {
     }
   );
   render(): HTMLElement;
-  openAtDepth(dept: number): void;
-  closeAtDepth(dept: number): void;
+  openAtDepth(depth: number): void;
+  closeAtDepth(depth: number): void;
   openAll(): void;
   closeAll(): void;
 }

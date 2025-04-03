@@ -3,10 +3,11 @@
  * Provides an abstraction layer for making network requests
  */
 
-import { logger } from '../utils/logger';
+import { ComponentLogger } from '../core/Logger';
+import { OpenApiService } from './OpenApiService';
 
 /**
- * Request options for network requests
+ * Network request options
  */
 export interface NetworkRequestOptions {
   /** Request headers */
@@ -15,6 +16,8 @@ export interface NetworkRequestOptions {
   timeout?: number;
   /** Whether to include credentials */
   withCredentials?: boolean;
+  /** Whether to validate with OpenAPI */
+  validateWithOpenApi?: boolean;
   /** Response type */
   responseType?: 'json' | 'text' | 'blob' | 'arraybuffer';
   /** Request body transformer */
@@ -27,6 +30,7 @@ export interface NetworkRequestOptions {
   responseInterceptor?: (response: NetworkResponse) => NetworkResponse;
   /** Error interceptor */
   errorInterceptor?: (error: Error) => Error | Promise<NetworkResponse>;
+  [key: string]: unknown;
 }
 
 /**
@@ -42,9 +46,18 @@ export interface NetworkResponse<T = unknown> {
   /** Response headers */
   headers: Record<string, string>;
   /** Original request configuration */
-  config: NetworkRequestOptions;
-  /** Original request */
-  request?: any;
+  requestOptions?: NetworkRequestOptions;
+  /** Original request URL */
+  requestUrl?: string;
+  /** Original request method */
+  requestMethod?: string;
+  /** Original request data */
+  requestData?: unknown;
+  /** Validation result */
+  validationResult?: {
+    valid: boolean;
+    errors?: unknown[];
+  };
 }
 
 /**
@@ -52,9 +65,41 @@ export interface NetworkResponse<T = unknown> {
  */
 export interface NetworkService {
   /**
+   * Set base URL for requests
+   * @param url Base URL
+   */
+  setBaseUrl(url: string): void;
+
+  /**
+   * Get the base URL
+   * @returns Base URL
+   */
+  getBaseUrl(): string;
+
+  /**
+   * Set a default header for all requests
+   * @param name Header name
+   * @param value Header value
+   */
+  setDefaultHeader(name: string, value: string): void;
+
+  /**
+   * Set default headers for all requests
+   * @param headers Headers to set
+   */
+  setDefaultHeaders(headers: Record<string, string>): void;
+
+  /**
+   * Set the OpenAPI service for request validation
+   * @param service OpenApiService instance
+   */
+  setOpenApiService(service: OpenApiService): void;
+
+  /**
    * Make a GET request
    * @param url Request URL
    * @param options Request options
+   * @returns Response promise
    */
   get<T = unknown>(url: string, options?: NetworkRequestOptions): Promise<NetworkResponse<T>>;
 
@@ -63,11 +108,12 @@ export interface NetworkService {
    * @param url Request URL
    * @param data Request data
    * @param options Request options
+   * @returns Response promise
    */
   post<T = unknown>(
     url: string,
     data?: unknown,
-    options?: NetworkRequestOptions
+    options?: NetworkRequestOptions,
   ): Promise<NetworkResponse<T>>;
 
   /**
@@ -75,17 +121,19 @@ export interface NetworkService {
    * @param url Request URL
    * @param data Request data
    * @param options Request options
+   * @returns Response promise
    */
   put<T = unknown>(
     url: string,
     data?: unknown,
-    options?: NetworkRequestOptions
+    options?: NetworkRequestOptions,
   ): Promise<NetworkResponse<T>>;
 
   /**
    * Make a DELETE request
    * @param url Request URL
    * @param options Request options
+   * @returns Response promise
    */
   delete<T = unknown>(url: string, options?: NetworkRequestOptions): Promise<NetworkResponse<T>>;
 
@@ -94,70 +142,176 @@ export interface NetworkService {
    * @param url Request URL
    * @param data Request data
    * @param options Request options
+   * @returns Response promise
    */
   patch<T = unknown>(
     url: string,
     data?: unknown,
-    options?: NetworkRequestOptions
+    options?: NetworkRequestOptions,
   ): Promise<NetworkResponse<T>>;
 
   /**
-   * Make a custom request
-   * @param method HTTP method
+   * Make a HEAD request
    * @param url Request URL
-   * @param data Request data
    * @param options Request options
+   * @returns Response promise
    */
-  request<T = unknown>(
-    method: string,
-    url: string,
-    data?: unknown,
-    options?: NetworkRequestOptions
-  ): Promise<NetworkResponse<T>>;
+  head<T = unknown>(url: string, options?: NetworkRequestOptions): Promise<NetworkResponse<T>>;
 
   /**
-   * Set default request options
-   * @param options Request options
+   * Add a request interceptor
+   * @param interceptor Request interceptor function
+   * @returns Interceptor ID for removal
    */
-  setDefaultOptions(options: NetworkRequestOptions): void;
+  addRequestInterceptor(interceptor: (config: unknown) => unknown): number;
 
   /**
-   * Set base URL for all requests
-   * @param baseUrl Base URL
+   * Add a response interceptor
+   * @param interceptor Response interceptor function
+   * @returns Interceptor ID for removal
    */
-  setBaseUrl(baseUrl: string): void;
+  addResponseInterceptor(interceptor: (response: unknown) => unknown): number;
 
   /**
-   * Cancel all pending requests
+   * Remove a request interceptor
+   * @param id Interceptor ID
    */
-  cancelAllRequests(): void;
+  removeRequestInterceptor(id: number): void;
+
+  /**
+   * Remove a response interceptor
+   * @param id Interceptor ID
+   */
+  removeResponseInterceptor(id: number): void;
+}
+
+/**
+ * Network service options including logger
+ */
+export interface NetworkServiceOptions extends NetworkRequestOptions {
+  logger?: ComponentLogger;
 }
 
 /**
  * Fetch implementation of NetworkService
  */
 export class FetchNetworkService implements NetworkService {
+  private baseUrl = '';
   private defaultOptions: NetworkRequestOptions = {
     headers: {
       'Content-Type': 'application/json',
-      'Accept': 'application/json',
+      Accept: 'application/json',
     },
     timeout: 30000,
-    responseType: 'json',
   };
-  private baseUrl = '';
-  private abortControllers: AbortController[] = [];
+  private openApiService: OpenApiService | null = null;
+  private requestInterceptors: ((config: unknown) => unknown)[] = [];
+  private responseInterceptors: ((response: unknown) => unknown)[] = [];
+  private logger: ComponentLogger;
 
   /**
-   * Constructor
+   * Create a fetch network service
    * @param options Default options
    */
-  constructor(options?: NetworkRequestOptions) {
+  constructor(options?: NetworkServiceOptions) {
     if (options) {
-      this.defaultOptions = {
-        ...this.defaultOptions,
-        ...options,
-      };
+      this.defaultOptions = { ...this.defaultOptions, ...options };
+      this.logger = options.logger || null as unknown as ComponentLogger;
+    } else {
+      this.logger = null as unknown as ComponentLogger;
+    }
+  }
+
+  /**
+   * Set the logger
+   * @param logger The logger to use
+   */
+  setLogger(logger: ComponentLogger): void {
+    this.logger = logger;
+  }
+
+  /**
+   * Set base URL for requests
+   * @param url Base URL
+   */
+  setBaseUrl(url: string): void {
+    this.baseUrl = url;
+    this.logger?.debug(`Base URL set to: ${url}`);
+  }
+
+  /**
+   * Get the base URL
+   * @returns Base URL
+   */
+  getBaseUrl(): string {
+    return this.baseUrl;
+  }
+
+  /**
+   * Set a default header for all requests
+   * @param name Header name
+   * @param value Header value
+   */
+  setDefaultHeader(name: string, value: string): void {
+    if (!this.defaultOptions.headers) {
+      this.defaultOptions.headers = {};
+    }
+    this.defaultOptions.headers[name] = value;
+  }
+
+  /**
+   * Set default headers for all requests
+   * @param headers Headers to set
+   */
+  setDefaultHeaders(headers: Record<string, string>): void {
+    this.defaultOptions.headers = { ...this.defaultOptions.headers, ...headers };
+  }
+
+  /**
+   * Set OpenAPI service for request validation
+   * @param service OpenApiService instance
+   */
+  setOpenApiService(service: OpenApiService): void {
+    this.openApiService = service;
+  }
+
+  /**
+   * Add a request interceptor
+   * @param interceptor Request interceptor function
+   * @returns Interceptor ID (index in array)
+   */
+  addRequestInterceptor(interceptor: (config: unknown) => unknown): number {
+    this.requestInterceptors.push(interceptor);
+    return this.requestInterceptors.length - 1;
+  }
+
+  /**
+   * Add a response interceptor
+   * @param interceptor Response interceptor function
+   * @returns Interceptor ID (index in array)
+   */
+  addResponseInterceptor(interceptor: (response: unknown) => unknown): number {
+    this.responseInterceptors.push(interceptor);
+    return this.responseInterceptors.length - 1;
+  }
+
+  /**
+   * Remove a request interceptor
+   * @param id Interceptor ID
+   */
+  removeRequestInterceptor(id: number): void {
+    if (id >= 0 && id < this.requestInterceptors.length) {
+      this.requestInterceptors.splice(id, 1);
+    }
+  }
+
+  /**
+   * Remove a response interceptor
+   * @param id Interceptor ID
+   */
+  removeResponseInterceptor(id: number): void {
+    if (id >= 0 && id < this.responseInterceptors.length) {
+      this.responseInterceptors.splice(id, 1);
     }
   }
 
@@ -165,11 +319,9 @@ export class FetchNetworkService implements NetworkService {
    * Make a GET request
    * @param url Request URL
    * @param options Request options
+   * @returns Response promise
    */
-  public async get<T = unknown>(
-    url: string,
-    options?: NetworkRequestOptions
-  ): Promise<NetworkResponse<T>> {
+  async get<T = unknown>(url: string, options?: NetworkRequestOptions): Promise<NetworkResponse<T>> {
     return this.request<T>('GET', url, undefined, options);
   }
 
@@ -178,11 +330,12 @@ export class FetchNetworkService implements NetworkService {
    * @param url Request URL
    * @param data Request data
    * @param options Request options
+   * @returns Response promise
    */
-  public async post<T = unknown>(
+  async post<T = unknown>(
     url: string,
     data?: unknown,
-    options?: NetworkRequestOptions
+    options?: NetworkRequestOptions,
   ): Promise<NetworkResponse<T>> {
     return this.request<T>('POST', url, data, options);
   }
@@ -192,11 +345,12 @@ export class FetchNetworkService implements NetworkService {
    * @param url Request URL
    * @param data Request data
    * @param options Request options
+   * @returns Response promise
    */
-  public async put<T = unknown>(
+  async put<T = unknown>(
     url: string,
     data?: unknown,
-    options?: NetworkRequestOptions
+    options?: NetworkRequestOptions,
   ): Promise<NetworkResponse<T>> {
     return this.request<T>('PUT', url, data, options);
   }
@@ -205,11 +359,9 @@ export class FetchNetworkService implements NetworkService {
    * Make a DELETE request
    * @param url Request URL
    * @param options Request options
+   * @returns Response promise
    */
-  public async delete<T = unknown>(
-    url: string,
-    options?: NetworkRequestOptions
-  ): Promise<NetworkResponse<T>> {
+  async delete<T = unknown>(url: string, options?: NetworkRequestOptions): Promise<NetworkResponse<T>> {
     return this.request<T>('DELETE', url, undefined, options);
   }
 
@@ -218,223 +370,270 @@ export class FetchNetworkService implements NetworkService {
    * @param url Request URL
    * @param data Request data
    * @param options Request options
+   * @returns Response promise
    */
-  public async patch<T = unknown>(
+  async patch<T = unknown>(
     url: string,
     data?: unknown,
-    options?: NetworkRequestOptions
+    options?: NetworkRequestOptions,
   ): Promise<NetworkResponse<T>> {
     return this.request<T>('PATCH', url, data, options);
   }
 
   /**
-   * Make a custom request
+   * Make a HEAD request
+   * @param url Request URL
+   * @param options Request options
+   * @returns Response promise
+   */
+  async head<T = unknown>(url: string, options?: NetworkRequestOptions): Promise<NetworkResponse<T>> {
+    return this.request<T>('HEAD', url, undefined, options);
+  }
+
+  /**
+   * Implementation of the request method with all HTTP methods
    * @param method HTTP method
    * @param url Request URL
    * @param data Request data
    * @param options Request options
+   * @returns Network response promise
    */
-  public async request<T = unknown>(
+  private async request<T>(
     method: string,
     url: string,
     data?: unknown,
-    options?: NetworkRequestOptions
+    options?: NetworkRequestOptions,
   ): Promise<NetworkResponse<T>> {
-    try {
-      // Merge options
-      const requestOptions: NetworkRequestOptions = {
-        ...this.defaultOptions,
-        ...options,
-      };
+    // Merge default options with provided options
+    const requestOptions: NetworkRequestOptions = {
+      ...this.defaultOptions,
+      ...options,
+    };
 
-      // Apply request interceptor if provided
-      if (requestOptions.requestInterceptor) {
-        const interceptedOptions = requestOptions.requestInterceptor(requestOptions);
-        Object.assign(requestOptions, interceptedOptions);
+    // Create request configuration
+    const requestConfig: RequestInit & { url: string; data?: unknown } = {
+      url: this.getFullUrl(url),
+      method,
+      headers: requestOptions.headers || {},
+      data: data,
+    };
+
+    // Apply request interceptors
+    let modifiedConfig = { ...requestConfig };
+    for (const interceptor of this.requestInterceptors) {
+      try {
+        const result = interceptor(modifiedConfig);
+        if (result) {
+          modifiedConfig = result as typeof modifiedConfig;
+        }
+      } catch (error) {
+        this.logger?.error('Request interceptor error', error);
       }
+    }
 
-      // Create full URL
-      const fullUrl = this.createFullUrl(url);
+    // Check if we should validate with OpenAPI
+    if (requestOptions.validateWithOpenApi && this.openApiService) {
+      try {
+        const validationResult = await this.openApiService.validateRequest(
+          modifiedConfig.method as string,
+          modifiedConfig.url,
+          modifiedConfig.data,
+          modifiedConfig.headers as Record<string, string>,
+        );
 
-      // Create headers
-      const headers = new Headers(requestOptions.headers);
+        if (!validationResult.valid) {
+          this.logger?.warn('OpenAPI validation failed', validationResult.errors);
+        }
+      } catch (error) {
+        this.logger?.error('OpenAPI validation error', error);
+      }
+    }
 
-      // Create abort controller for timeout
+    // Build fetch options
+    const fetchOptions: RequestInit = {
+      method: modifiedConfig.method as string,
+      headers: modifiedConfig.headers as HeadersInit,
+      credentials: requestOptions.withCredentials ? 'include' : 'same-origin',
+    };
+
+    // Add body for methods that support it
+    if (
+      ['POST', 'PUT', 'PATCH'].includes(modifiedConfig.method as string) &&
+      modifiedConfig.data !== undefined
+    ) {
+      // Apply request body transformer if provided
+      if (requestOptions.transformRequest) {
+        try {
+          const transformedData = requestOptions.transformRequest(modifiedConfig.data);
+          fetchOptions.body =
+            typeof transformedData === 'string'
+              ? transformedData
+              : JSON.stringify(transformedData);
+        } catch (error) {
+          this.logger?.error('Error transforming request data', error);
+          fetchOptions.body = JSON.stringify(modifiedConfig.data);
+        }
+      } else {
+        // Default transformation for JSON
+        fetchOptions.body =
+          typeof modifiedConfig.data === 'string'
+            ? modifiedConfig.data
+            : JSON.stringify(modifiedConfig.data);
+      }
+    }
+
+    try {
+      // Create AbortController for timeout handling
       const abortController = new AbortController();
-      this.abortControllers.push(abortController);
+      fetchOptions.signal = abortController.signal;
 
-      // Set up timeout if provided
-      let timeoutId: number | null = null;
-      if (requestOptions.timeout) {
+      // Set timeout if specified
+      let timeoutId: number | undefined;
+      if (requestOptions.timeout && requestOptions.timeout > 0) {
         timeoutId = window.setTimeout(() => {
           abortController.abort();
-          const index = this.abortControllers.indexOf(abortController);
-          if (index !== -1) {
-            this.abortControllers.splice(index, 1);
-          }
+          this.logger?.warn(`Request to ${url} timed out after ${requestOptions.timeout}ms`);
         }, requestOptions.timeout);
       }
 
-      // Transform request data if transformer provided
-      let transformedData = data;
-      if (data && requestOptions.transformRequest) {
-        transformedData = requestOptions.transformRequest(data);
-      }
-
-      // Create request
-      const fetchOptions: RequestInit = {
+      this.logger?.debug(`Making ${method} request to ${url}`, { 
+        url,
         method,
-        headers,
-        credentials: requestOptions.withCredentials ? 'include' : 'same-origin',
-        signal: abortController.signal,
-      };
+        options: requestOptions,
+      });
 
-      // Add body for non-GET requests
-      if (method !== 'GET' && method !== 'HEAD' && transformedData !== undefined) {
-        fetchOptions.body = JSON.stringify(transformedData);
-      }
+      // Make the fetch request
+      const response = await fetch(this.getFullUrl(url), fetchOptions);
 
-      // Make request
-      const response = await fetch(fullUrl, fetchOptions);
-
-      // Clear timeout
-      if (timeoutId !== null) {
+      // Clear timeout if set
+      if (timeoutId !== undefined) {
         window.clearTimeout(timeoutId);
       }
 
-      // Remove abort controller
-      const controllerIndex = this.abortControllers.indexOf(abortController);
-      if (controllerIndex !== -1) {
-        this.abortControllers.splice(controllerIndex, 1);
-      }
-
-      // Parse response based on response type
+      // Extract response data based on response type
       let responseData: T;
-      switch (requestOptions.responseType) {
-        case 'text':
-          responseData = await response.text() as unknown as T;
-          break;
-        case 'blob':
-          responseData = await response.blob() as unknown as T;
-          break;
-        case 'arraybuffer':
-          responseData = await response.arrayBuffer() as unknown as T;
-          break;
-        case 'json':
-        default:
-          try {
-            responseData = await response.json() as T;
-          } catch (error) {
-            // If response is not JSON, return empty object
-            responseData = {} as T;
-          }
-          break;
+
+      if (requestOptions.responseType === 'text') {
+        responseData = await response.text() as unknown as T;
+      } else if (requestOptions.responseType === 'blob') {
+        responseData = await response.blob() as unknown as T;
+      } else if (requestOptions.responseType === 'arraybuffer') {
+        responseData = await response.arrayBuffer() as unknown as T;
+      } else {
+        // Default to JSON
+        const text = await response.text();
+        try {
+          responseData = text ? JSON.parse(text) : null as unknown as T;
+        } catch (error) {
+          this.logger?.warn('Failed to parse JSON response', { text, error });
+          responseData = text as unknown as T;
+        }
       }
 
-      // Transform response if transformer provided
+      // Apply response transformer if provided
       if (requestOptions.transformResponse) {
-        responseData = requestOptions.transformResponse(responseData) as T;
+        try {
+          responseData = requestOptions.transformResponse(responseData) as T;
+        } catch (error) {
+          this.logger?.error('Error transforming response data', error);
+        }
       }
 
-      // Create response object
+      // Create network response
       const networkResponse: NetworkResponse<T> = {
         data: responseData,
         status: response.status,
         statusText: response.statusText,
-        headers: this.parseHeaders(response.headers),
-        config: requestOptions,
-        request: response,
+        headers: this.extractHeaders(response.headers),
+        requestOptions,
+        requestUrl: url,
+        requestMethod: method,
+        requestData: data,
       };
 
-      // Apply response interceptor if provided
-      if (requestOptions.responseInterceptor) {
-        return requestOptions.responseInterceptor(networkResponse) as NetworkResponse<T>;
+      // Apply response interceptors
+      let modifiedResponse: NetworkResponse<T> = { ...networkResponse };
+      for (const interceptor of this.responseInterceptors) {
+        try {
+          const result = interceptor(modifiedResponse);
+          if (result) {
+            modifiedResponse = result as NetworkResponse<T>;
+          }
+        } catch (error) {
+          this.logger?.error('Response interceptor error', error);
+        }
       }
 
-      return networkResponse;
-    } catch (error) {
-      logger.error('Network request failed:', error);
-
-      // Apply error interceptor if provided
-      if (options?.errorInterceptor) {
+      // Check for error status and handle if needed
+      if (!response.ok && requestOptions.errorInterceptor) {
         try {
-          const interceptedError = await options.errorInterceptor(error as Error);
-          if ('data' in interceptedError) {
-            // If interceptor returns a response, use it
-            return interceptedError as unknown as NetworkResponse<T>;
+          const error = new Error(`Request failed with status ${response.status}`);
+          Object.defineProperty(error, 'response', { value: modifiedResponse });
+          const errorResult = await requestOptions.errorInterceptor(error);
+          
+          if (errorResult instanceof Error) {
+            throw errorResult;
           }
-          // Otherwise, re-throw the error
-          throw interceptedError;
+          
+          if (typeof errorResult === 'object' && errorResult !== null) {
+            return errorResult as NetworkResponse<T>;
+          }
         } catch (interceptedError) {
+          this.logger?.error('Error interceptor failed', interceptedError);
           throw interceptedError;
         }
       }
 
+      // Throw error for non-2xx responses if no interceptor handled it
+      if (!response.ok) {
+        const error = new Error(`Request failed with status ${response.status}: ${response.statusText}`);
+        Object.defineProperty(error, 'response', { value: modifiedResponse });
+        throw error;
+      }
+
+      return modifiedResponse;
+    } catch (error) {
+      this.logger?.error('Network request failed', error);
       throw error;
     }
   }
 
   /**
-   * Set default request options
-   * @param options Request options
-   */
-  public setDefaultOptions(options: NetworkRequestOptions): void {
-    this.defaultOptions = {
-      ...this.defaultOptions,
-      ...options,
-    };
-  }
-
-  /**
-   * Set base URL for all requests
-   * @param baseUrl Base URL
-   */
-  public setBaseUrl(baseUrl: string): void {
-    this.baseUrl = baseUrl;
-  }
-
-  /**
-   * Cancel all pending requests
-   */
-  public cancelAllRequests(): void {
-    this.abortControllers.forEach(controller => {
-      try {
-        controller.abort();
-      } catch (error) {
-        logger.error('Failed to abort request:', error);
-      }
-    });
-    this.abortControllers = [];
-  }
-
-  /**
-   * Create full URL from relative URL
-   * @param url Relative URL
+   * Get full URL with base URL
+   * @param url URL path
    * @returns Full URL
    */
-  private createFullUrl(url: string): string {
+  private getFullUrl(url: string): string {
+    // If URL is already absolute, return it
     if (url.startsWith('http://') || url.startsWith('https://')) {
       return url;
     }
 
-    let baseUrl = this.baseUrl;
-    if (baseUrl.endsWith('/') && url.startsWith('/')) {
-      baseUrl = baseUrl.slice(0, -1);
+    // If base URL is not set, return URL as is
+    if (!this.baseUrl) {
+      return url;
     }
 
-    return `${baseUrl}${url}`;
+    // Join base URL and URL, handling slashes
+    if (this.baseUrl.endsWith('/') && url.startsWith('/')) {
+      return this.baseUrl + url.substring(1);
+    } else if (!this.baseUrl.endsWith('/') && !url.startsWith('/')) {
+      return `${this.baseUrl}/${url}`;
+    } else {
+      return this.baseUrl + url;
+    }
   }
 
   /**
-   * Parse headers from fetch response
-   * @param headers Response headers
-   * @returns Parsed headers
+   * Extract headers from Headers object
+   * @param headers Headers object
+   * @returns Record of header name to value
    */
-  private parseHeaders(headers: Headers): Record<string, string> {
+  private extractHeaders(headers: Headers): Record<string, string> {
     const result: Record<string, string> = {};
     headers.forEach((value, key) => {
       result[key] = value;
     });
     return result;
   }
-} 
+}

@@ -48,10 +48,42 @@ function buildTypeScript() {
     };
     fs.writeFileSync(tempTsConfigPath, JSON.stringify(tsConfig, null, 2));
     
-    // Use esbuild to compile TypeScript to JavaScript with the --tsconfig option
-    execSync('npx esbuild js/index.ts --bundle --outfile=dist/js/bundle.js --platform=browser --tsconfig=./temp-tsconfig.json', 
+    // Define entry points for code splitting
+    const entryPoints = {
+      main: 'js/index.ts',
+      services: 'js/services/index.ts',
+      controllers: 'js/controllers/index.ts'
+    };
+    
+    // Check if entry points exist, create them if they don't
+    Object.entries(entryPoints).forEach(([name, entryPath]) => {
+      const dir = path.dirname(entryPath);
+      ensureDirectoryExists(dir);
+      
+      if (!fs.existsSync(entryPath)) {
+        // For the main entry point, don't create a new file if it already exists
+        if (name === 'main' && fs.existsSync('js/index.ts')) {
+          return;
+        }
+        
+        // Create a basic entry file that re-exports the modules
+        if (name === 'services') {
+          fs.writeFileSync(entryPath, `// Services module index\nexport * from './StorageService';\nexport * from './DomService';\nexport * from './LoggingService';\nexport * from './NetworkService';\nexport * from './OpenApiService';\n`);
+        } else if (name === 'controllers') {
+          fs.writeFileSync(entryPath, `// Controllers module index\nexport * from './AppController';\nexport * from './FlowController';\nexport * from './ResponseController';\nexport * from './UserInterfaceController';\n`);
+        }
+        console.log(`Created entry point file: ${entryPath}`);
+      }
+    });
+    
+    // Use esbuild with code splitting
+    const entryPointPaths = Object.values(entryPoints);
+    
+    // Execute esbuild with code splitting options
+    execSync(`npx esbuild ${entryPointPaths.join(' ')} --bundle --outdir=dist/js --platform=browser --format=esm --splitting --chunk-names=[name]-[hash] --tsconfig=./temp-tsconfig.json`, 
       { stdio: 'inherit' });
-    console.log('TypeScript build completed successfully.');
+    
+    console.log('TypeScript build with code splitting completed successfully.');
     
     // Clean up temporary file
     fs.unlinkSync(tempTsConfigPath);
@@ -116,17 +148,27 @@ function copyStaticAssets() {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Admin Dashboard</title>
+        <title>API Admin</title>
         <link rel="stylesheet" href="css/styles.css">
       </head>
       <body>
         <div id="app"></div>
-        <script src="js/bundle.js"></script>
+        <script type="module" src="js/main.js"></script>
+        <script>
+          // Lazy load modules when needed
+          function loadModule(name) {
+            return import('./js/' + name + '.js')
+              .catch(error => console.error('Error loading module ' + name, error));
+          }
+          
+          window.loadServices = () => loadModule('services');
+          window.loadControllers = () => loadModule('controllers');
+        </script>
       </body>
       </html>
     `;
     fs.writeFileSync('./dist/index.html', htmlContent);
-    console.log('Created index.html in dist folder');
+    console.log('Created index.html with code splitting support in dist folder');
   }
   
   // Copy any other necessary files

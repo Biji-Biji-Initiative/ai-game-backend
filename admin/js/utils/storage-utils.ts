@@ -1,389 +1,207 @@
-// Types improved by ts-improve-types
 /**
- * Storage Utility Functions
- * Utilities for working with localStorage, sessionStorage, and IndexedDB
+ * Storage utilities
+ * 
+ * Provides utilities for working with browser storage
  */
 
 import { logger } from './logger';
 
 /**
- * Interface for storage options
+ * Storage type options
  */
-export interface StorageOptions {
-  expires?: number; // Expiration time in milliseconds
-  prefix?: string; // Key prefix for namespacing
+export enum StorageType {
+  /**
+   * Local storage (persists across browser sessions)
+   */
+  LOCAL = 'local',
+  
+  /**
+   * Session storage (persists only for the current browser session)
+   */
+  SESSION = 'session',
+  
+  /**
+   * Memory storage (persists only for the current page session)
+   */
+  MEMORY = 'memory',
 }
 
 /**
- * Interface for a stored item with expiration
+ * In-memory storage implementation
  */
-interface StoredItem<T> {
-  value: T;
-  expires?: number; // Timestamp when the item expires
-}
-
-/**
- * Checks if the storage is available
- * @param type Type of storage ('localStorage' or 'sessionStorage')
- * @returns True if storage is available, false otherwise
- */
-export function isStorageAvailable(type: 'localStorage' | 'sessionStorage'): boolean {
-  let storage: Storage | null = null; // Initialize to null
-  try {
-    storage = window[type];
-    const x = '__storage_test__';
-    storage.setItem(x, x);
-    storage.removeItem(x);
-    return true;
-  } catch (e) {
-    // Check for DOMExceptions indicating quota exceeded or security errors
-    return (
-      e instanceof DOMException &&
-      // Error codes for quota exceeded across browsers
-      (e.code === 22 || // Everything except Firefox
-        e.code === 1014 || // Firefox
-        // Error names for quota exceeded across browsers
-        e.name === 'QuotaExceededError' || // Everything except Firefox
-        e.name === 'NS_ERROR_DOM_QUOTA_REACHED') && // Firefox
-      // Acknowledge QuotaExceededError only if there's something already stored
-      storage !== null &&
-      storage.length !== 0
-    );
+class MemoryStorage {
+  private static data: Record<string, string> = {};
+  
+  /**
+   * Set an item in memory storage
+   * @param key Storage key
+   * @param value Value to store
+   */
+  public static setItem(key: string, value: string): void {
+    this.data[key] = value;
+  }
+  
+  /**
+   * Get an item from memory storage
+   * @param key Storage key
+   * @returns Stored value or null if not found
+   */
+  public static getItem(key: string): string | null {
+    return key in this.data ? this.data[key] : null;
+  }
+  
+  /**
+   * Remove an item from memory storage
+   * @param key Storage key
+   */
+  public static removeItem(key: string): void {
+    delete this.data[key];
+  }
+  
+  /**
+   * Clear all items from memory storage
+   */
+  public static clear(): void {
+    this.data = {};
+  }
+  
+  /**
+   * Get all keys in memory storage
+   * @returns Array of keys
+   */
+  public static keys(): string[] {
+    return Object.keys(this.data);
   }
 }
 
 /**
- * Sets an item in localStorage with optional expiration
- * @param key Key to store under
+ * Get storage interface based on type
+ * @param type Storage type
+ * @returns Storage interface
+ */
+function getStorage(type: StorageType): Storage {
+  switch (type) {
+    case StorageType.LOCAL:
+      return localStorage;
+    case StorageType.SESSION:
+      return sessionStorage;
+    case StorageType.MEMORY:
+      return MemoryStorage as unknown as Storage;
+    default:
+      throw new Error(`Invalid storage type: ${type}`);
+  }
+}
+
+/**
+ * Store a value in storage
+ * @param key Storage key
  * @param value Value to store
- * @param options Storage options
+ * @param type Storage type
  */
-export function setLocalStorageItem<T>(key: string, value: T, options: StorageOptions = {}): void {
+export function storeValue(key: string, value: unknown, type: StorageType = StorageType.LOCAL): void {
   try {
-    if (!isStorageAvailable('localStorage')) {
-      logger.warn('localStorage is not available');
-      return;
-    }
-
-    const { expires, prefix = '' } = options;
-    const prefixedKey = prefix ? `${prefix}_${key}` : key;
-
-    const item: StoredItem<T> = {
-      value,
-    };
-
-    // Add expiration if specified
-    if (expires) {
-      item.expires = Date.now() + expires;
-    }
-
-    localStorage.setItem(prefixedKey, JSON.stringify(item));
-    logger.debug(`LocalStorage: Set item "${prefixedKey}"`);
+    const storage = getStorage(type);
+    const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
+    storage.setItem(key, stringValue);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(`Failed to set localStorage item "${key}":`, errorMessage);
+    logger.error(`Failed to store value for key '${key}':`, error);
   }
 }
 
 /**
- * Gets an item from localStorage, respecting expiration
- * @param key Key to retrieve
- * @param options Storage options
- * @returns Retrieved value or null if not found or expired
- */
-export function getLocalStorageItem<T>(key: string, options: StorageOptions = {}): T | null {
-  try {
-    if (!isStorageAvailable('localStorage')) {
-      logger.warn('localStorage is not available');
-      return null;
-    }
-
-    const { prefix = '' } = options;
-    const prefixedKey = prefix ? `${prefix}_${key}` : key;
-
-    const json = localStorage.getItem(prefixedKey);
-
-    if (!json) {
-      return null;
-    }
-
-    const item: StoredItem<T> = JSON.parse(json);
-
-    // Check if the item has expired
-    if (item.expires && item.expires < Date.now()) {
-      localStorage.removeItem(prefixedKey);
-      logger.debug(`LocalStorage: Item "${prefixedKey}" expired and was removed`);
-      return null;
-    }
-
-    logger.debug(`LocalStorage: Retrieved item "${prefixedKey}"`);
-    return item.value;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(`Failed to get localStorage item "${key}":`, errorMessage);
-    return null;
-  }
-}
-
-/**
- * Removes an item from localStorage
- * @param key Key to remove
- * @param options Storage options
- */
-export function removeLocalStorageItem(key: string, options: StorageOptions = {}): void {
-  const { prefix = '' } = options;
-  const prefixedKey = prefix ? `${prefix}:${key}` : key;
-
-  if (!isStorageAvailable('localStorage')) {
-    logger.warn('localStorage is not available');
-    return;
-  }
-
-  try {
-    localStorage.removeItem(prefixedKey);
-    logger.debug(`LocalStorage: Removed item "${prefixedKey}"`);
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(`Failed to remove localStorage item "${key}":`, errorMessage);
-  }
-}
-
-/**
- * Sets an item in sessionStorage
- * @param key Key to store under
- * @param value Value to store
- * @param options Storage options
- */
-export function setSessionStorageItem<T>(
-  key: string,
-  value: T,
-  options: StorageOptions = {},
-): void {
-  try {
-    if (!isStorageAvailable('sessionStorage')) {
-      logger.warn('sessionStorage is not available');
-      return;
-    }
-
-    const { prefix = '' } = options;
-    const prefixedKey = prefix ? `${prefix}_${key}` : key;
-
-    const item: StoredItem<T> = { value };
-
-    sessionStorage.setItem(prefixedKey, JSON.stringify(item));
-    logger.debug(`SessionStorage: Set item "${prefixedKey}"`);
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(`Failed to set sessionStorage item "${key}":`, errorMessage);
-  }
-}
-
-/**
- * Gets an item from sessionStorage
- * @param key Key to retrieve
- * @param options Storage options
+ * Get a value from storage
+ * @param key Storage key
+ * @param type Storage type
  * @returns Retrieved value or null if not found
  */
-export function getSessionStorageItem<T>(key: string, options: StorageOptions = {}): T | null {
+export function getValue<T = unknown>(key: string, type: StorageType = StorageType.LOCAL): T | null {
   try {
-    if (!isStorageAvailable('sessionStorage')) {
-      logger.warn('sessionStorage is not available');
+    const storage = getStorage(type);
+    const value = storage.getItem(key);
+    
+    if (value === null) {
       return null;
     }
-
-    const { prefix = '' } = options;
-    const prefixedKey = prefix ? `${prefix}_${key}` : key;
-
-    const json = sessionStorage.getItem(prefixedKey);
-
-    if (!json) {
-      return null;
+    
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      // If parsing fails, return as string
+      return value as unknown as T;
     }
-
-    const item: StoredItem<T> = JSON.parse(json);
-    logger.debug(`SessionStorage: Retrieved item "${prefixedKey}"`);
-    return item.value;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(`Failed to get sessionStorage item "${key}":`, errorMessage);
+    logger.error(`Failed to get value for key '${key}':`, error);
     return null;
   }
 }
 
 /**
- * Removes an item from sessionStorage
- * @param key Key to remove
- * @param options Storage options
+ * Remove a value from storage
+ * @param key Storage key
+ * @param type Storage type
  */
-export function removeSessionStorageItem(key: string, options: StorageOptions = {}): void {
-  const { prefix = '' } = options;
-  const prefixedKey = prefix ? `${prefix}:${key}` : key;
-
-  if (!isStorageAvailable('sessionStorage')) {
-    logger.warn('sessionStorage is not available');
-    return;
-  }
-
+export function removeValue(key: string, type: StorageType = StorageType.LOCAL): void {
   try {
-    sessionStorage.removeItem(prefixedKey);
-    logger.debug(`SessionStorage: Removed item "${prefixedKey}"`);
+    const storage = getStorage(type);
+    storage.removeItem(key);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(`Failed to remove sessionStorage item "${key}":`, errorMessage);
+    logger.error(`Failed to remove value for key '${key}':`, error);
   }
 }
 
 /**
- * Clears expired items from localStorage
- * @param prefix Optional prefix to limit cleaning to specific keys
- * @returns Number of items removed
+ * Clear all values in a storage
+ * @param type Storage type
  */
-export function clearExpiredLocalStorageItems(prefix?: string): number {
-  if (!isStorageAvailable('localStorage')) {
-    logger.warn('localStorage is not available');
-    return 0;
-  }
-
-  let removedCount = 0;
-  const now = Date.now();
-
+export function clearStorage(type: StorageType = StorageType.LOCAL): void {
   try {
-    const keys = Object.keys(localStorage);
-
-    for (const key of keys) {
-      // Skip if prefix doesn't match
-      if (prefix && !key.startsWith(prefix)) {
-        continue;
-      }
-
-      try {
-        const json = localStorage.getItem(key);
-        if (!json) continue;
-
-        const item = JSON.parse(json);
-
-        // Check if the item has an expiration and if it has expired
-        if (item.expires && item.expires < now) {
-          localStorage.removeItem(key);
-          removedCount++;
-        }
-      } catch {
-        // Skip items that fail to parse
-        continue;
-      }
-    }
-
-    logger.debug(`LocalStorage: Cleared ${removedCount} expired items`);
-    return removedCount;
+    const storage = getStorage(type);
+    storage.clear();
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error('Failed to clear expired localStorage items:', errorMessage);
-    return removedCount;
+    logger.error(`Failed to clear storage of type '${type}':`, error);
   }
 }
 
 /**
- * Gets the size of data stored in localStorage
- * @param prefix Optional prefix to limit size calculation
- * @returns Size in bytes
+ * Check if a key exists in storage
+ * @param key Storage key
+ * @param type Storage type
+ * @returns Whether the key exists
  */
-export function getLocalStorageSize(prefix?: string): number {
-  if (!isStorageAvailable('localStorage')) {
-    logger.warn('localStorage is not available');
-    return 0;
-  }
-
+export function hasKey(key: string, type: StorageType = StorageType.LOCAL): boolean {
   try {
-    const keys = Object.keys(localStorage);
-    let totalSize = 0;
-
-    for (const key of keys) {
-      // Skip if prefix doesn't match
-      if (prefix && !key.startsWith(prefix)) {
-        continue;
-      }
-
-      const value = localStorage.getItem(key);
-      if (value) {
-        totalSize += key.length + value.length;
-      }
-    }
-
-    return totalSize * 2; // Multiply by 2 because characters are UTF-16 (2 bytes per character)
+    const storage = getStorage(type);
+    return storage.getItem(key) !== null;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error('Failed to calculate localStorage size:', errorMessage);
-    return 0;
+    logger.error(`Failed to check if key '${key}' exists:`, error);
+    return false;
   }
 }
 
 /**
- * Gets all localStorage keys with a specific prefix
- * @param prefix Prefix to filter by
+ * Get all keys in a storage
+ * @param type Storage type
  * @returns Array of keys
  */
-export function getLocalStorageKeys(prefix = ''): string[] {
-  if (!isStorageAvailable('localStorage')) {
-    logger.warn('localStorage is not available');
-    return [];
-  }
-
+export function getKeys(type: StorageType = StorageType.LOCAL): string[] {
   try {
-    const keys = Object.keys(localStorage);
-
-    if (!prefix) {
-      return keys;
+    const storage = getStorage(type);
+    
+    if (type === StorageType.MEMORY) {
+      return MemoryStorage.keys();
     }
-
-    return keys
-      .filter(key => key.startsWith(prefix))
-      .map(key => {
-        // Remove prefix from the key if desired
-        return prefix ? key.substring(prefix.length + 1) : key;
-      });
+    
+    const keys: string[] = [];
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i);
+      if (key !== null) {
+        keys.push(key);
+      }
+    }
+    
+    return keys;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error('Failed to get localStorage keys:', errorMessage);
+    logger.error(`Failed to get keys for storage type '${type}':`, error);
     return [];
   }
-}
-
-/**
- * Creates a storage manager for a specific namespace
- * @param namespace Namespace for the storage
- * @returns Storage manager object
- */
-export function createStorageManager(namespace: string) {
-  const options: StorageOptions = { prefix: namespace };
-
-  return {
-    setItem: <T>(key: string, value: T, expires?: number): void => {
-      setLocalStorageItem(key, value, { ...options, expires });
-    },
-
-    getItem: <T>(key: string): T | null => {
-      return getLocalStorageItem<T>(key, options);
-    },
-
-    removeItem: (key: string): void => {
-      removeLocalStorageItem(key, options);
-    },
-
-    clear: (): void => {
-      const keys = getLocalStorageKeys(namespace);
-      keys.forEach(key => removeLocalStorageItem(key, options));
-    },
-
-    clearExpired: (): number => {
-      return clearExpiredLocalStorageItems(namespace);
-    },
-
-    getSize: (): number => {
-      return getLocalStorageSize(namespace);
-    },
-
-    getKeys: (): string[] => {
-      return getLocalStorageKeys(namespace);
-    },
-  };
-}
+} 
