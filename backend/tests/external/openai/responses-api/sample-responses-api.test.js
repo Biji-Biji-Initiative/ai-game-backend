@@ -8,7 +8,7 @@ describe('OpenAI Responses API', function () {
     before(function () {
         skipIfMissingEnv(this, 'openai');
         // Set up OpenAI client
-        const config = testEnv.getTestConfig();
+        const config = getTestConfig();
         const configuration = new Configuration({
             apiKey: config.openai.apiKey,
             organization: config.openai.organization
@@ -19,7 +19,7 @@ describe('OpenAI Responses API', function () {
     this.timeout(30000);
     it('should be able to generate a JSON response from a prompt', async function () {
         // Skip if API key not available
-        if (!testEnv.getTestConfig().openai.apiKey) {
+        if (!getTestConfig().openai.apiKey) {
             this.skip();
         }
         // Create a prompt that requests JSON output

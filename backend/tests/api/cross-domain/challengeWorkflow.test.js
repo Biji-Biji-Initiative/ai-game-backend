@@ -5,7 +5,7 @@ import challengeRepository from "@/core/challenge/repositories/ChallengeReposito
 import domainEvents from "@/core/common/events/domainEvents.js";
 import promptBuilder from "@/core/prompt/promptBuilder.js";
 import { PROMPT_TYPES } from "@/core/prompt/promptTypes.js";
-import testEnv from "../../loadEnv.js";
+import { getTestConfig, hasRequiredVars } from "../../config/testConfig.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 import ChallengeDTOMapper from "@/application/challenge/mappers/ChallengeDTOMapper.js";
 import ChallengeResponseDTOMapper from "@/application/challenge/mappers/ChallengeResponseDTOMapper.js";
@@ -116,7 +116,7 @@ describe('Challenge Workflow with Real APIs', function () {
     let focusAreaCompletedHandlerCalled = false;
     before(async function () {
         // Skip tests if OpenAI API key is not available
-        if (!testEnv.getTestConfig().openai.apiKey) {
+        if (!getTestConfig().openai.apiKey) {
             console.warn('Skipping tests: OPENAI_API_KEY not available');
             this.skip();
         }

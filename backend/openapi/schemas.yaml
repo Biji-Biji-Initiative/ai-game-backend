@@ -95,6 +95,60 @@ components:
           type: string
           format: date-time
           description: When the challenge was last updated
+      additionalProperties: false
+    
+    CreateChallengeInput:
+      type: object
+      required:
+        - content
+        - userEmail
+      properties:
+        content:
+          type: string
+          description: The challenge content/question
+        userEmail:
+          type: string
+          format: email
+          description: Email of the user the challenge is for
+        focusArea:
+          type: string
+          description: The focus area of the challenge
+        challengeType:
+          type: string
+          description: The type of challenge
+        formatType:
+          type: string
+          description: The format of the challenge
+        difficulty:
+          type: string
+          enum: [beginner, intermediate, advanced, expert]
+          description: Difficulty level of the challenge
+      additionalProperties: false
+
+    UpdateChallengeInput:
+      type: object
+      properties:
+        content:
+          type: string
+          description: The challenge content/question
+        focusArea:
+          type: string
+          description: The focus area of the challenge
+        challengeType:
+          type: string
+          description: The type of challenge
+        formatType:
+          type: string
+          description: The format of the challenge
+        difficulty:
+          type: string
+          enum: [beginner, intermediate, advanced, expert]
+          description: Difficulty level of the challenge
+        status:
+          type: string
+          enum: [pending, submitted, evaluated]
+          description: Current status of the challenge
+      additionalProperties: false
     
     Evaluation:
       type: object
@@ -192,4 +246,115 @@ components:
         lastUpdated:
           type: string
           format: date-time
-          description: When the profile was last updated 
+          description: When the profile was last updated
+    
+    Progress:
+      type: object
+      description: User progress tracking information
+      required:
+        - id
+        - userEmail
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the progress record
+        userEmail:
+          type: string
+          format: email
+          description: User this progress belongs to
+        challengeId:
+          type: string
+          format: uuid
+          description: ID of the challenge being tracked
+        status:
+          type: string
+          enum: [started, completed, abandoned]
+          description: Current progress status
+        completedAt:
+          type: string
+          format: date-time
+          description: When the challenge was completed
+        score:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: Score achieved if completed
+      additionalProperties: false
+
+    ProgressRecord:
+      type: object
+      required:
+        - challengeId
+        - status
+      properties:
+        challengeId:
+          type: string
+          format: uuid
+          description: ID of the challenge being tracked
+        status:
+          type: string
+          enum: [started, completed, abandoned]
+          description: Current progress status
+        completedAt:
+          type: string
+          format: date-time
+          description: When the challenge was completed
+        score:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: Score achieved if completed
+      additionalProperties: false
+
+    ChallengeProgressDetail:
+      type: object
+      required:
+        - challengeId
+        - status
+      properties:
+        challengeId:
+          type: string
+          format: uuid
+          description: ID of the challenge
+        status:
+          type: string
+          enum: [started, completed, abandoned]
+          description: Current progress status
+        completedAt:
+          type: string
+          format: date-time
+          description: When the challenge was completed
+        score:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: Score achieved if completed
+        challenge:
+          $ref: '#/components/schemas/Challenge'
+      additionalProperties: false
+
+    CompleteChallengeInput:
+      type: object
+      required:
+        - challengeId
+        - status
+      properties:
+        challengeId:
+          type: string
+          format: uuid
+          description: ID of the challenge to complete
+        status:
+          type: string
+          enum: [completed, abandoned]
+          description: Final status of the challenge
+        completedAt:
+          type: string
+          format: date-time
+          description: When the challenge was completed
+        score:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: Score achieved if completed
+      additionalProperties: false 

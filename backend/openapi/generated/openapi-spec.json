@@ -85,12 +85,11 @@
           {
             "name": "format",
             "in": "query",
-            "description": "Response format (json or text)",
+            "description": "Response format (json or text) - Note Controller currently only returns JSON",
             "schema": {
               "type": "string",
               "enum": [
-                "json",
-                "text"
+                "json"
               ],
               "default": "json"
             }
@@ -109,7 +108,9 @@
                       "example": "success",
                       "enum": [
                         "success",
-                        "error"
+                        "error",
+                        "healthy",
+                        "unhealthy"
                       ]
                     },
                     "message": {
@@ -145,6 +146,11 @@
                             "message": {
                               "type": "string",
                               "example": "Database connection successful"
+                            },
+                            "responseTime": {
+                              "type": "integer",
+                              "description": "Time taken for DB check in ms",
+                              "example": 563
                             }
                           }
                         },
@@ -164,6 +170,11 @@
                             "message": {
                               "type": "string",
                               "example": "OpenAI service is available"
+                            },
+                            "responseTime": {
+                              "type": "integer",
+                              "description": "Time taken for OpenAI check in ms",
+                              "example": 949
                             }
                           }
                         }
@@ -175,7 +186,7 @@
             }
           },
           "500": {
-            "description": "Error during health check",
+            "description": "Error during health check execution",
             "content": {
               "application/json": {
                 "schema": {
@@ -187,7 +198,15 @@
                     },
                     "message": {
                       "type": "string",
-                      "example": "Server is error"
+                      "example": "Failed to perform health check"
+                    },
+                    "error": {
+                      "type": "string",
+                      "description": "Internal error message (optional)"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time"
                     }
                   }
                 }
@@ -203,15 +222,18 @@
                   "properties": {
                     "status": {
                       "type": "string",
-                      "example": "error"
+                      "example": "unhealthy"
                     },
                     "message": {
                       "type": "string",
-                      "example": "Server is unhealthy"
+                      "example": "Server is unhealthy due to dependency issues"
                     },
                     "timestamp": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "uptime": {
+                      "type": "number"
                     },
                     "dependencies": {
                       "type": "object",
@@ -230,7 +252,17 @@
                           }
                         },
                         "openai": {
-                          "type": "object"
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "example": "healthy"
+                            },
+                            "message": {
+                              "type": "string",
+                              "example": "OpenAI service is available"
+                            }
+                          }
                         }
                       }
                     }
@@ -244,11 +276,12 @@
     },
     "/users": {
       "get": {
-        "summary": "Get all users",
-        "description": "Retrieves a list of all users with pagination",
+        "summary": "Get all users (Admin)",
+        "description": "Retrieves a paginated list of all users in the system. Requires admin privileges.",
         "operationId": "getAllUsers",
         "tags": [
-          "Users"
+          "Users",
+          "Admin"
         ],
         "security": [
           {
@@ -277,14 +310,19 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/User"
+                      "type": "object",
+                      "properties": {
+                        "users": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/User"
+                          }
+                        }
                       }
                     },
                     "pagination": {
@@ -297,17 +335,21 @@
           },
           "401": {
             "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
           }
         }
       }
     },
     "/users/{id}": {
       "get": {
-        "summary": "Get user by ID",
-        "description": "Retrieves a user by their unique identifier",
-        "operationId": "getUserById",
+        "summary": "Get user by ID (Admin)",
+        "description": "Retrieves a specific user by their unique identifier. Requires admin privileges.",
+        "operationId": "getUserByIdAdmin",
         "tags": [
-          "Users"
+          "Users",
+          "Admin"
         ],
         "security": [
           {
@@ -334,12 +376,17 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
-                      "$ref": "#/components/schemas/User"
+                      "type": "object",
+                      "properties": {
+                        "user": {
+                          "$ref": "#/components/schemas/User"
+                        }
+                      }
                     }
                   }
                 }
@@ -348,6 +395,9 @@
           },
           "401": {
             "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
           },
           "404": {
             "$ref": "#/components/responses/NotFoundError"
@@ -358,7 +408,7 @@
     "/auth/login": {
       "post": {
         "summary": "Login to the system",
-        "description": "Authenticates a user and returns a JWT token",
+        "description": "Authenticates a user and returns an access token and minimal user info. Sets refresh token via httpOnly cookie.",
         "operationId": "loginUser",
         "tags": [
           "Auth"
@@ -397,19 +447,32 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
                       "type": "object",
                       "properties": {
-                        "token": {
+                        "accessToken": {
                           "type": "string",
-                          "description": "JWT token for authentication"
+                          "description": "JWT access token for authentication"
                         },
                         "user": {
-                          "$ref": "#/components/schemas/User"
+                          "type": "object",
+                          "description": "Basic user information returned on login",
+                          "properties": {
+                            "email": {
+                              "type": "string",
+                              "format": "email"
+                            },
+                            "fullName": {
+                              "type": "string"
+                            },
+                            "emailVerified": {
+                              "type": "boolean"
+                            }
+                          }
                         }
                       }
                     }
@@ -428,9 +491,9 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": false
+                    "status": {
+                      "type": "string",
+                      "example": "error"
                     },
                     "message": {
                       "type": "string",
@@ -447,7 +510,7 @@
     "/auth/register": {
       "post": {
         "summary": "Register a new user",
-        "description": "Creates a new user account",
+        "description": "Creates a new user account, returns token and user info. Sets refresh token via httpOnly cookie if applicable.",
         "operationId": "registerUser",
         "tags": [
           "Auth"
@@ -466,33 +529,14 @@
                 "properties": {
                   "email": {
                     "type": "string",
-                    "format": "email",
-                    "description": "User's email address"
+                    "format": "email"
                   },
                   "password": {
                     "type": "string",
-                    "format": "password",
-                    "description": "User's password"
+                    "format": "password"
                   },
                   "fullName": {
-                    "type": "string",
-                    "description": "User's full name"
-                  },
-                  "professionalTitle": {
-                    "type": "string",
-                    "description": "User's professional title"
-                  },
-                  "location": {
-                    "type": "string",
-                    "description": "User's location"
-                  },
-                  "country": {
-                    "type": "string",
-                    "description": "User's country"
-                  },
-                  "focusArea": {
-                    "type": "string",
-                    "description": "User's primary focus area"
+                    "type": "string"
                   }
                 }
               }
@@ -501,27 +545,46 @@
         },
         "responses": {
           "201": {
-            "description": "Registration successful",
+            "description": "Registration successful (Email verification might be pending)",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
                       "type": "object",
                       "properties": {
-                        "token": {
+                        "accessToken": {
                           "type": "string",
-                          "description": "JWT token for authentication"
+                          "nullable": true,
+                          "description": "JWT access token (if session created immediately)"
                         },
                         "user": {
-                          "$ref": "#/components/schemas/User"
+                          "type": "object",
+                          "description": "Basic user information returned on registration",
+                          "properties": {
+                            "email": {
+                              "type": "string",
+                              "format": "email"
+                            },
+                            "fullName": {
+                              "type": "string"
+                            },
+                            "emailVerified": {
+                              "type": "boolean"
+                            }
+                          }
                         }
                       }
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "User registered. Please check your email to verify your account.",
+                      "nullable": true
                     }
                   }
                 }
@@ -538,9 +601,9 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": false
+                    "status": {
+                      "type": "string",
+                      "example": "error"
                     },
                     "message": {
                       "type": "string",
@@ -557,7 +620,7 @@
     "/auth/refresh": {
       "post": {
         "summary": "Refresh authentication token",
-        "description": "Uses a refresh token to generate a new JWT access token",
+        "description": "Uses a refresh token (from httpOnly cookie or request body) to generate a new JWT access token.",
         "operationId": "refreshToken",
         "tags": [
           "Auth"
@@ -586,19 +649,31 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
                       "type": "object",
                       "properties": {
-                        "token": {
+                        "accessToken": {
                           "type": "string",
                           "description": "New JWT access token"
                         },
-                        "user": {
-                          "$ref": "#/components/schemas/User"
+                        "refreshToken": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "New refresh token (only if not using cookies)"
+                        },
+                        "expiresIn": {
+                          "type": "integer",
+                          "example": 3600,
+                          "description": "Access token validity duration in seconds"
+                        },
+                        "tokenType": {
+                          "type": "string",
+                          "example": "Bearer",
+                          "description": "Type of the access token"
                         }
                       }
                     }
@@ -614,13 +689,17 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": false
+                    "status": {
+                      "type": "string",
+                      "example": "error"
                     },
                     "message": {
                       "type": "string",
                       "example": "Invalid or expired refresh token"
+                    },
+                    "code": {
+                      "type": "string",
+                      "example": "AUTH_REFRESH_FAILED"
                     }
                   }
                 }
@@ -628,19 +707,19 @@
             }
           },
           "403": {
-            "description": "Refresh token has been revoked",
+            "description": "Refresh token has been revoked or is invalid (Generic fallback)",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": false
+                    "status": {
+                      "type": "string",
+                      "example": "error"
                     },
                     "message": {
                       "type": "string",
-                      "example": "Token has been revoked"
+                      "example": "Invalid or expired refresh token"
                     }
                   }
                 }
@@ -685,14 +764,19 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/Challenge"
+                      "type": "object",
+                      "properties": {
+                        "challenges": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Challenge"
+                          }
+                        }
                       }
                     },
                     "pagination": {
@@ -726,6 +810,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
+                "description": "Input for creating a new challenge",
                 "required": [
                   "content",
                   "userEmail"
@@ -733,7 +818,7 @@
                 "properties": {
                   "content": {
                     "type": "string",
-                    "description": "Challenge content/question"
+                    "description": "The challenge content/question"
                   },
                   "userEmail": {
                     "type": "string",
@@ -742,15 +827,15 @@
                   },
                   "focusArea": {
                     "type": "string",
-                    "description": "Focus area for the challenge"
+                    "description": "The focus area of the challenge"
                   },
                   "challengeType": {
                     "type": "string",
-                    "description": "Type of challenge"
+                    "description": "The type of challenge"
                   },
                   "formatType": {
                     "type": "string",
-                    "description": "Format of the challenge"
+                    "description": "The format of the challenge"
                   },
                   "difficulty": {
                     "type": "string",
@@ -760,7 +845,7 @@
                       "advanced",
                       "expert"
                     ],
-                    "description": "Difficulty level"
+                    "description": "Difficulty level of the challenge"
                   }
                 }
               }
@@ -775,12 +860,17 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
-                      "$ref": "#/components/schemas/Challenge"
+                      "type": "object",
+                      "properties": {
+                        "challenge": {
+                          "$ref": "#/components/schemas/Challenge"
+                        }
+                      }
                     }
                   }
                 }
@@ -829,12 +919,17 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
-                      "$ref": "#/components/schemas/Challenge"
+                      "type": "object",
+                      "properties": {
+                        "challenge": {
+                          "$ref": "#/components/schemas/Challenge"
+                        }
+                      }
                     }
                   }
                 }
@@ -879,22 +974,28 @@
             "application/json": {
               "schema": {
                 "type": "object",
+                "description": "Input for updating an existing challenge",
                 "properties": {
                   "content": {
                     "type": "string",
-                    "description": "Challenge content/question"
+                    "description": "The challenge content/question"
+                  },
+                  "userEmail": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "Email of the user the challenge is for"
                   },
                   "focusArea": {
                     "type": "string",
-                    "description": "Focus area for the challenge"
+                    "description": "The focus area of the challenge"
                   },
                   "challengeType": {
                     "type": "string",
-                    "description": "Type of challenge"
+                    "description": "The type of challenge"
                   },
                   "formatType": {
                     "type": "string",
-                    "description": "Format of the challenge"
+                    "description": "The format of the challenge"
                   },
                   "difficulty": {
                     "type": "string",
@@ -904,7 +1005,7 @@
                       "advanced",
                       "expert"
                     ],
-                    "description": "Difficulty level"
+                    "description": "Difficulty level of the challenge"
                   },
                   "status": {
                     "type": "string",
@@ -928,12 +1029,17 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
-                      "$ref": "#/components/schemas/Challenge"
+                      "type": "object",
+                      "properties": {
+                        "challenge": {
+                          "$ref": "#/components/schemas/Challenge"
+                        }
+                      }
                     }
                   }
                 }
@@ -983,9 +1089,9 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "message": {
                       "type": "string",
@@ -1040,14 +1146,19 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/Evaluation"
+                      "type": "object",
+                      "properties": {
+                        "evaluations": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Evaluation"
+                          }
+                        }
                       }
                     },
                     "pagination": {
@@ -1114,12 +1225,17 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
-                      "$ref": "#/components/schemas/Evaluation"
+                      "type": "object",
+                      "properties": {
+                        "evaluation": {
+                          "$ref": "#/components/schemas/Evaluation"
+                        }
+                      }
                     }
                   }
                 }
@@ -1168,12 +1284,17 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
-                      "$ref": "#/components/schemas/Evaluation"
+                      "type": "object",
+                      "properties": {
+                        "evaluation": {
+                          "$ref": "#/components/schemas/Evaluation"
+                        }
+                      }
                     }
                   }
                 }
@@ -1252,14 +1373,19 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/UserJourneyEvent"
+                      "type": "object",
+                      "properties": {
+                        "events": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/UserJourneyEvent"
+                          }
+                        }
                       }
                     },
                     "pagination": {
@@ -1314,24 +1440,29 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "date": {
-                            "type": "string",
-                            "format": "date",
-                            "description": "Date of the events"
-                          },
-                          "events": {
-                            "type": "array",
-                            "items": {
-                              "$ref": "#/components/schemas/UserJourneyEvent"
+                      "type": "object",
+                      "properties": {
+                        "timeline": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "date": {
+                                "type": "string",
+                                "format": "date",
+                                "description": "Date of the events"
+                              },
+                              "events": {
+                                "type": "array",
+                                "items": {
+                                  "$ref": "#/components/schemas/UserJourneyEvent"
+                                }
+                              }
                             }
                           }
                         }
@@ -1355,7 +1486,7 @@
       "get": {
         "summary": "Get user progress",
         "description": "Retrieves the user's overall progress in their learning journey",
-        "operationId": "getUserProgress",
+        "operationId": "getUserJourneyProgress",
         "tags": [
           "UserJourney"
         ],
@@ -1372,73 +1503,78 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
                       "type": "object",
                       "properties": {
-                        "userId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "description": "ID of the user"
-                        },
-                        "totalChallenges": {
-                          "type": "integer",
-                          "description": "Total number of challenges completed"
-                        },
-                        "totalPoints": {
-                          "type": "integer",
-                          "description": "Total points earned"
-                        },
-                        "rank": {
-                          "type": "string",
-                          "description": "User's current rank"
-                        },
-                        "level": {
-                          "type": "integer",
-                          "description": "User's current level"
-                        },
-                        "badges": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "string",
-                                "format": "uuid",
-                                "description": "Badge ID"
-                              },
-                              "name": {
-                                "type": "string",
-                                "description": "Badge name"
-                              },
-                              "description": {
-                                "type": "string",
-                                "description": "Badge description"
-                              },
-                              "earnedAt": {
-                                "type": "string",
-                                "format": "date-time",
-                                "description": "When the badge was earned"
-                              }
-                            }
-                          }
-                        },
-                        "nextMilestone": {
+                        "progress": {
                           "type": "object",
                           "properties": {
-                            "description": {
+                            "userId": {
                               "type": "string",
-                              "description": "Description of the next milestone"
+                              "format": "uuid",
+                              "description": "ID of the user"
                             },
-                            "progress": {
-                              "type": "number",
-                              "format": "float",
-                              "minimum": 0,
-                              "maximum": 100,
-                              "description": "Progress towards next milestone (0-100)"
+                            "totalChallenges": {
+                              "type": "integer",
+                              "description": "Total number of challenges completed"
+                            },
+                            "totalPoints": {
+                              "type": "integer",
+                              "description": "Total points earned"
+                            },
+                            "rank": {
+                              "type": "string",
+                              "description": "User's current rank"
+                            },
+                            "level": {
+                              "type": "integer",
+                              "description": "User's current level"
+                            },
+                            "badges": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "format": "uuid",
+                                    "description": "Badge ID"
+                                  },
+                                  "name": {
+                                    "type": "string",
+                                    "description": "Badge name"
+                                  },
+                                  "description": {
+                                    "type": "string",
+                                    "description": "Badge description"
+                                  },
+                                  "earnedAt": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "description": "When the badge was earned"
+                                  }
+                                }
+                              }
+                            },
+                            "nextMilestone": {
+                              "type": "object",
+                              "properties": {
+                                "description": {
+                                  "type": "string",
+                                  "description": "Description of the next milestone"
+                                },
+                                "progress": {
+                                  "type": "number",
+                                  "format": "float",
+                                  "minimum": 0,
+                                  "maximum": 100,
+                                  "description": "Progress towards next milestone (0-100)"
+                                }
+                              }
                             }
                           }
                         }
@@ -1511,14 +1647,19 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/AdaptiveRecommendation"
+                      "type": "object",
+                      "properties": {
+                        "recommendations": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/AdaptiveRecommendation"
+                          }
+                        }
                       }
                     },
                     "pagination": {
@@ -1590,12 +1731,17 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
-                      "$ref": "#/components/schemas/Challenge"
+                      "type": "object",
+                      "properties": {
+                        "challenge": {
+                          "$ref": "#/components/schemas/Challenge"
+                        }
+                      }
                     }
                   }
                 }
@@ -1633,55 +1779,60 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
                       "type": "object",
                       "properties": {
-                        "userId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "description": "ID of the user"
-                        },
-                        "skills": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "name": {
-                                "type": "string",
-                                "description": "Name of the skill"
-                              },
-                              "proficiency": {
-                                "type": "number",
-                                "format": "float",
-                                "minimum": 0,
-                                "maximum": 100,
-                                "description": "Proficiency level (0-100)"
-                              },
-                              "lastImproved": {
-                                "type": "string",
-                                "format": "date-time",
-                                "description": "When the skill was last improved"
+                        "skillProfile": {
+                          "type": "object",
+                          "properties": {
+                            "userId": {
+                              "type": "string",
+                              "format": "uuid",
+                              "description": "ID of the user"
+                            },
+                            "skills": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "description": "Name of the skill"
+                                  },
+                                  "proficiency": {
+                                    "type": "number",
+                                    "format": "float",
+                                    "minimum": 0,
+                                    "maximum": 100,
+                                    "description": "Proficiency level (0-100)"
+                                  },
+                                  "lastImproved": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "description": "When the skill was last improved"
+                                  }
+                                }
                               }
+                            },
+                            "recommendedFocusAreas": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "description": "Areas recommended for improvement"
+                              }
+                            },
+                            "overallProficiency": {
+                              "type": "number",
+                              "format": "float",
+                              "minimum": 0,
+                              "maximum": 100,
+                              "description": "Overall proficiency level (0-100)"
                             }
                           }
-                        },
-                        "recommendedFocusAreas": {
-                          "type": "array",
-                          "items": {
-                            "type": "string",
-                            "description": "Areas recommended for improvement"
-                          }
-                        },
-                        "overallProficiency": {
-                          "type": "number",
-                          "format": "float",
-                          "minimum": 0,
-                          "maximum": 100,
-                          "description": "Overall proficiency level (0-100)"
                         }
                       }
                     }
@@ -1750,9 +1901,9 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
                       "type": "array",
@@ -1760,8 +1911,22 @@
                         "$ref": "#/components/schemas/FocusArea"
                       }
                     },
-                    "pagination": {
-                      "$ref": "#/components/schemas/PaginationParams"
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "integer",
+                          "description": "Total number of focus areas"
+                        },
+                        "offset": {
+                          "type": "integer",
+                          "description": "Offset used for pagination"
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "description": "Limit used for pagination"
+                        }
+                      }
                     }
                   }
                 }
@@ -1833,12 +1998,17 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
-                      "$ref": "#/components/schemas/FocusArea"
+                      "type": "object",
+                      "properties": {
+                        "focusArea": {
+                          "$ref": "#/components/schemas/FocusArea"
+                        }
+                      }
                     }
                   }
                 }
@@ -1890,9 +2060,9 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
                       "$ref": "#/components/schemas/FocusArea"
@@ -1976,12 +2146,17 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
-                      "$ref": "#/components/schemas/FocusArea"
+                      "type": "object",
+                      "properties": {
+                        "focusArea": {
+                          "$ref": "#/components/schemas/FocusArea"
+                        }
+                      }
                     }
                   }
                 }
@@ -2034,9 +2209,9 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "message": {
                       "type": "string",
@@ -2093,14 +2268,19 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/FocusArea"
+                      "type": "object",
+                      "properties": {
+                        "focusAreas": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/FocusArea"
+                          }
+                        }
                       }
                     }
                   }
@@ -2172,9 +2352,9 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "message": {
                       "type": "string",
@@ -2199,8 +2379,8 @@
     },
     "/focus-areas/generate": {
       "post": {
-        "summary": "Generate a new focus area",
-        "description": "Uses AI to generate a new focus area (admin only)",
+        "summary": "Generate a new focus area based on user profile",
+        "description": "Uses AI to generate a personalized focus area based on user profile data",
         "operationId": "generateFocusArea",
         "tags": [
           "FocusAreas"
@@ -2215,36 +2395,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "required": [
-                  "name"
-                ],
-                "properties": {
-                  "name": {
-                    "type": "string",
-                    "description": "Name or topic for the focus area"
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Optional starting description"
-                  },
-                  "category": {
-                    "type": "string",
-                    "description": "Category for the focus area",
-                    "default": "general"
-                  },
-                  "difficulty": {
-                    "type": "string",
-                    "enum": [
-                      "beginner",
-                      "intermediate",
-                      "advanced",
-                      "expert"
-                    ],
-                    "description": "Difficulty level",
-                    "default": "intermediate"
-                  }
-                }
+                "$ref": "#/components/schemas/GenerateFocusAreaRequest"
               }
             }
           }
@@ -2257,9 +2408,9 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
                       "$ref": "#/components/schemas/FocusArea"
@@ -2281,11 +2432,84 @@
         }
       }
     },
+    "/focus-areas/thread": {
+      "post": {
+        "summary": "Create a thread for focus area generation",
+        "description": "Creates a new thread for AI-powered focus area generation for the current user",
+        "operationId": "createFocusAreaThread",
+        "tags": [
+          "FocusAreas"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {}
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Thread created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "threadId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "description": "Thread ID for use in focus area generation"
+                        }
+                      }
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Focus area thread created successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
     "/progress": {
       "get": {
-        "summary": "Get current user's progress",
-        "description": "Retrieves the overall progress for the current user",
-        "operationId": "getUserProgress",
+        "summary": "Get current user's overall progress summary",
+        "description": "Retrieves the overall progress summary for the current authenticated user",
+        "operationId": "getUserProgressSummary",
         "tags": [
           "Progress"
         ],
@@ -2296,20 +2520,20 @@
         ],
         "responses": {
           "200": {
-            "description": "User progress retrieved successfully",
+            "description": "User progress summary retrieved successfully",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
                       "type": "object",
                       "properties": {
-                        "progress": {
+                        "progressSummary": {
                           "type": "object",
                           "properties": {
                             "overall": {
@@ -2321,23 +2545,25 @@
                             },
                             "level": {
                               "type": "integer",
-                              "description": "User's current level"
+                              "description": "User's current level based on progress"
                             },
                             "skillLevels": {
                               "type": "object",
                               "additionalProperties": {
-                                "type": "number"
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 100
                               },
-                              "description": "Map of skill names to level values"
+                              "description": "Map of skill names to estimated level values"
                             },
                             "challengesCompleted": {
                               "type": "integer",
-                              "description": "Number of challenges completed"
+                              "description": "Number of challenges completed contributing to this summary"
                             },
                             "lastActive": {
                               "type": "string",
                               "format": "date-time",
-                              "description": "When the user was last active"
+                              "description": "Timestamp of the last activity influencing progress"
                             }
                           }
                         }
@@ -2356,9 +2582,9 @@
     },
     "/progress/all": {
       "get": {
-        "summary": "Get all progress records",
-        "description": "Retrieves all progress records for the current user",
-        "operationId": "getAllUserProgress",
+        "summary": "Get all progress records for user",
+        "description": "Retrieves a paginated list of all progress records for the current user",
+        "operationId": "getAllUserProgressRecords",
         "tags": [
           "Progress"
         ],
@@ -2386,9 +2612,9 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
                       "type": "object",
@@ -2396,43 +2622,13 @@
                         "progressRecords": {
                           "type": "array",
                           "items": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "string",
-                                "format": "uuid",
-                                "description": "Progress record ID"
-                              },
-                              "challengeId": {
-                                "type": "string",
-                                "format": "uuid",
-                                "description": "Related challenge ID"
-                              },
-                              "focusArea": {
-                                "type": "string",
-                                "description": "Focus area"
-                              },
-                              "averageScore": {
-                                "type": "number",
-                                "format": "float",
-                                "description": "Average score"
-                              },
-                              "completedAt": {
-                                "type": "string",
-                                "format": "date-time",
-                                "description": "Completion timestamp"
-                              }
-                            }
+                            "$ref": "#/components/schemas/Progress/ProgressRecord"
                           }
-                        },
-                        "count": {
-                          "type": "integer",
-                          "description": "Total number of records"
-                        },
-                        "pagination": {
-                          "$ref": "#/components/schemas/PaginationParams"
                         }
                       }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/PaginationParams"
                     }
                   }
                 }
@@ -2447,8 +2643,8 @@
     },
     "/progress/challenge/{challengeId}": {
       "get": {
-        "summary": "Get progress for a challenge",
-        "description": "Retrieves the user's progress for a specific challenge",
+        "summary": "Get progress for a specific challenge",
+        "description": "Retrieves the user's progress details for a specific completed challenge",
         "operationId": "getChallengeProgress",
         "tags": [
           "Progress",
@@ -2479,52 +2675,15 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
                       "type": "object",
                       "properties": {
-                        "challengeId": {
-                          "type": "string",
-                          "format": "uuid",
-                          "description": "Challenge ID"
-                        },
-                        "score": {
-                          "type": "number",
-                          "format": "float",
-                          "description": "Average score"
-                        },
-                        "completionTime": {
-                          "type": "integer",
-                          "description": "Time to complete in seconds"
-                        },
-                        "skillLevels": {
-                          "type": "object",
-                          "additionalProperties": {
-                            "type": "number"
-                          },
-                          "description": "Map of skill names to level values"
-                        },
-                        "strengths": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          },
-                          "description": "Areas of strength"
-                        },
-                        "weaknesses": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          },
-                          "description": "Areas needing improvement"
-                        },
-                        "completedAt": {
-                          "type": "string",
-                          "format": "date-time",
-                          "description": "Completion timestamp"
+                        "challengeProgress": {
+                          "$ref": "#/components/schemas/Progress/ChallengeProgressDetail"
                         }
                       }
                     }
@@ -2548,7 +2707,7 @@
     "/progress/complete": {
       "post": {
         "summary": "Record challenge completion",
-        "description": "Records the completion of a challenge for the current user",
+        "description": "Records the completion of a challenge and associated progress metrics for the current user",
         "operationId": "recordChallengeCompletion",
         "tags": [
           "Progress",
@@ -2564,38 +2723,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "required": [
-                  "challengeId",
-                  "score"
-                ],
-                "properties": {
-                  "challengeId": {
-                    "type": "string",
-                    "format": "uuid",
-                    "description": "ID of the completed challenge"
-                  },
-                  "score": {
-                    "type": "number",
-                    "format": "float",
-                    "minimum": 0,
-                    "maximum": 100,
-                    "description": "Score achieved (0-100)"
-                  },
-                  "completionTime": {
-                    "type": "integer",
-                    "description": "Time to complete in seconds"
-                  },
-                  "skillLevels": {
-                    "type": "object",
-                    "additionalProperties": {
-                      "type": "number",
-                      "minimum": 0,
-                      "maximum": 100
-                    },
-                    "description": "Skill levels achieved"
-                  }
-                }
+                "$ref": "#/components/schemas/Progress/CompleteChallengeInput"
               }
             }
           }
@@ -2608,12 +2736,17 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
-                      "$ref": "#/components/schemas/Progress"
+                      "type": "object",
+                      "properties": {
+                        "progressRecord": {
+                          "$ref": "#/components/schemas/Progress/ProgressRecord"
+                        }
+                      }
                     }
                   }
                 }
@@ -2631,8 +2764,8 @@
     },
     "/progress/skills": {
       "put": {
-        "summary": "Update skill levels",
-        "description": "Updates the user's skill levels",
+        "summary": "Update user skill levels directly",
+        "description": "Allows direct update of the user's calculated skill levels (potentially admin only or specific use cases)",
         "operationId": "updateSkillLevels",
         "tags": [
           "Progress"
@@ -2648,19 +2781,15 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "skillLevels"
-                ],
-                "properties": {
-                  "skillLevels": {
-                    "type": "object",
-                    "additionalProperties": {
-                      "type": "number",
-                      "minimum": 0,
-                      "maximum": 100
-                    },
-                    "description": "Map of skill names to level values (0-100)"
-                  }
+                "description": "Map of skill names to new level values",
+                "additionalProperties": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "example": {
+                  "communication": 75,
+                  "problem_solving": 80
                 }
               }
             }
@@ -2674,24 +2803,19 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
                       "type": "object",
                       "properties": {
-                        "skillLevels": {
+                        "updatedSkills": {
                           "type": "object",
+                          "description": "The updated skill levels map",
                           "additionalProperties": {
                             "type": "number"
-                          },
-                          "description": "Updated skill levels"
-                        },
-                        "updatedAt": {
-                          "type": "string",
-                          "format": "date-time",
-                          "description": "Update timestamp"
+                          }
                         }
                       }
                     }
@@ -2705,6 +2829,9 @@
           },
           "401": {
             "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
           }
         }
       }
@@ -2750,9 +2877,9 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
                       "type": "object",
@@ -2832,12 +2959,17 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
-                      "$ref": "#/components/schemas/Personality"
+                      "type": "object",
+                      "properties": {
+                        "profile": {
+                          "$ref": "#/components/schemas/Personality"
+                        }
+                      }
                     }
                   }
                 }
@@ -2935,9 +3067,9 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
                       "type": "object",
@@ -3052,9 +3184,9 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
                       "type": "object",
@@ -3136,9 +3268,9 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
                       "type": "object",
@@ -3215,9 +3347,9 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
                       "type": "object",
@@ -3316,37 +3448,42 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
                       "type": "object",
                       "properties": {
                         "compatibility": {
-                          "type": "number",
-                          "format": "float",
-                          "minimum": 0,
-                          "maximum": 100,
-                          "description": "Compatibility score (0-100)"
-                        },
-                        "strengths": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          },
-                          "description": "Personality strengths for this challenge"
-                        },
-                        "challenges": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          },
-                          "description": "Potential challenges for the user"
-                        },
-                        "recommendedApproach": {
-                          "type": "string",
-                          "description": "Recommended approach based on personality"
+                          "type": "object",
+                          "properties": {
+                            "score": {
+                              "type": "number",
+                              "format": "float",
+                              "minimum": 0,
+                              "maximum": 100,
+                              "description": "Compatibility score (0-100)"
+                            },
+                            "strengths": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "Personality strengths for this challenge"
+                            },
+                            "challenges": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "Potential challenges for the user"
+                            },
+                            "recommendedApproach": {
+                              "type": "string",
+                              "description": "Recommended approach based on personality"
+                            }
+                          }
                         }
                       }
                     }
@@ -3438,31 +3575,36 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
                       "type": "object",
                       "properties": {
-                        "id": {
-                          "type": "string",
-                          "format": "uuid",
-                          "description": "Assessment result ID"
-                        },
-                        "status": {
-                          "type": "string",
-                          "enum": [
-                            "pending",
-                            "processing",
-                            "completed",
-                            "failed"
-                          ],
-                          "description": "Status of the assessment"
-                        },
-                        "profileUpdated": {
-                          "type": "boolean",
-                          "description": "Whether the profile was updated"
+                        "assessment": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid",
+                              "description": "Assessment result ID"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "pending",
+                                "processing",
+                                "completed",
+                                "failed"
+                              ],
+                              "description": "Status of the assessment"
+                            },
+                            "profileUpdated": {
+                              "type": "boolean",
+                              "description": "Whether the profile was updated"
+                            }
+                          }
                         }
                       }
                     }
@@ -3520,14 +3662,19 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "example": "success"
                     },
                     "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/Prompt"
+                      "type": "object",
+                      "properties": {
+                        "prompts": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Prompt"
+                          }
+                        }
                       }
                     },
                     "pagination": {
@@ -3602,13 +3749,33 @@
             "schema": {
               "type": "object",
               "properties": {
-                "success": {
-                  "type": "boolean",
-                  "example": false
+                "status": {
+                  "type": "string",
+                  "example": "error"
                 },
                 "message": {
                   "type": "string",
                   "example": "Unauthorized - Invalid or missing token"
+                }
+              }
+            }
+          }
+        }
+      },
+      "ForbiddenError": {
+        "description": "User does not have permission to access the resource",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "example": "error"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Forbidden - Insufficient permissions to access this resource"
                 }
               }
             }
@@ -3622,9 +3789,9 @@
             "schema": {
               "type": "object",
               "properties": {
-                "success": {
-                  "type": "boolean",
-                  "example": false
+                "status": {
+                  "type": "string",
+                  "example": "error"
                 },
                 "message": {
                   "type": "string",
@@ -3642,9 +3809,9 @@
             "schema": {
               "type": "object",
               "properties": {
-                "success": {
-                  "type": "boolean",
-                  "example": false
+                "status": {
+                  "type": "string",
+                  "example": "error"
                 },
                 "message": {
                   "type": "string",
@@ -3697,9 +3864,9 @@
             "schema": {
               "type": "object",
               "properties": {
-                "success": {
-                  "type": "boolean",
-                  "example": false
+                "status": {
+                  "type": "string",
+                  "example": "error"
                 },
                 "message": {
                   "type": "string",
@@ -3715,6 +3882,66 @@
           }
         }
       },
+      "InternalServerError": {
+        "description": "Unexpected server error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "example": "error"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Internal server error occurred"
+                },
+                "error": {
+                  "type": "string",
+                  "description": "Additional error details (optional)"
+                }
+              }
+            }
+          }
+        }
+      },
+      "ServerError": {
+        "description": "Server encountered an error processing the request",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "example": "error"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "The server encountered an error processing the request"
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "code": {
+                        "type": "string",
+                        "description": "Error code"
+                      },
+                      "message": {
+                        "type": "string",
+                        "description": "Error message details"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
       "PaginatedResponse": {
         "description": "A paginated list of items",
         "content": {
@@ -3722,14 +3949,19 @@
             "schema": {
               "type": "object",
               "properties": {
-                "success": {
-                  "type": "boolean",
-                  "example": true
+                "status": {
+                  "type": "string",
+                  "example": "success"
                 },
                 "data": {
-                  "type": "array",
-                  "items": {
-                    "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
                   }
                 },
                 "pagination": {
@@ -4239,6 +4471,40 @@
           }
         }
       },
+      "GenerateFocusAreaRequest": {
+        "type": "object",
+        "description": "Request body for focus area generation",
+        "properties": {
+          "professionalTitle": {
+            "type": "string",
+            "description": "User's professional title or role"
+          },
+          "interests": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "User's interests or topics they want to learn about"
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "User's existing skills"
+          },
+          "goals": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "User's learning goals or objectives"
+          }
+        },
+        "required": [
+          "professionalTitle"
+        ]
+      },
       "Progress": {
         "type": "object",
         "description": "User progress tracking information",
@@ -4315,6 +4581,185 @@
             "type": "string",
             "format": "date-time",
             "description": "When the progress record was last updated"
+          },
+          "progressRecords": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Progress/ProgressRecord"
+            },
+            "description": "List of individual progress records"
+          },
+          "challengeDetails": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Progress/ChallengeProgressDetail"
+            },
+            "description": "List of challenge progress details"
+          },
+          "completedChallenges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Progress/CompleteChallengeInput"
+            },
+            "description": "List of completed challenge inputs"
+          }
+        },
+        "ProgressRecord": {
+          "type": "object",
+          "description": "Record of user progress for a specific activity or challenge",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Unique identifier for the progress record"
+            },
+            "userId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "ID of the user this progress belongs to"
+            },
+            "challengeId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "ID of the challenge this progress is related to (if applicable)"
+            },
+            "focusArea": {
+              "type": "string",
+              "description": "Focus area for this progress"
+            },
+            "score": {
+              "type": "number",
+              "format": "float",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Score for this activity (0-100)"
+            },
+            "completionTime": {
+              "type": "integer",
+              "description": "Time to complete in seconds"
+            },
+            "skillsImproved": {
+              "type": "object",
+              "description": "Map of skills improved with their improvement values",
+              "additionalProperties": {
+                "type": "number"
+              }
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "When the progress record was created"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "completed",
+                "in_progress",
+                "abandoned"
+              ],
+              "description": "Status of this progress record"
+            }
+          }
+        },
+        "ChallengeProgressDetail": {
+          "type": "object",
+          "description": "Detailed progress information for a specific challenge",
+          "properties": {
+            "challengeId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "ID of the challenge"
+            },
+            "userId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "ID of the user"
+            },
+            "completedAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "When the challenge was completed"
+            },
+            "score": {
+              "type": "number",
+              "format": "float",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Overall score for the challenge"
+            },
+            "timeSpent": {
+              "type": "integer",
+              "description": "Time spent on the challenge in seconds"
+            },
+            "skillsApplied": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Skills applied during the challenge"
+            },
+            "feedback": {
+              "type": "string",
+              "description": "Feedback on the challenge completion"
+            },
+            "difficultyCurve": {
+              "type": "object",
+              "properties": {
+                "perceived": {
+                  "type": "string",
+                  "enum": [
+                    "easy",
+                    "moderate",
+                    "difficult",
+                    "very_difficult"
+                  ]
+                },
+                "actual": {
+                  "type": "string",
+                  "enum": [
+                    "beginner",
+                    "intermediate",
+                    "advanced",
+                    "expert"
+                  ]
+                }
+              },
+              "description": "Perceived vs actual difficulty"
+            }
+          }
+        },
+        "CompleteChallengeInput": {
+          "type": "object",
+          "description": "Input for recording challenge completion",
+          "required": [
+            "challengeId",
+            "timeSpent"
+          ],
+          "properties": {
+            "challengeId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "ID of the completed challenge"
+            },
+            "timeSpent": {
+              "type": "integer",
+              "description": "Time spent on the challenge in seconds"
+            },
+            "response": {
+              "type": "string",
+              "description": "User's response to the challenge"
+            },
+            "skillsApplied": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Skills the user applied during the challenge"
+            },
+            "feedbackNotes": {
+              "type": "string",
+              "description": "User's notes or feedback about the challenge"
+            }
           }
         }
       },

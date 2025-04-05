@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import openai from "@/infra/openai";
-import testEnv from "../../loadEnv.js";
+import { getTestConfig, hasRequiredVars } from "../../config/testConfig.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 import { config } from "dotenv";
 const { OpenAIClient } = openai;
@@ -14,12 +14,12 @@ describe('External: OpenAI Focus Area Integration', function () {
     let openaiClient;
     before(function () {
         // Skip tests if OpenAI API key is not available
-        if (!testEnv.getTestConfig().openai.apiKey) {
+        if (!getTestConfig().openai.apiKey) {
             console.warn('OPENAI_API_KEY not found, skipping external tests');
             this.skip();
         }
         // Initialize OpenAI client
-        openaiClient = new OpenAIClient({ apiKey: testEnv.getTestConfig().openai.apiKey
+        openaiClient = new OpenAIClient({ apiKey: getTestConfig().openai.apiKey
         });
     });
     it('should generate focus area recommendations using OpenAI', async function () {

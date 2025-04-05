@@ -4,6 +4,9 @@ import personalityErrors, { PersonalityError, PersonalityNotFoundError, Personal
 import { updatePersonalityTraitsSchema, updateAIAttitudesSchema, profileQuerySchema } from "#app/core/personality/schemas/personalityApiSchemas.js";
 import { personalityLogger } from "#app/core/infra/logging/domainLogger.js";
 import { applyRepositoryErrorHandling, applyServiceErrorHandling, withControllerErrorHandling, createErrorMapper } from "#app/core/infra/errors/errorStandardization.js";
+// Import PersonalityDTOMapper directly
+import PersonalityDTOMapper from "#app/application/personality/mappers/PersonalityDTOMapper.js";
+
 // Error mappings for controllers
 const personalityControllerErrorMappings = [{
   errorClass: PersonalityNotFoundError,
@@ -26,9 +29,11 @@ class PersonalityController {
    */
   constructor(dependencies = {}) {
     const {
-      personalityService
+      personalityService,
+      container
     } = dependencies;
     this.personalityService = personalityService;
+    this.container = container; // Store container reference if provided
     this.logger = personalityLogger.child('controller');
   }
   /**
@@ -180,58 +185,47 @@ class PersonalityController {
     }
   }
   /**
-   * Get personality profile for a user
-   * @param {Request} req - Express request object
-   * @param {Response} res - Express response object
+   * Get the user's personality profile
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   * @param {Function} next - Express next middleware function
+   * @query {boolean} includeTraits - Whether to include personality traits
+   * @query {boolean} includeAttitudes - Whether to include AI attitudes
+   * @query {boolean} includeInsights - Whether to include generated insights
    */
   async getPersonalityProfile(req, res, next) {
     try {
-      // Check if user is authenticated
-      if (!req.user || !req.user.id) {
-        return res.status(401).json({
-          error: 'Unauthorized'
-        });
-      }
-      // Parse query parameters with defaults
-      let queryParams = {
-        includeInsights: true,
-        includeTraits: true,
-        includeAttitudes: true
-      };
-      // Only attempt to validate query params if they exist
-      if (Object.keys(req.query).length > 0) {
-        const validationResult = profileQuerySchema.safeParse(req.query);
-        if (validationResult.success) {
-          queryParams = validationResult.data;
-        } else {
-          this.logger.warn('Invalid query parameters, using defaults', {
-            userId: req.user.id,
-            params: req.query,
-            errors: validationResult.error.format()
-          });
+      const userId = req.user.id;
+      const { includeTraits, includeAttitudes, includeInsights } = req.query;
+
+      // Call the correct service method: getProfile
+      const profile = await this.personalityService.getProfile(userId);
+
+      // Convert profile to DTO using the directly imported mapper
+      // Rather than using container.resolve which might not be available
+      const profileDto = PersonalityDTOMapper.toDTO(profile, {
+        includeTraits: includeTraits === 'true',
+        includeAttitudes: includeAttitudes === 'true',
+        includeInsights: includeInsights === 'true'
+      });
+
+      // Use the exact response structure expected by OpenAPI spec:
+      // { status: "success", data: { profile: {...} } }
+      return res.json({
+        status: "success",
+        data: {
+          profile: profileDto
         }
-      }
-      this.logger.debug('Getting personality profile', {
-        userId: req.user.id,
-        params: queryParams
       });
-      // Get personality profile
-      const profile = await this.personalityService.getPersonalityProfile(req.user.id, queryParams);
-      if (!profile) {
-        throw new ProfileNotFoundError(req.user.id);
-      }
-      this.logger.info('Personality profile retrieved', {
-        userId: req.user.id
-      });
-      // Return the profile
-      return res.success(profile, 'Personality profile retrieved successfully');
     } catch (error) {
       this.logger.error('Error getting personality profile', {
         error: error.message,
         userId: req.user?.id,
-        stack: error.stack
+        // stack: error.stack // Maybe omit stack in production logs
       });
-      return next(error);
+      // Ensure next is called correctly ONLY ONCE in case of error
+      // The centralized error handler should take care of the response
+      next(error);
     }
   }
   /**
@@ -269,11 +263,16 @@ class PersonalityController {
     } catch (error) {
       this.logger.error('Error submitting personality assessment', {
         error: error.message,
-        userId: req.user?.id,
-        stack: error.stack
+        userId: req.user?.id
       });
-      return next(error);
+      if (error instanceof PersonalityValidationError) {
+        return next(error);
+      }
+      return next(new PersonalityProcessingError(error.message, {
+        originalError: error
+      }));
     }
   }
 }
+
 export default PersonalityController;

@@ -48,7 +48,7 @@ challenges:
       content:
         application/json:
           schema:
-            $ref: '../components/schemas/Challenge.yaml#/CreateChallengeInput'
+            $ref: '../components/schemas/inputs/CreateChallengeInput.yaml'
     responses:
       '201':
         description: Challenge created successfully
@@ -129,7 +129,7 @@ challenges_id:
       content:
         application/json:
           schema:
-            $ref: '../components/schemas/Challenge.yaml#/UpdateChallengeInput'
+            $ref: '../components/schemas/inputs/UpdateChallengeInput.yaml'
     responses:
       '200':
         description: Challenge updated successfully

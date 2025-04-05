@@ -18,6 +18,12 @@ export default function focusAreaRoutes(focusAreaController) {
     // Get all focus areas for the current user
     router.get('/', (req, res) => focusAreaController.getUserFocusAreas(req, res));
     
+    // Create a thread for focus area generation
+    router.post('/thread', (req, res) => focusAreaController.createThread(req, res));
+    
+    // Generate focus areas for a user - MUST be before /:id route to avoid being treated as ID
+    router.post('/generate', (req, res) => focusAreaController.generateFocusAreas(req, res));
+    
     // Get a specific focus area
     router.get('/:id', (req, res) => focusAreaController.getFocusArea(req, res));
     
@@ -29,9 +35,6 @@ export default function focusAreaRoutes(focusAreaController) {
     
     // Delete a focus area
     router.delete('/:id', (req, res) => focusAreaController.deleteFocusArea(req, res));
-    
-    // Generate focus areas for a user
-    router.post('/generate', (req, res) => focusAreaController.generateFocusAreas(req, res));
     
     return router;
 }

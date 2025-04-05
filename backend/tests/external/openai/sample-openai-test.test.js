@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import testEnv from "../../loadEnv.js";
+import { getTestConfig, hasRequiredVars } from "../../config/testConfig.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 import { OpenAI } from "openai";
 
@@ -10,7 +10,7 @@ describe('OpenAI API', function () {
         skipIfMissingEnv(this, 'openai');
         
         // Set up OpenAI client using v4 syntax
-        const config = testEnv.getTestConfig();
+        const config = getTestConfig();
         openai = new OpenAI({
             apiKey: config.openai.apiKey,
             organization: config.openai.organization
@@ -22,7 +22,7 @@ describe('OpenAI API', function () {
     
     it('should be able to connect to OpenAI API', async function () {
         // Skip if API key not available
-        if (!testEnv.getTestConfig().openai.apiKey) {
+        if (!getTestConfig().openai.apiKey) {
             this.skip();
         }
         

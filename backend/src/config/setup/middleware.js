@@ -14,6 +14,7 @@ import { applyRateLimiting } from "#app/core/infra/http/middleware/rateLimit.js"
 import { createAuthMiddleware } from "#app/core/infra/http/middleware/auth.js";
 import { createVersioningMiddleware } from "#app/core/infra/http/middleware/versioning.js";
 import { infraLogger } from "#app/core/infra/logging/domainLogger.js";
+import { responseFormatterMiddleware } from "#app/core/infra/http/responseFormatter.js";
 
 /**
  * Configures core application middleware (excluding error handlers and routing).
@@ -117,6 +118,10 @@ function configureCoreMiddleware(app, config, container) {
     // Request Logging (after IDs are set)
     app.use(requestLogger); // Assuming requestLogger gets logger via its own import
     logger.debug('[Setup] Request logging middleware applied.');
+    
+    // Response Formatter Middleware
+    app.use(responseFormatterMiddleware);
+    logger.debug('[Setup] Response formatter middleware applied.');
     
     // API Versioning Middleware
     try {

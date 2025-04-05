@@ -2,7 +2,7 @@ import { expect } from "chai";
 import fs from "fs";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
-import testEnv from "../loadEnv.js";
+import { getTestConfig, hasRequiredVars } from "../config/testConfig.js";
 import { skipIfMissingEnv } from "../helpers/testHelpers.js";
 import { config } from "dotenv";
 import openai from "@/infra/openai";
@@ -38,11 +38,11 @@ describe('Integration: FocusArea Flow', function () {
     this.timeout(30000);
     // Skip if API keys not available
     before(function () {
-        if (!testEnv.getTestConfig().openai.apiKey) {
+        if (!getTestConfig().openai.apiKey) {
             console.warn('OPENAI_API_KEY not found, skipping integration tests');
             this.skip();
         }
-        if (!testEnv.getTestConfig().supabase.url || !testEnv.getTestConfig().supabase.key) {
+        if (!getTestConfig().supabase.url || !getTestConfig().supabase.key) {
             console.warn('SUPABASE credentials not found, skipping integration tests');
             this.skip();
         }
@@ -78,11 +78,11 @@ const __dirname = dirname(__filename);
                 logTestAction('ImportError', { message: error.message });
                 // Create OpenAI client
                 const { OpenAIClient } = openai;
-                openaiClient = new OpenAIClient({ apiKey: testEnv.getTestConfig().openai.apiKey
+                openaiClient = new OpenAIClient({ apiKey: getTestConfig().openai.apiKey
                 });
                 // Use environment variables if available, otherwise use our obtained credentials
-                const supabaseUrl = testEnv.getTestConfig().supabase.url || 'https://dvmfpddmnzaxjmxxpupk.supabase.co';
-                const supabaseKey = testEnv.getTestConfig().supabase.key || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2bWZwZGRtbnpheGpteHhwdXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI2NDA3MTAsImV4cCI6MjA1ODIxNjcxMH0.99b38YXJbbNC8kjRpqQq96k0zaB5qwQ2vvcFdxHPH9Y';
+                const supabaseUrl = getTestConfig().supabase.url || 'https://dvmfpddmnzaxjmxxpupk.supabase.co';
+                const supabaseKey = getTestConfig().supabase.key || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2bWZwZGRtbnpheGpteHhwdXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI2NDA3MTAsImV4cCI6MjA1ODIxNjcxMH0.99b38YXJbbNC8kjRpqQq96k0zaB5qwQ2vvcFdxHPH9Y';
                 // Log the credentials we're using (obscuring the key)
                 console.log(`Using Supabase URL: ${supabaseUrl}`);
                 console.log(`Using Supabase Key: ${supabaseKey.substring(0, 10)}...`);
@@ -113,7 +113,7 @@ const __dirname = dirname(__filename);
                             // Log what we're about to insert
                             logTestAction('FocusAreaToSave', {
                                 focusArea,
-                                url: testEnv.getTestConfig().supabase.url
+                                url: getTestConfig().supabase.url
                             });
                             // Insert into focus_areas table
                             const { data, error } = await supabaseClient

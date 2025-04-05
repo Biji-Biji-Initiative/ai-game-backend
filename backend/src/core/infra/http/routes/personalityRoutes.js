@@ -16,22 +16,22 @@ const router = express.Router();
  */
 export default function personalityRoutes(personalityController) {
     // Get user's personality profile
-    router.get('/profile', (req, res) => personalityController.getPersonalityProfile(req, res));
+    router.get('/profile', (req, res, next) => personalityController.getPersonalityProfile(req, res, next));
     
     // Update personality traits
-    router.put('/traits', (req, res) => personalityController.updatePersonalityTraits(req, res));
+    router.put('/traits', (req, res, next) => personalityController.updatePersonalityTraits(req, res, next));
     
     // Update AI attitudes
-    router.put('/attitudes', (req, res) => personalityController.updateAIAttitudes(req, res));
+    router.put('/attitudes', (req, res, next) => personalityController.updateAIAttitudes(req, res, next));
     
     // Generate insights from personality data
-    router.post('/insights/generate', (req, res) => personalityController.generateInsights(req, res));
+    router.post('/insights/generate', (req, res, next) => personalityController.generateInsights(req, res, next));
     
     // Get insights
-    router.get('/insights', (req, res) => personalityController.getInsights(req, res));
+    router.get('/insights', (req, res, next) => personalityController.getInsights(req, res, next));
     
     // Calculate challenge compatibility
-    router.post('/compatibility', (req, res) => personalityController.calculateChallengeCompatibility(req, res));
+    router.post('/compatibility', (req, res, next) => personalityController.calculateChallengeCompatibility(req, res, next));
     
     return router;
 }

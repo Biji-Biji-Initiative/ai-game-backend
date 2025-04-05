@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import { v4 as uuidv4 } from "uuid";
-import testEnv from "../../loadEnv.js";
+import { getTestConfig, hasRequiredVars } from "../../config/testConfig.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 import { config } from "dotenv";
 import openai from "@/infra/openai";
@@ -11,7 +11,7 @@ describe('External: Challenge OpenAI Integration', function () {
     });
     // Skip if API keys not available
     before(function () {
-        if (!testEnv.getTestConfig().openai.apiKey) {
+        if (!getTestConfig().openai.apiKey) {
             console.warn('OPENAI_API_KEY not found, skipping external OpenAI tests');
             this.skip();
         }
@@ -22,7 +22,7 @@ describe('External: Challenge OpenAI Integration', function () {
     beforeEach(function () {
         // Create OpenAI client
         const { OpenAIClient } = openai;
-        openaiClient = new OpenAIClient({ apiKey: testEnv.getTestConfig().openai.apiKey
+        openaiClient = new OpenAIClient({ apiKey: getTestConfig().openai.apiKey
         });
     });
     it('should generate a challenge using OpenAI API', async function () {

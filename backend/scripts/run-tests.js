@@ -23,49 +23,49 @@ const TEST_CATEGORIES = {
     pattern: 'tests/**/*.test.js', 
     env: '.env.test', 
     needsEnv: false, 
-    setup: null,
+    setup: 'tests/config/envLoader.js',
     description: 'All tests in the test directory'
   },
   domain: { 
     pattern: 'tests/domain/**/*.test.js', 
     env: '.env.test', 
     needsEnv: false, 
-    setup: 'tests/loadEnv.js',
+    setup: 'tests/config/envLoader.js',
     description: 'Domain tests (business logic)'
   },
   integration: { 
     pattern: 'tests/integration/**/*.test.js', 
     env: '.env.test', 
     needsEnv: true, 
-    setup: 'tests/loadEnv.js',
+    setup: 'tests/config/envLoader.js',
     description: 'Integration tests (multiple components working together)'
   },
   external: { 
     pattern: 'tests/external/**/*.test.js', 
     env: '.env.test', 
     needsEnv: true, 
-    setup: 'tests/loadEnv.js',
+    setup: 'tests/config/envLoader.js',
     description: 'External tests (Supabase, OpenAI)'
   },
   e2e: { 
     pattern: 'tests/e2e/**/*.test.js', 
     env: '.env.test', 
     needsEnv: true, 
-    setup: 'tests/loadEnv.js',
+    setup: 'tests/config/envLoader.js',
     description: 'End-to-end tests'
   },
   unit: { 
     pattern: 'tests/unit/**/*.test.js', 
     env: '.env.test', 
     needsEnv: false, 
-    setup: 'tests/setup/mockSetup.js',
+    setup: 'tests/config/envLoader.js',
     description: 'Unit tests (individual components)'
   },
   application: { 
     pattern: 'tests/application/**/*.test.js', 
     env: '.env.test', 
     needsEnv: false, 
-    setup: 'tests/setup/mockSetup.js',
+    setup: 'tests/config/envLoader.js',
     description: 'Application tests (services, controllers)'
   },
 };

@@ -1825,18 +1825,27 @@
                       "example": "success"
                     },
                     "data": {
-                      "type": "object",
-                      "properties": {
-                        "focusAreas": {
-                          "type": "array",
-                          "items": {
-                            "$ref": "#/components/schemas/FocusArea"
-                          }
-                        }
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FocusArea"
                       }
                     },
-                    "pagination": {
-                      "$ref": "#/components/schemas/PaginationParams"
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "integer",
+                          "description": "Total number of focus areas"
+                        },
+                        "offset": {
+                          "type": "integer",
+                          "description": "Offset used for pagination"
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "description": "Limit used for pagination"
+                        }
+                      }
                     }
                   }
                 }
@@ -1975,12 +1984,7 @@
                       "example": "success"
                     },
                     "data": {
-                      "type": "object",
-                      "properties": {
-                        "focusArea": {
-                          "$ref": "#/components/schemas/FocusArea"
-                        }
-                      }
+                      "$ref": "#/components/schemas/FocusArea"
                     }
                   }
                 }
@@ -2294,8 +2298,8 @@
     },
     "/focus-areas/generate": {
       "post": {
-        "summary": "Generate a new focus area",
-        "description": "Uses AI to generate a new focus area (admin only)",
+        "summary": "Generate a new focus area based on user profile",
+        "description": "Uses AI to generate a personalized focus area based on user profile data",
         "operationId": "generateFocusArea",
         "tags": [
           "FocusAreas"
@@ -2310,36 +2314,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "required": [
-                  "name"
-                ],
-                "properties": {
-                  "name": {
-                    "type": "string",
-                    "description": "Name or topic for the focus area"
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Optional starting description"
-                  },
-                  "category": {
-                    "type": "string",
-                    "description": "Category for the focus area",
-                    "default": "general"
-                  },
-                  "difficulty": {
-                    "type": "string",
-                    "enum": [
-                      "beginner",
-                      "intermediate",
-                      "advanced",
-                      "expert"
-                    ],
-                    "description": "Difficulty level",
-                    "default": "intermediate"
-                  }
-                }
+                "$ref": "#/components/schemas/GenerateFocusAreaRequest"
               }
             }
           }
@@ -2357,12 +2332,7 @@
                       "example": "success"
                     },
                     "data": {
-                      "type": "object",
-                      "properties": {
-                        "focusArea": {
-                          "$ref": "#/components/schemas/FocusArea"
-                        }
-                      }
+                      "$ref": "#/components/schemas/FocusArea"
                     }
                   }
                 }
@@ -2377,6 +2347,79 @@
           },
           "403": {
             "description": "Forbidden - requires admin access"
+          }
+        }
+      }
+    },
+    "/focus-areas/thread": {
+      "post": {
+        "summary": "Create a thread for focus area generation",
+        "description": "Creates a new thread for AI-powered focus area generation for the current user",
+        "operationId": "createFocusAreaThread",
+        "tags": [
+          "FocusAreas"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {}
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Thread created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "threadId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "description": "Thread ID for use in focus area generation"
+                        }
+                      }
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Focus area thread created successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
           }
         }
       }
@@ -3782,6 +3825,42 @@
           }
         }
       },
+      "ServerError": {
+        "description": "Server encountered an error processing the request",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "example": "error"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "The server encountered an error processing the request"
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "code": {
+                        "type": "string",
+                        "description": "Error code"
+                      },
+                      "message": {
+                        "type": "string",
+                        "description": "Error message details"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
       "PaginatedResponse": {
         "description": "A paginated list of items",
         "content": {
@@ -4397,6 +4476,40 @@
             "description": "When the focus area was last updated"
           }
         }
+      },
+      "GenerateFocusAreaRequest": {
+        "type": "object",
+        "description": "Request body for focus area generation",
+        "properties": {
+          "professionalTitle": {
+            "type": "string",
+            "description": "User's professional title or role"
+          },
+          "interests": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "User's interests or topics they want to learn about"
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "User's existing skills"
+          },
+          "goals": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "User's learning goals or objectives"
+          }
+        },
+        "required": [
+          "professionalTitle"
+        ]
       },
       "Progress": {
         "type": "object",

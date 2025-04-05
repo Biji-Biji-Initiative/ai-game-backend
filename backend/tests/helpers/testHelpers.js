@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { expect } from 'chai';
 import OpenAIClient from "@/core/infra/openai/client.js";
 import { MessageRole } from "@/core/infra/openai/types.js";
-import testConfig from '../loadEnv.js';
+import { getTestConfig, hasRequiredVars } from '../loadEnv.js';
 /**
  * Creates an in-memory repository for testing
  * @param {Object} initialData - Optional initial data to populate the repository
@@ -120,11 +120,11 @@ function createOpenAIStateManagerMock() {
  * @returns {Object} - Real OpenAI client or null if API key not available
  */
 function setupRealOpenAIClient() {
-    if (!testConfig.hasRequiredVars('openai')) {
+    if (!hasRequiredVars('openai')) {
         console.warn('OPENAI_API_KEY not found, skipping real OpenAI client setup');
         return null;
     }
-    const config = testConfig.getTestConfig().openai;
+    const config = getTestConfig().openai;
     return new OpenAIClient({
         apiKey: config.apiKey,
         organization: config.organization
@@ -199,12 +199,22 @@ function createTestUserProfile(overrides = {}) {
         aiAttitudes: overrides.aiAttitudes || {
             optimism: 0.7,
             concern: 0.4,
-            engagement: 0.8
+            interest: 0.9,
+            trust: 0.6
         },
-        preferences: overrides.preferences || {
-            learningStyle: 'practical',
-            challengeType: 'case-study',
-            difficultyPreference: 'balanced'
+        personalityInsights: overrides.personalityInsights || [
+            'You tend to be open to new experiences and ideas',
+            'You are generally organized and reliable',
+            'You balance social engagement with time for yourself'
+        ],
+        focusArea: overrides.focusArea || 'AI Ethics',
+        professionalTitle: overrides.professionalTitle || 'Software Engineer',
+        experience: overrides.experience || 5,
+        learningPreferences: overrides.learningPreferences || {
+            visualLearning: 0.8,
+            verbalLearning: 0.6,
+            activeLearning: 0.7,
+            reflectiveLearning: 0.5
         },
         createdAt: overrides.createdAt || new Date().toISOString()
     };
@@ -245,7 +255,7 @@ function skipIfMissingEnv(context, testType) {
         return true;
     }
     // Skip if required environment variables are missing
-    if (!testConfig.hasRequiredVars(testType)) {
+    if (!hasRequiredVars(testType)) {
         console.warn(`Required environment variables for ${testType} tests are missing, skipping tests`);
         context.skip();
         return true;

@@ -87,14 +87,13 @@ export const errorHandler = (err, req, res, next) => {
       logger.info('INFO:', errorLogData);
   }
   
-  // Don't expose stack traces in production
+  // Format error response according to OpenAPI specification
   const errorResponse = {
     status: 'error',
-    statusCode,
     message: process.env.NODE_ENV === 'production' && !isOperational 
       ? 'Something went wrong' 
       : message,
-    requestId: req.id
+    code: statusCode.toString()
   };
   
   // Add additional debug information in development
@@ -102,7 +101,8 @@ export const errorHandler = (err, req, res, next) => {
     errorResponse.error = {
       type: errorType,
       stack: err.stack,
-      context: err.context
+      context: err.context,
+      requestId: req.id
     };
   }
   

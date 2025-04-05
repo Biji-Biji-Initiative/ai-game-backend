@@ -1,9 +1,11 @@
 import Email from "#app/core/common/valueObjects/Email.js";
 import UserId from "#app/core/common/valueObjects/UserId.js";
 import ChallengeId from "#app/core/common/valueObjects/ChallengeId.js";
+import EvaluationId from "#app/core/common/valueObjects/EvaluationId.js";
 import DifficultyLevel from "#app/core/common/valueObjects/DifficultyLevel.js";
 import FocusArea from "#app/core/common/valueObjects/FocusArea.js";
 import TraitScore from "#app/core/common/valueObjects/TraitScore.js";
+import FocusAreaId from "#app/core/common/valueObjects/FocusAreaId.js";
 'use strict';
 /**
  * Safely create an Email value object
@@ -41,6 +43,20 @@ function createUserId(userId) {
 function createChallengeId(challengeId) {
     try {
         return challengeId ? new ChallengeId(challengeId) : null;
+    }
+    // eslint-disable-next-line no-unused-vars
+    catch (_error) {
+        return null;
+    }
+}
+/**
+ * Safely create an EvaluationId value object
+ * @param {string} evaluationId - Evaluation ID string
+ * @returns {EvaluationId|null} EvaluationId value object or null if invalid
+ */
+function createEvaluationId(evaluationId) {
+    try {
+        return evaluationId ? new EvaluationId(evaluationId) : null;
     }
     // eslint-disable-next-line no-unused-vars
     catch (_error) {
@@ -91,6 +107,20 @@ function createTraitScore(traitCode, score) {
     }
 }
 /**
+ * Safely create a FocusAreaId value object
+ * @param {string} focusAreaId - Focus Area ID string
+ * @returns {FocusAreaId|null} FocusAreaId value object or null if invalid
+ */
+function createFocusAreaId(focusAreaId) {
+    try {
+        return focusAreaId ? new FocusAreaId(focusAreaId) : null;
+    }
+    // eslint-disable-next-line no-unused-vars
+    catch (_error) {
+        return null;
+    }
+}
+/**
  * Creates value objects from primitive values in an object
  * @param {Object} data - Object containing primitive values
  * @returns {Object} Object with value objects for supported types
@@ -111,6 +141,10 @@ function createValueObjects(data) {
     // Convert challengeId to ChallengeId VO
     if (data.challengeId) {
         result.challengeIdVO = createChallengeId(data.challengeId);
+    }
+    // Convert evaluationId to EvaluationId VO
+    if (data.evaluationId) {
+        result.evaluationIdVO = createEvaluationId(data.evaluationId);
     }
     // Convert focusArea to FocusArea VO
     if (data.focusArea) {
@@ -138,30 +172,38 @@ function ensureVO(value, VOClass, createFn) {
 export { Email };
 export { UserId };
 export { ChallengeId };
+export { EvaluationId };
 export { DifficultyLevel };
 export { FocusArea };
 export { TraitScore };
+export { FocusAreaId };
 export { createEmail };
 export { createUserId };
 export { createChallengeId };
+export { createEvaluationId };
 export { createFocusArea };
 export { createDifficultyLevel };
 export { createTraitScore };
+export { createFocusAreaId };
 export { createValueObjects };
 export { ensureVO };
 export default {
     Email,
     UserId,
     ChallengeId,
+    EvaluationId,
     DifficultyLevel,
     FocusArea,
     TraitScore,
+    FocusAreaId,
     createEmail,
     createUserId,
     createChallengeId,
+    createEvaluationId,
     createFocusArea,
     createDifficultyLevel,
     createTraitScore,
+    createFocusAreaId,
     createValueObjects,
     ensureVO
 };

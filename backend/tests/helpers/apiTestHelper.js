@@ -2,21 +2,42 @@
  * API Test Helper
  *
  * Common utilities for API testing with real external services.
+ * 
+ * IMPORTANT: This file uses testConfig.js to avoid circular dependencies
+ * with loadEnv.js and other test setup files.
  */
 import { randomUUID } from 'crypto';
 import axios from 'axios';
-import { supabaseClient } from "@/core/infra/db/supabaseClient.js";
-import testConfig from '../loadEnv.js';
+import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
-// Initialize test environment
-const env = testConfig.getTestConfig();
+import { getTestConfig, hasRequiredVars } from '../config/testConfig.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Get directory name in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Silence the console.log during test start
+console.log('API Test Helper: Initializing...');
+
+// Get configuration from testConfig.js
+const config = getTestConfig();
+
+// Create Supabase client directly for testing using config from testConfig.js
+const supabaseClient = createClient(
+    config.supabase.url,
+    config.supabase.serviceKey || config.supabase.anonKey
+);
+
 /**
  * Generate a unique test identifier for isolating test data
  * @returns {string} A UUID prefixed with "test-"
  */
 function generateTestId() {
-    return `test-${randomUUID()}`;
+    return `test_${uuidv4().slice(0, 8)}`;
 }
+
 /**
  * Verify Supabase connectivity with proper error handling
  * This is a reliable method to test connection without requiring specific tables
@@ -51,6 +72,7 @@ async function verifySupabaseConnection(client = supabaseClient) {
         throw error;
     }
 }
+
 /**
  * Create a test user with Supabase Auth and database entry
  * @returns {Promise<Object>} Created test user data including auth credentials
@@ -62,6 +84,7 @@ const setupTestUser = async () => {
     // Use the existing test user instead of creating a new one
     const testUser = {
         id: 'a46bfa50-d4a1-408c-bbcc-faed77fc7d2a',
+        userId: 'a46bfa50-d4a1-408c-bbcc-faed77fc7d2a', // Added for compatibility
         email: 'testuser@test.com',
         password: 'Test1234!',
         full_name: 'Test User',
@@ -70,9 +93,19 @@ const setupTestUser = async () => {
         country: 'USA',
         focus_area: 'Testing'
     };
+    
+    // Get fresh auth token
+    try {
+        const token = await getAuthToken(testUser.email, testUser.password);
+        testUser.token = token;
+    } catch (error) {
+        console.error('Failed to get auth token for test user:', error);
+    }
+    
     console.log(`Using existing test user: ${testUser.id}`);
     return testUser;
 };
+
 /**
  * Get an auth token for a test user
  * @param {string} email - Test user email
@@ -118,6 +151,7 @@ async function getAuthToken(email, password) {
         }
     }
 }
+
 /**
  * Delete test user and all related data
  * @param {string} userId - ID of the test user to clean up
@@ -127,16 +161,40 @@ async function cleanupTestUser(userId) {
     console.log(`Skipping cleanup for test user: ${userId}`);
     return;
 }
+
 /**
  * Make authenticated API request
- * @param {string} method - HTTP method (get, post, put, delete)
- * @param {string} endpoint - API endpoint path
- * @param {Object} data - Request body data
- * @param {string} token - Auth token
+ * @param {Object} options - Request options
+ * @param {string} options.method - HTTP method (GET, POST, PUT, PATCH, DELETE)
+ * @param {string} options.endpoint - API endpoint path
+ * @param {Object} options.data - Request body data
+ * @param {string} options.token - Auth token
+ * @param {string} options.baseUrl - Custom base URL (optional)
  * @returns {Promise<Object>} API response
  */
-async function apiRequest(method, endpoint, data = null, token) {
+async function apiRequest(options) {
     try {
+        // Handle both object parameter style and legacy parameter style
+        let method, endpoint, data, token, baseUrl;
+        
+        if (typeof options === 'object' && options !== null) {
+            // New style with options object
+            method = options.method || 'GET';
+            endpoint = options.endpoint || '';
+            data = options.data || null;
+            token = options.token || null;
+            baseUrl = options.baseUrl || getTestConfig().api.baseUrl;
+        } else if (arguments.length >= 2) {
+            // Legacy style with individual parameters
+            method = arguments[0] || 'GET';
+            endpoint = arguments[1] || '';
+            data = arguments[2] || null;
+            token = arguments[3] || null;
+            baseUrl = getTestConfig().api.baseUrl;
+        } else {
+            throw new Error('Invalid parameters for apiRequest');
+        }
+        
         const config = {
             headers: {}
         };
@@ -146,24 +204,36 @@ async function apiRequest(method, endpoint, data = null, token) {
             config.headers['Authorization'] = `Bearer ${token}`;
         }
         
-        // Use the environment variable API_URL or fallback to localhost
-        const baseUrl = process.env.API_URL || 'http://localhost:3000/api/v1';
-        const url = `${baseUrl}/${endpoint.replace(/^\//, '')}`;
+        // If it's a data request, set content type
+        if (data && (method.toLowerCase() === 'post' || method.toLowerCase() === 'put' || method.toLowerCase() === 'patch')) {
+            config.headers['Content-Type'] = 'application/json';
+        }
+        
+        // Normalize endpoint - ensure it starts with / if not empty
+        if (endpoint && !endpoint.startsWith('/')) {
+            endpoint = '/' + endpoint;
+        }
+        
+        // Create the full URL
+        const url = `${baseUrl}${endpoint}`;
         
         console.log(`Making API request to: ${url}`);
         
         let response;
-        switch (method.toLowerCase()) {
-            case 'get':
+        switch (method.toUpperCase()) {
+            case 'GET':
                 response = await axios.get(url, config);
                 break;
-            case 'post':
+            case 'POST':
                 response = await axios.post(url, data, config);
                 break;
-            case 'put':
+            case 'PUT':
                 response = await axios.put(url, data, config);
                 break;
-            case 'delete':
+            case 'PATCH':
+                response = await axios.patch(url, data, config);
+                break;
+            case 'DELETE':
                 response = await axios.delete(url, config);
                 break;
             default:
@@ -179,6 +249,7 @@ async function apiRequest(method, endpoint, data = null, token) {
         throw error;
     }
 }
+
 /**
  * Set up an API client for E2E testing
  * Creates a test user, gets an auth token, and creates a configured axios instance
@@ -186,8 +257,10 @@ async function apiRequest(method, endpoint, data = null, token) {
  */
 async function setupApiClient() {
     try {
+        const configData = getTestConfig();
+        
         // Verify Supabase credentials are available
-        if (!env.supabase.url || !env.supabase.key) {
+        if (!configData.supabase.url || !configData.supabase.serviceKey && !configData.supabase.anonKey) {
             console.error('Missing Supabase credentials in test environment');
             throw new Error('Missing Supabase credentials. Make sure .env.test is loaded correctly.');
         }
@@ -195,8 +268,9 @@ async function setupApiClient() {
         const testUser = await setupTestUser();
         // Get auth token
         const authToken = await getAuthToken(testUser.email, testUser.password);
+        console.log('Auth token obtained successfully');
         // Create axios instance with auth headers
-        const baseURL = env.API_URL || 'http://localhost:3000';
+        const baseURL = configData.api.baseUrl;
         const apiClient = axios.create({
             baseURL,
             headers: {
@@ -215,4 +289,14 @@ async function setupApiClient() {
         throw error;
     }
 }
-export { generateTestId, setupTestUser, getAuthToken, cleanupTestUser, apiRequest, setupApiClient, verifySupabaseConnection };
+
+export {
+    generateTestId,
+    verifySupabaseConnection,
+    setupTestUser,
+    getAuthToken,
+    cleanupTestUser,
+    apiRequest,
+    setupApiClient,
+    hasRequiredVars
+};

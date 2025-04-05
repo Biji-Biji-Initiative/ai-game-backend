@@ -112,6 +112,31 @@ InternalServerError:
             type: string
             description: Additional error details (optional)
 
+ServerError:
+  description: Server encountered an error processing the request
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          status:
+            type: string
+            example: error
+          message:
+            type: string
+            example: The server encountered an error processing the request
+          errors:
+            type: array
+            items:
+              type: object
+              properties:
+                code:
+                  type: string
+                  description: Error code
+                message:
+                  type: string
+                  description: Error message details
+
 PaginatedResponse:
   description: A paginated list of items
   content:

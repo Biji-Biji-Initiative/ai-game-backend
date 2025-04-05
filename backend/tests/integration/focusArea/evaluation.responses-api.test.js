@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import openai from "@/infra/openai";
 import types from "@/infra/openai/types";
-import testEnv from "../../loadEnv.js";
+import { getTestConfig, hasRequiredVars } from "../../config/testConfig.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 const { OpenAIClient } = openai;
 const { MessageRole } = types;
@@ -76,13 +76,13 @@ describe('Evaluation Service Responses API Integration', function () {
     let openAIClient;
     before(function () {
         // Skip tests if OpenAI API key is not available
-        if (!testEnv.getTestConfig().openai.apiKey) {
+        if (!getTestConfig().openai.apiKey) {
             console.warn('OPENAI_API_KEY not found, skipping Responses API tests');
             this.skip();
         }
         // Initialize the real OpenAI client with Responses API support
         openAIClient = new OpenAIClient({
-            apiKey: testEnv.getTestConfig().openai.apiKey
+            apiKey: getTestConfig().openai.apiKey
         });
         // Create the evaluation service with the real client
         evaluationService = new EvaluationService({

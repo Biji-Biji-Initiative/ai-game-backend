@@ -13,11 +13,11 @@ describe('Supabase Client', function () {
     let supabase;
     before(function () {
         // Skip tests if Supabase credentials not available
-        if (!testEnv.getTestConfig().supabase.url || !testEnv.getTestConfig().supabase.key) {
+        if (!getTestConfig().supabase.url || !getTestConfig().supabase.key) {
             console.warn('Supabase credentials not found in environment, skipping tests');
             this.skip();
         }
-        supabase = createClient(testEnv.getTestConfig().supabase.url, testEnv.getTestConfig().supabase.key);
+        supabase = createClient(getTestConfig().supabase.url, getTestConfig().supabase.key);
     });
     it('should connect to Supabase', async function () {
         // Simple test to verify connectivity - just fetch the server timestamp

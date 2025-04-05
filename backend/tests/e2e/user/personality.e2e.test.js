@@ -1,42 +1,30 @@
+/**
+ * Personality E2E Tests
+ *
+ * This test suite covers operations related to user personality:
+ * - Fetching personality profiles
+ * - Updating personality traits
+ * - Updating AI attitudes
+ * - Generating personality insights
+ * - Cross-domain interactions between personality and user preferences
+ */
 import { expect } from "chai";
-import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
-import * as apiTestHelper from "../../helpers/apiTestHelper.js";
-import { PersonalityDTO, PersonalityDTOMapper } from "../../../src/core/personality/dtos/index.js";
-import { UserDTO } from "../../../src/core/user/dtos/index.js";
+import { setupTestUser, cleanupTestUser, getAuthToken, apiRequest } from "../../helpers/apiTestHelper.js";
 import { createUserId, UserId } from "../../../src/core/common/valueObjects/index.js";
-import { UserDTOMapper } from "../../../src/core/user/dtos/UserDTO.js";
-import UserProfileDTOMapper from "../../../src/application/user/mappers/UserProfileDTOMapper.js";
-import PersonalityDTOMapper from "../../../src/application/personality/mappers/PersonalityDTOMapper.js";
-import PersonalityProfileDTOMapper from "../../../src/application/personality/mappers/PersonalityProfileDTOMapper.js";
 
-// Base URL for API requests
-const API_URL = process.env.API_URL || 'http://localhost:3000/api';
-
-describe('Personality API Endpoints (Real)', function () {
-    // Increase timeout for real API calls
-    this.timeout(10000);
+describe('Personality E2E Tests', function () {
+    // Restore test logic
+    this.timeout(20000);
     
     let testUser;
     let authToken;
     let testUserId;
-    let apiServerRunning = false;
 
     before(async function () {
-        // Check if API server is running before attempting to run the tests
-        try {
-            // Try a simple API call to check if server is up
-            await axios.get(`${API_URL}/health`, { timeout: 2000 });
-            apiServerRunning = true;
-        } catch (error) {
-            console.warn('API server is not running, skipping API endpoint tests');
-            this.skip();
-            return;
-        }
-
         // Create a test user in Supabase and get auth token
-        testUser = await apiTestHelper.setupTestUser();
-        authToken = await apiTestHelper.getAuthToken(testUser.email, testUser.password);
+        testUser = await setupTestUser();
+        authToken = await getAuthToken(testUser.email, testUser.password);
         // Create UserId Value Object from test user ID
         testUserId = createUserId(testUser.id);
     });
@@ -44,240 +32,208 @@ describe('Personality API Endpoints (Real)', function () {
     after(async function () {
         // Clean up test user after tests
         if (testUser && testUser.id) {
-            await apiTestHelper.cleanupTestUser(testUser.id);
+            await cleanupTestUser(testUser.id);
         }
     });
 
-    describe('GET /personality/profile', function () {
-        it('should get the user personality profile with correct DTO structure', async function () {
-            // Make actual API call
-            const response = await axios.get(`${API_URL}/personality/profile`, {
-                headers: {
-                    'Authorization': `Bearer ${authToken}`
-                }
-            });
+    describe('GET /api/v1/personality/profile', function () {
+        it('should get the user personality profile and validate structure', async function () {
+            // Make API request using helper
+            const response = await apiRequest('get', 'api/v1/personality/profile', null, authToken);
 
-            // Verify response
+            // Verify response status and basic success flag
             expect(response.status).to.equal(200);
-            expect(response.data.status).to.equal('success');
+            expect(response.data.success).to.be.true;
+            expect(response.data.data).to.be.an('object');
             
-            // Validate response against PersonalityDTO structure
-            const personalityDto = new PersonalityDTO(response.data.data);
-            expect(personalityDto).to.be.instanceOf(PersonalityDTO);
-            
-            // Verify Value Object conversion
-            const userId = createUserId(personalityDto.userId);
+            // Validate expected properties directly on the response data
+            expect(response.data.data).to.have.property('userId').that.is.a('string');
+            expect(response.data.data).to.have.property('personalityTraits').that.is.an('object');
+            expect(response.data.data).to.have.property('createdAt');
+            expect(response.data.data).to.have.property('updatedAt');
+
+            // Optionally, verify Value Object conversion if needed
+            const userId = createUserId(response.data.data.userId);
             expect(userId).to.be.instanceOf(UserId);
             expect(userId.value).to.equal(testUser.id);
-            
-            // Verify DTO properties
-            expect(personalityDto).to.have.property('personalityTraits').that.is.an('object');
-            expect(personalityDto).to.have.property('createdAt');
-            expect(personalityDto).to.have.property('updatedAt');
         });
 
         it('should accept query parameters for includeInsights and includeTraits', async function () {
-            // Make actual API call with query parameters
-            const response = await axios.get(`${API_URL}/personality/profile?includeInsights=true&includeTraits=true`, {
-                headers: {
-                    'Authorization': `Bearer ${authToken}`
-                }
-            });
+            // Make API request with query parameters
+            const response = await apiRequest('get', 'api/v1/personality/profile?includeInsights=true&includeTraits=true', null, authToken);
 
-            // Verify response
+            // Verify response status and basic success flag
             expect(response.status).to.equal(200);
-            expect(response.data.status).to.equal('success');
+            expect(response.data.success).to.be.true;
+            expect(response.data.data).to.be.an('object');
             
-            // Validate response against PersonalityDTO structure
-            const personalityDto = new PersonalityDTO(response.data.data);
-            expect(personalityDto).to.be.instanceOf(PersonalityDTO);
+            // Validate response structure (existence and type)
+            expect(response.data.data).to.have.property('userId');
             
-            if (personalityDto.insights) {
-                expect(personalityDto.insights).to.be.an('object');
+            // Check optional fields based on query params
+            // These might or might not be present depending on backend logic
+            if (response.data.data.insights !== undefined) {
+                expect(response.data.data.insights).to.be.an('object');
+                if (response.data.data.insights.strengths !== undefined) {
+                    expect(response.data.data.insights.strengths).to.be.an('array');
+                }
+                 if (response.data.data.insights.recommendations !== undefined) {
+                    expect(response.data.data.insights.recommendations).to.be.an('array');
+                }
             }
-            if (personalityDto.dominantTraits) {
-                expect(personalityDto.dominantTraits).to.be.an('array');
+            
+            if (response.data.data.dominantTraits !== undefined) {
+                 expect(response.data.data.dominantTraits).to.be.an('array');
             }
         });
     });
 
-    describe('PUT /personality/traits', function () {
-        it('should update personality traits using valid DTO format', async function () {
+    describe('PUT /api/v1/personality/traits', function () {
+        it('should update personality traits and verify via GET', async function () {
+            const timestamp = Date.now();
             const traitsData = {
                 personalityTraits: {
                     analytical: 80,
                     creative: 70,
                     logical: 75,
-                    innovative: 65
+                    innovative: 65,
+                    testTraitTimestamp: timestamp
                 }
             };
 
-            // Validate update data using DTOMapper
-            const mappedData = PersonalityDTOMapper.fromRequest(traitsData);
-            expect(mappedData).to.exist;
-            expect(mappedData.personalityTraits).to.deep.equal(traitsData.personalityTraits);
+            // Make update request
+            const updateResponse = await apiRequest('put', 'api/v1/personality/traits', traitsData, authToken);
 
-            // Make actual API call
-            const response = await axios.put(`${API_URL}/personality/traits`, traitsData, {
-                headers: {
-                    'Authorization': `Bearer ${authToken}`
-                }
-            });
-
-            // Verify response
-            expect(response.status).to.equal(200);
-            expect(response.data.status).to.equal('success');
-            
-            // Validate response DTO
-            const personalityDto = new PersonalityDTO(response.data.data);
-            expect(personalityDto).to.be.instanceOf(PersonalityDTO);
-            expect(personalityDto.personalityTraits).to.deep.include(traitsData.personalityTraits);
-            expect(personalityDto.dominantTraits).to.be.an('array');
+            // Verify update response
+            expect(updateResponse.status).to.equal(200);
+            expect(updateResponse.data.success).to.be.true;
+            expect(updateResponse.data.data).to.be.an('object');
+            expect(updateResponse.data.data.personalityTraits).to.deep.include(traitsData.personalityTraits);
+            expect(updateResponse.data.data).to.have.property('dominantTraits').that.is.an('array'); // Check structure
             
             // Verify Value Object conversion
-            const userId = createUserId(personalityDto.userId);
-            expect(userId).to.be.instanceOf(UserId);
-            expect(userId.value).to.equal(testUser.id);
+            const updatedUserId = createUserId(updateResponse.data.data.userId);
+            expect(updatedUserId).to.be.instanceOf(UserId);
+            expect(updatedUserId.value).to.equal(testUser.id);
+            
+            // Fetch profile separately to verify persistence
+            const getResponse = await apiRequest('get', 'api/v1/personality/profile', null, authToken);
+            
+            // Verify GET response
+            expect(getResponse.status).to.equal(200);
+            expect(getResponse.data.success).to.be.true;
+            expect(getResponse.data.data.personalityTraits).to.deep.include(traitsData.personalityTraits);
         });
 
-        it('should reject invalid trait values based on DTO validation', async function () {
-            try {
-                // Try to update with invalid trait values (> 100)
-                await axios.put(`${API_URL}/personality/traits`, {
-                    personalityTraits: {
-                        analytical: 150 // Value greater than 100 should be rejected
-                    }
-                }, {
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`
-                    }
-                });
-                // If we reach here, the test has failed
-                throw new Error('Expected API call to fail with 400');
-            }
-            catch (error) {
-                // Verify error response
-                expect(error.response.status).to.equal(400);
-                expect(error.response.data.status).to.equal('error');
-                expect(error.response.data.message).to.include('validation');
-            }
+        it('should reject invalid trait values', async function () {
+            // Try to update with invalid trait values (> 100)
+            const response = await apiRequest('put', 'api/v1/personality/traits', {
+                personalityTraits: {
+                    analytical: 150 // Value greater than 100 should be rejected
+                }
+            }, authToken);
+            
+            // Verify error response
+            expect(response.status).to.equal(400);
+            expect(response.data.success).to.be.false;
+            expect(response.data.message).to.include('validation');
         });
     });
 
-    describe('PUT /personality/attitudes', function () {
-        it('should update AI attitudes using valid DTO format', async function () {
+    describe('PUT /api/v1/personality/attitudes', function () {
+        it('should update AI attitudes and verify via GET', async function () {
+            const timestamp = Date.now();
             const attitudesData = {
                 aiAttitudes: {
                     early_adopter: 85,
                     tech_savvy: 75,
                     skeptical: 40,
-                    ethical_concern: 70
+                    ethical_concern: 70,
+                    test_timestamp: timestamp
                 }
             };
 
-            // Validate update data using DTOMapper
-            const mappedData = PersonalityDTOMapper.fromRequest(attitudesData);
-            expect(mappedData).to.exist;
-            expect(mappedData.aiAttitudes).to.deep.equal(attitudesData.aiAttitudes);
-
-            // Make actual API call
-            const response = await axios.put(`${API_URL}/personality/attitudes`, attitudesData, {
-                headers: {
-                    'Authorization': `Bearer ${authToken}`
-                }
-            });
+            // Make update request
+            const updateResponse = await apiRequest('put', 'api/v1/personality/attitudes', attitudesData, authToken);
 
             // Verify response
-            expect(response.status).to.equal(200);
-            expect(response.data.status).to.equal('success');
-            
-            // Validate response DTO
-            const personalityDto = new PersonalityDTO(response.data.data);
-            expect(personalityDto).to.be.instanceOf(PersonalityDTO);
-            expect(personalityDto.aiAttitudes).to.deep.include(attitudesData.aiAttitudes);
-            expect(personalityDto.aiAttitudeProfile).to.be.an('object');
-            expect(personalityDto.aiAttitudeProfile.overall).to.be.a('string');
+            expect(updateResponse.status).to.equal(200);
+            expect(updateResponse.data.success).to.be.true;
+            expect(updateResponse.data.data.aiAttitudes).to.deep.include(attitudesData.aiAttitudes);
+            expect(updateResponse.data.data.aiAttitudeProfile).to.be.an('object'); // Check structure
+            expect(updateResponse.data.data.aiAttitudeProfile.overall).to.be.a('string');
             
             // Verify Value Object conversion
-            const userId = createUserId(personalityDto.userId);
+            const userId = createUserId(updateResponse.data.data.userId);
             expect(userId).to.be.instanceOf(UserId);
             expect(userId.value).to.equal(testUser.id);
-        });
-    });
-
-    describe('GET /personality/insights', function () {
-        // This test depends on having personality traits already set
-        it('should generate personality insights with correct DTO structure', async function () {
-            // Make actual API call
-            const response = await axios.get(`${API_URL}/personality/insights`, {
-                headers: {
-                    'Authorization': `Bearer ${authToken}`
-                }
-            });
-
-            // Verify response
-            expect(response.status).to.equal(200);
-            expect(response.data.status).to.equal('success');
             
-            // Validate response DTO
-            const personalityDto = new PersonalityDTO(response.data.data);
-            expect(personalityDto).to.be.instanceOf(PersonalityDTO);
-            expect(personalityDto.insights).to.exist;
-            expect(personalityDto.insights.strengths).to.be.an('array');
-            expect(personalityDto.insights.recommendations).to.be.an('array');
-            
-            // Verify Value Object conversion
-            const userId = createUserId(personalityDto.userId);
-            expect(userId).to.be.instanceOf(UserId);
-            expect(userId.value).to.equal(testUser.id);
+            // Fetch profile separately to verify persistence
+            const getResponse = await apiRequest('get', 'api/v1/personality/profile', null, authToken);
+
+            // Verify GET response
+            expect(getResponse.status).to.equal(200);
+            expect(getResponse.data.success).to.be.true;
+            expect(getResponse.data.data.aiAttitudes).to.deep.include(attitudesData.aiAttitudes);
         });
-    });
 
-    describe('Cross-Domain Interaction', function () {
-        it('should update AI attitudes and verify user preferences updated in the UserDTO', async function () {
-            // Increase timeout for this test
-            this.timeout(30000);
-
-            // 1. Update AI attitudes using proper DTO format
-            const attitudesData = {
+        it('should reject invalid attitude values', async function () {
+            // Try to update with invalid attitude values
+            const response = await apiRequest('put', 'api/v1/personality/attitudes', {
                 aiAttitudes: {
-                    early_adopter: 90,
-                    tech_savvy: 85,
-                    skeptical: 20
+                    skeptical: 110 // Value greater than 100 should be rejected
                 }
+            }, authToken);
+            
+            // Verify error response
+            expect(response.status).to.equal(400);
+            expect(response.data.success).to.be.false;
+            expect(response.data.message).to.include('validation');
+        });
+    });
+
+    describe('POST /api/v1/personality/insights', function () {
+        it('should generate personality insights and verify structure', async function () {
+            // Optional: Update profile first to ensure data exists
+            await apiRequest('put', 'api/v1/personality/traits', { personalityTraits: { analytical: 80 } }, authToken);
+
+            // Request insights generation
+            const response = await apiRequest('post', 'api/v1/personality/insights', null, authToken);
+            
+            // Verify response
+            expect(response.status).to.equal(200);
+            expect(response.data.success).to.be.true;
+            expect(response.data.data).to.be.an('object');
+            
+            // Validate insights structure directly on response data
+            expect(response.data.data).to.have.property('strengths').that.is.an('array');
+            expect(response.data.data).to.have.property('recommendations').that.is.an('array');
+            
+            // Fetch profile to verify insights are persisted (check structure again)
+            const getResponse = await apiRequest('get', 'api/v1/personality/profile?includeInsights=true', null, authToken);
+            expect(getResponse.data.data.insights).to.deep.equal(response.data.data);
+        });
+    });
+    
+    describe('Cross-domain Interaction: Personality and User Preferences', function () {
+        it('should update user profile and verify personality profile remains consistent', async function () {
+            // First, update user profile information 
+            const profileUpdate = {
+                full_name: 'Updated Test User Cross',
+                professional_title: 'Cross Domain Tester',
+                location: 'Integration City'
             };
-
-            // Validate update data using DTOMapper
-            const mappedData = PersonalityDTOMapper.fromRequest(attitudesData);
-            expect(mappedData).to.exist;
-
-            await axios.put(`${API_URL}/personality/attitudes`, attitudesData, {
-                headers: {
-                    'Authorization': `Bearer ${authToken}`
-                }
-            });
-
-            // 2. Wait for event to be processed - increase wait time
-            await new Promise(resolve => setTimeout(resolve, 5000));
-
-            // 3. Get user profile to check if preferences were updated
-            const userResponse = await axios.get(`${API_URL}/users/me`, {
-                headers: {
-                    'Authorization': `Bearer ${authToken}`
-                }
-            });
-
-            // Verify cross-domain update occurred in the UserDTO
-            const userDto = new UserDTO(userResponse.data.data.user);
-            expect(userDto).to.be.instanceOf(UserDTO);
             
-            // Verify Value Object conversion
-            const userId = createUserId(userDto.id);
-            expect(userId).to.be.instanceOf(UserId);
-            expect(userId.value).to.equal(testUser.id);
+            const userUpdateResponse = await apiRequest('put', 'api/v1/user/profile', profileUpdate, authToken);
+            expect(userUpdateResponse.status).to.equal(200);
             
-            expect(userDto.preferences).to.exist.and.to.be.an('object');
-            // In a real test, we'd verify specific preference values
+            // Now, fetch personality profile - check its structure and key fields
+            const personalityResponse = await apiRequest('get', 'api/v1/personality/profile', null, authToken);
+            expect(personalityResponse.status).to.equal(200);
+            expect(personalityResponse.data.success).to.be.true;
+            expect(personalityResponse.data.data).to.be.an('object');
+            expect(personalityResponse.data.data).to.have.property('userId').that.equals(testUser.id);
+            expect(personalityResponse.data.data).to.not.have.property('fullName'); // Ensure separation
         });
     });
 });

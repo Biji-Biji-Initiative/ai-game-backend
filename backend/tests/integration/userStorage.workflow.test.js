@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
-import testEnv from "../loadEnv.js";
+import { getTestConfig, hasRequiredVars } from "../config/testConfig.js";
 import { skipIfMissingEnv } from "../helpers/testHelpers.js";
 import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
@@ -16,7 +16,7 @@ describe('Integration: User Storage Workflow', function () {
     this.timeout(30000);
     // Skip if API keys not available
     before(function () {
-        if (!testEnv.getTestConfig().supabase.url || !testEnv.getTestConfig().supabase.key && !process.env.SUPABASE_ANON_KEY) {
+        if (!getTestConfig().supabase.url || !getTestConfig().supabase.key && !process.env.SUPABASE_ANON_KEY) {
             console.warn('SUPABASE credentials not found, skipping integration tests');
             this.skip();
         }
@@ -26,8 +26,8 @@ describe('Integration: User Storage Workflow', function () {
     let supabaseClient;
     let testUserId;
     beforeEach(async function () {
-        const supabaseUrl = testEnv.getTestConfig().supabase.url;
-        const supabaseKey = testEnv.getTestConfig().supabase.key || process.env.SUPABASE_ANON_KEY;
+        const supabaseUrl = getTestConfig().supabase.url;
+        const supabaseKey = getTestConfig().supabase.key || process.env.SUPABASE_ANON_KEY;
         console.log(`Using Supabase URL: ${supabaseUrl}`);
         console.log(`Using Supabase Key: ${supabaseKey.substring(0, 10)}...`);
         supabaseClient = createClient(supabaseUrl, supabaseKey);

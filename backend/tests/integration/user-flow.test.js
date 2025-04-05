@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
-import testEnv from "../loadEnv.js";
+import { getTestConfig, hasRequiredVars } from "../config/testConfig.js";
 import { skipIfMissingEnv } from "../helpers/testHelpers.js";
 import { config } from "dotenv";
 import User from "@/core/user/models/User.js";
@@ -41,7 +41,7 @@ describe('Integration: User Flow', function () {
     this.timeout(30000);
     // Skip if API keys not available
     before(function () {
-        if (!testEnv.getTestConfig().supabase.url || (!testEnv.getTestConfig().supabase.key && !process.env.SUPABASE_ANON_KEY)) {
+        if (!getTestConfig().supabase.url || (!getTestConfig().supabase.key && !process.env.SUPABASE_ANON_KEY)) {
             console.warn('SUPABASE credentials not found, skipping integration tests');
             this.skip();
         }
@@ -72,8 +72,8 @@ const __dirname = dirname(__filename);
 
                 logTestAction('ImportError', { message: error.message });
                 // Use environment variables to create Supabase client
-                const supabaseUrl = testEnv.getTestConfig().supabase.url;
-                const supabaseKey = testEnv.getTestConfig().supabase.key || process.env.SUPABASE_ANON_KEY;
+                const supabaseUrl = getTestConfig().supabase.url;
+                const supabaseKey = getTestConfig().supabase.key || process.env.SUPABASE_ANON_KEY;
                 // Log the credentials we're using (obscuring the key)
                 console.log(`Using Supabase URL: ${supabaseUrl}`);
                 console.log(`Using Supabase Key: ${supabaseKey.substring(0, 10)}...`);

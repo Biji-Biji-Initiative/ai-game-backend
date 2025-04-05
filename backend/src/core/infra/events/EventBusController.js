@@ -6,8 +6,9 @@
  */
 'use strict';
 
-import { robustEventBus } from "#app/core/common/events/RobustEventBus.js";
+import EventEmitter from 'events';
 import { logger } from "#app/core/infra/logging/logger.js";
+import { RobustEventBus } from "#app/core/common/events/RobustEventBus.js";
 
 class EventBusController {
     /**
@@ -16,7 +17,8 @@ class EventBusController {
      * @param {Object} options.eventBus - The event bus instance to use
      */
     constructor({ eventBus }) {
-        this.eventBus = eventBus || robustEventBus;
+        // If eventBus is not injected, create a default instance
+        this.eventBus = eventBus || new RobustEventBus();
         this.logger = logger.child({ context: 'EventBusController' });
         this.logger.info('EventBusController initialized');
     }

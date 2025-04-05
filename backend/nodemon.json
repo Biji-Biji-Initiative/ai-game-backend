@@ -1,0 +1,17 @@
+{
+  "ignore": [
+    ".git",
+    "node_modules/**/node_modules",
+    "tests/**/*.js",
+    "scripts/**/*.js",
+    "openapi/generated/**"
+  ],
+  "watch": ["src/**/*.js", ".env"],
+  "exec": "node --trace-warnings src/index.js",
+  "ext": "js,json",
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "delay": "500",
+  "signal": "SIGTERM"
+} 

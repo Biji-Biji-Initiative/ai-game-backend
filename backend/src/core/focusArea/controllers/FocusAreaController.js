@@ -85,8 +85,21 @@ class FocusAreaController {
       logger: this.logger,
       errorMappings: this.errorMappings
     });
+    this.generateFocusAreas = withControllerErrorHandling(this.generateFocusAreas.bind(this), {
+      methodName: 'generateFocusAreas',
+      domainName: 'focusArea',
+      logger: this.logger,
+      errorMappings: this.errorMappings
+    });
     this.regenerateFocusAreasForUser = withControllerErrorHandling(this.regenerateFocusAreasForUser.bind(this), {
       methodName: 'regenerateFocusAreasForUser',
+      domainName: 'focusArea',
+      logger: this.logger,
+      errorMappings: this.errorMappings
+    });
+    // Add error handling for the new createThread method
+    this.createThread = withControllerErrorHandling(this.createThread.bind(this), {
+      methodName: 'createThread',
       domainName: 'focusArea',
       logger: this.logger,
       errorMappings: this.errorMappings
@@ -101,9 +114,9 @@ class FocusAreaController {
   async getAllFocusAreas(req, res, _next) {
     const focusAreas = await this.managementCoordinator.getAllFocusAreas();
     return res.status(200).json({
-      success: true,
+      status: 'success',
       data: focusAreas,
-      pagination: {
+      meta: {
         total: focusAreas.length,
         offset: 0,
         limit: focusAreas.length
@@ -123,9 +136,9 @@ class FocusAreaController {
     // Email validation is handled by middleware
     const focusAreas = await this.managementCoordinator.getFocusAreasForUser(email);
     return res.status(200).json({
-      success: true,
+      status: 'success',
       data: focusAreas,
-      pagination: {
+      meta: {
         total: focusAreas.length,
         offset: 0,
         limit: focusAreas.length
@@ -148,7 +161,10 @@ class FocusAreaController {
     // Email and focusAreas validation handled by middleware
     await this.managementCoordinator.setFocusAreasForUser(email, focusAreas);
     return res.status(200).json({
-      success: true,
+      status: 'success',
+      data: {
+        updated: true
+      },
       message: 'Focus areas updated successfully'
     });
   }
@@ -169,9 +185,9 @@ class FocusAreaController {
     const limitValue = limit ? parseInt(limit) : 3;
     const recommendations = await this.managementCoordinator.getRecommendedFocusAreas(email, limitValue);
     return res.status(200).json({
-      success: true,
+      status: 'success',
       data: recommendations,
-      pagination: {
+      meta: {
         total: recommendations.length,
         offset: 0,
         limit: limitValue
@@ -223,6 +239,78 @@ class FocusAreaController {
     // Placeholder - needs userService dependency restored
     this.logger.warn('regenerateFocusAreasForUser needs userService dependency restored to find userId from email.');
     return res.status(501).json({ success: false, message: 'Regeneration endpoint needs further implementation (userService dependency)'});
+  }
+  /**
+   * Generate focus areas for the current user based on profile data
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   * @param {Function} _next - Express next middleware function
+   * @returns {Promise<Object>} Response with generated focus areas
+   */
+  async generateFocusAreas(req, res, _next) {
+    this.logger.info('Generating focus areas based on user profile data');
+
+    // Extract user profile data from request
+    const profileData = req.body;
+    
+    // Get the user ID from the authenticated user
+    const userId = req.user.id;
+
+    // Ensure the profileData has all necessary fields
+    if (!profileData || !profileData.professionalTitle) {
+      throw new FocusAreaValidationError('Profile data is required with at least a professional title');
+    }
+
+    try {
+      // Transform the input data to have the 'name' property required by the validator
+      const transformedData = {
+        id: userId,
+        ...profileData,
+        name: `Focus area for ${profileData.professionalTitle}`,
+        description: `Generated focus area based on profile data for ${profileData.professionalTitle}`
+      };
+
+      // Use the coordinator to generate focus areas
+      const focusAreas = await this.generationCoordinator.generateFocusAreasFromUserData(transformedData);
+      
+      // Use the OpenAPI expected response format
+      return res.status(201).json({
+        status: 'success',
+        data: focusAreas[0] // Return the first focus area
+      });
+    } catch (error) {
+      this.logger.error('Error generating focus areas', { error, userId });
+      throw new FocusAreaGenerationError('Failed to generate focus areas: ' + error.message);
+    }
+  }
+  /**
+   * Create a thread for focus area generation for the current user
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object 
+   * @param {Function} _next - Express next middleware function
+   * @returns {Promise<Object>} Response with thread ID
+   */
+  async createThread(req, res, _next) {
+    this.logger.info('Creating focus area thread for the current user');
+    
+    // Get the user ID from the authenticated user
+    const userId = req.user.id;
+    
+    try {
+      // Create a thread using the generation coordinator
+      const threadId = await this.generationCoordinator.createFocusAreaThread(userId);
+      
+      return res.status(201).json({
+        status: 'success',
+        data: {
+          threadId
+        },
+        message: 'Focus area thread created successfully'
+      });
+    } catch (error) {
+      this.logger.error('Error creating focus area thread', { error, userId });
+      throw new FocusAreaError('Failed to create focus area thread: ' + error.message);
+    }
   }
 }
 export default FocusAreaController;

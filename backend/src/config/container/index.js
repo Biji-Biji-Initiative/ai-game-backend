@@ -12,6 +12,7 @@ import controllers from "#app/config/container/controllers.js";
 // Removed routes import as we're using directRoutes.js instead
 import { registerAIComponents } from "#app/config/container/ai.js";
 import constants from "#app/config/container/constants.js";
+import mappers from "#app/config/container/mappers.js"; // Import mappers module
 'use strict';
 
 // // ADDED: Log before extracting registration functions
@@ -23,6 +24,7 @@ const { registerCoordinatorComponents } = coordinators;
 const { registerControllerComponents } = controllers;
 // Removed registerRouteComponents - using direct mounting instead
 const { registerConstants } = constants;
+const { registerMapperComponents } = mappers; // Extract mappers registration function
 // console.log('[container/index.js] Finished extracting registration functions.');
 
 /**
@@ -48,6 +50,7 @@ function createContainer(config) {
     container.registerModule(registerAIComponents, 'ai', baseLogger);
     container.registerModule(registerCoordinatorComponents, 'coordinators', baseLogger);
     container.registerModule(registerControllerComponents, 'controllers', baseLogger);
+    container.registerModule(registerMapperComponents, 'mappers', baseLogger); // Register mappers
     // Removed routes registration as we're using directRoutes.js instead
         
     return container;

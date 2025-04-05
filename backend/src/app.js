@@ -75,8 +75,21 @@ async function initializeApp() {
             }
         });
         
-        // 5. Configure Swagger & OpenAPI Validator BEFORE middleware to avoid auth checks
+        // 5. Configure Core Middleware FIRST (including body parser)
+        configureCoreMiddleware(app, config, container);
+        
+        // 6. Configure Swagger & OpenAPI Validator AFTER middleware so body-parser has run
         configureSwagger(app, config, container);
+        
+        // 6.5 Configure OpenAPI Response Adapter AFTER validator but BEFORE routes
+        import('#app/config/setup/openApiResponseAdapter.js')
+            .then(module => {
+                const { configureOpenApiResponseAdapter } = module;
+                configureOpenApiResponseAdapter(app, config, container);
+            })
+            .catch(error => {
+                logger.error('[App] Failed to load OpenAPI response adapter:', { error: error.message });
+            });
         
         // Add a Sentry test endpoint for error monitoring verification
         app.get('/sentry-test', (req, res, next) => {
@@ -120,9 +133,6 @@ async function initializeApp() {
                 next(error);
             }
         });
-        
-        // 6. Configure Core Middleware
-        configureCoreMiddleware(app, config, container);
         
         // 7. Mount All Application Routes
         await mountAppRoutes(app, config, container); 

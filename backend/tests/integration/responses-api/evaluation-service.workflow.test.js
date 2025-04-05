@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import sinon from "sinon";
 import { v4 as uuidv4 } from "uuid";
-import testEnv from "../../loadEnv.js";
+import { getTestConfig, hasRequiredVars } from "../../config/testConfig.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 import EvaluationService from "../../../src/core/evaluation/services/evaluationService.js";
 describe('Integration: Evaluation Service with Responses API', function () {
@@ -21,7 +21,7 @@ describe('Integration: Evaluation Service with Responses API', function () {
     const testChallengeId = uuidv4();
     beforeEach(function () {
         // Skip if no OpenAI API key in test environment
-        if (!testEnv.getTestConfig().openai.apiKey && process.env.NODE_ENV !== 'test') {
+        if (!getTestConfig().openai.apiKey && process.env.NODE_ENV !== 'test') {
             console.warn('⚠️ OpenAI API key not found, skipping Responses API tests');
             this.skip();
         }

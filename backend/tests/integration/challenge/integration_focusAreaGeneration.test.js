@@ -4,7 +4,7 @@ import promptBuilder from "@/core/prompt/promptBuilder.js";
 import focusAreaGenerationService from "@/core/focusArea/services/focusAreaGenerationService.js";
 import FocusArea from "@/core/focusArea/models/FocusArea.js";
 import { PROMPT_TYPES } from "@/core/prompt/promptTypes.js";
-import testEnv from "../../loadEnv.js";
+import { getTestConfig, hasRequiredVars } from "../../config/testConfig.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 describe('Focus Area Generation with Real APIs', function () {
     before(function () {
@@ -16,7 +16,7 @@ describe('Focus Area Generation with Real APIs', function () {
     let threadId;
     before(async function () {
         // Skip tests if OpenAI API key is not available
-        if (!testEnv.getTestConfig().openai.apiKey) {
+        if (!getTestConfig().openai.apiKey) {
             console.warn('Skipping tests: OPENAI_API_KEY not available');
             this.skip();
         }

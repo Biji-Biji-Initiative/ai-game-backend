@@ -17,6 +17,8 @@ AdaptiveRecommendation:
   $ref: './AdaptiveRecommendation.yaml'
 FocusArea:
   $ref: './FocusArea.yaml'
+GenerateFocusAreaRequest:
+  $ref: './GenerateFocusAreaRequest.yaml'
 Progress:
   $ref: './Progress.yaml'
 Personality:

@@ -10,11 +10,11 @@ import UserJourneyController from "#app/core/userJourney/controllers/UserJourney
 import HealthCheckController from "#app/core/infra/health/HealthCheckController.js";
 import SystemController from "#app/core/system/controllers/SystemController.js";
 import AdminController from "#app/core/admin/controllers/AdminController.js";
+import EventBusController from "#app/core/infra/events/EventBusController.js";
 // Note: AiChatController and AiAnalysisController are not yet implemented
 // These imports will be added once the controllers are created
 // import AiChatController from "../../controllers/ai/AiChatController.js";
 // import AiAnalysisController from "../../controllers/ai/AiAnalysisController.js";
-// import EventBusController from "..."; // Assuming a path if it existed
 'use strict';
 /**
  * Controller Components Registration
@@ -62,6 +62,7 @@ function registerControllerComponents(container, logger) {
     controllerLogger.info('Registering personalityController...');
     container.register('personalityController', c => new PersonalityController({
         personalityService: c.get('personalityService'),
+        container: c, // Pass the container itself
         logger: c.get('personalityLogger')
     }), true); // Singleton
 
@@ -125,13 +126,17 @@ function registerControllerComponents(container, logger) {
     }), true); // Singleton
     
     controllerLogger.info('Registering eventBusController (Mock)...');
-    // Register MOCK event bus controller (if it exists and is needed)
-    if (typeof EventBusController !== 'undefined') {
-        controllerLogger.info('Registering MOCK eventBusController');
-        container.register('eventBusController', c => new EventBusController(c.get('systemController')), true);
-    } else {
-        controllerLogger.warn('EventBusController class not found, skipping registration.');
-    }
+    // Register event bus controller with required dependencies
+    container.register('eventBusController', c => {
+        try {
+            return new EventBusController({
+                eventBus: c.get('eventBus')
+            });
+        } catch (error) {
+            controllerLogger.error('Failed to register EventBusController', { error: error.message });
+            return null;
+        }
+    }, true);
 
     // Admin Controller
     controllerLogger.info('Registering adminController...');

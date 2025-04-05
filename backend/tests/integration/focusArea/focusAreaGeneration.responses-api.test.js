@@ -4,7 +4,7 @@ import types from "@/infra/openai/types";
 import FocusAreaGenerationService from "@/core/focusArea/services/focusAreaGenerationService.js";
 import FocusArea from "@/core/focusArea/models/FocusArea.js";
 import promptBuilder from "@/core/prompt/promptBuilder.js";
-import testEnv from "../../loadEnv.js";
+import { getTestConfig, hasRequiredVars } from "../../config/testConfig.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 const { OpenAIClient } = openai;
 const { MessageRole } = types;
@@ -22,13 +22,13 @@ describe('FocusAreaGenerationService Responses API Integration', function () {
     let openAIClient;
     before(function () {
         // Skip tests if OpenAI API key is not available
-        if (!testEnv.getTestConfig().openai.apiKey) {
+        if (!getTestConfig().openai.apiKey) {
             console.warn('OPENAI_API_KEY not found, skipping Responses API tests');
             this.skip();
         }
         // Initialize the real OpenAI client with Responses API support
         openAIClient = new OpenAIClient({
-            apiKey: testEnv.getTestConfig().openai.apiKey
+            apiKey: getTestConfig().openai.apiKey
         });
         // Create the service with the real client and required dependencies
         focusAreaGenerationService = new FocusAreaGenerationService({

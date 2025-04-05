@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import { v4 as uuidv4 } from "uuid";
-import testEnv from "../loadEnv.js";
+import { getTestConfig, hasRequiredVars } from "../config/testConfig.js";
 import { skipIfMissingEnv } from "../helpers/testHelpers.js";
 import { config } from "dotenv";
 import * as apiTestHelper from "../helpers/apiTestHelper.js";
@@ -19,11 +19,11 @@ describe('Integration: OpenAI to Supabase Workflow', function () {
     this.timeout(30000);
     // Skip if API keys not available
     before(function () {
-        if (!testEnv.getTestConfig().openai.apiKey) {
+        if (!getTestConfig().openai.apiKey) {
             console.warn('OPENAI_API_KEY not found, skipping integration tests');
             this.skip();
         }
-        if (!testEnv.getTestConfig().supabase.url || !testEnv.getTestConfig().supabase.key) {
+        if (!getTestConfig().supabase.url || !getTestConfig().supabase.key) {
             console.warn('SUPABASE credentials not found, skipping integration tests');
             this.skip();
         }
@@ -34,9 +34,9 @@ describe('Integration: OpenAI to Supabase Workflow', function () {
     beforeEach(function () {
         // Create OpenAI client
         const { OpenAIClient } = openai;
-        openaiClient = new OpenAIClient({ apiKey: testEnv.getTestConfig().openai.apiKey
+        openaiClient = new OpenAIClient({ apiKey: getTestConfig().openai.apiKey
         });
-        supabaseClient = createClient(testEnv.getTestConfig().supabase.url, testEnv.getTestConfig().supabase.key);
+        supabaseClient = createClient(getTestConfig().supabase.url, getTestConfig().supabase.key);
         // Create a simple Challenge class for this test
         /**
          *

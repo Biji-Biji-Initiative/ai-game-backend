@@ -100,13 +100,13 @@ describe('Challenge Generation Responses API Integration', function () {
     let openAIClient;
     before(function () {
         // Skip tests if OpenAI API key is not available
-        if (!testEnv.getTestConfig().openai.apiKey) {
+        if (!getTestConfig().openai.apiKey) {
             console.warn('OPENAI_API_KEY not found, skipping Responses API tests');
             this.skip();
         }
         // Initialize the real OpenAI client with Responses API support
         openAIClient = new OpenAIClient({
-            apiKey: testEnv.getTestConfig().openai.apiKey
+            apiKey: getTestConfig().openai.apiKey
         });
         // Create the service with the real client
         challengeGenerationService = new ChallengeGenerationService({

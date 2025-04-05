@@ -1,0 +1,23 @@
+type: object
+description: Request body for focus area generation
+properties:
+  professionalTitle:
+    type: string
+    description: User's professional title or role
+  interests:
+    type: array
+    items:
+      type: string
+    description: User's interests or topics they want to learn about
+  skills:
+    type: array
+    items:
+      type: string
+    description: User's existing skills
+  goals:
+    type: array
+    items:
+      type: string
+    description: User's learning goals or objectives
+required:
+  - professionalTitle 

@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import sinon from "sinon";
 import { v4 as uuidv4 } from "uuid";
-import testEnv from "../../loadEnv.js";
+import { getTestConfig, hasRequiredVars } from "../../config/testConfig.js";
 import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
 import testSetup from "../../helpers/testSetup.js";
 import { container } from "@/config/container.js";
@@ -24,7 +24,7 @@ describe('Integration: OpenAI Responses API Workflow', function () {
     let conversationState;
     beforeEach(async function () {
         // Skip if no OpenAI API key in test environment
-        if (!testEnv.getTestConfig().openai.apiKey && process.env.NODE_ENV !== 'test') {
+        if (!getTestConfig().openai.apiKey && process.env.NODE_ENV !== 'test') {
             console.warn('⚠️ OpenAI API key not found, skipping Responses API tests');
             this.skip();
         }
@@ -150,7 +150,7 @@ describe('Integration: OpenAI Responses API Workflow', function () {
     describe('JSON Response Format Handling', function () {
         it('should request and process JSON-formatted evaluations', async function () {
             // Skip if not in test environment and missing OpenAI key
-            if (!testEnv.getTestConfig().openai.apiKey && process.env.NODE_ENV !== 'test') {
+            if (!getTestConfig().openai.apiKey && process.env.NODE_ENV !== 'test') {
                 this.skip();
             }
             // Create messages with JSON format instructions
@@ -204,7 +204,7 @@ Evaluate based on:
     describe('Stateful Conversation', function () {
         it('should maintain context between messages using previous_response_id', async function () {
             // Skip if not in test environment and missing OpenAI key
-            if (!testEnv.getTestConfig().openai.apiKey && process.env.NODE_ENV !== 'test') {
+            if (!getTestConfig().openai.apiKey && process.env.NODE_ENV !== 'test') {
                 this.skip();
             }
             // 1. Send initial message

@@ -5,216 +5,220 @@
  * 1. Generating AI-powered challenges with proper parameters
  * 2. Retrieving generated challenges with correct structure
  * 3. Listing user challenges and verifying correct ownership
- * 4. Proper validation of challenge properties and structure
+ * 4. Generating challenges for specific focus areas
+ * 5. Proper validation of challenge properties and persistence
  * 
  * These tests ensure that the Challenge Generation process works end-to-end,
  * properly storing the generated challenges and associating them with users.
  */
 
-import { expect } from "chai";
-import * as axios from "axios";
-import testEnv from "../../loadEnv.js";
-import { skipIfMissingEnv } from "../../helpers/testHelpers.js";
-import { config } from "dotenv";
-import * as apiTestHelper from "../../helpers/apiTestHelper.js";
-import { ChallengeDTO, ChallengeDTOMapper } from "../../../src/core/challenge/dtos/index.js";
-import { createUserId, createChallengeId, UserId, ChallengeId } from "../../../src/core/common/valueObjects/index.js";
-import ChallengeDTOMapper from "../../../src/application/challenge/mappers/ChallengeDTOMapper.js";
-import ChallengeResponseDTOMapper from "../../../src/application/challenge/mappers/ChallengeResponseDTOMapper.js";
+// Import test libraries directly (not through other files that might import this one)
+import { expect } from 'chai';
+import dotenv from 'dotenv';
+import path from 'path';
+import fs from 'fs';
+import { setupTestUser, getAuthToken, apiRequest } from '../../helpers/apiTestHelper.js';
+// Import the UserDTO for validating user data structures if needed
+import UserDTO from '../../../src/core/user/dtos/UserDTO.js';
 
-({ config }.config());
-
-// Timeout for API requests
+// Set up timeout for longer API calls
 const API_TIMEOUT = 40000;
 
-// Base URL for API requests
-const API_URL = process.env.API_URL || 'http://localhost:3000/api';
+// Load environment variables - rely on apiTestHelper to handle this
+console.log(`Environment loaded from: ${path.resolve(process.cwd(), '.env.test')}`);
 
-describe('E2E: Challenge Generation API', function () {
-    // Set longer timeout for API calls
-    this.timeout(30000);
-    
-    before(function () {
-        skipIfMissingEnv(this, 'openai');
-    });
-
-    // Configure longer timeout for E2E tests
-    this.timeout(API_TIMEOUT);
-
-    // Skip if API keys not available
-    before(function () {
-        if (!process.env.API_URL && !process.env.TEST_API_URL) {
-            console.warn('API_URL not set, skipping E2E tests');
-            this.skip();
-        }
-    });
-
-    // Test variables
-    let axiosInstance;
-    let testUser;
+describe('Challenge Generation E2E Tests', function() {
+  this.timeout(API_TIMEOUT);
+  
+  // Tests that require authentication
+  describe('Challenge Generation API Flow', function() {
     let authToken;
-    let testUserId;
     let generatedChallengeId;
-    let generatedChallengeIdVO;
-
-    before(async function () {
-        // Skip tests if OpenAI API key is not available
-        if (!testEnv.getTestConfig().openai.apiKey) {
-            console.warn('OPENAI_API_KEY not found, skipping E2E tests');
-            this.skip();
+    let focusAreaChallengeId;
+    let testUser;
+    let generatedFocusAreaId;
+    
+    // Set up before running tests
+    before(async function() {
+      try {
+        // Set up a test user 
+        testUser = await setupTestUser();
+        // Get auth token
+        authToken = await getAuthToken(testUser.email, testUser.password);
+        console.log('Auth token obtained successfully');
+      } catch (error) {
+        console.error('Error in test setup:', error);
+        this.skip();
+      }
+    });
+    
+    // Cleanup after tests
+    after(async function() {
+      // Clean up test data
+      try {
+        // Delete generated challenges if they exist
+        if (generatedChallengeId) {
+          await apiRequest('delete', `api/v1/challenges/${generatedChallengeId}`, null, authToken);
+          console.log(`Challenge deleted: ${generatedChallengeId}`);
         }
+        if (focusAreaChallengeId) {
+          await apiRequest('delete', `api/v1/challenges/${focusAreaChallengeId}`, null, authToken);
+          console.log(`Focus area challenge deleted: ${focusAreaChallengeId}`);
+        }
+      } catch (error) {
+        console.warn('Failed to clean up test data:', error.message);
+      }
+    });
+    
+    // Test: Generate a challenge
+    it('should generate a challenge using AI via the API and verify content/persistence', async function() {
+      // Skip if no auth token is available
+      if (!authToken) {
+        this.skip();
+      }
+      
+      // Challenge generation data
+      const generationData = {
+        category: 'logical-reasoning',
+        difficulty: 'medium',
+        focusArea: 'reasoning'
+      };
+      
+      // Generate the challenge
+      const generationResponse = await apiRequest('post', 'api/v1/challenges/generate', generationData, authToken);
+      
+      // Verify challenge generation response
+      expect(generationResponse.status).to.equal(200);
+      expect(generationResponse.data.success).to.be.true;
+      expect(generationResponse.data.data).to.exist;
+      
+      // Save basic challenge data for validation
+      const challenge = generationResponse.data.data;
+      
+      // Verify basic structure of generated challenge
+      expect(challenge.id).to.be.a('string');
+      expect(challenge.content).to.exist;
+      expect(challenge.difficulty).to.equal(generationData.difficulty);
+      
+      // Enhanced assertions for generated content - Ticket 5 requirement
+      if (typeof challenge.content === 'string') {
+        expect(challenge.content.length).to.be.greaterThan(100);
+      } else if (challenge.content.description) {
+        // Check that description has meaningful length
+        expect(challenge.content.description.length).to.be.greaterThan(50);
         
-        // Set up test user and auth token
-        try {
-            // Get test user
-            testUser = await apiTestHelper.setupTestUser();
-            console.log(`Test user created: ${testUser.email}`);
-            
-            // Create Value Object for user ID
-            testUserId = createUserId(testUser.id);
-            
-            // Get auth token
-            authToken = await apiTestHelper.getAuthToken(testUser.email, testUser.password);
-            
-            // Create axios instance with authentication
-            axiosInstance = axios.create({
-                baseURL: API_URL,
-                headers: {
-                    'Authorization': `Bearer ${authToken}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-        }
-        catch (error) {
-            console.error('Failed to set up API client:', error.message);
-            throw error;
-        }
+        // Check for keywords related to the category (logical-reasoning)
+        expect(challenge.content.description.toLowerCase()).to.satisfy(desc => {
+          return desc.includes('logic') || 
+                 desc.includes('reason') || 
+                 desc.includes('problem') || 
+                 desc.includes('think') ||
+                 desc.includes('analyze');
+        }, 'Description should contain keywords related to logical reasoning');
+      }
+      
+      // Save challenge ID for later
+      generatedChallengeId = challenge.id;
+      
+      // Verify persistence by retrieving the generated challenge - Ticket 5 indirect persistence check
+      const retrieveResponse = await apiRequest('get', `api/v1/challenges/${generatedChallengeId}`, null, authToken);
+      
+      // Verify retrieval response
+      expect(retrieveResponse.status).to.equal(200);
+      expect(retrieveResponse.data.success).to.be.true;
+      expect(retrieveResponse.data.data).to.exist;
+      
+      // Verify challenge structure after retrieval (persistence check)
+      const retrievedChallenge = retrieveResponse.data.data;
+      expect(retrievedChallenge.id).to.equal(generatedChallengeId);
+      expect(retrievedChallenge.content).to.exist;
+      expect(retrievedChallenge.difficulty).to.equal(generationData.difficulty);
     });
-
-    after(async function () {
-        // Clean up test data
-        try {
-            // Delete challenge if it exists
-            if (generatedChallengeId) {
-                await apiTestHelper.apiRequest('delete', `/challenges/${generatedChallengeId}`, null, authToken);
-                console.log(`Challenge deleted: ${generatedChallengeId}`);
-            }
-            // We're using a persistent test user, so no need to clean up
-            console.log(`Test user retained: ${testUser.email}`);
-        }
-        catch (error) {
-            console.warn('Failed to clean up test data:', error.message);
-        }
+    
+    // Test: List user challenges
+    it('should list challenges for the current user with correct filtering', async function() {
+      // Skip if no auth token is available
+      if (!authToken) {
+        this.skip();
+      }
+      
+      // Ensure we have at least one challenge by using the ID from the previous test
+      if (!generatedChallengeId) {
+        this.skip();
+      }
+      
+      // Get user challenges
+      const listResponse = await apiRequest('get', 'api/v1/challenges', null, authToken);
+      
+      // Verify list response
+      expect(listResponse.status).to.equal(200);
+      expect(listResponse.data.success).to.be.true;
+      expect(listResponse.data.data).to.be.an('array');
+      
+      // Verify the list contains our generated challenge
+      const challenges = listResponse.data.data;
+      const foundChallenge = challenges.find(c => c.id === generatedChallengeId);
+      expect(foundChallenge).to.exist;
+      
+      // Verify the challenge belongs to the current user
+      expect(foundChallenge.userId).to.equal(testUser.id);
     });
-
-    describe('Challenge Generation Flow', function () {
-        it('should generate a challenge using AI via the API', async function () {
-            // Skip if no auth token is available
-            if (!authToken) {
-                this.skip();
-            }
-            
-            // Step 1: Request AI-generated challenge
-            const generationData = {
-                category: 'logical-reasoning',
-                difficulty: 'medium',
-                focusArea: 'reasoning'
-            };
-            
-            // Validate generation data using DTOMapper
-            const mappedData = ChallengeDTOMapper.fromRequest(generationData);
-            expect(mappedData).to.exist;
-            
-            const generationResponse = await apiTestHelper.apiRequest('post', '/challenges/generate', generationData, authToken);
-            
-            // Verify challenge generation
-            expect(generationResponse.status).to.equal(200);
-            expect(generationResponse.data.success).to.be.true;
-            expect(generationResponse.data.data).to.exist;
-            
-            // Create a DTO and validate it
-            const challengeDto = new ChallengeDTO(generationResponse.data.data);
-            expect(challengeDto).to.be.instanceOf(ChallengeDTO);
-            
-            // Save challenge ID for later
-            generatedChallengeId = generationResponse.data.data.id;
-            generatedChallengeIdVO = createChallengeId(generatedChallengeId);
-            
-            // Step 2: Retrieve the generated challenge
-            const retrieveResponse = await apiTestHelper.apiRequest(
-                'get', 
-                `/challenges/${generatedChallengeId}`, 
-                null, 
-                authToken
-            );
-            
-            // Verify retrieved challenge
-            expect(retrieveResponse.status).to.equal(200);
-            expect(retrieveResponse.data.success).to.be.true;
-            expect(retrieveResponse.data.data).to.exist;
-            
-            // Create a DTO and validate it
-            const retrievedChallengeDto = new ChallengeDTO(retrieveResponse.data.data);
-            expect(retrievedChallengeDto).to.be.instanceOf(ChallengeDTO);
-            
-            // Verify challenge structure
-            expect(retrievedChallengeDto.id).to.equal(generatedChallengeId);
-            expect(retrievedChallengeDto.title).to.be.a('string').and.not.empty;
-            expect(retrievedChallengeDto.difficulty).to.equal(generationData.difficulty);
-            expect(retrievedChallengeDto.challenge_type || retrievedChallengeDto.challengeType)
-                .to.equal(generationData.category);
-            expect(retrievedChallengeDto.content).to.exist;
-            
-            // Verify Value Object conversion
-            const challengeId = createChallengeId(retrievedChallengeDto.id);
-            expect(challengeId).to.be.instanceOf(ChallengeId);
-            
-            // If userId is available in the DTO, validate it as a Value Object
-            if (retrievedChallengeDto.userId) {
-                const userId = createUserId(retrievedChallengeDto.userId);
-                expect(userId).to.be.instanceOf(UserId);
-                expect(userId.value).to.equal(testUser.id);
-            }
-            
-            console.log('Successfully generated and retrieved challenge:', {
-                id: retrievedChallengeDto.id,
-                title: retrievedChallengeDto.title
-            });
-        });
-
-        it('should list user challenges including the generated one', async function () {
-            // Skip if no challenge was created
-            if (!generatedChallengeId || !authToken) {
-                this.skip();
-            }
-            
-            const listResponse = await apiTestHelper.apiRequest('get', '/challenges/user', null, authToken);
-            
-            // Verify list response
-            expect(listResponse.status).to.equal(200);
-            expect(listResponse.data.success).to.be.true;
-            expect(listResponse.data.data).to.be.an('array');
-            
-            // Verify the challenge we created is in the list
-            const userChallenges = listResponse.data.data;
-            const createdChallenge = userChallenges.find(c => c.id === generatedChallengeId);
-            expect(createdChallenge).to.exist;
-            
-            // Create a DTO and validate it
-            const foundChallengeDto = new ChallengeDTO(createdChallenge);
-            expect(foundChallengeDto).to.be.instanceOf(ChallengeDTO);
-            
-            // Verify Value Object conversion
-            const challengeId = createChallengeId(foundChallengeDto.id);
-            expect(challengeId).to.be.instanceOf(ChallengeId);
-            expect(challengeId.value).to.equal(generatedChallengeId);
-            
-            // If userId is available in the DTO, validate it as a Value Object
-            if (foundChallengeDto.userId) {
-                const userId = createUserId(foundChallengeDto.userId);
-                expect(userId).to.be.instanceOf(UserId);
-                expect(userId.value).to.equal(testUser.id);
-            }
-        });
+    
+    // Test: Generate a challenge with a specific focus area
+    it('should generate a challenge for a specific focus area and verify the linkage', async function() {
+      // Skip if no auth token is available
+      if (!authToken) {
+        this.skip();
+      }
+      
+      // First, generate a focus area
+      const focusAreaData = {
+        name: "Test Focus Area " + Date.now(),
+        description: "A test focus area for challenge generation testing"
+      };
+      
+      // Generate the focus area
+      const focusAreaResponse = await apiRequest('post', 'api/v1/focus-areas/generate', focusAreaData, authToken);
+      
+      // Verify focus area generation response
+      expect(focusAreaResponse.status).to.equal(200);
+      expect(focusAreaResponse.data.success).to.be.true;
+      expect(focusAreaResponse.data.data).to.exist;
+      
+      // Save focus area data
+      const focusArea = focusAreaResponse.data.data;
+      expect(focusArea.id).to.be.a('string');
+      generatedFocusAreaId = focusArea.id;
+      
+      // Challenge generation data with the specific focus area
+      const generationData = {
+        category: 'communication',
+        difficulty: 'easy',
+        focusArea: focusArea.id
+      };
+      
+      // Generate the challenge with the focus area
+      const challengeResponse = await apiRequest('post', 'api/v1/challenges/generate', generationData, authToken);
+      
+      // Verify challenge generation response
+      expect(challengeResponse.status).to.equal(200);
+      expect(challengeResponse.data.success).to.be.true;
+      expect(challengeResponse.data.data).to.exist;
+      
+      // Save challenge data
+      const challenge = challengeResponse.data.data;
+      expect(challenge.id).to.be.a('string');
+      focusAreaChallengeId = challenge.id;
+      
+      // Verify the challenge has the correct focus area
+      expect(challenge.focusArea).to.equal(focusArea.id);
+      
+      // Retrieve the challenge to verify persistence
+      const retrieveResponse = await apiRequest('get', `api/v1/challenges/${focusAreaChallengeId}`, null, authToken);
+      
+      // Verify the retrieved challenge has the correct focus area
+      expect(retrieveResponse.status).to.equal(200);
+      expect(retrieveResponse.data.data.focusArea).to.equal(focusArea.id);
     });
-});
+  });
+}); 

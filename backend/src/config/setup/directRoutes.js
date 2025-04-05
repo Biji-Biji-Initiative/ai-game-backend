@@ -14,6 +14,23 @@ import createAuthRoutes from "#app/core/infra/http/routes/authRoutes.js";
 import setupAdminRoutes from "#app/core/infra/http/routes/adminRoutes.js";
 import { logger as appLogger } from "#app/core/infra/logging/logger.js";
 
+// Track registered routes to prevent duplicates
+const registeredRoutes = new Set();
+
+/**
+ * Check if a route path is already registered
+ * @param {string} path - The route path to check
+ * @returns {boolean} - True if already registered, false otherwise
+ */
+function isRouteRegistered(path) {
+  const normalizedPath = path.endsWith('/') ? path.slice(0, -1) : path;
+  if (registeredRoutes.has(normalizedPath)) {
+    return true;
+  }
+  registeredRoutes.add(normalizedPath);
+  return false;
+}
+
 /**
  * Mount all application routes
  * This function directly mounts route handlers on the Express app
@@ -36,20 +53,37 @@ export async function mountAllRoutes(app, container, config) {
     
     // Health routes (no auth required)
     const healthCheckController = container.get('healthCheckController');
-    app.get('/api/health', healthCheckController.checkHealth.bind(healthCheckController));
-    app.get('/api/v1/health', healthCheckController.checkHealth.bind(healthCheckController));
-    logger.debug('[Setup] Mounted health routes at /api/health and /api/v1/health');
+    
+    // Check for duplicate routes
+    if (!isRouteRegistered('/api/health')) {
+      app.get('/api/health', healthCheckController.checkHealth.bind(healthCheckController));
+      logger.debug('[Setup] Mounted health route at /api/health');
+    } else {
+      logger.warn('[Setup] Skipping duplicate route: /api/health');
+    }
+    
+    if (!isRouteRegistered('/api/v1/health')) {
+      app.get('/api/v1/health', healthCheckController.checkHealth.bind(healthCheckController));
+      logger.debug('[Setup] Mounted health route at /api/v1/health');
+    } else {
+      logger.warn('[Setup] Skipping duplicate route: /api/v1/health');
+    }
     
     // Direct access to error test endpoint for Sentry testing (no auth required)
-    app.get('/api/v1/error-test', (req, res, next) => {
-      try {
-        // Simulate an error for Sentry testing
-        const errorType = req.query.type || 'default';
-        throw new Error(`Direct test error for Sentry: ${errorType}`);
-      } catch (error) {
-        next(error);
-      }
-    });
+    if (!isRouteRegistered('/api/v1/error-test')) {
+      app.get('/api/v1/error-test', (req, res, next) => {
+        try {
+          // Simulate an error for Sentry testing
+          const errorType = req.query.type || 'default';
+          throw new Error(`Direct test error for Sentry: ${errorType}`);
+        } catch (error) {
+          next(error);
+        }
+      });
+      logger.debug('[Setup] Mounted error test route at /api/v1/error-test');
+    } else {
+      logger.warn('[Setup] Skipping duplicate route: /api/v1/error-test');
+    }
     
     // Set up authentication middleware from container
     const authMiddleware = container.get('authMiddleware');
@@ -66,8 +100,14 @@ export async function mountAllRoutes(app, container, config) {
         container, 
         healthCheckController 
       });
-      apiRouter.use('/health', healthRouter);
-      logger.info(`Health routes mounted at ${prefix}/health`);
+      
+      const routePath = '/health';
+      if (!isRouteRegistered(`${prefix}${routePath}`)) {
+        apiRouter.use(routePath, healthRouter);
+        logger.info(`Health routes mounted at ${prefix}${routePath}`);
+      } else {
+        logger.warn(`Skipping duplicate route: ${prefix}${routePath}`);
+      }
     } catch (error) {
       logger.error('Failed to mount health routes', { error: error.message });
       apiRouter.use('/health', createFallbackRouter('Health service unavailable'));
@@ -81,8 +121,14 @@ export async function mountAllRoutes(app, container, config) {
         authController,
         validation
       });
-      apiRouter.use('/auth', authRouter);
-      logger.info('Auth routes mounted at /auth');
+      
+      const routePath = '/auth';
+      if (!isRouteRegistered(`${prefix}${routePath}`)) {
+        apiRouter.use(routePath, authRouter);
+        logger.info(`Auth routes mounted at ${prefix}${routePath}`);
+      } else {
+        logger.warn(`Skipping duplicate route: ${prefix}${routePath}`);
+      }
     } catch (error) {
       logger.error('Failed to mount auth routes', { error: error.message });
       apiRouter.use('/auth', createFallbackRouter('Auth service unavailable'));
@@ -92,8 +138,13 @@ export async function mountAllRoutes(app, container, config) {
     try {
       // For now, use a fallback router instead of attempting to mount the admin routes
       // This ensures the server can start even if there's an issue with the admin routes
-      logger.info('Using fallback for admin routes (temporarily disabled)');
-      apiRouter.use('/admin', createFallbackRouter('Admin routes temporarily disabled'));
+      const routePath = '/admin';
+      if (!isRouteRegistered(`${prefix}${routePath}`)) {
+        logger.info('Using fallback for admin routes (temporarily disabled)');
+        apiRouter.use(routePath, createFallbackRouter('Admin routes temporarily disabled'));
+      } else {
+        logger.warn(`Skipping duplicate route: ${prefix}${routePath}`);
+      }
     } catch (error) {
       logger.error('Failed to mount admin fallback routes', { error: error.message });
     }
@@ -103,8 +154,14 @@ export async function mountAllRoutes(app, container, config) {
       const userController = container.get('userController');
       const authController = container.get('authController');
       const userRouter = userRoutes(userController, authController);
-      apiRouter.use('/users', userRouter);
-      logger.info('User routes mounted at /users');
+      
+      const routePath = '/users';
+      if (!isRouteRegistered(`${prefix}${routePath}`)) {
+        apiRouter.use(routePath, userRouter);
+        logger.info(`User routes mounted at ${prefix}${routePath}`);
+      } else {
+        logger.warn(`Skipping duplicate route: ${prefix}${routePath}`);
+      }
     } catch (error) {
       logger.error('Failed to mount user routes', { error: error.message });
       apiRouter.use('/users', createFallbackRouter('User service unavailable'));
@@ -114,8 +171,14 @@ export async function mountAllRoutes(app, container, config) {
     try {
       const personalityController = container.get('personalityController');
       const personalityRouter = personalityRoutes(personalityController);
-      apiRouter.use('/personality', personalityRouter);
-      logger.info('Personality routes mounted at /personality');
+      
+      const routePath = '/personality';
+      if (!isRouteRegistered(`${prefix}${routePath}`)) {
+        apiRouter.use(routePath, personalityRouter);
+        logger.info(`Personality routes mounted at ${prefix}${routePath}`);
+      } else {
+        logger.warn(`Skipping duplicate route: ${prefix}${routePath}`);
+      }
     } catch (error) {
       logger.error('Failed to mount personality routes', { error: error.message });
       apiRouter.use('/personality', createFallbackRouter('Personality service unavailable'));
@@ -125,8 +188,14 @@ export async function mountAllRoutes(app, container, config) {
     try {
       const progressController = container.get('progressController');
       const progressRouter = progressRoutes(progressController);
-      apiRouter.use('/progress', progressRouter);
-      logger.info('Progress routes mounted at /progress');
+      
+      const routePath = '/progress';
+      if (!isRouteRegistered(`${prefix}${routePath}`)) {
+        apiRouter.use(routePath, progressRouter);
+        logger.info(`Progress routes mounted at ${prefix}${routePath}`);
+      } else {
+        logger.warn(`Skipping duplicate route: ${prefix}${routePath}`);
+      }
     } catch (error) {
       logger.error('Failed to mount progress routes', { error: error.message });
       apiRouter.use('/progress', createFallbackRouter('Progress service unavailable'));
@@ -136,8 +205,14 @@ export async function mountAllRoutes(app, container, config) {
     try {
       const adaptiveController = container.get('adaptiveController');
       const adaptiveRouter = adaptiveRoutes(adaptiveController);
-      apiRouter.use('/adaptive', adaptiveRouter);
-      logger.info('Adaptive routes mounted at /adaptive');
+      
+      const routePath = '/adaptive';
+      if (!isRouteRegistered(`${prefix}${routePath}`)) {
+        apiRouter.use(routePath, adaptiveRouter);
+        logger.info(`Adaptive routes mounted at ${prefix}${routePath}`);
+      } else {
+        logger.warn(`Skipping duplicate route: ${prefix}${routePath}`);
+      }
     } catch (error) {
       logger.error('Failed to mount adaptive routes', { error: error.message });
       apiRouter.use('/adaptive', createFallbackRouter('Adaptive service unavailable'));
@@ -147,8 +222,14 @@ export async function mountAllRoutes(app, container, config) {
     try {
       const focusAreaController = container.get('focusAreaController');
       const focusAreaRouter = focusAreaRoutes(focusAreaController);
-      apiRouter.use('/focus-areas', focusAreaRouter);
-      logger.info('Focus area routes mounted at /focus-areas');
+      
+      const routePath = '/focus-areas';
+      if (!isRouteRegistered(`${prefix}${routePath}`)) {
+        apiRouter.use(routePath, focusAreaRouter);
+        logger.info(`Focus area routes mounted at ${prefix}${routePath}`);
+      } else {
+        logger.warn(`Skipping duplicate route: ${prefix}${routePath}`);
+      }
     } catch (error) {
       logger.error('Failed to mount focus area routes', { error: error.message });
       apiRouter.use('/focus-areas', createFallbackRouter('Focus area service unavailable'));
@@ -158,8 +239,14 @@ export async function mountAllRoutes(app, container, config) {
     try {
       const challengeController = container.get('challengeController');
       const challengeRouter = challengeRoutes(challengeController);
-      apiRouter.use('/challenges', challengeRouter);
-      logger.info('Challenge routes mounted at /challenges');
+      
+      const routePath = '/challenges';
+      if (!isRouteRegistered(`${prefix}${routePath}`)) {
+        apiRouter.use(routePath, challengeRouter);
+        logger.info(`Challenge routes mounted at ${prefix}${routePath}`);
+      } else {
+        logger.warn(`Skipping duplicate route: ${prefix}${routePath}`);
+      }
     } catch (error) {
       logger.error('Failed to mount challenge routes', { error: error.message });
       apiRouter.use('/challenges', createFallbackRouter('Challenge service unavailable'));
@@ -169,8 +256,14 @@ export async function mountAllRoutes(app, container, config) {
     try {
       const evaluationController = container.get('evaluationController');
       const evaluationRouter = evaluationRoutes(evaluationController);
-      apiRouter.use('/evaluations', evaluationRouter);
-      logger.info('Evaluation routes mounted at /evaluations');
+      
+      const routePath = '/evaluations';
+      if (!isRouteRegistered(`${prefix}${routePath}`)) {
+        apiRouter.use(routePath, evaluationRouter);
+        logger.info(`Evaluation routes mounted at ${prefix}${routePath}`);
+      } else {
+        logger.warn(`Skipping duplicate route: ${prefix}${routePath}`);
+      }
     } catch (error) {
       logger.error('Failed to mount evaluation routes', { error: error.message });
       apiRouter.use('/evaluations', createFallbackRouter('Evaluation service unavailable'));
@@ -180,8 +273,14 @@ export async function mountAllRoutes(app, container, config) {
     try {
       const userJourneyController = container.get('userJourneyController');
       const userJourneyRouter = userJourneyRoutes(userJourneyController);
-      apiRouter.use('/user-journey', userJourneyRouter);
-      logger.info('User journey routes mounted at /user-journey');
+      
+      const routePath = '/user-journey';
+      if (!isRouteRegistered(`${prefix}${routePath}`)) {
+        apiRouter.use(routePath, userJourneyRouter);
+        logger.info(`User journey routes mounted at ${prefix}${routePath}`);
+      } else {
+        logger.warn(`Skipping duplicate route: ${prefix}${routePath}`);
+      }
     } catch (error) {
       logger.error('Failed to mount user journey routes', { error: error.message });
       apiRouter.use('/user-journey', createFallbackRouter('User journey service unavailable'));
@@ -209,13 +308,22 @@ export async function mountAllRoutes(app, container, config) {
       }
       
       // Add a middleware to explicitly skip authentication for the error-test endpoint
-      apiRouter.use('/system/error-test', (req, res, next) => {
-        logger.debug('Bypassing auth for system error test endpoint');
-        next();
-      });
+      const errorTestPath = '/system/error-test';
+      if (!isRouteRegistered(`${prefix}${errorTestPath}`)) {
+        apiRouter.use(errorTestPath, (req, res, next) => {
+          logger.debug('Bypassing auth for system error test endpoint');
+          next();
+        });
+        logger.debug(`Mounted middleware for ${prefix}${errorTestPath}`);
+      }
       
-      apiRouter.use('/system', systemRouter);
-      logger.info('System routes mounted at /system as public routes');
+      const routePath = '/system';
+      if (!isRouteRegistered(`${prefix}${routePath}`)) {
+        apiRouter.use(routePath, systemRouter);
+        logger.info(`System routes mounted at ${prefix}${routePath}`);
+      } else {
+        logger.warn(`Skipping duplicate route: ${prefix}${routePath}`);
+      }
     } catch (error) {
       logger.error('Failed to mount system routes', { error: error.message });
       apiRouter.use('/system', createFallbackRouter('System service unavailable'));
@@ -242,8 +350,13 @@ export async function mountAllRoutes(app, container, config) {
         eventBus: eventBusInstance
       });
       
-      apiRouter.use('/events', eventBusRouter);
-      logger.info('Event bus routes mounted at /events');
+      const routePath = '/events';
+      if (!isRouteRegistered(`${prefix}${routePath}`)) {
+        apiRouter.use(routePath, eventBusRouter);
+        logger.info(`Event bus routes mounted at ${prefix}${routePath}`);
+      } else {
+        logger.warn(`Skipping duplicate route: ${prefix}${routePath}`);
+      }
     } catch (error) {
       logger.error('Failed to mount event bus routes', { error: error.message });
       apiRouter.use('/events', createFallbackRouter('Event bus service unavailable'));
@@ -251,7 +364,12 @@ export async function mountAllRoutes(app, container, config) {
     
     // Mount the master API router at both /api/v1 and /api paths
     // This ensures both versioned and unversioned routes work
-    app.use('/api/v1', apiRouter);
+    if (!isRouteRegistered('/api/v1')) {
+      app.use('/api/v1', apiRouter);
+      logger.info('API routes mounted at /api/v1');
+    } else {
+      logger.warn('Skipping duplicate route mounting at /api/v1');
+    }
     
     // Deprecation middleware for unversioned routes
     const deprecationMiddleware = (req, res, next) => {
@@ -272,8 +390,12 @@ export async function mountAllRoutes(app, container, config) {
     };
     
     // Mount unversioned routes with deprecation middleware
-    app.use('/api', deprecationMiddleware, apiRouter);
-    logger.info(`API routes mounted at /api/v1, with deprecation warnings for /api`);
+    if (!isRouteRegistered('/api')) {
+      app.use('/api', deprecationMiddleware, apiRouter);
+      logger.info('API routes mounted at /api with deprecation warnings');
+    } else {
+      logger.warn('Skipping duplicate route mounting at /api');
+    }
     
     return true;
   } catch (error) {

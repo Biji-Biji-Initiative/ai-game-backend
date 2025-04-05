@@ -34,14 +34,21 @@ focus_areas:
                   type: string
                   example: success
                 data:
+                  type: array
+                  items:
+                    $ref: '../components/schemas/FocusArea.yaml'
+                meta:
                   type: object
                   properties:
-                    focusAreas:
-                      type: array
-                      items:
-                        $ref: '../components/schemas/FocusArea.yaml'
-                pagination:
-                  $ref: '../components/schemas/common/PaginationParams.yaml'
+                    total:
+                      type: integer
+                      description: Total number of focus areas
+                    offset:
+                      type: integer
+                      description: Offset used for pagination
+                    limit:
+                      type: integer
+                      description: Limit used for pagination
       '401':
         $ref: '../components/responses/common.yaml#/UnauthorizedError'
 
@@ -130,10 +137,7 @@ focus_areas_id:
                   type: string
                   example: success
                 data:
-                  type: object
-                  properties:
-                    focusArea:
-                      $ref: '../components/schemas/FocusArea.yaml'
+                  $ref: '../components/schemas/FocusArea.yaml'
       '401':
         $ref: '../components/responses/common.yaml#/UnauthorizedError'
       '404':
@@ -333,8 +337,8 @@ user_focus_areas:
 
 focus_areas_generate:
   post:
-    summary: Generate a new focus area
-    description: Uses AI to generate a new focus area (admin only)
+    summary: Generate a new focus area based on user profile
+    description: Uses AI to generate a personalized focus area based on user profile data
     operationId: generateFocusArea
     tags:
       - FocusAreas
@@ -345,25 +349,7 @@ focus_areas_generate:
       content:
         application/json:
           schema:
-            type: object
-            required:
-              - name
-            properties:
-              name:
-                type: string
-                description: Name or topic for the focus area
-              description:
-                type: string
-                description: Optional starting description
-              category:
-                type: string
-                description: Category for the focus area
-                default: general
-              difficulty:
-                type: string
-                enum: [beginner, intermediate, advanced, expert]
-                description: Difficulty level
-                default: intermediate
+            $ref: '../components/schemas/GenerateFocusAreaRequest.yaml'
     responses:
       '201':
         description: Focus area generated successfully
@@ -376,13 +362,58 @@ focus_areas_generate:
                   type: string
                   example: success
                 data:
-                  type: object
-                  properties:
-                    focusArea:
-                      $ref: '../components/schemas/FocusArea.yaml'
+                  $ref: '../components/schemas/FocusArea.yaml'
       '400':
         $ref: '../components/responses/common.yaml#/ValidationError'
       '401':
         $ref: '../components/responses/common.yaml#/UnauthorizedError'
       '403':
-        description: Forbidden - requires admin access 
+        description: Forbidden - requires admin access
+
+focus_areas_thread:
+  post:
+    summary: Create a thread for focus area generation
+    description: Creates a new thread for AI-powered focus area generation for the current user
+    operationId: createFocusAreaThread
+    tags:
+      - FocusAreas
+    security:
+      - bearerAuth: []
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            properties: {}
+        application/x-www-form-urlencoded:
+          schema:
+            type: object
+            properties: {}
+    responses:
+      '201':
+        description: Thread created successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: success
+                data:
+                  type: object
+                  properties:
+                    threadId:
+                      type: string
+                      format: uuid
+                      description: Thread ID for use in focus area generation
+                message:
+                  type: string
+                  example: Focus area thread created successfully
+      '400':
+        $ref: '../components/responses/common.yaml#/ValidationError'
+      '401':
+        $ref: '../components/responses/common.yaml#/UnauthorizedError'
+      '500':
+        $ref: '../components/responses/common.yaml#/ServerError' 

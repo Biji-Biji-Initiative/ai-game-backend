@@ -18,13 +18,13 @@ describe('Challenge Generation Direct OpenAI Test', function () {
     let openAIClient;
     before(function () {
         // Skip tests if OpenAI API key is not available
-        if (!testEnv.getTestConfig().openai.apiKey) {
+        if (!getTestConfig().openai.apiKey) {
             console.warn('OPENAI_API_KEY not found, skipping direct API tests');
             this.skip();
         }
         // Initialize the real OpenAI client
         openAIClient = new OpenAIClient({
-            apiKey: testEnv.getTestConfig().openai.apiKey
+            apiKey: getTestConfig().openai.apiKey
         });
     });
     it('should generate a challenge directly from OpenAI', async function () {

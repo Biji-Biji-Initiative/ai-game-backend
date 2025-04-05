@@ -75,21 +75,18 @@ const setFocusAreasSchema = z
  */
 const generateFocusAreaSchema = z
     .object({
-    name: z
+    professionalTitle: z
         .string()
-        .min(1, 'Focus area name is required and cannot be empty')
-        .max(200, 'Focus area name cannot exceed 200 characters'),
-    description: z
-        .string()
-        .min(1, 'Focus area description is required and cannot be empty')
-        .max(1000, 'Focus area description cannot exceed 1000 characters'),
-    category: z.string().min(1, 'Category is required and cannot be empty').optional(),
-    difficulty: z
-        .enum(['beginner', 'intermediate', 'advanced'], {
-        errorMap: () => ({
-            message: 'Difficulty must be one of: beginner, intermediate, advanced',
-        }),
-    })
+        .min(1, 'Professional title is required and cannot be empty')
+        .max(200, 'Professional title cannot exceed 200 characters'),
+    interests: z
+        .array(z.string())
+        .optional(),
+    skills: z
+        .array(z.string())
+        .optional(),
+    goals: z
+        .array(z.string())
         .optional(),
 })
     .strict();

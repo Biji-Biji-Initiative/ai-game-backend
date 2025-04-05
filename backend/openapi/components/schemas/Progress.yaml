@@ -58,6 +58,21 @@ properties:
     type: string
     format: date-time
     description: When the progress record was last updated
+  progressRecords:
+    type: array
+    items:
+      $ref: '#/ProgressRecord'
+    description: List of individual progress records
+  challengeDetails:
+    type: array
+    items:
+      $ref: '#/ChallengeProgressDetail'
+    description: List of challenge progress details
+  completedChallenges:
+    type: array
+    items:
+      $ref: '#/CompleteChallengeInput'
+    description: List of completed challenge inputs
 
 ProgressRecord:
   type: object
@@ -144,7 +159,7 @@ ChallengeProgressDetail:
           type: string
           enum: [beginner, intermediate, advanced, expert]
       description: Perceived vs actual difficulty
-    
+
 CompleteChallengeInput:
   type: object
   description: Input for recording challenge completion

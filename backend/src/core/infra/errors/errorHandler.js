@@ -111,34 +111,63 @@ const extractCauseChain = err => {
   return causes;
 };
 /**
- * Error response formatter - formats error response for API clients
- * @param {Error} err - The error object to format
- * @param {boolean} includeDetails - Whether to include detailed error information
- * @returns {Object} Formatted error response object
+ * Format a successful response
+ * @param {Object} data - The data to include in the response
+ * @param {string} message - Optional message (defaults to 'Success')
+ * @param {number} statusCode - HTTP status code (defaults to 200)
+ * @returns {Object} Formatted response object
  */
 const formatErrorResponse = (err, includeDetails = false) => {
   // Get a standard error code if not provided
   const errorCode = err.errorCode || mapErrorToStandardCode(err);
+  
+  // Base response conforming to OpenAPI schema
   const response = {
-    success: false,
-    status: err.status || 'error',
-    message: err.isOperational ? err.message : 'Something went wrong!',
-    errorCode: errorCode,
-    requestId: err.requestId
+    status: 'error', // Always 'error' for error responses to match OpenAPI spec
+    message: err.isOperational ? err.message : 'Something went wrong!'
   };
+  
+  // Only add these fields if they exist to match OpenAPI spec expectations
+  if (errorCode) {
+    response.errorCode = errorCode;
+  }
+  
+  if (err.requestId) {
+    response.requestId = err.requestId;
+  }
+  
+  // For validation errors, include the validation details
+  if (err.errors && Array.isArray(err.errors)) {
+    response.errors = err.errors.map(e => ({
+      field: e.path || e.field || 'unknown',
+      message: e.message || e.msg || 'Invalid value'
+    }));
+  }
+  
+  // Add details only in development environments
   if (includeDetails) {
+    // Don't include 'error' in production as it's not in the OpenAPI spec
     response.error = {
       name: err.name,
-      message: err.message,
-      stack: err.stack
+      message: err.message
     };
+    
+    // Include stack trace in development
+    if (err.stack) {
+      response.error.stack = err.stack;
+    }
+    
+    // Include error cause chain if available
     if (err.cause) {
       response.causes = extractCauseChain(err);
     }
+    
+    // Include any additional metadata
     if (err.metadata) {
       response.metadata = err.metadata;
     }
   }
+  
   return response;
 };
 /**
@@ -150,6 +179,37 @@ const formatErrorResponse = (err, includeDetails = false) => {
  * @returns {void}
  */
 const errorHandler = (err, req, res, _next) => {
+  // Handle OpenAPI validation errors from AJV
+  if (err.status === 400 && err.errors && Array.isArray(err.errors)) {
+    // This is an OpenAPI validation error
+    const validationError = {
+      name: 'ValidationError',
+      message: err.message || 'Request validation failed',
+      statusCode: 400,
+      status: 'error',
+      isOperational: true,
+      errorCode: StandardErrorCodes.VALIDATION_ERROR,
+      requestId: req.id,
+      errors: err.errors.map(e => ({
+        field: e.path || e.dataPath || e.params?.missingProperty || 'unknown',
+        message: e.message || 'Invalid value',
+        params: e.params || {}
+      }))
+    };
+    
+    // Log the validation error
+    logger.warn(`Validation error: ${validationError.message}`, {
+      statusCode: validationError.statusCode,
+      requestId: req.id,
+      path: req.path,
+      method: req.method,
+      errors: validationError.errors
+    });
+    
+    // Send validation error response
+    return res.status(400).json(formatErrorResponse(validationError, config.server.environment === 'development'));
+  }
+
   // Handle special case where err is a repository error object from errorStandardization.js
   if (typeof err === 'object' && err.methodName && err.domainName && err.cause) {
     // Create a properly formatted error object with a valid status code

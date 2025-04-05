@@ -1,0 +1,26 @@
+type: object
+description: Input for creating a new challenge
+required:
+  - content
+  - userEmail
+properties:
+  content:
+    type: string
+    description: The challenge content/question
+  userEmail:
+    type: string
+    format: email
+    description: Email of the user the challenge is for
+  focusArea:
+    type: string
+    description: The focus area of the challenge
+  challengeType:
+    type: string
+    description: The type of challenge
+  formatType:
+    type: string
+    description: The format of the challenge
+  difficulty:
+    type: string
+    enum: [beginner, intermediate, advanced, expert]
+    description: Difficulty level of the challenge 

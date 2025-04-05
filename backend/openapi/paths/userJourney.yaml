@@ -105,7 +105,7 @@ progress:
   get:
     summary: Get user progress
     description: Retrieves the user's overall progress in their learning journey
-    operationId: getUserProgress
+    operationId: getUserJourneyProgress
     tags:
       - UserJourney
     security:

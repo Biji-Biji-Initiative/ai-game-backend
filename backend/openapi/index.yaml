@@ -90,6 +90,8 @@ paths:
     $ref: './paths/focusAreas.yaml#/user_focus_areas'
   /focus-areas/generate:
     $ref: './paths/focusAreas.yaml#/focus_areas_generate'
+  /focus-areas/thread:
+    $ref: './paths/focusAreas.yaml#/focus_areas_thread'
   # Progress paths
   /progress:
     $ref: './paths/progress.yaml#/progress'

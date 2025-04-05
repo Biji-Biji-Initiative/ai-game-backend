@@ -16,13 +16,13 @@ describe('External: OpenAI Focus Area Integration', function () {
     let openAIClient;
     before(function () {
         // Skip tests if OpenAI API key is not available
-        if (!testEnv.getTestConfig().openai.apiKey) {
+        if (!getTestConfig().openai.apiKey) {
             console.warn('OPENAI_API_KEY not found, skipping external tests');
             this.skip();
         }
         // Initialize OpenAI client using our wrapper
         openAIClient = new OpenAIClient({
-            apiKey: testEnv.getTestConfig().openai.apiKey
+            apiKey: getTestConfig().openai.apiKey
         });
     });
     it('should generate focus area recommendations using OpenAI', async function () {

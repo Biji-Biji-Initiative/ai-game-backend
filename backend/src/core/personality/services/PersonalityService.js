@@ -94,7 +94,16 @@ class PersonalityService {
       if (error instanceof PersonalityError) {
         throw error;
       }
-      this.logger.error(`Error getting profile for user ${userId}: ${error.message}`, { error });
+      
+      // Safely log error using a local logger variable to prevent null reference errors
+      const logger = this.logger || personalityLogger.child({ service: 'PersonalityService' });
+      try {
+        logger.error(`Error getting profile for user ${userId}: ${error.message}`, { error });
+      } catch (loggerError) {
+        // Fallback if logger is undefined - use console
+        console.error(`Error getting profile for user ${userId}: ${error.message}`, error);
+      }
+      
       throw new PersonalityProcessingError(`Failed to get personality profile: ${error.message}`, { cause: error });
     }
   }
