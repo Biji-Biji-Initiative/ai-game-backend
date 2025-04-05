@@ -12,6 +12,7 @@ import fsSync from 'node:fs'; // Need sync for createWriteStream
 import path from 'node:path';
 import os from 'node:os';
 import { infraLogger } from "#app/core/infra/logging/domainLogger.js";
+import { startupLogger } from "#app/core/infra/logging/StartupLogger.js";
 // Using relative path for formatters as #app mapping might not be available everywhere
 // import { formatBytes } from '#app/core/common/utils/formatters.js'; // Original import using #app
 import { formatBytes } from '../../common/utils/formatters.js'; // Using relative path
@@ -38,6 +39,7 @@ class MemoryMonitor {
         this.intervalId = null;
         this.logger = this.options.logger;
         this.logPrefix = '[MemoryMonitor]';
+        this.isActive = false; // Track if monitoring is active
         
         this.logger.info(`${this.logPrefix} Initializing with options:`, {
              interval: this.options.checkIntervalMs,
@@ -71,15 +73,37 @@ class MemoryMonitor {
             this.logger.info(`${this.logPrefix} Monitoring disabled by configuration.`);
             return;
         }
-        if (this.intervalId) {
+        
+        // Check if already active using the isActive flag
+        if (this.isActive) {
             this.logger.warn(`${this.logPrefix} Monitoring is already active.`);
+            startupLogger.logComponentInitialization('memoryMonitor', 'warning', {
+                message: 'Memory monitoring is already active, skipping initialization',
+                status: 'already-active'
+            });
+            console.log(`⚠️ Memory monitoring is already active, skipping initialization`);
             return;
         }
         
+        // Clear any existing interval just to be safe
+        if (this.intervalId) {
+            clearInterval(this.intervalId);
+            this.intervalId = null;
+        }
+        
         this.logger.info(`${this.logPrefix} Starting memory monitoring check every ${this.options.checkIntervalMs / 1000} seconds.`);
+        startupLogger.logComponentInitialization('memoryMonitor', 'success', {
+            interval: `${this.options.checkIntervalMs / 1000}s`,
+            heapThreshold: `${this.options.heapThresholdMB}MB`,
+            rssThreshold: `${this.options.rssThresholdMB}MB`
+        });
+        console.log(`✅ Started memory monitoring (interval: ${this.options.checkIntervalMs / 1000}s)`);
+        
         this.intervalId = setInterval(() => {
             this.checkMemoryUsage();
         }, this.options.checkIntervalMs);
+        
+        this.isActive = true; // Mark as active
     }
     
     /**
@@ -89,7 +113,9 @@ class MemoryMonitor {
         if (this.intervalId) {
             clearInterval(this.intervalId);
             this.intervalId = null;
+            this.isActive = false; // Mark as inactive
             this.logger.info(`${this.logPrefix} Memory monitoring stopped.`);
+            console.log(`🛑 Memory monitoring stopped`);
         } else {
             this.logger.info(`${this.logPrefix} Monitoring was not active.`);
         }
@@ -230,45 +256,16 @@ class MemoryMonitor {
      * Start periodic memory usage logging.
      */
     startMonitoring() {
-        if (!this.options.enabled) {
-            this.logger.info(`${this.logPrefix} Monitoring disabled by configuration.`);
-            return;
-        }
-        if (this.intervalId) {
-            this.logger.warn(`${this.logPrefix} Monitoring is already active.`);
-            return;
-        }
-
-        this.logger.info(`${this.logPrefix} Starting periodic memory monitoring every ${this.options.checkIntervalMs / 1000}s.`);
-        this.intervalId = setInterval(() => {
-            try {
-                const usage = this.getCurrentMemoryUsage();
-                this.logger.info(`${this.logPrefix} Current Usage - ${this.getFormattedMemoryUsage()}`);
-                
-                // Check against threshold
-                if (usage.heapUsed > this.options.heapThresholdMB * usage.heapTotal) {
-                    this.logger.warn(`${this.logPrefix} HIGH HEAP USAGE DETECTED! Used: ${formatMemoryUsage(usage.heapUsed)} > ${this.options.heapThresholdMB * 100}% of Total: ${formatMemoryUsage(usage.heapTotal)}`);
-                    // Optional: Trigger an alert or event
-                }
-                if (usage.rss > this.options.rssThresholdMB * 1024 * 1024) {
-                     this.logger.warn(`${this.logPrefix} HIGH RSS USAGE DETECTED! RSS: ${formatMemoryUsage(usage.rss)} > Threshold: ${this.options.rssThresholdMB}MB`);
-                     // Optional: Trigger an alert or event
-                }
-
-            } catch (error) {
-                // Use AppError for logging errors during interval execution
-                const appError = (error instanceof AppError) ? error : new AppError('Error during memory monitoring interval', 500, { cause: error, errorCode: 'MEMORY_INTERVAL_FAILURE' });
-                this.logger.error(appError.message, { 
-                    error: appError,
-                    stack: appError.stack
-                });
-                // Decide whether to stop monitoring on error
-                if (this.options.stopOnError) {
-                    this.logger.error(`${this.logPrefix} Stopping monitoring due to repeated errors.`);
-                    this.stop();
-                }
-            }
-        }, this.options.checkIntervalMs);
+        // Delegate to start() method to avoid duplication
+        this.start();
+    }
+    
+    /**
+     * Check if monitoring is currently active
+     * @returns {boolean} True if monitoring is active
+     */
+    isMonitoringActive() {
+        return this.isActive;
     }
 }
 
@@ -276,4 +273,3 @@ class MemoryMonitor {
 const memoryMonitor = new MemoryMonitor();
 
 export { MemoryMonitor, memoryMonitor };
-export default memoryMonitor; 

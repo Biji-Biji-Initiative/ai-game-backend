@@ -1,5 +1,7 @@
 'use strict';
 
+import { startupLogger } from "#app/core/infra/logging/StartupLogger.js";
+
 // Core Services
 import OpenAIStateManagerAdapter from "#app/core/ai/adapters/OpenAIStateManagerAdapter.js";
 import OpenAIClientAdapter from "#app/core/ai/adapters/OpenAIClientAdapter.js";
@@ -43,6 +45,9 @@ import AdminService from "#app/core/admin/services/AdminService.js";
  * This module registers all application service components in the DI container.
  */
 
+// Track registered services to prevent duplicates
+const registeredServices = new Set();
+
 /**
  * Register service components in the container
  * @param {DIContainer} container - The DI container
@@ -52,25 +57,23 @@ function registerServiceComponents(container, logger) {
     // Use passed-in logger or fallback
     const serviceLogger = logger || container.get('logger').child({ context: 'DI-Services' });
     serviceLogger.info('Starting service registration...');
+    console.log('📦 Starting service registration...');
 
     // User Domain Services
-    serviceLogger.info('Registering userService...');
-    container.register('userService', c => new UserService({
+    registerService(container, serviceLogger, 'userService', c => new UserService({
         userRepository: c.get('userRepository'),
         logger: c.get('userLogger'), // Specific logger for the service
         eventBus: c.get('eventBus'),
         cacheService: c.get('cacheService'), // Added cache dependency
     }), true); // Singleton
 
-    serviceLogger.info('Registering userPreferencesManager...');
-    container.register('userPreferencesManager', c => new UserPreferencesManager({
+    registerService(container, serviceLogger, 'userPreferencesManager', c => new UserPreferencesManager({
         userService: c.get('userService'), // Depends on UserService
         logger: c.get('userLogger')
     }), true); // Singleton
     
     // Personality Domain Services
-    serviceLogger.info('Registering personalityService...');
-    container.register('personalityService', c => new PersonalityService({
+    registerService(container, serviceLogger, 'personalityService', c => new PersonalityService({
         personalityRepository: c.get('personalityRepository'),
         traitsAnalysisService: c.get('traitsAnalysisService'),
         insightGenerator: c.get('personalityInsightGenerator'),
@@ -79,8 +82,7 @@ function registerServiceComponents(container, logger) {
     }), false); // Transient
 
     // User Journey Domain Services
-    serviceLogger.info('Registering userJourneyService...');
-    container.register('userJourneyService', c => new UserJourneyService({
+    registerService(container, serviceLogger, 'userJourneyService', c => new UserJourneyService({
         userJourneyRepository: c.get('userJourneyRepository'),
         userService: c.get('userService'), // Add userService
         config: c.get('config'), // Add config
@@ -88,16 +90,14 @@ function registerServiceComponents(container, logger) {
     }), false); // Transient
 
     // Progress Domain Services
-    serviceLogger.info('Registering progressService...');
-    container.register('progressService', c => new ProgressService({
+    registerService(container, serviceLogger, 'progressService', c => new ProgressService({
         progressRepository: c.get('progressRepository'),
         logger: c.get('progressLogger'), // Changed from generic logger
         eventBus: c.get('eventBus')
     }), true); // Changed to Singleton for reliability
 
     // Adaptive Domain Services
-    serviceLogger.info('Registering adaptiveService...');
-    container.register('adaptiveService', c => new AdaptiveService({
+    registerService(container, serviceLogger, 'adaptiveService', c => new AdaptiveService({
         adaptiveRepository: c.get('adaptiveRepository'),
         progressService: c.get('progressService'),
         personalityService: c.get('personalityService'),
@@ -110,28 +110,24 @@ function registerServiceComponents(container, logger) {
     }), false); // Transient
     
     // Focus Area Domain Services
-    serviceLogger.info('Registering focusAreaService...');
-    container.register('focusAreaService', c => new FocusAreaService({
+    registerService(container, serviceLogger, 'focusAreaService', c => new FocusAreaService({
         focusAreaRepository: c.get('focusAreaRepository'),
         eventBus: c.get('eventBus'),
         eventTypes: c.get('eventTypes'), // If needed by service
         logger: c.get('focusAreaLogger')
     }), false); // Transient
 
-    serviceLogger.info('Registering focusAreaThreadService...');
-    container.register('focusAreaThreadService', c => new FocusAreaThreadService({
+    registerService(container, serviceLogger, 'focusAreaThreadService', c => new FocusAreaThreadService({
         focusAreaThreadState: c.get('focusAreaThreadState'), // Assuming thread state adapter is registered
         logger: c.get('focusAreaLogger')
     }), false); // Transient
 
-    serviceLogger.info('Registering focusAreaValidationService...');
-    container.register('focusAreaValidationService', c => new FocusAreaValidationService({
+    registerService(container, serviceLogger, 'focusAreaValidationService', c => new FocusAreaValidationService({
         configRepository: c.get('focusAreaConfigRepository'), // Use config repo
         logger: c.get('focusAreaLogger')
     }), true); // Singleton
 
-    serviceLogger.info('Registering focusAreaGenerationService...');
-    container.register('focusAreaGenerationService', c => new FocusAreaGenerationService({
+    registerService(container, serviceLogger, 'focusAreaGenerationService', c => new FocusAreaGenerationService({
         openAIClient: c.get('aiClient'),
         MessageRole: c.get('messageRole'), // Changed to match constructor parameter name
         openAIStateManager: c.get('aiStateManager'),
@@ -139,15 +135,13 @@ function registerServiceComponents(container, logger) {
     }), false); // Transient
 
     // Challenge Domain Services
-    serviceLogger.info('Registering challengePersonalizationService...');
-    container.register('challengePersonalizationService', c => new ChallengePersonalizationService({
+    registerService(container, serviceLogger, 'challengePersonalizationService', c => new ChallengePersonalizationService({
         challengeTypeRepository: c.get('challengeTypeRepository'),
         focusAreaConfigRepository: c.get('focusAreaConfigRepository'),
         logger: c.get('challengeLogger')
     }), true); // Singleton
 
-    serviceLogger.info('Registering challengeConfigService...');
-    container.register('challengeConfigService', c => new ChallengeConfigService({
+    registerService(container, serviceLogger, 'challengeConfigService', c => new ChallengeConfigService({
         challengeTypeRepository: c.get('challengeTypeRepository'),
         formatTypeRepository: c.get('formatTypeRepository'),
         focusAreaConfigRepository: c.get('focusAreaConfigRepository'),
@@ -155,13 +149,11 @@ function registerServiceComponents(container, logger) {
         logger: c.get('challengeLogger')
     }), true); // Singleton
     
-    serviceLogger.info('Registering challengeService...');
-    container.register('challengeService', c => {
+    // ChallengeService - ensure it's only registered once
+    registerService(container, serviceLogger, 'challengeService', c => {
         // Added check for development environment
         const isDevelopment = c.get('config').isDevelopment;
-        if (isDevelopment) {
-            serviceLogger.debug('ChallengeService running in development mode with real repository');
-        }
+        
         return new ChallengeService({
             challengeRepository: c.get('challengeRepository'),
             userService: c.get('userService'),
@@ -169,11 +161,10 @@ function registerServiceComponents(container, logger) {
             cacheService: c.get('cacheService'),
             cacheInvalidationManager: c.get('cacheInvalidationManager'), // Inject invalidation manager
         });
-    }, false); // Transient
+    }, true); // Changed to Singleton to prevent duplicate instances
 
     // Evaluation Domain Services
-    serviceLogger.info('Registering evaluationService...');
-    container.register('evaluationService', c => new EvaluationService({
+    registerService(container, serviceLogger, 'evaluationService', c => new EvaluationService({
         evaluationRepository: c.get('evaluationRepository'),
         categoryRepository: c.get('evaluationCategoryRepository'),
         aiClient: c.get('aiClient'),
@@ -183,36 +174,30 @@ function registerServiceComponents(container, logger) {
     }), false); // Transient
     
     // Traits Analysis Service (assuming it belongs to Personality or a common area)
-    serviceLogger.info('Registering personalityDataLoader...');
-    container.register('personalityDataLoader', c => new PersonalityDataLoader({
+    registerService(container, serviceLogger, 'personalityDataLoader', c => new PersonalityDataLoader({
         personalityRepository: c.get('personalityRepository'),
         cacheService: c.get('cacheService'),
         logger: c.get('personalityLogger')
     }), true); // Singleton
     
-    serviceLogger.info('Registering traitsAnalysisService...');
-    container.register('traitsAnalysisService', c => new TraitsAnalysisService({
+    registerService(container, serviceLogger, 'traitsAnalysisService', c => new TraitsAnalysisService({
         repository: c.get('personalityRepository'),
         logger: c.get('traitsAnalysisLogger') // Use specific logger if defined
     }), false); // Transient
 
-    serviceLogger.info('Registering personalityInsightGenerator...');
-    // Registering a Mock implementation for now
-    container.register('personalityInsightGenerator', c => new MockInsightGenerator({
+    registerService(container, serviceLogger, 'personalityInsightGenerator', c => new MockInsightGenerator({
         logger: c.get('personalityLogger')
     }), true); // Singleton
 
     // Challenge Generation/Evaluation Services
-    serviceLogger.info('Registering challengeGenerationService...');
-    container.register('challengeGenerationService', c => new ChallengeGenerationService({
+    registerService(container, serviceLogger, 'challengeGenerationService', c => new ChallengeGenerationService({
         aiClient: c.get('aiClient'),
         aiStateManager: c.get('aiStateManager'),
         openAIConfig: c.get('openAIConfig'), // Register OpenAI specific config
         logger: c.get('challengeLogger')
     }), false); // Transient
 
-    serviceLogger.info('Registering challengeEvaluationService...');
-    container.register('challengeEvaluationService', c => new ChallengeEvaluationService({
+    registerService(container, serviceLogger, 'challengeEvaluationService', c => new ChallengeEvaluationService({
         aiClient: c.get('aiClient'),
         aiStateManager: c.get('aiStateManager'),
         openAIConfig: c.get('openAIConfig'),
@@ -220,8 +205,7 @@ function registerServiceComponents(container, logger) {
     }), false); // Transient
 
     // User Context Service
-    serviceLogger.info('Registering userContextService...');
-    container.register('userContextService', c => new UserContextService({
+    registerService(container, serviceLogger, 'userContextService', c => new UserContextService({
         userService: c.get('userService'),
         progressService: c.get('progressService'),
         personalityService: c.get('personalityService'),
@@ -229,8 +213,7 @@ function registerServiceComponents(container, logger) {
     }), true); // Singleton
     
     // Infrastructure Services
-    serviceLogger.info('Registering healthCheckService...');
-    container.register('healthCheckService', c => {
+    registerService(container, serviceLogger, 'healthCheckService', c => {
         const dbClient = c.get('db');
         const aiClient = c.get('aiClient'); // This is our OpenAIClientAdapter
         const logger = c.get('infraLogger');
@@ -309,8 +292,7 @@ function registerServiceComponents(container, logger) {
     
     // Create a proxy for the challengeConfigService methods that will be used by challengeFactory
     // This breaks the circular dependency between challengeFactory and challengeConfigService
-    serviceLogger.info('Registering challengeConfigServiceProxy...');
-    container.register('challengeConfigServiceProxy', c => {
+    registerService(container, serviceLogger, 'challengeConfigServiceProxy', c => {
         // Get the repositories directly instead of depending on the full challengeConfigService
         const challengeTypeRepository = c.get('challengeTypeRepository');
         const formatTypeRepository = c.get('formatTypeRepository');
@@ -350,39 +332,68 @@ function registerServiceComponents(container, logger) {
         };
     }, true); // Singleton
 
-    serviceLogger.info('Registering challengeFactory...');
-    container.register('challengeFactory', c => new ChallengeFactory({
+    registerService(container, serviceLogger, 'challengeFactory', c => new ChallengeFactory({
         challengeConfigService: c.get('challengeConfigServiceProxy'), // Match the parameter name in the constructor
         validationService: c.get('focusAreaValidationService'),
         logger: c.get('challengeLogger')
     }), true); // Singleton
 
-    serviceLogger.info('Registering authorizationService...');
-    container.register('authorizationService', c => new AuthorizationService({
+    registerService(container, serviceLogger, 'authorizationService', c => new AuthorizationService({
         userService: c.get('userService'), // Needs user data for roles/permissions
         logger: c.get('infraLogger')
     }), true); // Singleton
 
     // Auth Service
-    serviceLogger.info('Registering authService...');
-    container.register('authService', c => new AuthService({
+    registerService(container, serviceLogger, 'authService', c => new AuthService({
         db: c.get('db'),
         logger: c.get('userLogger'),
         refreshTokenRepository: c.get('refreshTokenRepository')
     }), true); // singleton
 
     // Admin Service (for operations that bypass RLS)
-    serviceLogger.info('Registering adminService...');
-    container.register('adminService', c => new AdminService({
+    registerService(container, serviceLogger, 'adminService', c => new AdminService({
         supabase: c.get('db'), // Use the service role Supabase client
         logger: c.get('infraLogger')
     }), true); // singleton
 
     serviceLogger.info('Service registration complete.');
+    console.log('✅ Service registration complete.');
+}
+
+/**
+ * Helper function to register a service with duplicate detection
+ * @param {DIContainer} container - The DI container
+ * @param {Logger} logger - The logger instance
+ * @param {string} name - Service name
+ * @param {Function} factory - Factory function
+ * @param {boolean} singleton - Whether to register as singleton
+ */
+function registerService(container, logger, name, factory, singleton = false) {
+    // Check if service is already registered
+    if (registeredServices.has(name)) {
+        logger.warn(`Service '${name}' is already registered, skipping duplicate registration`);
+        startupLogger.logComponentInitialization(`service.${name}`, 'warning', {
+            message: 'Service already registered, skipping duplicate registration',
+            status: 'skipped'
+        });
+        console.log(`  ⚠️ Service '${name}' already registered, skipping duplicate registration`);
+        return;
+    }
+    
+    // Register the service
+    logger.info(`Registering ${name}...`);
+    container.register(name, factory, singleton);
+    registeredServices.add(name);
+    
+    // Log registration
+    const type = singleton ? 'singleton' : 'transient';
+    startupLogger.logComponentInitialization(`service.${name}`, 'success', {
+        type: type
+    });
+    console.log(`  ✓ Registered ${name} as ${type}`);
 }
 
 export { registerServiceComponents };
 export default {
     registerServiceComponents
 };
-

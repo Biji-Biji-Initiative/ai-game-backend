@@ -16,6 +16,7 @@ import { mountAppRoutes } from '#app/config/setup/routes.js';
 import { configureErrorHandlers } from '#app/config/setup/errors.js';
 import { initializeSentry } from '#app/config/setup/sentry.js';
 import { generateSwaggerUI } from '#app/scripts/generate-swagger-ui.js';
+import { configureMonitoring } from '#app/config/setup/monitoringIntegration.js';
 
 // Get config and logger early
 let config, logger;
@@ -75,12 +76,9 @@ async function initializeApp() {
             }
         });
         
-        // 5. Configure Core Middleware FIRST (including body parser)
-        configureCoreMiddleware(app, config, container);
-        
-        // 5.5 Configure Monitoring Integration
+        // 5. Configure Monitoring Integration BEFORE core middleware
+        // This ensures monitoring routes are registered before any authentication middleware
         try {
-            const { configureMonitoring } = await import('#app/config/setup/monitoringIntegration.js');
             configureMonitoring(app, config, container);
             logger.info('[App] Monitoring and visualization tools configured successfully');
         } catch (error) {
@@ -90,10 +88,13 @@ async function initializeApp() {
             });
         }
         
-        // 6. Configure Swagger & OpenAPI Validator AFTER middleware so body-parser has run
+        // 6. Configure Core Middleware AFTER monitoring (including body parser)
+        configureCoreMiddleware(app, config, container);
+        
+        // 7. Configure Swagger & OpenAPI Validator AFTER middleware so body-parser has run
         configureSwagger(app, config, container);
         
-        // 6.5 Configure OpenAPI Response Adapter AFTER validator but BEFORE routes
+        // 8. Configure OpenAPI Response Adapter AFTER validator but BEFORE routes
         import('#app/config/setup/openApiResponseAdapter.js')
             .then(module => {
                 const { configureOpenApiResponseAdapter } = module;
@@ -146,18 +147,18 @@ async function initializeApp() {
             }
         });
         
-        // 7. Mount All Application Routes
+        // 9. Mount All Application Routes
         await mountAppRoutes(app, config, container); 
         
-        // 8. Add Sentry error handler (before other error handlers)
+        // 10. Add Sentry error handler (before other error handlers)
         app.use(errorHandler);
         
-        // 9. Configure Error Handlers (Must be LAST after routes)
+        // 11. Configure Error Handlers (Must be LAST after routes)
         configureErrorHandlers(app, container);
         
         logger.info('[App] Application initialized successfully.');
         
-        // 10. Start background tasks
+        // 12. Start background tasks
         memoryMonitor.start();
         logger.info('[App] Background services started (Memory Monitor).');
 

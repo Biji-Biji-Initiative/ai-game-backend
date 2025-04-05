@@ -1,5 +1,4 @@
-// // ADDED: Log entry into this module
-// console.log('[container/index.js] Module execution START');
+'use strict';
 
 import { DIContainer } from "#app/core/infra/di/DIContainer.js";
 // Import the actual Logger class
@@ -14,10 +13,9 @@ import { registerAIComponents } from "#app/config/container/ai.js";
 import constants from "#app/config/container/constants.js";
 import mappers from "#app/config/container/mappers.js"; // Import mappers module
 import { startupLogger } from "#app/core/infra/logging/StartupLogger.js"; // Import startupLogger
-'use strict';
+import { diVisualizer } from "#app/core/infra/logging/DIVisualizer.js"; // Import DI visualizer
 
-// // ADDED: Log before extracting registration functions
-// console.log('[container/index.js] Extracting registration functions...');
+// Extract registration functions
 const { registerInfrastructureComponents } = infrastructure;
 const { registerRepositoryComponents } = repositories;
 const { registerServiceComponents } = services;
@@ -26,7 +24,6 @@ const { registerControllerComponents } = controllers;
 // Removed registerRouteComponents - using direct mounting instead
 const { registerConstants } = constants;
 const { registerMapperComponents } = mappers; // Extract mappers registration function
-// console.log('[container/index.js] Finished extracting registration functions.');
 
 /**
  * Create and initialize the DI container
@@ -52,8 +49,21 @@ function createContainer(config) {
         // Call the original method
         const result = originalRegister.call(this, name, factory, singleton);
         
-        // Log the registration
-        startupLogger.logDIRegistration('custom', name, singleton);
+        // Log the registration through DI visualizer
+        const type = singleton ? 'singleton' : 'transient';
+        diVisualizer.trackRegistration(name, type, 'custom');
+        
+        return result;
+    };
+
+    // Monkey patch the registerInstance method to log instance registrations
+    const originalRegisterInstance = container.registerInstance;
+    container.registerInstance = function(name, instance) {
+        // Call the original method
+        const result = originalRegisterInstance.call(this, name, instance);
+        
+        // Log the registration through DI visualizer
+        diVisualizer.trackRegistration(name, 'instance', 'core');
         
         return result;
     };
@@ -62,6 +72,7 @@ function createContainer(config) {
     const originalRegisterModule = container.registerModule;
     container.registerModule = function(registerFn, moduleName, logger) {
         console.log(`📦 Loading module: ${moduleName}`);
+        diVisualizer.trackModuleRegistration(moduleName);
         
         // Create a proxy for the container to intercept registrations
         const containerProxy = new Proxy(this, {
@@ -71,8 +82,20 @@ function createContainer(config) {
                         // Call the original register method
                         const result = target.register(name, factory, singleton);
                         
-                        // Log the registration through startupLogger
-                        startupLogger.logDIRegistration(moduleName, name, singleton);
+                        // Log the registration through DI visualizer
+                        const type = singleton ? 'singleton' : 'transient';
+                        diVisualizer.trackRegistration(name, type, moduleName);
+                        
+                        return result;
+                    };
+                }
+                if (prop === 'registerInstance') {
+                    return function(name, instance) {
+                        // Call the original registerInstance method
+                        const result = target.registerInstance(name, instance);
+                        
+                        // Log the registration through DI visualizer
+                        diVisualizer.trackRegistration(name, 'instance', moduleName);
                         
                         return result;
                     };
@@ -91,6 +114,30 @@ function createContainer(config) {
         return result;
     };
 
+    // Monkey patch the get method to log resolutions
+    const originalGet = container.get;
+    container.get = function(name) {
+        const startTime = Date.now();
+        try {
+            // Call the original method
+            const result = originalGet.call(this, name);
+            
+            // Log the resolution through DI visualizer
+            const endTime = Date.now();
+            const duration = endTime - startTime;
+            diVisualizer.trackResolution(name, true, duration);
+            
+            return result;
+        } catch (error) {
+            // Log the failed resolution through DI visualizer
+            const endTime = Date.now();
+            const duration = endTime - startTime;
+            diVisualizer.trackResolution(name, false, duration);
+            
+            throw error;
+        }
+    };
+
     // Register modules in sequence - constants FIRST to ensure they're available to all services
     container.registerModule(registerConstants, 'constants', baseLogger);
     container.registerModule(registerInfrastructureComponents, 'infrastructure', baseLogger);
@@ -101,15 +148,14 @@ function createContainer(config) {
     container.registerModule(registerControllerComponents, 'controllers', baseLogger);
     container.registerModule(registerMapperComponents, 'mappers', baseLogger); // Register mappers
     // Removed routes registration as we're using directRoutes.js instead
+    
+    // Print DI container summary
+    diVisualizer.printSummary();
         
     return container;
 }
 
-// // ADDED: Log before export
-// console.log('[container/index.js] Exporting createContainer...');
 export { createContainer };
-// // ADDED: Log module end
-// console.log('[container/index.js] Module execution END');
 
 export default {
     createContainer

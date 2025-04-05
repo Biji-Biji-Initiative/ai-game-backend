@@ -3,6 +3,7 @@
 import { monitoringIntegration } from '#app/core/infra/logging/MonitoringIntegration.js';
 import { infraLogger } from '#app/core/infra/logging/domainLogger.js';
 import { startupLogger } from '#app/core/infra/logging/StartupLogger.js';
+import { diVisualizer } from '#app/core/infra/logging/DIVisualizer.js';
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -29,7 +30,14 @@ export const configureMonitoring = (app, config, container) => {
     console.log('  ✓ Prometheus metrics middleware configured');
     
     // Mount monitoring dashboard at /monitoring
-    app.use('/monitoring', monitoringIntegration.getRouter());
+    const monitoringRouter = monitoringIntegration.getRouter();
+    
+    // Add DI visualization to monitoring dashboard
+    monitoringRouter.get('/di-visualization', (req, res) => {
+      res.send(diVisualizer.generateVisualization());
+    });
+    
+    app.use('/monitoring', monitoringRouter);
     startupLogger.logComponentInitialization('routes.monitoring', 'success', { type: 'dashboard' });
     console.log('  ✓ Monitoring dashboard router mounted at /monitoring');
     
@@ -47,6 +55,7 @@ export const configureMonitoring = (app, config, container) => {
     logger.info('[Monitoring] ✅ Monitoring and visualization tools configured successfully');
     console.log('\n✅ Monitoring and visualization tools configured successfully');
     console.log('📊 Monitoring dashboard available at: /monitoring');
+    console.log('📊 DI visualization available at: /monitoring/di-visualization');
   } catch (error) {
     const logger = container.get('infraLogger') || infraLogger;
     logger.error('[Monitoring] Failed to configure monitoring tools', { 
