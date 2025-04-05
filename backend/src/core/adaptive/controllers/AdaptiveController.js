@@ -1,6 +1,6 @@
 import { withControllerErrorHandling } from "#app/core/infra/errors/errorStandardization.js";
 import { AdaptiveError, AdaptiveValidationError, AdaptiveNotFoundError } from "#app/core/adaptive/errors/adaptiveErrors.js";
-import { AuthError } from "#app/core/auth/errors/AuthErrors.js";
+import { AuthError } from "#app/core/auth/errors/authErrors.js";
 // import { adjustDifficultySchema } from "#app/core/adaptive/schemas/adaptiveApiSchemas.js"; // Incorrect path
 // import { adjustDifficultySchema } from "#app/api/v1/adaptive/schemas/adaptiveApiSchemas.js"; // Corrected path - Still not found
 'use strict';

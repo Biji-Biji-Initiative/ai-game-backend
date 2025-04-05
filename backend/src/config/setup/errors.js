@@ -1,10 +1,10 @@
 'use strict';
 
-// Assuming these are correctly exported from ErrorHandler.js
+// Import error handlers from the correct path
 import { 
     errorHandler, 
     notFoundHandler
-} from "#app/core/infra/errors/ErrorHandler.js";
+} from "#app/core/infra/errors/errorHandler.js";
 import { infraLogger } from "#app/core/infra/logging/domainLogger.js";
 import { captureException } from "#app/config/setup/sentry.js";
 

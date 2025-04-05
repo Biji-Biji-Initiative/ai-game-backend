@@ -1,5 +1,5 @@
 import AppError from "#app/core/infra/errors/AppError.js";
-import { StandardErrorCodes } from "#app/core/infra/errors/ErrorHandler.js";
+import { StandardErrorCodes } from "#app/core/infra/errors/errorHandler.js";
 'use strict';
 /**
  * Base class for Auth domain errors

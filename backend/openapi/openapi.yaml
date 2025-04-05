@@ -162,9 +162,9 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
   
-  /rivals/challenge/{rivalId}:
+  /rivals/{rivalId}/challenges:
     post:
-      summary: Challenge a rival
+      summary: Create a challenge with a rival
       tags:
         - rival
       security:
@@ -183,7 +183,7 @@ paths:
             schema:
               $ref: '#/components/schemas/RivalChallengeRequest'
       responses:
-        '200':
+        '201':
           description: Challenge created successfully
           content:
             application/json:
@@ -197,15 +197,87 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
-  
-  /rivals/results/{challengeId}:
-    post:
-      summary: Submit results for a rival challenge
+    get:
+      summary: Get challenges with a rival
       tags:
         - rival
       security:
         - bearerAuth: []
       parameters:
+        - name: rivalId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, active, completed, expired]
+          description: Filter by challenge status
+      responses:
+        '200':
+          description: List of challenges
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RivalChallenge'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  
+  /rivals/{rivalId}/challenges/{challengeId}:
+    get:
+      summary: Get a specific challenge
+      tags:
+        - rival
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: rivalId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: challengeId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Challenge details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RivalChallenge'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      summary: Submit challenge results
+      tags:
+        - rival
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: rivalId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
         - name: challengeId
           in: path
           required: true
@@ -220,13 +292,41 @@ paths:
               $ref: '#/components/schemas/RivalChallengeResultRequest'
       responses:
         '200':
-          description: Results submitted successfully
+          description: Challenge results submitted successfully
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/RivalChallengeResult'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  
+  /rivals/{rivalId}/compare:
+    get:
+      summary: Compare user with rival
+      tags:
+        - rival
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: rivalId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Comparison results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RivalComparison'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -242,6 +342,23 @@ paths:
         - badge
       security:
         - bearerAuth: []
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: Filter by badge category
+        - name: tier
+          in: query
+          schema:
+            type: string
+            enum: [bronze, silver, gold, platinum]
+          description: Filter by badge tier
+        - name: unlocked
+          in: query
+          schema:
+            type: boolean
+          description: Filter by unlocked status
       responses:
         '200':
           description: List of badges
@@ -256,11 +373,41 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
   
+  /badges/{badgeId}:
+    get:
+      summary: Get a specific badge
+      tags:
+        - badge
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: badgeId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Badge details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Badge'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  
   /badges/categories:
     get:
       summary: Get all badge categories
       tags:
         - badge
+      security:
+        - bearerAuth: []
       responses:
         '200':
           description: List of badge categories
@@ -270,6 +417,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/BadgeCategory'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
   
@@ -322,138 +471,109 @@ paths:
   # Leaderboard System Endpoints
   /leaderboards:
     get:
-      summary: Get leaderboard data
+      summary: Get available leaderboards
       tags:
         - leaderboard
+      security:
+        - bearerAuth: []
       parameters:
         - name: type
           in: query
           schema:
             type: string
             enum: [global, similar, friends, focus, challenge]
-            default: global
-          description: Type of leaderboard
+          description: Filter by leaderboard type
         - name: timeframe
           in: query
           schema:
             type: string
             enum: [all_time, monthly, weekly, daily]
-            default: all_time
-          description: Time period for the leaderboard
-        - name: focusArea
-          in: query
-          schema:
-            type: string
-          description: Focus area to filter by (for focus type)
-        - name: challengeId
-          in: query
-          schema:
-            type: string
-            format: uuid
-          description: Challenge to filter by (for challenge type)
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            default: 20
-          description: Maximum number of entries to return
-        - name: offset
-          in: query
-          schema:
-            type: integer
-            default: 0
-          description: Number of entries to skip
+          description: Filter by timeframe
       responses:
         '200':
-          description: Leaderboard data
+          description: List of leaderboards
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Leaderboard'
-        '500':
-          $ref: '#/components/responses/ServerError'
-  
-  /leaderboards/scores:
-    post:
-      summary: Submit a score to the leaderboard
-      tags:
-        - leaderboard
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LeaderboardScoreSubmission'
-      responses:
-        '200':
-          description: Score submission result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LeaderboardSubmissionResult'
-        '400':
-          $ref: '#/components/responses/BadRequest'
+                type: array
+                items:
+                  $ref: '#/components/schemas/Leaderboard'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
   
-  /leaderboards/position:
+  /leaderboards/{leaderboardId}:
     get:
-      summary: Get a user's position on a leaderboard
+      summary: Get a specific leaderboard
       tags:
         - leaderboard
       security:
         - bearerAuth: []
       parameters:
-        - name: type
-          in: query
-          schema:
-            type: string
-            enum: [global, similar, friends, focus, challenge]
-            default: global
-          description: Type of leaderboard
-        - name: timeframe
-          in: query
-          schema:
-            type: string
-            enum: [all_time, monthly, weekly, daily]
-            default: all_time
-          description: Time period for the leaderboard
-        - name: challengeId
-          in: query
+        - name: leaderboardId
+          in: path
+          required: true
           schema:
             type: string
             format: uuid
-          description: Challenge ID (for challenge type)
-        - name: focusArea
-          in: query
-          schema:
-            type: string
-          description: Focus area (for focus type)
-        - name: includeNeighbors
-          in: query
-          schema:
-            type: boolean
-            default: true
-          description: Include entries above and below
-        - name: neighborCount
+        - name: page
           in: query
           schema:
             type: integer
-            default: 3
-          description: Number of neighbors to include
+            default: 1
+          description: Page number for pagination
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+          description: Number of entries per page
       responses:
         '200':
-          description: User's position on the leaderboard
+          description: Leaderboard details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Leaderboard'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  
+  /leaderboards/{leaderboardId}/user:
+    get:
+      summary: Get user's position on a leaderboard
+      tags:
+        - leaderboard
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: leaderboardId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: neighbors
+          in: query
+          schema:
+            type: integer
+            default: 5
+          description: Number of entries above and below user to include
+      responses:
+        '200':
+          description: User's position and neighboring entries
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/LeaderboardPosition'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
   
@@ -471,7 +591,7 @@ paths:
             type: string
             enum: [global, similar, friends, focus, challenge]
             default: global
-          description: Type of leaderboard
+          description: Type of leaderboard for insights
       responses:
         '200':
           description: Leaderboard insights
@@ -486,7 +606,7 @@ paths:
   
   /leaderboards/compare:
     get:
-      summary: Compare user performance with average and top performers
+      summary: Compare performance with other users
       tags:
         - leaderboard
       security:
@@ -601,9 +721,9 @@ paths:
           in: query
           schema:
             type: string
-            enum: [all_time, year, month, week]
+            enum: [all_time, monthly, weekly, daily]
             default: all_time
-          description: Time period for historical stats
+          description: Timeframe for historical stats
       responses:
         '200':
           description: Network statistics
@@ -616,47 +736,9 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
   
-  /networks/insights:
-    get:
-      summary: Get insights about a user's neural network
-      tags:
-        - network
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: Network insights
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/NetworkInsights'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/ServerError'
-  
-  /networks/growth:
-    get:
-      summary: Get growth recommendations for a user's network
-      tags:
-        - network
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: Growth recommendations
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GrowthRecommendations'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/ServerError'
-  
   /networks/compare/{rivalId}:
     get:
-      summary: Compare networks between user and rival
+      summary: Compare user's network with a rival's network
       tags:
         - network
       security:
@@ -683,9 +765,9 @@ paths:
           $ref: '#/components/responses/ServerError'
   
   # AI Response Endpoints
-  /ai/responses:
+  /ai/prompt:
     post:
-      summary: Process a prompt and get an AI response
+      summary: Process an AI prompt
       tags:
         - ai
       security:
@@ -815,6 +897,107 @@ components:
       required:
         - error
     
+    # Progress Schema
+    Progress:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the progress record
+        userId:
+          type: string
+          format: uuid
+          description: ID of the user this progress belongs to
+        focusArea:
+          type: string
+          description: Primary focus area for this progress record
+        challengeId:
+          type: string
+          format: uuid
+          description: ID of the last challenge completed
+        score:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: Score for the last challenge (0-100)
+        completionTime:
+          type: number
+          description: Time taken to complete the last challenge in seconds
+        skillLevels:
+          type: object
+          description: Map of skills to proficiency levels (0-100)
+          additionalProperties:
+            type: number
+        strengths:
+          type: array
+          items:
+            type: string
+          description: User's identified strengths
+        weaknesses:
+          type: array
+          items:
+            type: string
+          description: User's identified areas for improvement
+        completedChallenges:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              score:
+                type: number
+              completionTime:
+                type: number
+              completedAt:
+                type: string
+                format: date-time
+            required:
+              - id
+          description: List of completed challenges
+        statistics:
+          type: object
+          properties:
+            totalChallenges:
+              type: integer
+              description: Total number of challenges completed
+            averageScore:
+              type: number
+              description: Average score across all challenges
+            highestScore:
+              type: number
+              description: Highest score achieved
+            averageCompletionTime:
+              type: number
+              description: Average completion time across all challenges
+            streakDays:
+              type: integer
+              description: Number of consecutive days with activity
+            lastActive:
+              type: string
+              format: date-time
+              description: Timestamp of last activity
+          required:
+            - totalChallenges
+          description: Aggregated statistics about user progress
+        status:
+          type: string
+          enum: [active, inactive, completed]
+          description: Current status of this progress record
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the progress record was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the progress record was last updated
+      required:
+        - id
+        - userId
+    
     # Rival System Schemas
     Rival:
       type: object
@@ -901,28 +1084,18 @@ components:
     RivalGenerationRequest:
       type: object
       properties:
-        basedOn:
-          type: string
-          enum: [user_profile, focus_area, challenge_results, custom]
-          description: What to base the rival generation on
-        focusArea:
-          type: string
-          description: Focus area to base the rival on
-        challengeId:
-          type: string
-          format: uuid
-          description: Challenge to base the rival on
         difficulty:
           type: string
           enum: [easy, medium, hard, expert]
-          description: Difficulty level of the rival
-        traits:
-          type: array
-          items:
-            $ref: '#/components/schemas/RivalTrait'
-          description: Custom traits for the rival
+          description: Desired difficulty level of the rival
+        focusArea:
+          type: string
+          description: Focus area the rival should excel in
+        personalityType:
+          type: string
+          description: Desired personality type of the rival
       required:
-        - basedOn
+        - difficulty
     
     RivalUpdateRequest:
       type: object
@@ -969,6 +1142,113 @@ components:
           type: string
           format: uri
           description: URL to the rival's image
+    
+    RivalComparison:
+      type: object
+      properties:
+        user:
+          type: object
+          properties:
+            strengths:
+              type: array
+              items:
+                type: string
+              description: User's strengths
+            weaknesses:
+              type: array
+              items:
+                type: string
+              description: User's weaknesses
+            skillLevels:
+              type: object
+              additionalProperties:
+                type: number
+              description: User's skill levels
+          required:
+            - strengths
+            - weaknesses
+            - skillLevels
+          description: User's profile
+        rival:
+          type: object
+          properties:
+            strengths:
+              type: array
+              items:
+                type: string
+              description: Rival's strengths
+            weaknesses:
+              type: array
+              items:
+                type: string
+              description: Rival's weaknesses
+            skillLevels:
+              type: object
+              additionalProperties:
+                type: number
+              description: Rival's skill levels
+          required:
+            - strengths
+            - weaknesses
+            - skillLevels
+          description: Rival's profile
+        comparison:
+          type: object
+          properties:
+            userAdvantages:
+              type: array
+              items:
+                type: string
+              description: Areas where the user has an advantage
+            rivalAdvantages:
+              type: array
+              items:
+                type: string
+              description: Areas where the rival has an advantage
+            matchups:
+              type: array
+              items:
+                type: object
+                properties:
+                  area:
+                    type: string
+                    description: Skill area
+                  userLevel:
+                    type: number
+                    description: User's level in this area
+                  rivalLevel:
+                    type: number
+                    description: Rival's level in this area
+                  advantage:
+                    type: string
+                    enum: [user, rival, equal]
+                    description: Who has the advantage
+                required:
+                  - area
+                  - userLevel
+                  - rivalLevel
+                  - advantage
+              description: Detailed matchups by area
+            overallComparison:
+              type: string
+              enum: [user_advantage, rival_advantage, evenly_matched]
+              description: Overall comparison result
+            recommendedFocus:
+              type: array
+              items:
+                type: string
+              description: Recommended focus areas for the user
+          required:
+            - userAdvantages
+            - rivalAdvantages
+            - matchups
+            - overallComparison
+            - recommendedFocus
+          description: Comparison between user and rival
+      required:
+        - user
+        - rival
+        - comparison
     
     RivalChallengeRequest:
       type: object
@@ -1343,10 +1623,9 @@ components:
     LeaderboardEntry:
       type: object
       properties:
-        id:
-          type: string
-          format: uuid
-          description: Unique identifier for the entry
+        rank:
+          type: integer
+          description: Rank on the leaderboard
         userId:
           type: string
           format: uuid
@@ -1357,87 +1636,30 @@ components:
         score:
           type: number
           format: float
-          description: Score of the user
-        rank:
-          type: integer
-          description: Rank of the user on the leaderboard
-        isCurrentUser:
-          type: boolean
-          description: Whether this entry is for the current user
-        metadata:
-          type: object
-          description: Additional metadata for this entry
-        createdAt:
+          description: Score on the leaderboard
+        completionTime:
+          type: number
+          format: float
+          description: Completion time (if applicable)
+        completedAt:
           type: string
           format: date-time
           description: When the entry was created
+        isCurrentUser:
+          type: boolean
+          description: Whether this entry belongs to the current user
       required:
-        - id
+        - rank
         - userId
         - username
         - score
-        - rank
-    
-    LeaderboardScoreSubmission:
-      type: object
-      properties:
-        username:
-          type: string
-          description: Username to display on the leaderboard
-        score:
-          type: number
-          format: float
-          description: Score to submit
-        challengeId:
-          type: string
-          format: uuid
-          description: ID of the challenge (for challenge type)
-        focusArea:
-          type: string
-          description: Focus area (for focus type)
-        metadata:
-          type: object
-          description: Additional metadata for this submission
-      required:
-        - score
-    
-    LeaderboardSubmissionResult:
-      type: object
-      properties:
-        entry:
-          $ref: '#/components/schemas/LeaderboardEntry'
-          description: The submitted entry
-        rank:
-          type: integer
-          description: Rank of the entry on the leaderboard
-        totalEntries:
-          type: integer
-          description: Total number of entries on the leaderboard
-        percentile:
-          type: integer
-          description: Percentile of the entry on the leaderboard
-      required:
-        - entry
-        - rank
-        - totalEntries
-        - percentile
     
     LeaderboardPosition:
       type: object
       properties:
-        rank:
-          type: integer
-          description: Rank of the user on the leaderboard
-        score:
-          type: number
-          format: float
-          description: Score of the user
-        percentile:
-          type: integer
-          description: Percentile of the user on the leaderboard
         entry:
           $ref: '#/components/schemas/LeaderboardEntry'
-          description: The user's entry
+          description: User's entry on the leaderboard
         neighbors:
           type: object
           properties:
@@ -1456,9 +1678,6 @@ components:
             - below
           description: Neighboring entries
       required:
-        - rank
-        - score
-        - percentile
         - entry
         - neighbors
     
@@ -1823,94 +2042,65 @@ components:
     NetworkUpdateRequest:
       type: object
       properties:
-        userId:
+        challengeId:
           type: string
           format: uuid
-          description: ID of the user whose network to update
-        challengeResults:
-          type: object
-          properties:
-            challengeId:
-              type: string
-              format: uuid
-              description: ID of the completed challenge
-            score:
-              type: number
-              minimum: 0
-              maximum: 100
-              description: Overall score for the challenge
-            domainScores:
-              type: object
-              additionalProperties:
+          description: ID of the completed challenge
+        score:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: Score achieved in the challenge
+        focusArea:
+          type: string
+          description: Focus area of the challenge
+        nodeUpdates:
+          type: array
+          items:
+            type: object
+            properties:
+              nodeId:
+                type: string
+                format: uuid
+                description: ID of the node to update
+              levelIncrease:
+                type: integer
+                minimum: 0
+                description: Amount to increase the level by
+              progressIncrease:
                 type: number
                 minimum: 0
-                maximum: 100
-              description: Scores for each cognitive domain
-            completionTime:
-              type: number
-              exclusiveMinimum: 0
-              description: Time taken to complete the challenge in seconds
-          required:
-            - challengeId
-            - score
-            - domainScores
-            - completionTime
-          description: Results from the completed challenge
+                description: Amount to increase the progress by
+            required:
+              - nodeId
+          description: Updates to apply to specific nodes
       required:
-        - userId
-        - challengeResults
+        - challengeId
+        - score
     
-    NetworkInsights:
+    NetworkComparison:
       type: object
       properties:
-        network:
+        userNetwork:
           $ref: '#/components/schemas/Network'
-          description: The user's network
-        stats:
-          $ref: '#/components/schemas/NetworkStats'
-          description: Network statistics
-        insights:
+          description: User's neural network
+        rivalNetwork:
+          $ref: '#/components/schemas/Network'
+          description: Rival's neural network
+        comparison:
           type: object
           properties:
-            strengths:
+            userStrengths:
               type: array
               items:
                 type: string
               description: User's cognitive strengths
-            weaknesses:
+            rivalStrengths:
               type: array
               items:
                 type: string
-              description: User's cognitive weaknesses
-            progress:
-              type: string
-              description: Description of user's progress
-            recommendations:
-              type: array
-              items:
-                type: string
-              description: Recommendations for improvement
-          required:
-            - strengths
-            - weaknesses
-            - progress
-            - recommendations
-          description: Insights about the network
-      required:
-        - network
-        - stats
-        - insights
-    
-    GrowthRecommendations:
-      type: object
-      properties:
-        network:
-          $ref: '#/components/schemas/Network'
-          description: The user's network
-        recommendations:
-          type: object
-          properties:
-            focusAreas:
+              description: Rival's cognitive strengths
+            domainComparisons:
               type: array
               items:
                 type: object
@@ -1919,85 +2109,25 @@ components:
                     type: string
                     enum: [memory, creativity, logic, pattern, speed]
                     description: Cognitive domain
-                  reason:
-                    type: string
-                    description: Reason for recommendation
-                  suggestedChallenges:
-                    type: array
-                    items:
-                      type: string
-                      format: uuid
-                    description: Suggested challenges for this domain
-                required:
-                  - domain
-                  - reason
-              description: Recommended focus areas
-            nextNodes:
-              type: array
-              items:
-                $ref: '#/components/schemas/NetworkNode'
-              description: Next nodes to unlock
-            potentialConnections:
-              type: array
-              items:
-                $ref: '#/components/schemas/NetworkConnection'
-              description: Potential connections to activate
-            overallStrategy:
-              type: string
-              description: Overall growth strategy
-          required:
-            - focusAreas
-            - nextNodes
-            - overallStrategy
-          description: Growth recommendations
-      required:
-        - network
-        - recommendations
-    
-    NetworkComparison:
-      type: object
-      properties:
-        userNetwork:
-          $ref: '#/components/schemas/Network'
-          description: The user's network
-        rivalNetwork:
-          $ref: '#/components/schemas/Network'
-          description: The rival's network
-        comparison:
-          type: object
-          properties:
-            userStrengths:
-              type: array
-              items:
-                type: string
-              description: User's strengths compared to rival
-            rivalStrengths:
-              type: array
-              items:
-                type: string
-              description: Rival's strengths compared to user
-            domainComparisons:
-              type: object
-              additionalProperties:
-                type: object
-                properties:
                   userLevel:
                     type: number
-                    description: User's level in this domain
+                    description: User's average level in this domain
                   rivalLevel:
                     type: number
-                    description: Rival's level in this domain
+                    description: Rival's average level in this domain
                   difference:
                     type: number
-                    description: Difference between user and rival
+                    description: Difference between user and rival levels
                 required:
+                  - domain
                   - userLevel
                   - rivalLevel
                   - difference
-              description: Comparisons by domain
+              description: Comparisons by cognitive domain
             overallComparison:
               type: string
-              description: Overall comparison between user and rival
+              enum: [user_stronger, rival_stronger, evenly_matched]
+              description: Overall comparison result
             suggestedFocus:
               type: string
               description: Suggested focus to beat the rival

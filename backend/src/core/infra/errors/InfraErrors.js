@@ -1,7 +1,7 @@
 'use strict';
 
 import AppError from "#app/core/infra/errors/AppError.js";
-import { StandardErrorCodes } from "#app/core/infra/errors/ErrorHandler.js";
+import { StandardErrorCodes } from "#app/core/infra/errors/errorHandler.js";
 
 /**
  * Base class for all infrastructure errors

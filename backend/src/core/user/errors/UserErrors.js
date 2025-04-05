@@ -5,7 +5,7 @@
  * following Domain-Driven Design principles.
  */
 import AppError from "#app/core/infra/errors/AppError.js";
-import { StandardErrorCodes } from "#app/core/infra/errors/ErrorHandler.js";
+import { StandardErrorCodes } from "#app/core/infra/errors/errorHandler.js";
 /**
  * Base class for User domain errors
  */

@@ -1,5 +1,5 @@
 // eslint-disable-next-line import/no-unresolved
-import { AppError, StandardErrorCodes } from "#app/core/infra/errors/ErrorHandler.js";
+import { AppError, StandardErrorCodes } from "#app/core/infra/errors/errorHandler.js";
 'use strict';
 /**
  * Base class for Challenge domain errors

@@ -1,5 +1,5 @@
 import { withControllerErrorHandling } from "#app/core/infra/errors/errorStandardization.js";
-import { AuthError, AuthNotFoundError, AuthValidationError, AuthProcessingError } from "#app/core/auth/errors/AuthErrors.js";
+import { AuthError, AuthNotFoundError, AuthValidationError, AuthProcessingError } from "#app/core/auth/errors/authErrors.js";
 import ConfigurationError from "#app/core/infra/errors/ConfigurationError.js";
 import User from "#app/core/user/models/User.js";
 import { v4 as uuidv4 } from 'uuid';

@@ -1,7 +1,8 @@
 'use strict';
 
 import * as Sentry from '@sentry/node';
-import { ProfilingIntegration } from '@sentry/profiling-node';
+// Commenting out the profiling import to avoid dependency issues
+// import { ProfilingIntegration } from '@sentry/profiling-node';
 import { infraLogger } from '#app/core/infra/logging/domainLogger.js';
 
 /**
@@ -33,8 +34,8 @@ function initializeSentry(app, config, logger = infraLogger) {
                 new Sentry.Integrations.Http({ tracing: true }),
                 // Enable Express tracing for performance monitoring
                 new Sentry.Integrations.Express({ app }),
-                // Enable profiling for performance insights
-                new ProfilingIntegration(),
+                // Profiling integration disabled due to missing dependencies
+                // new ProfilingIntegration(),
             ],
             // Set environment for filtering issues
             environment: config.sentry.environment,

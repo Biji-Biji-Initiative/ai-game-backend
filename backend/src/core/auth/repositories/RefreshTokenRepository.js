@@ -3,7 +3,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import { BaseRepository } from '#app/core/infra/repositories/BaseRepository.js';
-import { AuthRepositoryError } from '#app/core/auth/errors/AuthErrors.js';
+import { AuthRepositoryError } from '#app/core/auth/errors/authErrors.js';
 import { ValidationError, DatabaseError, DatabaseEntityNotFoundError } from '#app/core/infra/errors/InfraErrors.js';
 
 /**

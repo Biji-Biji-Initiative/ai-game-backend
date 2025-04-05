@@ -1,4 +1,4 @@
-import { AuthError, AuthNotFoundError, AuthValidationError, AuthProcessingError } from "#app/core/auth/errors/AuthErrors.js";
+import { AuthError, AuthNotFoundError, AuthValidationError, AuthProcessingError } from "#app/core/auth/errors/authErrors.js";
 import { withServiceErrorHandling, createErrorMapper } from "#app/core/infra/errors/errorStandardization.js";
 import { v4 as uuidv4 } from 'uuid';
 import { ValidationError, DatabaseEntityNotFoundError } from "#app/core/infra/errors/InfraErrors.js";

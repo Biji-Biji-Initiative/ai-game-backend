@@ -80,7 +80,7 @@ progress_all:
                     progressRecords:
                       type: array
                       items:
-                        $ref: '../components/schemas/Progress.yaml#/ProgressRecord'
+                        $ref: '../schemas.yaml#/components/schemas/ProgressRecord'
                 pagination:
                   $ref: '../components/schemas/common/PaginationParams.yaml'
       '401':
@@ -119,7 +119,7 @@ progress_challenge_id:
                   type: object
                   properties:
                     challengeProgress:
-                      $ref: '../components/schemas/Progress.yaml#/ChallengeProgressDetail'
+                      $ref: '../schemas.yaml#/components/schemas/ChallengeProgressDetail'
       '400':
         $ref: '../components/responses/common.yaml#/ValidationError'
       '401':
@@ -142,7 +142,7 @@ progress_complete_challenge:
       content:
         application/json:
           schema:
-            $ref: '../components/schemas/Progress.yaml#/CompleteChallengeInput'
+            $ref: '../schemas.yaml#/components/schemas/CompleteChallengeInput'
     responses:
       '200':
         description: Challenge completion recorded successfully
@@ -158,7 +158,7 @@ progress_complete_challenge:
                   type: object
                   properties:
                     progressRecord:
-                      $ref: '../components/schemas/Progress.yaml#/ProgressRecord'
+                      $ref: '../schemas.yaml#/components/schemas/ProgressRecord'
       '400':
         $ref: '../components/responses/common.yaml#/ValidationError'
       '401':
