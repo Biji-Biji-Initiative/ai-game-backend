@@ -15,6 +15,7 @@ import { createAuthMiddleware } from "#app/core/infra/http/middleware/auth.js";
 import { createVersioningMiddleware } from "#app/core/infra/http/middleware/versioning.js";
 import { infraLogger } from "#app/core/infra/logging/domainLogger.js";
 import { responseFormatterMiddleware } from "#app/core/infra/http/responseFormatter.js";
+import { startupLogger } from "#app/core/infra/logging/StartupLogger.js"; // Import startupLogger
 
 /**
  * Configures core application middleware (excluding error handlers and routing).
@@ -29,6 +30,7 @@ function configureCoreMiddleware(app, config, container) {
     // --- Security Middleware --- 
     app.use(helmet()); // Basic security headers
     logger.debug('[Setup] Helmet middleware applied.');
+    startupLogger.logMiddlewareInitialization('helmet', 'success', { type: 'security' });
 
     // CORS
     const getCorsOptions = () => { /* ... CORS options logic from app.js ... */ 
@@ -92,16 +94,28 @@ function configureCoreMiddleware(app, config, container) {
         methods: corsOptions.methods,
         credentials: corsOptions.credentials
     });
+    startupLogger.logMiddlewareInitialization('cors', 'success', { 
+        type: 'security',
+        origins: config.cors.allowedOrigins,
+        methods: corsOptions.methods
+    });
 
     // Rate Limiting
     applyRateLimiting(app); // Assuming this function takes app and config implicitly or gets from container
     logger.debug('[Setup] Rate limiting middleware applied.');
+    startupLogger.logMiddlewareInitialization('rateLimit', 'success', { type: 'security' });
 
     // --- Request Parsing & Utils --- 
     app.use(bodyParser.json({ limit: config.server?.bodyLimit || '10mb' }));
     app.use(bodyParser.urlencoded({ extended: true, limit: config.server?.bodyLimit || '10mb' }));
-    app.use(cookieParser()); // If needed
     logger.debug('[Setup] Body parsing middleware applied.');
+    startupLogger.logMiddlewareInitialization('bodyParser', 'success', { 
+        type: 'parser',
+        limit: config.server?.bodyLimit || '10mb'
+    });
+
+    app.use(cookieParser()); // If needed
+    startupLogger.logMiddlewareInitialization('cookieParser', 'success', { type: 'parser' });
 
     // Request ID
     app.use((req, res, next) => {
@@ -110,26 +124,35 @@ function configureCoreMiddleware(app, config, container) {
         next();
     });
     logger.debug('[Setup] Request ID middleware applied.');
+    startupLogger.logMiddlewareInitialization('requestId', 'success', { type: 'utility' });
 
     // Correlation ID for Logging
     app.use(correlationIdMiddleware);
     logger.debug('[Setup] Correlation ID middleware applied.');
+    startupLogger.logMiddlewareInitialization('correlationId', 'success', { type: 'logging' });
 
     // Request Logging (after IDs are set)
     app.use(requestLogger); // Assuming requestLogger gets logger via its own import
     logger.debug('[Setup] Request logging middleware applied.');
+    startupLogger.logMiddlewareInitialization('requestLogger', 'success', { type: 'logging' });
     
     // Response Formatter Middleware
     app.use(responseFormatterMiddleware);
     logger.debug('[Setup] Response formatter middleware applied.');
+    startupLogger.logMiddlewareInitialization('responseFormatter', 'success', { type: 'utility' });
     
     // API Versioning Middleware
     try {
         const versioningMiddleware = createVersioningMiddleware(config);
         app.use(versioningMiddleware);
         logger.info('[Setup] API versioning middleware applied.');
+        startupLogger.logMiddlewareInitialization('versioning', 'success', { type: 'routing' });
     } catch (error) {
         logger.error('[Setup] Failed to configure API versioning middleware!', { error: error.message });
+        startupLogger.logMiddlewareInitialization('versioning', 'error', { 
+            type: 'routing',
+            error: error.message
+        });
     }
     
     // --- Authentication Middleware --- 
@@ -158,7 +181,9 @@ function configureCoreMiddleware(app, config, container) {
             '/favicon.ico',
             '/static',
             '/sentry-test',
-            '/openapi/'
+            '/openapi/',
+            '/monitoring', // Add monitoring to bypass paths
+            '/monitoring/'  // Add monitoring with trailing slash
         ];
         
         // Apply authentication middleware with path exclusions
@@ -201,8 +226,18 @@ function configureCoreMiddleware(app, config, container) {
         });
         
         logger.info('[Setup] Authentication middleware configured with exclusions for public paths.');
+        startupLogger.logMiddlewareInitialization('authentication', 'success', { 
+            type: 'security',
+            publicPaths,
+            bypassPaths
+        });
     } catch (error) {
         logger.error('[Setup] CRITICAL: Failed to configure authentication middleware!', { error: error.message });
+        startupLogger.logMiddlewareInitialization('authentication', 'error', { 
+            type: 'security',
+            error: error.message
+        });
+        
         // Add a failing middleware if auth setup fails
         app.use((req, res, next) => { 
             next(new Error('Authentication middleware setup failed, server unavailable.'));
@@ -212,4 +247,4 @@ function configureCoreMiddleware(app, config, container) {
     logger.info('[Setup] Core middleware configuration complete.');
 }
 
-export { configureCoreMiddleware }; 
+export { configureCoreMiddleware };

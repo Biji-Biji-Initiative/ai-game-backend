@@ -13,6 +13,7 @@ import controllers from "#app/config/container/controllers.js";
 import { registerAIComponents } from "#app/config/container/ai.js";
 import constants from "#app/config/container/constants.js";
 import mappers from "#app/config/container/mappers.js"; // Import mappers module
+import { startupLogger } from "#app/core/infra/logging/StartupLogger.js"; // Import startupLogger
 'use strict';
 
 // // ADDED: Log before extracting registration functions
@@ -41,6 +42,54 @@ function createContainer(config) {
     
     container.register('config', () => config, true);
     container.registerInstance('logger', baseLogger); 
+
+    // Log DI container initialization
+    console.log('📦 Initializing Dependency Injection Container...');
+
+    // Monkey patch the container's register method to log registrations
+    const originalRegister = container.register;
+    container.register = function(name, factory, singleton = false) {
+        // Call the original method
+        const result = originalRegister.call(this, name, factory, singleton);
+        
+        // Log the registration
+        startupLogger.logDIRegistration('custom', name, singleton);
+        
+        return result;
+    };
+
+    // Monkey patch the registerModule method to log module registrations
+    const originalRegisterModule = container.registerModule;
+    container.registerModule = function(registerFn, moduleName, logger) {
+        console.log(`📦 Loading module: ${moduleName}`);
+        
+        // Create a proxy for the container to intercept registrations
+        const containerProxy = new Proxy(this, {
+            get(target, prop) {
+                if (prop === 'register') {
+                    return function(name, factory, singleton = false) {
+                        // Call the original register method
+                        const result = target.register(name, factory, singleton);
+                        
+                        // Log the registration through startupLogger
+                        startupLogger.logDIRegistration(moduleName, name, singleton);
+                        
+                        return result;
+                    };
+                }
+                return target[prop];
+            }
+        });
+        
+        // Call the original method with the proxy
+        const result = originalRegisterModule.call(this, 
+            (container, logger) => registerFn(containerProxy, logger), 
+            moduleName, 
+            logger
+        );
+        
+        return result;
+    };
 
     // Register modules in sequence - constants FIRST to ensure they're available to all services
     container.registerModule(registerConstants, 'constants', baseLogger);

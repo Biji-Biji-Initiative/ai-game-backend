@@ -78,6 +78,18 @@ async function initializeApp() {
         // 5. Configure Core Middleware FIRST (including body parser)
         configureCoreMiddleware(app, config, container);
         
+        // 5.5 Configure Monitoring Integration
+        try {
+            const { configureMonitoring } = await import('#app/config/setup/monitoringIntegration.js');
+            configureMonitoring(app, config, container);
+            logger.info('[App] Monitoring and visualization tools configured successfully');
+        } catch (error) {
+            logger.error('[App] Failed to configure monitoring tools:', { 
+                error: error.message, 
+                stack: error.stack 
+            });
+        }
+        
         // 6. Configure Swagger & OpenAPI Validator AFTER middleware so body-parser has run
         configureSwagger(app, config, container);
         
