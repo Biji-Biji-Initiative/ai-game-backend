@@ -1,6 +1,7 @@
 'use strict';
 
 import { infraLogger } from './domainLogger.js';
+import { startupLogger } from './StartupLogger.js';
 
 /**
  * DIVisualizer provides enhanced visualization for dependency injection container
@@ -12,7 +13,7 @@ class DIVisualizer {
    * @param {Object} options - Configuration options
    */
   constructor(options = {}) {
-    this.logger = options.logger || infraLogger.child('di-visualizer');
+    this.logger = options.logger || infraLogger.child({ component: 'di-visualizer' });
     this.registrations = new Map();
     this.resolutions = new Map();
     this.moduleRegistrations = new Map();
@@ -72,6 +73,10 @@ class DIVisualizer {
       type === 'transient' ? '🔄' : 
       type === 'instance' ? '📦' : '❓';
     
+    // Log to startup logger for consistent visualization
+    startupLogger.logDIRegistration(module, name, type === 'singleton');
+    
+    // Also print directly to console for immediate feedback
     console.log(`  ${typeEmoji} [DI] ${module} registered ${name} as ${type}`);
   }
   
@@ -118,6 +123,12 @@ class DIVisualizer {
    */
   trackModuleRegistration(module, componentCount = 0) {
     if (!module) return;
+    
+    // Log to startup logger
+    startupLogger.logComponentInitialization(`di.modules.${module}`, 'success', {
+      componentCount: componentCount,
+      type: 'module'
+    });
     
     // Print to console with formatting
     console.log(`📦 [DI] Loading module: ${module} (${componentCount} components)`);
@@ -264,6 +275,15 @@ class DIVisualizer {
     });
     
     console.log('');
+    
+    // Log to startup logger for consistent visualization
+    startupLogger.logComponentInitialization('di', 'success', {
+      totalComponents: this.stats.totalRegistrations,
+      singletons: this.stats.singletons,
+      transients: this.stats.transients,
+      instances: this.stats.instances,
+      modules: this.stats.modules
+    });
   }
 }
 

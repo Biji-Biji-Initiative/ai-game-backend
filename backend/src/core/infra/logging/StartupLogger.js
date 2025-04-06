@@ -160,10 +160,19 @@ class StartupLogger {
     const componentName = componentParts[componentParts.length - 1] || '';
     const parentComponent = componentParts.slice(0, -1).join('.');
     
+    // Stringify metadata for console output if it's an object
+    const metadataStr = metadata && typeof metadata === 'object' ? 
+      Object.entries(metadata).map(([key, value]) => {
+        // Handle nested objects
+        const valueStr = typeof value === 'object' ? JSON.stringify(value) : value;
+        return `${key}: ${valueStr}`;
+      }).join(', ') : '';
+    
     // Print to terminal with formatting
     console.log(
       `${indentation}${statusEmoji} ${parentComponent}${parentComponent ? '.' : ''}${componentName}: ${status}` +
-      (metadata.duration ? ` (${metadata.duration}ms)` : '')
+      (metadata.duration ? ` (${metadata.duration}ms)` : '') +
+      (metadataStr && !metadata.duration ? ` (${metadataStr})` : '')
     );
     
     // Also log to Winston for file logging
@@ -224,10 +233,19 @@ class StartupLogger {
       status === 'error' ? '❌' : 
       status === 'pending' ? '⏳' : '❓';
     
+    // Stringify metadata for console output if it's an object
+    const metadataStr = metadata && typeof metadata === 'object' ? 
+      Object.entries(metadata).map(([key, value]) => {
+        // Handle nested objects
+        const valueStr = typeof value === 'object' ? JSON.stringify(value) : value;
+        return `${key}: ${valueStr}`;
+      }).join(', ') : '';
+    
     // Print to terminal with formatting
     console.log(
       `  ${statusEmoji} middleware.${middleware}: ${status}` +
-      (metadata.type ? ` (${metadata.type})` : '')
+      (metadata.type ? ` (${metadata.type})` : '') +
+      (metadataStr && !metadata.type ? ` (${metadataStr})` : '')
     );
     
     // Also log to Winston for file logging
@@ -259,9 +277,18 @@ class StartupLogger {
       status === 'error' ? '❌' : 
       status === 'pending' ? '⏳' : '❓';
     
+    // Stringify metadata for console output if it's an object
+    const metadataStr = metadata && typeof metadata === 'object' ? 
+      Object.entries(metadata).map(([key, value]) => {
+        // Handle nested objects
+        const valueStr = typeof value === 'object' ? JSON.stringify(value) : value;
+        return `${key}: ${valueStr}`;
+      }).join(', ') : '';
+    
     // Print to terminal with formatting
     console.log(
-      `  ${statusEmoji} routes.${method.toUpperCase()}:${route}: ${status}`
+      `  ${statusEmoji} routes.${method.toUpperCase()}:${route}: ${status}` +
+      (metadataStr ? ` (${metadataStr})` : '')
     );
     
     // Also log to Winston for file logging

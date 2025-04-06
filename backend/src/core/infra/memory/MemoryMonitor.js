@@ -33,8 +33,22 @@ const DEFAULT_OPTIONS = {
     stopOnError: false // Continue monitoring even if an interval check fails
 };
 
+// Singleton instance tracker
+let memoryMonitorInstance = null;
+
 class MemoryMonitor {
     constructor(options = {}) {
+        // Singleton pattern - return existing instance if already created
+        if (memoryMonitorInstance) {
+            this.logger = memoryMonitorInstance.logger;
+            this.logger.info('[MemoryMonitor] Returning existing instance');
+            startupLogger.logComponentInitialization('memoryMonitor', 'info', {
+                message: 'Using existing MemoryMonitor instance',
+                status: 'singleton-reuse'
+            });
+            return memoryMonitorInstance;
+        }
+
         this.options = { ...DEFAULT_OPTIONS, ...options };
         this.intervalId = null;
         this.logger = this.options.logger;
@@ -60,9 +74,32 @@ class MemoryMonitor {
             `${this.logPrefix} Initialized. Check interval: ${this.options.checkIntervalMs / 1000}s, Heap Threshold: ${this.options.heapThresholdMB}MB`
         );
         
+        // Store the singleton instance
+        memoryMonitorInstance = this;
+        
+        // Log successful initialization to startup logger
+        startupLogger.logComponentInitialization('memoryMonitor', 'success', {
+            interval: `${this.options.checkIntervalMs / 1000}s`,
+            heapThreshold: `${this.options.heapThresholdMB}MB`,
+            rssThreshold: `${this.options.rssThresholdMB}MB`,
+            status: 'initialized'
+        });
+        
         if (this.options.autoStart) {
             this.start();
         }
+    }
+    
+    /**
+     * Get the singleton instance of MemoryMonitor
+     * @param {Object} options - Options to use if creating a new instance
+     * @returns {MemoryMonitor} The singleton instance
+     */
+    static getInstance(options = {}) {
+        if (!memoryMonitorInstance) {
+            return new MemoryMonitor(options);
+        }
+        return memoryMonitorInstance;
     }
     
     /**
@@ -77,11 +114,10 @@ class MemoryMonitor {
         // Check if already active using the isActive flag
         if (this.isActive) {
             this.logger.warn(`${this.logPrefix} Monitoring is already active.`);
-            startupLogger.logComponentInitialization('memoryMonitor', 'warning', {
+            startupLogger.logComponentInitialization('memoryMonitor.start', 'warning', {
                 message: 'Memory monitoring is already active, skipping initialization',
                 status: 'already-active'
             });
-            console.log(`⚠️ Memory monitoring is already active, skipping initialization`);
             return;
         }
         
@@ -92,7 +128,7 @@ class MemoryMonitor {
         }
         
         this.logger.info(`${this.logPrefix} Starting memory monitoring check every ${this.options.checkIntervalMs / 1000} seconds.`);
-        startupLogger.logComponentInitialization('memoryMonitor', 'success', {
+        startupLogger.logComponentInitialization('memoryMonitor.start', 'success', {
             interval: `${this.options.checkIntervalMs / 1000}s`,
             heapThreshold: `${this.options.heapThresholdMB}MB`,
             rssThreshold: `${this.options.rssThresholdMB}MB`
@@ -270,6 +306,6 @@ class MemoryMonitor {
 }
 
 // Create a singleton instance for the application
-const memoryMonitor = new MemoryMonitor();
+const memoryMonitor = MemoryMonitor.getInstance();
 
 export { MemoryMonitor, memoryMonitor };

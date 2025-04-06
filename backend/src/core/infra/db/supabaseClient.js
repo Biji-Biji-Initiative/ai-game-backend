@@ -1,150 +1,284 @@
-/**
- * Supabase Client for Database Access
- *
- * Infrastructure service for database operations using Supabase.
- * Moved from utilities to follow Domain-Driven Design principles.
- */
+'use strict';
+
 import { createClient } from '@supabase/supabase-js';
-import { logger } from "#app/core/infra/logging/logger.js";
-
-let supabaseClient = null;
+import { infraLogger } from "#app/core/infra/logging/domainLogger.js";
+import { startupLogger } from "#app/core/infra/logging/StartupLogger.js";
 
 /**
- * Initializes and returns the Supabase client singleton.
- * Ensures initialization happens only once and after config is ready.
- * @param {object} config - Application configuration containing SUPABASE_URL and keys.
- * @param {object} [initLogger=logger] - Logger instance to use for initialization.
- * @returns {import('@supabase/supabase-js').SupabaseClient} The initialized Supabase client.
+ * Create and configure a Supabase client
+ * @param {Object} config - Configuration object containing Supabase settings
+ * @returns {Object} Configured Supabase client
  */
-function initializeSupabaseClient(config, initLogger = logger) {
-  if (supabaseClient) {
-    return supabaseClient;
+function createSupabaseClient(config) {
+  const logger = infraLogger.child({ component: 'supabase-client' });
+  
+  if (!config.supabase?.url) {
+    const error = new Error('Supabase URL is required but not provided in configuration');
+    logger.error('Failed to initialize Supabase client: Missing URL', { error: error.message });
+    startupLogger.logComponentInitialization('db.supabase', 'error', {
+      error: 'Missing Supabase URL in configuration'
+    });
+    throw error;
   }
-
-  initLogger.info('Attempting to initialize Supabase client...');
-
+  
+  if (!config.supabase?.anonKey) {
+    const error = new Error('Supabase anonymous key is required but not provided in configuration');
+    logger.error('Failed to initialize Supabase client: Missing anonymous key', { error: error.message });
+    startupLogger.logComponentInitialization('db.supabase', 'error', {
+      error: 'Missing Supabase anonymous key in configuration'
+    });
+    throw error;
+  }
+  
   try {
-    const supabaseUrl = config?.supabase?.url || process.env.SUPABASE_URL;
-    let supabaseKey;
-
-    // Always prefer service role for backend server operations to bypass RLS
-    supabaseKey = config?.supabase?.serviceRoleKey || process.env.SUPABASE_SERVICE_ROLE_KEY;
+    logger.info('Initializing Supabase client', { 
+      url: config.supabase.url,
+      hasAnonKey: !!config.supabase.anonKey,
+      hasServiceRoleKey: !!config.supabase.serviceRoleKey
+    });
     
-    // Fall back to anon key only if service role is unavailable
-    if (!supabaseKey) {
-      if (process.env.NODE_ENV === 'production') {
-        throw new Error('SUPABASE_SERVICE_ROLE_KEY (or config.supabase.serviceRoleKey) is required in production');
-      } else {
-        supabaseKey = config?.supabase?.anonKey || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY;
-        initLogger.warn('Using anon/dev key for Supabase. Some operations may fail due to RLS policies.');
-      }
-    } else {
-      initLogger.info('Using service role key for Supabase (bypasses RLS).');
-    }
-
-    if (!supabaseUrl) {
-      throw new Error('SUPABASE_URL (or config.supabase.url) environment variable is required');
-    }
-
     // Create the Supabase client
-    supabaseClient = createClient(supabaseUrl, supabaseKey, {
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true, // Recommended for server-side usage
-      },
-      // Optional: Configure realtime if needed
-      // realtime: {
-      //   params: {
-      //     eventsPerSecond: 10,
-      //   },
-      // },
-    });
-
-    initLogger.info('Supabase client configured. Performing connection test...', {
-      supabaseUrl: supabaseUrl.split('.').slice(0, 2).join('.') + '...', // Avoid logging full URL
-      environment: process.env.NODE_ENV
-    });
-
-    // Test connection asynchronously (don't block initialization)
-    (async () => {
-      try {
-        // A simple query to check connectivity and permissions
-        const { error } = await supabaseClient.from('users').select('id', { count: 'exact', head: true }).limit(1);
-        if (error) {
-          initLogger.error('Supabase connection test failed post-initialization', {
-            error: error.message,
-            code: error.code,
-            hint: error.hint || 'Check credentials, network access, and RLS policies.'
+    const supabase = createClient(
+      config.supabase.url,
+      config.supabase.anonKey,
+      {
+        auth: {
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: true
+        },
+        global: {
+          headers: {
+            'x-application-name': 'ai-fight-club-api'
+          }
+        }
+      }
+    );
+    
+    // Test the connection
+    testSupabaseConnection(supabase, logger)
+      .then(result => {
+        if (result.success) {
+          logger.info('Supabase connection test successful', { 
+            version: result.version,
+            timestamp: result.timestamp
+          });
+          startupLogger.logComponentInitialization('db.supabase', 'success', {
+            url: config.supabase.url,
+            version: result.version
           });
         } else {
-          initLogger.info('Supabase connection test successful.');
+          logger.warn('Supabase connection test failed', { error: result.error });
+          startupLogger.logComponentInitialization('db.supabase', 'warning', {
+            url: config.supabase.url,
+            error: result.error
+          });
         }
-      } catch (testError) {
-        initLogger.error('Error during async Supabase connection test', {
-          error: testError.message,
-          stack: testError.stack
+      })
+      .catch(error => {
+        logger.error('Error testing Supabase connection', { 
+          error: error.message,
+          stack: error.stack
         });
-      }
-    })();
-
+        startupLogger.logComponentInitialization('db.supabase', 'error', {
+          url: config.supabase.url,
+          error: error.message
+        });
+      });
+    
+    // Check RLS policies if service role key is available
+    if (config.supabase.serviceRoleKey) {
+      const adminClient = createClient(
+        config.supabase.url,
+        config.supabase.serviceRoleKey,
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false
+          }
+        }
+      );
+      
+      checkRLSPolicies(adminClient, logger)
+        .then(result => {
+          if (result.success) {
+            logger.info('RLS policies check successful', { 
+              tables: result.tables.length,
+              policiesCount: result.policiesCount
+            });
+            startupLogger.logComponentInitialization('db.supabase.rls', 'success', {
+              tables: result.tables.length,
+              policiesCount: result.policiesCount
+            });
+          } else {
+            logger.warn('RLS policies check failed or found issues', { 
+              error: result.error,
+              tablesWithoutRLS: result.tablesWithoutRLS
+            });
+            startupLogger.logComponentInitialization('db.supabase.rls', 'warning', {
+              error: result.error,
+              tablesWithoutRLS: JSON.stringify(result.tablesWithoutRLS)
+            });
+          }
+        })
+        .catch(error => {
+          logger.error('Error checking RLS policies', { 
+            error: error.message,
+            stack: error.stack
+          });
+          startupLogger.logComponentInitialization('db.supabase.rls', 'error', {
+            error: error.message
+          });
+        });
+    } else {
+      logger.warn('Service role key not provided, skipping RLS policies check');
+      startupLogger.logComponentInitialization('db.supabase.rls', 'warning', {
+        message: 'Service role key not provided, skipping RLS policies check'
+      });
+    }
+    
+    return supabase;
   } catch (error) {
-    initLogger.error('CRITICAL: Failed to initialize Supabase client', {
+    logger.error('Failed to initialize Supabase client', { 
       error: error.message,
       stack: error.stack
     });
-
-    // In development/test, create a mock client to allow startup
-    if (process.env.NODE_ENV !== 'production') {
-      initLogger.warn('Creating mock Supabase client for development/testing.');
-      supabaseClient = createMockSupabaseClient(initLogger);
-    } else {
-      // In production, failure to connect is critical
-      throw new Error(`Production environment: Supabase client initialization failed: ${error.message}`);
-    }
+    startupLogger.logComponentInitialization('db.supabase', 'error', {
+      error: error.message
+    });
+    throw error;
   }
-
-  return supabaseClient;
 }
 
 /**
- * Creates a mock Supabase client for development/testing.
- * @param {object} mockLogger - Logger instance.
- * @returns {object} A mock Supabase client.
+ * Test the Supabase connection
+ * @param {Object} supabase - Supabase client
+ * @param {Object} logger - Logger instance
+ * @returns {Promise<Object>} Test result
  */
-function createMockSupabaseClient(mockLogger) {
-  mockLogger.warn('Using MOCK Supabase client. No real database operations will occur.');
-  const mockUserData = { 
-    id: 'mock-user-id', 
-    email: 'mock@example.com',
-    full_name: 'Mock User', 
-    // Add other fields as needed by your app
-  };
-  return {
-    auth: {
-      signInWithPassword: async () => ({ data: { user: mockUserData, session: { access_token: 'mock-token' } }, error: null }),
-      signUp: async () => ({ data: { user: mockUserData, session: { access_token: 'mock-token' } }, error: null }),
-      signOut: async () => ({ error: null }),
-      getUser: async () => ({ data: { user: mockUserData }, error: null })
-    },
-    from: (table) => ({
-      select: () => ({
-        eq: () => ({ 
-          single: async () => ({ data: table === 'users' ? mockUserData : {}, error: null })
-        }),
-        single: async () => ({ data: table === 'users' ? mockUserData : {}, error: null }),
-        // Add other query methods if needed by tests
-        then: (callback) => Promise.resolve({ data: [], error: null }).then(callback)
-      }),
-      insert: async (data) => ({ data: [{ ...data, id: `mock-${table}-id` }], error: null }),
-      update: async () => ({ data: [{ id: `mock-${table}-id` }], error: null }),
-      delete: async () => ({ data: {}, error: null })
-    }),
-    // Add other Supabase methods if used (e.g., rpc, storage)
-  };
+async function testSupabaseConnection(supabase, logger) {
+  try {
+    // Simple query to test connection
+    const { data, error } = await supabase
+      .from('_test_connection')
+      .select('version, timestamp')
+      .limit(1)
+      .maybeSingle();
+    
+    if (error) {
+      // If the test table doesn't exist, try a system health check
+      if (error.code === '42P01') { // undefined_table
+        const { data: healthData, error: healthError } = await supabase.rpc('get_system_health');
+        
+        if (healthError) {
+          return {
+            success: false,
+            error: `Connection test failed: ${healthError.message}`
+          };
+        }
+        
+        return {
+          success: true,
+          version: healthData?.version || 'unknown',
+          timestamp: healthData?.timestamp || new Date().toISOString()
+        };
+      }
+      
+      return {
+        success: false,
+        error: `Connection test failed: ${error.message}`
+      };
+    }
+    
+    return {
+      success: true,
+      version: data?.version || 'unknown',
+      timestamp: data?.timestamp || new Date().toISOString()
+    };
+  } catch (error) {
+    logger.error('Error testing Supabase connection', { 
+      error: error.message,
+      stack: error.stack
+    });
+    
+    return {
+      success: false,
+      error: `Connection test failed with exception: ${error.message}`
+    };
+  }
 }
 
-// Export the initializer function, not the client directly
-export { initializeSupabaseClient };
+/**
+ * Check RLS policies on Supabase tables
+ * @param {Object} adminClient - Supabase admin client with service role
+ * @param {Object} logger - Logger instance
+ * @returns {Promise<Object>} Check result
+ */
+async function checkRLSPolicies(adminClient, logger) {
+  try {
+    // Get list of tables
+    const { data: tables, error: tablesError } = await adminClient
+      .from('pg_tables')
+      .select('schemaname, tablename')
+      .eq('schemaname', 'public');
+    
+    if (tablesError) {
+      return {
+        success: false,
+        error: `Failed to get tables: ${tablesError.message}`
+      };
+    }
+    
+    // Get RLS status for each table
+    const tablesWithoutRLS = [];
+    let policiesCount = 0;
+    
+    for (const table of tables) {
+      const { data: rlsData, error: rlsError } = await adminClient
+        .rpc('check_table_rls', { table_name: table.tablename });
+      
+      if (rlsError) {
+        logger.warn(`Failed to check RLS for table ${table.tablename}`, { 
+          error: rlsError.message
+        });
+        continue;
+      }
+      
+      if (!rlsData.rls_enabled) {
+        tablesWithoutRLS.push(table.tablename);
+      }
+      
+      // Get policies for this table
+      const { data: policies, error: policiesError } = await adminClient
+        .from('pg_policies')
+        .select('policyname')
+        .eq('tablename', table.tablename)
+        .eq('schemaname', 'public');
+      
+      if (!policiesError && policies) {
+        policiesCount += policies.length;
+      }
+    }
+    
+    return {
+      success: tablesWithoutRLS.length === 0,
+      tables,
+      tablesWithoutRLS,
+      policiesCount
+    };
+  } catch (error) {
+    logger.error('Error checking RLS policies', { 
+      error: error.message,
+      stack: error.stack
+    });
+    
+    return {
+      success: false,
+      error: `RLS check failed with exception: ${error.message}`,
+      tablesWithoutRLS: []
+    };
+  }
+}
 
-// Default export can be the function too, or removed if only named export is preferred.
-export default initializeSupabaseClient;
+// Export both the original function name and the name expected by infrastructure.js
+export { createSupabaseClient, createSupabaseClient as initializeSupabaseClient };

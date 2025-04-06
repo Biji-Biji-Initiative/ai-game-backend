@@ -16,6 +16,7 @@ import { createVersioningMiddleware } from "#app/core/infra/http/middleware/vers
 import { infraLogger } from "#app/core/infra/logging/domainLogger.js";
 import { responseFormatterMiddleware } from "#app/core/infra/http/responseFormatter.js";
 import { startupLogger } from "#app/core/infra/logging/StartupLogger.js"; // Import startupLogger
+import { createCacheMiddleware } from "#app/core/infra/cache/cacheMiddleware.js"; // Import cache middleware
 
 /**
  * Configures core application middleware (excluding error handlers and routing).
@@ -140,6 +141,27 @@ function configureCoreMiddleware(app, config, container) {
     app.use(responseFormatterMiddleware);
     logger.debug('[Setup] Response formatter middleware applied.');
     startupLogger.logMiddlewareInitialization('responseFormatter', 'success', { type: 'utility' });
+    
+    // Cache Middleware
+    try {
+        const cacheMiddleware = createCacheMiddleware(config.cache);
+        app.use(cacheMiddleware);
+        logger.info('[Setup] Cache middleware applied.');
+        startupLogger.logMiddlewareInitialization('cache', 'success', { 
+            type: 'performance',
+            ttl: config.cache?.ttl || '60s',
+            storage: config.cache?.storage || 'memory'
+        });
+    } catch (error) {
+        logger.error('[Setup] Failed to configure cache middleware!', { 
+            error: error.message,
+            stack: error.stack
+        });
+        startupLogger.logMiddlewareInitialization('cache', 'error', { 
+            type: 'performance',
+            error: error.message
+        });
+    }
     
     // API Versioning Middleware
     try {
