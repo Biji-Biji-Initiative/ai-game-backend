@@ -67,17 +67,14 @@ class DIVisualizer {
     // Log registration
     this.logger.debug(`[DI] Registered ${type} '${name}' in module '${module}'`);
     
-    // Print to console with formatting
+    // Use appropriate emoji based on type
     const typeEmoji = 
       type === 'singleton' ? '🔒' : 
       type === 'transient' ? '🔄' : 
       type === 'instance' ? '📦' : '❓';
     
-    // Log to startup logger for consistent visualization
-    startupLogger.logDIRegistration(module, name, type === 'singleton');
-    
-    // Also print directly to console for immediate feedback
-    console.log(`  ${typeEmoji} [DI] ${module} registered ${name} as ${type}`);
+    // Use startupLogger only - don't duplicate with console.log
+    startupLogger.logDIRegistration(module, name, type === 'singleton', typeEmoji);
   }
   
   /**
@@ -124,14 +121,11 @@ class DIVisualizer {
   trackModuleRegistration(module, componentCount = 0) {
     if (!module) return;
     
-    // Log to startup logger
+    // Log to startup logger only - don't duplicate with console.log
     startupLogger.logComponentInitialization(`di.modules.${module}`, 'success', {
       componentCount: componentCount,
       type: 'module'
     });
-    
-    // Print to console with formatting
-    console.log(`📦 [DI] Loading module: ${module} (${componentCount} components)`);
   }
   
   /**
@@ -257,8 +251,30 @@ class DIVisualizer {
   
   /**
    * Print a summary of the DI container to the console
+   * @param {boolean} useStartupLogger - Whether to use startupLogger (true) or direct console output (false)
    */
-  printSummary() {
+  printSummary(useStartupLogger = true) {
+    // Only log the summary through startupLogger to avoid duplication
+    if (useStartupLogger) {
+      startupLogger.logComponentInitialization('di', 'success', {
+        totalComponents: this.stats.totalRegistrations,
+        singletons: this.stats.singletons,
+        transients: this.stats.transients,
+        instances: this.stats.instances,
+        modules: this.stats.modules,
+        moduleBreakdown: JSON.stringify(
+          Object.fromEntries(
+            Array.from(this.moduleRegistrations.entries()).map(([module, components]) => [
+              module, 
+              components.length
+            ])
+          )
+        )
+      });
+      return;
+    }
+    
+    // This direct console output is now optional and disabled by default
     console.log('\n┌─────────────────────────────────────────────────┐');
     console.log('│         DEPENDENCY INJECTION CONTAINER            │');
     console.log('└─────────────────────────────────────────────────┘');
@@ -275,15 +291,6 @@ class DIVisualizer {
     });
     
     console.log('');
-    
-    // Log to startup logger for consistent visualization
-    startupLogger.logComponentInitialization('di', 'success', {
-      totalComponents: this.stats.totalRegistrations,
-      singletons: this.stats.singletons,
-      transients: this.stats.transients,
-      instances: this.stats.instances,
-      modules: this.stats.modules
-    });
   }
 }
 

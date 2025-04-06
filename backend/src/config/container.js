@@ -4,11 +4,11 @@
 // console.log('[container.js] Module execution START');
 
 import config from "#app/config/config.js";
-import { createContainer } from "#app/config/container/index.js";
+import { initializeContainer } from "#app/config/container/index.js";
 import LogService from "#app/core/system/services/LogService.js";
 
 // Initialize the container with all application components
-const container = createContainer(config);
+const container = initializeContainer(config);
 
 // Register LogService directly if needed
 try {

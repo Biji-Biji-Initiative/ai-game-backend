@@ -1,162 +1,112 @@
 'use strict';
 
-import { DIContainer } from "#app/core/infra/di/DIContainer.js";
-// Import the actual Logger class
-import { Logger } from "#app/core/infra/logging/logger.js"; 
-import infrastructure from "#app/config/container/infrastructure.js";
-import repositories from "#app/config/container/repositories.js";
-import services from "#app/config/container/services.js";
-import coordinators from "#app/config/container/coordinators.js";
-import controllers from "#app/config/container/controllers.js";
-// Removed routes import as we're using directRoutes.js instead
-import { registerAIComponents } from "#app/config/container/ai.js";
-import constants from "#app/config/container/constants.js";
-import mappers from "#app/config/container/mappers.js"; // Import mappers module
-import { startupLogger } from "#app/core/infra/logging/StartupLogger.js"; // Import startupLogger
-import { diVisualizer } from "#app/core/infra/logging/DIVisualizer.js"; // Import DI visualizer
+import { container } from "#app/core/infra/di/DIContainer.js";
+import { infraLogger } from "#app/core/infra/logging/domainLogger.js";
+import { diVisualizer } from "#app/core/infra/logging/DIVisualizer.js";
+import { startupLogger } from "#app/core/infra/logging/StartupLogger.js";
+import { logger } from "#app/core/infra/logging/logger.js";
 
-// Extract registration functions
-const { registerInfrastructureComponents } = infrastructure;
-const { registerRepositoryComponents } = repositories;
-const { registerServiceComponents } = services;
-const { registerCoordinatorComponents } = coordinators;
-const { registerControllerComponents } = controllers;
-// Removed registerRouteComponents - using direct mounting instead
-const { registerConstants } = constants;
-const { registerMapperComponents } = mappers; // Extract mappers registration function
+// Import container modules
+import { registerConstants } from './constants.js';
+import { registerInfrastructureComponents } from './infrastructure.js';
+import { registerRepositoryComponents } from './repositories.js';
+import { registerServiceComponents } from './services.js';
+import { registerAIComponents } from './ai.js';
+import { registerCoordinatorComponents } from './coordinators.js';
+import { registerControllerComponents } from './controllers.js';
+import { registerMapperComponents } from './mappers.js';
 
 /**
- * Create and initialize the DI container
+ * Initialize the DI container with all application dependencies
  * @param {Object} config - Application configuration
- * @returns {DIContainer} - The initialized DI container
+ * @returns {Object} Initialized container
  */
-function createContainer(config) {
-    const container = new DIContainer();
+export function initializeContainer(config) {
+  // Set logger for container
+  container.logger = infraLogger;
+  
+  // Log container initialization start
+  startupLogger.logComponentInitialization('di', 'pending', {
+    message: 'Initializing dependency injection container'
+  });
+
+  // Register configuration as a singleton instance
+  container.registerInstance('config', config);
+  diVisualizer.trackRegistration('config', 'instance', 'constants');
+  
+  // Register logger as a singleton instance
+  container.registerInstance('logger', logger);
+  diVisualizer.trackRegistration('logger', 'instance', 'infrastructure');
+  
+  // Register modules
+  try {
+    // Constants
+    startupLogger.logComponentInitialization('di.constants', 'pending');
+    container.registerModule(registerConstants, 'constants');
+    diVisualizer.trackModuleRegistration('constants', 10);
+    startupLogger.logComponentInitialization('di.constants', 'success');
     
-    // Create the base application logger FIRST
-    const baseLogger = new Logger('app'); 
-    container.logger = baseLogger; 
+    // Infrastructure
+    startupLogger.logComponentInitialization('di.infrastructure', 'pending');
+    container.registerModule(registerInfrastructureComponents, 'infrastructure');
+    diVisualizer.trackModuleRegistration('infrastructure', 15);
+    startupLogger.logComponentInitialization('di.infrastructure', 'success');
     
-    container.register('config', () => config, true);
-    container.registerInstance('logger', baseLogger); 
-
-    // Log DI container initialization
-    console.log('📦 Initializing Dependency Injection Container...');
-
-    // Monkey patch the container's register method to log registrations
-    const originalRegister = container.register;
-    container.register = function(name, factory, singleton = false) {
-        // Call the original method
-        const result = originalRegister.call(this, name, factory, singleton);
-        
-        // Log the registration through DI visualizer
-        const type = singleton ? 'singleton' : 'transient';
-        diVisualizer.trackRegistration(name, type, 'custom');
-        
-        return result;
-    };
-
-    // Monkey patch the registerInstance method to log instance registrations
-    const originalRegisterInstance = container.registerInstance;
-    container.registerInstance = function(name, instance) {
-        // Call the original method
-        const result = originalRegisterInstance.call(this, name, instance);
-        
-        // Log the registration through DI visualizer
-        diVisualizer.trackRegistration(name, 'instance', 'core');
-        
-        return result;
-    };
-
-    // Monkey patch the registerModule method to log module registrations
-    const originalRegisterModule = container.registerModule;
-    container.registerModule = function(registerFn, moduleName, logger) {
-        console.log(`📦 Loading module: ${moduleName}`);
-        diVisualizer.trackModuleRegistration(moduleName);
-        
-        // Create a proxy for the container to intercept registrations
-        const containerProxy = new Proxy(this, {
-            get(target, prop) {
-                if (prop === 'register') {
-                    return function(name, factory, singleton = false) {
-                        // Call the original register method
-                        const result = target.register(name, factory, singleton);
-                        
-                        // Log the registration through DI visualizer
-                        const type = singleton ? 'singleton' : 'transient';
-                        diVisualizer.trackRegistration(name, type, moduleName);
-                        
-                        return result;
-                    };
-                }
-                if (prop === 'registerInstance') {
-                    return function(name, instance) {
-                        // Call the original registerInstance method
-                        const result = target.registerInstance(name, instance);
-                        
-                        // Log the registration through DI visualizer
-                        diVisualizer.trackRegistration(name, 'instance', moduleName);
-                        
-                        return result;
-                    };
-                }
-                return target[prop];
-            }
-        });
-        
-        // Call the original method with the proxy
-        const result = originalRegisterModule.call(this, 
-            (container, logger) => registerFn(containerProxy, logger), 
-            moduleName, 
-            logger
-        );
-        
-        return result;
-    };
-
-    // Monkey patch the get method to log resolutions
-    const originalGet = container.get;
-    container.get = function(name) {
-        const startTime = Date.now();
-        try {
-            // Call the original method
-            const result = originalGet.call(this, name);
-            
-            // Log the resolution through DI visualizer
-            const endTime = Date.now();
-            const duration = endTime - startTime;
-            diVisualizer.trackResolution(name, true, duration);
-            
-            return result;
-        } catch (error) {
-            // Log the failed resolution through DI visualizer
-            const endTime = Date.now();
-            const duration = endTime - startTime;
-            diVisualizer.trackResolution(name, false, duration);
-            
-            throw error;
-        }
-    };
-
-    // Register modules in sequence - constants FIRST to ensure they're available to all services
-    container.registerModule(registerConstants, 'constants', baseLogger);
-    container.registerModule(registerInfrastructureComponents, 'infrastructure', baseLogger);
-    container.registerModule(registerRepositoryComponents, 'repositories', baseLogger);
-    container.registerModule(registerServiceComponents, 'services', baseLogger);
-    container.registerModule(registerAIComponents, 'ai', baseLogger);
-    container.registerModule(registerCoordinatorComponents, 'coordinators', baseLogger);
-    container.registerModule(registerControllerComponents, 'controllers', baseLogger);
-    container.registerModule(registerMapperComponents, 'mappers', baseLogger); // Register mappers
-    // Removed routes registration as we're using directRoutes.js instead
+    // Repositories
+    startupLogger.logComponentInitialization('di.repositories', 'pending');
+    container.registerModule(registerRepositoryComponents, 'repositories');
+    diVisualizer.trackModuleRegistration('repositories', 12);
+    startupLogger.logComponentInitialization('di.repositories', 'success');
     
-    // Print DI container summary
-    diVisualizer.printSummary();
-        
+    // Services
+    startupLogger.logComponentInitialization('di.services', 'pending');
+    container.registerModule(registerServiceComponents, 'services');
+    diVisualizer.trackModuleRegistration('services', 20);
+    startupLogger.logComponentInitialization('di.services', 'success');
+    
+    // AI
+    startupLogger.logComponentInitialization('di.ai', 'pending');
+    container.registerModule(registerAIComponents, 'ai');
+    diVisualizer.trackModuleRegistration('ai', 5);
+    startupLogger.logComponentInitialization('di.ai', 'success');
+    
+    // Coordinators
+    startupLogger.logComponentInitialization('di.coordinators', 'pending');
+    container.registerModule(registerCoordinatorComponents, 'coordinators');
+    diVisualizer.trackModuleRegistration('coordinators', 8);
+    startupLogger.logComponentInitialization('di.coordinators', 'success');
+    
+    // Controllers
+    startupLogger.logComponentInitialization('di.controllers', 'pending');
+    container.registerModule(registerControllerComponents, 'controllers');
+    diVisualizer.trackModuleRegistration('controllers', 15);
+    startupLogger.logComponentInitialization('di.controllers', 'success');
+    
+    // Mappers
+    startupLogger.logComponentInitialization('di.mappers', 'pending');
+    container.registerModule(registerMapperComponents, 'mappers');
+    diVisualizer.trackModuleRegistration('mappers', 10);
+    startupLogger.logComponentInitialization('di.mappers', 'success');
+    
+    // Log container initialization completion
+    startupLogger.logComponentInitialization('di', 'success', {
+      message: 'Dependency injection container initialized successfully',
+      componentCount: diVisualizer.getStats().totalRegistrations
+    });
+    
+    // Print DI container summary through startupLogger
+    diVisualizer.printSummary(true);
+    
     return container;
+  } catch (error) {
+    // Log container initialization error
+    startupLogger.logComponentInitialization('di', 'error', {
+      message: 'Failed to initialize dependency injection container',
+      error: error.message
+    });
+    
+    throw error;
+  }
 }
 
-export { createContainer };
-
-export default {
-    createContainer
-};
+export default container;

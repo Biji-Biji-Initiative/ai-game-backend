@@ -2,6 +2,7 @@
 
 import { Logger } from "./logger.js";
 import { EventEmitter } from 'events';
+import chalk from 'chalk';
 
 /**
  * StartupLogger extends the existing Winston-based logging system
@@ -133,8 +134,8 @@ class StartupLogger {
     console.log('\n┌─────────────────────────────────────────────────┐');
     console.log('│            AI FIGHT CLUB API SERVER                │');
     console.log('└─────────────────────────────────────────────────┘\n');
-    console.log('🚀 Starting server...' + ` [${new Date().toISOString()}]`);
-    console.log('📊 Detailed startup visualization enabled\n');
+    console.log(chalk.blue('🚀 Starting server...') + chalk.gray(` [${new Date().toISOString()}]`));
+    console.log(chalk.blue('📊 Detailed startup visualization enabled\n'));
   }
   
   /**
@@ -145,7 +146,7 @@ class StartupLogger {
    */
   logComponentInitialization(component, status = 'success', metadata = {}) {
     if (!component) {
-      console.log('⚠️ Warning: Attempted to log component initialization with undefined component');
+      console.log(chalk.yellow('⚠️ Warning: Attempted to log component initialization with undefined component'));
       return this;
     }
     
@@ -169,10 +170,15 @@ class StartupLogger {
       }).join(', ') : '';
     
     // Print to terminal with formatting
+    const statusColor = 
+      status === 'success' ? chalk.green : 
+      status === 'error' ? chalk.red : 
+      status === 'pending' ? chalk.yellow : chalk.white;
+    
     console.log(
-      `${indentation}${statusEmoji} ${parentComponent}${parentComponent ? '.' : ''}${componentName}: ${status}` +
-      (metadata.duration ? ` (${metadata.duration}ms)` : '') +
-      (metadataStr && !metadata.duration ? ` (${metadataStr})` : '')
+      `${indentation}${statusEmoji} ${chalk.cyan(parentComponent)}${parentComponent ? '.' : ''}${chalk.bold(componentName)}: ${statusColor(status)}` +
+      (metadata.duration ? chalk.gray(` (${metadata.duration}ms)`) : '') +
+      (metadataStr && !metadata.duration ? chalk.gray(` (${metadataStr})`) : '')
     );
     
     // Also log to Winston for file logging
@@ -190,18 +196,22 @@ class StartupLogger {
    * @param {string} module - Module name (e.g., 'services', 'controllers')
    * @param {string} component - Component name being registered
    * @param {boolean} isSingleton - Whether the component is registered as a singleton
+   * @param {string} typeEmoji - Optional emoji to use for the component type
    */
-  logDIRegistration(module, component, isSingleton = false) {
+  logDIRegistration(module, component, isSingleton = false, typeEmoji = null) {
     if (!module || !component) {
-      console.log('⚠️ Warning: Attempted to log DI registration with undefined module or component');
+      console.log(chalk.yellow('⚠️ Warning: Attempted to log DI registration with undefined module or component'));
       return this;
     }
     
     // Log the registration with enhanced terminal output
     const scopeText = isSingleton ? 'singleton' : 'transient';
     
+    // Use provided typeEmoji or default based on singleton status
+    const emoji = typeEmoji || (isSingleton ? '🔒' : '🔄');
+    
     console.log(
-      `  ✓ di.${module} registered ${component} as ${scopeText}`
+      `  ${emoji} ${chalk.blue('[DI]')} ${chalk.cyan(module)} registered ${chalk.bold(component)} as ${isSingleton ? chalk.green(scopeText) : chalk.yellow(scopeText)}`
     );
     
     // Also log to Winston for file logging
@@ -223,7 +233,7 @@ class StartupLogger {
    */
   logMiddlewareInitialization(middleware, status = 'success', metadata = {}) {
     if (!middleware) {
-      console.log('⚠️ Warning: Attempted to log middleware initialization with undefined middleware name');
+      console.log(chalk.yellow('⚠️ Warning: Attempted to log middleware initialization with undefined middleware name'));
       return this;
     }
     
@@ -242,10 +252,15 @@ class StartupLogger {
       }).join(', ') : '';
     
     // Print to terminal with formatting
+    const statusColor = 
+      status === 'success' ? chalk.green : 
+      status === 'error' ? chalk.red : 
+      status === 'pending' ? chalk.yellow : chalk.white;
+    
     console.log(
-      `  ${statusEmoji} middleware.${middleware}: ${status}` +
-      (metadata.type ? ` (${metadata.type})` : '') +
-      (metadataStr && !metadata.type ? ` (${metadataStr})` : '')
+      `  ${statusEmoji} ${chalk.magenta('middleware')}.${chalk.bold(middleware)}: ${statusColor(status)}` +
+      (metadata.type ? chalk.gray(` (${metadata.type})`) : '') +
+      (metadataStr && !metadata.type ? chalk.gray(` (${metadataStr})`) : '')
     );
     
     // Also log to Winston for file logging
@@ -267,7 +282,7 @@ class StartupLogger {
    */
   logRouteInitialization(route, method, status = 'success', metadata = {}) {
     if (!route || !method) {
-      console.log('⚠️ Warning: Attempted to log route initialization with undefined route or method');
+      console.log(chalk.yellow('⚠️ Warning: Attempted to log route initialization with undefined route or method'));
       return this;
     }
     
@@ -286,9 +301,22 @@ class StartupLogger {
       }).join(', ') : '';
     
     // Print to terminal with formatting
+    const statusColor = 
+      status === 'success' ? chalk.green : 
+      status === 'error' ? chalk.red : 
+      status === 'pending' ? chalk.yellow : chalk.white;
+    
+    // Color-code HTTP methods
+    const methodColor = 
+      method.toUpperCase() === 'GET' ? chalk.green : 
+      method.toUpperCase() === 'POST' ? chalk.yellow : 
+      method.toUpperCase() === 'PUT' ? chalk.blue : 
+      method.toUpperCase() === 'DELETE' ? chalk.red : 
+      method.toUpperCase() === 'PATCH' ? chalk.magenta : chalk.white;
+    
     console.log(
-      `  ${statusEmoji} routes.${method.toUpperCase()}:${route}: ${status}` +
-      (metadataStr ? ` (${metadataStr})` : '')
+      `  ${statusEmoji} ${chalk.cyan('routes')}.${methodColor(method.toUpperCase())}:${chalk.bold(route)}: ${statusColor(status)}` +
+      (metadataStr ? chalk.gray(` (${metadataStr})`) : '')
     );
     
     // Also log to Winston for file logging
@@ -351,10 +379,10 @@ class StartupLogger {
     console.log('\n┌─────────────────────────────────────────────────┐');
     console.log('│                SERVER STARTUP                     │');
     console.log('└─────────────────────────────────────────────────┘');
-    console.log(`  ${statusText} in ${duration}ms`);
-    console.log(`  Server is now running and ready to accept connections`);
-    console.log(`  Started at: ${new Date(this.startTime).toISOString()}`);
-    console.log(`  Completed at: ${new Date(endTime).toISOString()}\n`);
+    console.log(`  ${status === 'success' ? chalk.green(statusText) : chalk.red(statusText)} in ${chalk.bold(duration)}ms`);
+    console.log(`  ${chalk.blue('Server is now running and ready to accept connections')}`);
+    console.log(`  Started at: ${chalk.gray(new Date(this.startTime).toISOString())}`);
+    console.log(`  Completed at: ${chalk.gray(new Date(endTime).toISOString())}\n`);
     
     this.events.emit('startup:complete', status, duration, metadata);
     

@@ -23,6 +23,7 @@ import eventBusRoutes from "#app/core/infra/http/routes/eventBusRoutes.js";
 import createAuthRoutes from "#app/core/infra/http/routes/authRoutes.js";
 import { logger as appLogger } from "#app/core/infra/logging/logger.js";
 import { mountAllRoutes } from './directRoutes.js';
+import { startupLogger } from "#app/core/infra/logging/StartupLogger.js"; // Import startupLogger
 
 /**
  * Configures and mounts all application routes.
@@ -33,6 +34,11 @@ import { mountAllRoutes } from './directRoutes.js';
 async function mountAppRoutes(app, config, container) {
     const logger = container.get('infraLogger') || infraLogger;
     logger.info('[Setup] Mounting application routes...');
+    
+    // Log route mounting initialization through startupLogger
+    startupLogger.logComponentInitialization('routes', 'pending', {
+        message: 'Mounting application routes'
+    });
 
     // --- Root route for API information ---
     app.get('/', (req, res) => {
@@ -45,6 +51,7 @@ async function mountAppRoutes(app, config, container) {
         });
     });
     logger.debug('[Setup] Root route mounted.');
+    startupLogger.logRouteInitialization('/', 'get', 'success', { type: 'info' });
 
     // --- Get Dependencies for Auth Middleware --- 
     let authenticateUserMiddleware;
@@ -55,6 +62,9 @@ async function mountAppRoutes(app, config, container) {
         logger.info('[Setup] Authentication middleware created successfully');
     } catch (error) {
         logger.error('[Setup] ERROR: Failed to create authentication middleware', { error });
+        startupLogger.logComponentInitialization('middleware.auth', 'error', {
+            error: error.message
+        });
         authenticateUserMiddleware = (req, res, next) => {
             next(new Error('Authentication middleware failed to initialize')); 
         };
@@ -66,8 +76,16 @@ async function mountAppRoutes(app, config, container) {
     if (fs.existsSync(testerUiPath)) {
         app.use(config.api.testerPath, express.static(testerUiPath));
         logger.info(`[Setup] API Tester UI served from ${testerUiPath} at ${config.api.testerPath}`);
+        startupLogger.logComponentInitialization('static.apiTester', 'success', {
+            path: testerUiPath,
+            mountPath: config.api.testerPath
+        });
     } else {
         logger.warn(`[Setup] API Tester UI path not found: ${testerUiPath}`);
+        startupLogger.logComponentInitialization('static.apiTester', 'error', {
+            path: testerUiPath,
+            error: 'Path not found'
+        });
     }
 
     // --- Specific Endpoints & Routers (before main API routes) --- 
@@ -80,25 +98,43 @@ async function mountAppRoutes(app, config, container) {
         });
     });
     logger.debug(`[Setup] Mounted direct route: ${config.api.prefix}/auth/status`);
+    startupLogger.logRouteInitialization(`${config.api.prefix}/auth/status`, 'get', 'success', { type: 'auth' });
 
     // API Tester routes
     const apiTesterPath = `${config.api.prefix}/api-tester`;
     app.use(apiTesterPath, createApiTesterRoutes(container));
     logger.info(`[Setup] API Tester routes mounted at ${apiTesterPath}`);
+    startupLogger.logComponentInitialization('routes.apiTester', 'success', {
+        path: apiTesterPath
+    });
 
     // --- Main API Routes --- 
     // Use direct route mounting method
     try {
         logger.debug('[Setup] Using direct route mounting...');
+        startupLogger.logComponentInitialization('routes.api', 'pending', {
+            message: 'Mounting API routes directly'
+        });
+        
         const routesMounted = await mountAllRoutes(app, container, config);
         if (routesMounted) {
           logger.info(`[Setup] Main API routes mounted directly at ${config.api.prefix}`);
+          startupLogger.logComponentInitialization('routes.api', 'success', {
+              prefix: config.api.prefix,
+              count: routesMounted.count || 'unknown'
+          });
         } else {
           logger.error('[Setup] Failed to mount API routes directly!');
+          startupLogger.logComponentInitialization('routes.api', 'error', {
+              error: 'Failed to mount API routes'
+          });
           throw new Error('Failed to mount API routes');
         }
     } catch (error) {
         logger.error('[Setup] CRITICAL: Failed to mount API routes!', { error: error.message });
+        startupLogger.logComponentInitialization('routes.api', 'error', {
+            error: error.message
+        });
         throw error; // Re-throw to prevent server starting with broken routes
     }
 
@@ -114,6 +150,7 @@ async function mountAppRoutes(app, config, container) {
         }
     });
     logger.debug('[Setup] Mounted /metrics endpoint.');
+    startupLogger.logRouteInitialization('/metrics', 'get', 'success', { type: 'monitoring' });
 
     // Root /api redirect handler
     app.use('/api', (req, res, next) => {
@@ -136,13 +173,24 @@ async function mountAppRoutes(app, config, container) {
         return res.redirect(307, newPath);
     });
     logger.debug('[Setup] Mounted root /api redirect handler.');
+    startupLogger.logComponentInitialization('routes.apiRedirect', 'success', {
+        path: '/api',
+        target: config.api.prefix
+    });
 
     // Add a health check endpoint at the root API path that redirects to the versioned one
     app.get('/api/health', (req, res) => {
         res.redirect(307, `${config.api.prefix}/health`);
     });
+    startupLogger.logRouteInitialization('/api/health', 'get', 'success', { 
+        type: 'health',
+        redirect: `${config.api.prefix}/health`
+    });
 
     logger.info('[Setup] Application route mounting complete.');
+    startupLogger.logComponentInitialization('routes', 'success', {
+        message: 'Application route mounting complete'
+    });
 }
 
-export { mountAppRoutes }; 
+export { mountAppRoutes };
