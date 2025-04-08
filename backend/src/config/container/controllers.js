@@ -15,6 +15,14 @@ import FocusAreaController from "#app/core/focusArea/controllers/FocusAreaContro
 // These imports will be added once the controllers are created
 // import AiChatController from "../../controllers/ai/AiChatController.js";
 // import AiAnalysisController from "../../controllers/ai/AiAnalysisController.js";
+
+// --- ADDED IMPORTS from extension ---
+import RivalController from "#app/core/rival/controllers/RivalController.js";
+import BadgeController from "#app/core/badge/controllers/BadgeController.js";
+import LeaderboardController from "#app/core/leaderboard/controllers/LeaderboardController.js";
+import NetworkController from "#app/core/network/controllers/NetworkController.js";
+// --- END ADDED IMPORTS ---
+
 'use strict';
 /**
  * Controller Components Registration
@@ -144,6 +152,32 @@ function registerControllerComponents(container, logger) {
         adminService: c.get('adminService'),
         logger: c.get('infraLogger')
     }), true); // Singleton
+
+    // --- ADDED REGISTRATIONS from extension ---
+    controllerLogger.info('Registering rivalController...');
+    container.register('rivalController', () => {
+      const rivalCoordinator = container.get('rivalCoordinator');
+      return new RivalController({ rivalCoordinator });
+    }, true); // Assuming singleton based on other controllers
+
+    controllerLogger.info('Registering badgeController...');
+    container.register('badgeController', () => {
+      const badgeCoordinator = container.get('badgeCoordinator');
+      return new BadgeController({ badgeCoordinator });
+    }, true); // Assuming singleton
+
+    controllerLogger.info('Registering leaderboardController...');
+    container.register('leaderboardController', () => {
+      const leaderboardCoordinator = container.get('leaderboardCoordinator');
+      return new LeaderboardController({ leaderboardCoordinator });
+    }, true); // Assuming singleton
+
+    controllerLogger.info('Registering networkController...');
+    container.register('networkController', () => {
+      const networkCoordinator = container.get('networkCoordinator');
+      return new NetworkController({ networkCoordinator });
+    }, true); // Assuming singleton
+    // --- END ADDED REGISTRATIONS ---
 
     controllerLogger.info('Controller registration complete.');
 }

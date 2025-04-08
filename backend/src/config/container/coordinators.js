@@ -6,6 +6,14 @@ import FocusAreaGenerationCoordinator from "#app/application/focusArea/FocusArea
 import FocusAreaManagementCoordinator from "#app/application/focusArea/FocusAreaManagementCoordinator.js";
 import ProgressCoordinator from "#app/application/progress/ProgressCoordinator.js";
 import ApplicationEventHandlers from "#app/application/EventHandlers.js";
+
+// --- ADDED IMPORTS from extension ---
+import RivalCoordinator from "#app/application/rival/RivalCoordinator.js";
+import BadgeCoordinator from "#app/application/badge/BadgeCoordinator.js";
+import LeaderboardCoordinator from "#app/application/leaderboard/LeaderboardCoordinator.js";
+import NetworkCoordinator from "#app/application/network/NetworkCoordinator.js";
+// --- END ADDED IMPORTS ---
+
 'use strict';
 /**
  * Coordinator Components Registration
@@ -151,6 +159,76 @@ function registerCoordinatorComponents(container, logger) {
             EventTypes: c.get('eventTypes')
         });
     }, true); // Singleton
+    
+    // --- ADDED REGISTRATIONS from extension ---
+    coordinatorLogger.info('Registering rivalCoordinator...');
+    container.register('rivalCoordinator', () => {
+      const rivalService = container.get('rivalService');
+      const userService = container.get('userService');
+      const personalityService = container.get('personalityService');
+      const promptService = container.get('promptService');
+      const challengeService = container.get('challengeService');
+
+      return new RivalCoordinator({
+        rivalService,
+        userService,
+        personalityService,
+        promptService,
+        challengeService,
+        logger: container.get('logger')
+      });
+    }, false); // Assuming transient
+
+    coordinatorLogger.info('Registering badgeCoordinator...');
+    container.register('badgeCoordinator', () => {
+      const badgeService = container.get('badgeService');
+      const userService = container.get('userService');
+      const progressService = container.get('progressService');
+      const promptService = container.get('promptService');
+
+      return new BadgeCoordinator({
+        badgeService,
+        userService,
+        progressService,
+        promptService,
+        logger: container.get('logger')
+      });
+    }, false); // Assuming transient
+
+    coordinatorLogger.info('Registering leaderboardCoordinator...');
+    container.register('leaderboardCoordinator', () => {
+      const leaderboardService = container.get('leaderboardService');
+      const userService = container.get('userService');
+      const challengeService = container.get('challengeService');
+      const promptService = container.get('promptService');
+
+      return new LeaderboardCoordinator({
+        leaderboardService,
+        userService,
+        challengeService,
+        promptService,
+        logger: container.get('logger')
+      });
+    }, false); // Assuming transient
+
+    coordinatorLogger.info('Registering networkCoordinator...');
+    container.register('networkCoordinator', () => {
+      const networkService = container.get('networkService');
+      const userService = container.get('userService');
+      const progressService = container.get('progressService');
+      const rivalService = container.get('rivalService');
+      const promptService = container.get('promptService');
+
+      return new NetworkCoordinator({
+        networkService,
+        userService,
+        progressService,
+        rivalService,
+        promptService,
+        logger: container.get('logger')
+      });
+    }, false); // Assuming transient
+    // --- END ADDED REGISTRATIONS ---
     
     coordinatorLogger.info('Coordinator registration complete.');
 }

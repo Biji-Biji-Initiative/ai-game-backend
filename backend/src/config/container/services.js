@@ -39,6 +39,14 @@ import AuthService from "#app/core/auth/services/AuthService.js";
 // Import the AdminService
 import AdminService from "#app/core/admin/services/AdminService.js";
 
+// --- ADDED IMPORTS from extension ---
+import RivalService from "#app/core/rival/services/RivalService.js";
+import BadgeService from "#app/core/badge/services/BadgeService.js";
+import LeaderboardService from "#app/core/leaderboard/services/LeaderboardService.js";
+import NetworkService from "#app/core/network/services/NetworkService.js";
+import FeaturePromptBuilders from "#app/core/prompt/builders/FeaturePromptBuilders.js";
+// --- END ADDED IMPORTS ---
+
 /**
  * Service Components Registration
  *
@@ -355,6 +363,66 @@ function registerServiceComponents(container, logger) {
         supabase: c.get('db'), // Use the service role Supabase client
         logger: c.get('infraLogger')
     }), true); // singleton
+
+    // --- ADDED REGISTRATIONS from extension ---
+    serviceLogger.info('Registering featurePromptBuilders...');
+    registerService(container, serviceLogger, 'featurePromptBuilders', () => {
+      return new FeaturePromptBuilders({
+        config: container.get('config'),
+        logger: container.get('logger')
+      });
+    }, true); // Likely singleton
+
+    serviceLogger.info('Registering rivalService...');
+    registerService(container, serviceLogger, 'rivalService', () => {
+      const rivalRepository = container.get('rivalRepository');
+      const promptService = container.get('promptService'); // Needs promptService registration
+      const aiService = container.get('aiService'); // Needs aiService registration
+
+      return new RivalService({
+        rivalRepository,
+        promptService,
+        aiService,
+        logger: container.get('logger')
+      });
+    }, false); // Likely transient
+
+    serviceLogger.info('Registering badgeService...');
+    registerService(container, serviceLogger, 'badgeService', () => {
+      const badgeRepository = container.get('badgeRepository');
+      const promptService = container.get('promptService'); // Needs promptService registration
+
+      return new BadgeService({
+        badgeRepository,
+        promptService,
+        logger: container.get('logger')
+      });
+    }, false); // Likely transient
+
+    serviceLogger.info('Registering leaderboardService...');
+    registerService(container, serviceLogger, 'leaderboardService', () => {
+      const leaderboardRepository = container.get('leaderboardRepository');
+      const promptService = container.get('promptService'); // Needs promptService registration
+
+      return new LeaderboardService({
+        leaderboardRepository,
+        promptService,
+        logger: container.get('logger')
+      });
+    }, false); // Likely transient
+
+    serviceLogger.info('Registering networkService...');
+    registerService(container, serviceLogger, 'networkService', () => {
+      const networkRepository = container.get('networkRepository');
+      const promptService = container.get('promptService'); // Needs promptService registration
+
+      return new NetworkService({
+        networkRepository,
+        promptService,
+        logger: container.get('logger')
+      });
+    }, false); // Likely transient
+    // --- END ADDED REGISTRATIONS ---
 
     serviceLogger.info('Service registration complete.');
     console.log('✅ Service registration complete.');

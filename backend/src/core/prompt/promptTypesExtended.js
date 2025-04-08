@@ -1,12 +1,12 @@
 'use strict';
 
-import { promptTypes } from './promptTypes.js';
+import { PROMPT_TYPES } from './promptTypes.js';
 
 /**
  * Extended prompt types for new features
  */
 export const promptTypesExtended = {
-  ...promptTypes,
+  ...PROMPT_TYPES,
   
   // AI Rival System prompt types
   RIVAL_GENERATION: 'rival_generation',

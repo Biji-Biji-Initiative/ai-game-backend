@@ -14,6 +14,14 @@ import { FocusAreaConfigRepository } from "#app/core/challenge/repositories/conf
 import DifficultyLevelRepository from "#app/core/challenge/repositories/config/DifficultyLevelRepository.js";
 import RefreshTokenRepository from "#app/core/auth/repositories/RefreshTokenRepository.js";
 
+// --- ADDED IMPORTS from extension ---
+import SupabaseRivalRepository from "#app/core/rival/repositories/SupabaseRivalRepository.js";
+import SupabaseBadgeRepository from "#app/core/badge/repositories/SupabaseBadgeRepository.js";
+import SupabaseLeaderboardRepository from "#app/core/leaderboard/repositories/SupabaseLeaderboardRepository.js";
+import SupabaseNetworkRepository from "#app/core/network/repositories/SupabaseNetworkRepository.js";
+import SupabaseThreadStateRepository from "#app/core/ai/repositories/SupabaseThreadStateRepository.js";
+// --- END ADDED IMPORTS ---
+
 // Import Mappers needed *only* for DI registration factory functions below
 // Remove static import of UserMapper
 // Add other mapper imports here if they are instantiated directly in registration
@@ -165,6 +173,53 @@ function registerRepositoryComponents(container, logger) {
         eventBus: eventBusInstance
     }), true);
     
+    // --- ADDED REGISTRATIONS from extension ---
+    repoLogger.info('Registering threadStateRepository...');
+    container.register('threadStateRepository', () => {
+      const supabaseClient = container.get('db'); // Use dbInstance resolved earlier
+      return new SupabaseThreadStateRepository({
+        supabaseClient,
+        logger: container.get('logger')
+      });
+    }, true); // Assuming singleton
+
+    repoLogger.info('Registering rivalRepository...');
+    container.register('rivalRepository', () => {
+      const supabaseClient = container.get('db');
+      return new SupabaseRivalRepository({
+        supabaseClient,
+        logger: container.get('logger')
+      });
+    }, true); // Assuming singleton
+
+    repoLogger.info('Registering badgeRepository...');
+    container.register('badgeRepository', () => {
+      const supabaseClient = container.get('db');
+      return new SupabaseBadgeRepository({
+        supabaseClient,
+        logger: container.get('logger')
+      });
+    }, true); // Assuming singleton
+
+    repoLogger.info('Registering leaderboardRepository...');
+    container.register('leaderboardRepository', () => {
+      const supabaseClient = container.get('db');
+      return new SupabaseLeaderboardRepository({
+        supabaseClient,
+        logger: container.get('logger')
+      });
+    }, true); // Assuming singleton
+
+    repoLogger.info('Registering networkRepository...');
+    container.register('networkRepository', () => {
+      const supabaseClient = container.get('db');
+      return new SupabaseNetworkRepository({
+        supabaseClient,
+        logger: container.get('logger')
+      });
+    }, true); // Assuming singleton
+    // --- END ADDED REGISTRATIONS ---
+
     repoLogger.info('Repository registration complete.');
 }
 

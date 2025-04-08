@@ -14,6 +14,11 @@ import OpenAI from "openai";
 import config from "#app/config/env.js";
 import { OpenAIStateManager } from "#app/core/infra/openai/stateManager.js";
 
+// --- ADDED IMPORTS from extension ---
+import OpenAIResponsesAdapter from "#app/core/ai/adapters/OpenAIResponsesAdapter.js";
+import { promptTypesExtended } from "#app/core/prompt/promptTypesExtended.js";
+// --- END ADDED IMPORTS ---
+
 /**
  * Register AI related components in the container
  * @param {DIContainer} container - The DI container
@@ -36,14 +41,14 @@ function registerAIComponents(container, logger) {
         container.register('openAIClient', () => openAIClient, true);
         aiLogger.info('[DI AI] OpenAI client registered.');
         
-        // 2. Register the OpenAIStateManager IMPLEMENTATION
+        // 2. Register the OpenAIStateManager IMPLEMENTATION with a different name
         aiLogger.info('[DI AI] Registering OpenAIStateManager implementation...');
-        container.register('openAIStateManager', c => new OpenAIStateManager({
+        container.register('_openAIStateManagerImpl', c => new OpenAIStateManager({
             openAIClient: c.get('openAIClient'),
             logger: c.get('logger') // Or a specific AI logger
             // redisCache: c.get('redisCache') // Optional: Add if redis is registered
         }), true); // Singleton
-        aiLogger.info('[DI AI] OpenAIStateManager implementation registered.');
+        aiLogger.info('[DI AI] OpenAIStateManager implementation registered as _openAIStateManagerImpl.');
         
         // 3. Register the AI Client ADAPTER (Port Implementation)
         aiLogger.info('[DI AI] Registering AI client adapter...');
@@ -54,23 +59,47 @@ function registerAIComponents(container, logger) {
         container.register('aiClient', () => aiClientAdapter, true);
         aiLogger.info('[DI AI] AI client adapter registered.');
         
-        // 4. Register the AI State Manager ADAPTER (Port Implementation)
+        // 4. Register the AI State Manager ADAPTER (Port Implementation) using the IMPLEMENTATION
         aiLogger.info('[DI AI] Registering AI state manager adapter...');
         const stateManagerAdapter = new OpenAIStateManagerAdapter({
-            openAIStateManager: container.get('openAIStateManager'), // Now gets the registered implementation
+            openAIStateManager: container.get('_openAIStateManagerImpl'), // CHANGED NAME to _openAIStateManagerImpl
             logger: container.get('logger')
         });
-        container.register('aiStateManager', () => stateManagerAdapter, true);
+        container.register('aiStateManager', () => stateManagerAdapter, true); // Keep name 'aiStateManager' for the adapter
         aiLogger.info('[DI AI] AI state manager adapter registered.');
         
         // 5. Register FocusAreaThreadState ADAPTER (Port Implementation)
         aiLogger.info('[DI AI] Registering FocusAreaThreadState adapter...');
         const focusAreaThreadAdapter = new FocusAreaThreadStateAdapter({
-            openAIStateManager: container.get('openAIStateManager'), // Uses the implementation
+            openAIStateManager: container.get('_openAIStateManagerImpl'), // CHANGED NAME to _openAIStateManagerImpl
             logger: container.get('focusAreaLogger') // Specific logger
         });
         container.register('focusAreaThreadState', () => focusAreaThreadAdapter, true);
         aiLogger.info('[DI AI] FocusAreaThreadState adapter registered.');
+        
+        // --- ADDED REGISTRATIONS from extension (excluding conflicting openAIStateManager) ---
+        aiLogger.info('[DI AI] Registering openAIResponsesAdapter...');
+        container.register('openAIResponsesAdapter', () => {
+          const config = container.get('config');
+          const openAIClient = container.get('openAIClient');
+          // Use the adapter registered above under 'aiStateManager'
+          const stateManager = container.get('aiStateManager'); 
+
+          return new OpenAIResponsesAdapter({
+            openAIClient,
+            stateManager,
+            config: config.ai?.openai,
+            logger: container.get('logger')
+          });
+        }, true); // Assuming singleton
+        aiLogger.info('[DI AI] openAIResponsesAdapter registered.');
+
+        aiLogger.info('[DI AI] Registering promptTypes...');
+        container.register('promptTypes', () => {
+          return promptTypesExtended;
+        }, true); // Assuming singleton
+        aiLogger.info('[DI AI] promptTypes registered.');
+        // --- END ADDED REGISTRATIONS ---
         
         aiLogger.info('[DI AI] AI components registered successfully.');
     } catch (error) {
@@ -84,6 +113,8 @@ function registerAIComponents(container, logger) {
             container.register('aiClient', () => ({ /* mock */ }), true);
             container.register('aiStateManager', () => ({ /* mock */ }), true);
             container.register('focusAreaThreadState', () => ({ /* mock */ }), true);
+            container.register('openAIResponsesAdapter', () => ({ /* mock */ }), true); // Add mock
+            container.register('promptTypes', () => ({ /* mock */ }), true); // Add mock
             
             aiLogger.warn('[DI AI] Mock AI components registered.');
         } else {
