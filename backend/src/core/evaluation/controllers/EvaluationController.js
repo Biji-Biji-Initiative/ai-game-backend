@@ -1,7 +1,7 @@
 import { EvaluationError, EvaluationNotFoundError, EvaluationValidationError, EvaluationProcessingError } from "#app/core/evaluation/errors/EvaluationErrors.js";
 import { EvaluationDTOMapper } from "#app/core/evaluation/dtos/EvaluationDTO.js";
 import { withControllerErrorHandling } from "#app/core/infra/errors/errorStandardization.js";
-// import { evaluationRequestSchema } from "#app/core/evaluation/schemas/evaluationApiSchemas.js"; // Incorrect path
+// REMOVE THIS LINE: import { evaluationRequestSchema } from "#app/core/evaluation/schemas/evaluationApiSchemas.js"; // Incorrect path
 'use strict';
 // Error mappings for controllers
 const evaluationControllerErrorMappings = [
@@ -122,6 +122,7 @@ class EvaluationController {
      *         $ref: '#/components/responses/UnauthorizedError'
      */
     async createEvaluation(req, res) {
+        // REMOVE COMMENTED OUT VALIDATION:
         // // Validate request body - COMMENTED OUT
         // const validationResult = evaluationRequestSchema.safeParse(req.body);
         // if (!validationResult.success) {
@@ -130,9 +131,9 @@ class EvaluationController {
         // }
         // const params = validationResult.data; // Use validated data
         
-        // TEMPORARY: Use req.body directly
+        // Use req.body directly (assuming OpenAPI validation middleware runs first)
         const params = req.body;
-        if (!params || !params.challengeId || !params.response) { // Basic check
+        if (!params || !params.challengeId || !params.response) { // Basic check (Keep or remove based on OpenAPI confidence)
             throw new EvaluationValidationError('Missing required fields (challengeId, response)');
         }
         
@@ -231,6 +232,7 @@ class EvaluationController {
 
     
     async streamEvaluation(req, res) {
+        // REMOVE COMMENTED OUT VALIDATION:
         // // Validate request body - COMMENTED OUT
         // const validationResult = evaluationRequestSchema.safeParse(req.body);
         // if (!validationResult.success) {
@@ -240,9 +242,9 @@ class EvaluationController {
         // }
         // const params = validationResult.data; // Use validated data
         
-        // TEMPORARY: Use req.body directly
+        // Use req.body directly (assuming OpenAPI validation middleware runs first)
         const params = req.body;
-        if (!params || !params.challengeId || !params.response) { // Basic check
+        if (!params || !params.challengeId || !params.response) { // Basic check (Keep or remove based on OpenAPI confidence)
             res.status(400).write(`data: ${JSON.stringify({ type: 'error', message: 'Missing required fields (challengeId, response)' })}\n\n`);
             return res.end();
         }

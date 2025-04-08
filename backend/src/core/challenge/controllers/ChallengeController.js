@@ -2,8 +2,6 @@ import { logger } from "#app/core/infra/logging/logger.js";
 import { withControllerErrorHandling } from "#app/core/infra/errors/errorStandardization.js";
 import { ChallengeNotFoundError, ChallengeValidationError } from "#app/core/challenge/errors/ChallengeErrors.js";
 import { ChallengeDTOMapper } from "#app/core/challenge/dtos/ChallengeDTO.js";
-// import { challengeRequestSchema, challengeResponseSchema } from "#app/core/challenge/schemas/ChallengeSchemas.js"; // Incorrect path
-// import { challengeRequestSchema, challengeResponseSchema } from "#app/api/v1/challenge/schemas/ChallengeSchemas.js"; // Corrected path - Still not found
 'use strict';
 /**
  * Challenge Controller
@@ -171,17 +169,9 @@ class ChallengeController {
    * @param {Response} res - Express response object used to return the generated challenge
    */
   async generateChallenge(req, res) {
-    // // Validate request body - COMMENTED OUT
-    // const validationResult = challengeRequestSchema.safeParse(req.body);
-    // if (!validationResult.success) {
-    //   const formattedErrors = validationResult.error.flatten().fieldErrors;
-    //   throw new ChallengeValidationError('Invalid request body for challenge generation', { validationErrors: formattedErrors });
-    // }
-    // const params = validationResult.data; // Use validated data
-    
-    // TEMPORARY: Use req.body directly
+    // Use req.body directly (assuming OpenAPI validation middleware runs first)
     const params = req.body;
-    if (!params || !params.userEmail) { // Basic Check
+    if (!params || !params.userEmail) { // Basic Check (Keep or remove based on OpenAPI confidence)
          throw new ChallengeValidationError('Missing required fields (e.g., userEmail)');
     }
     
@@ -314,33 +304,22 @@ class ChallengeController {
    * @param {Response} res - Express response object used to return the submission result
    */
   async submitChallengeResponse(req, res) {
+    // Use req.body directly (assuming OpenAPI validation middleware runs first)
+    const data = req.body; 
     const { challengeId } = req.params;
-    
-    // // Validate request body - COMMENTED OUT
-    // const validationResult = challengeResponseSchema.safeParse(req.body);
-    // if (!validationResult.success) {
-    //   const formattedErrors = validationResult.error.flatten().fieldErrors;
-    //   throw new ChallengeValidationError('Invalid request body for challenge submission', { validationErrors: formattedErrors });
-    // }
-    // const params = validationResult.data; // Use validated data
-    
-    // TEMPORARY: Use req.body directly
-    const params = req.body;
-    if (!params || !params.response) { // Basic Check
-         throw new ChallengeValidationError('Missing required fields (e.g., response)');
-    }
+    const userId = req.user.id;
+    const userEmail = req.user.email;
 
-    // Basic check (already covered by schema, but retained)
-    if (!challengeId) { // challengeId comes from params, not body
-      throw new ChallengeValidationError('Challenge ID is required in URL path', { errorCode: 'MISSING_PARAMETER' });
+    if (!data || !data.response) { // Basic Check
+         throw new ChallengeValidationError('Missing required response field');
     }
 
     // Delegate to coordinator
     const result = await this.challengeCoordinator.submitChallengeResponse({
       challengeId,
-      userEmail: params.userEmail, // Ensure userEmail is part of schema/validated data if needed by coordinator
-      response: params.response,
-      progressTrackingService: this.progressCoordinator // Check if coordinator still needs this
+      userEmail: userEmail,
+      response: data.response,
+      progressTrackingService: this.progressCoordinator
     });
     // Convert domain response to DTO
     const responseDto = ChallengeDTOMapper.responseToDTO(result);

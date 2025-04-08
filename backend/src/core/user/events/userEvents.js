@@ -41,96 +41,6 @@ function getRepo(container) {
 }
 
 /**
- * Publish an event when a user is created
- * @param {DIContainer} container - The DI container instance.
- * @param {string} userId - ID of the user
- * @param {string} email - Email of the user
- * @returns {Promise<void>}
- * @deprecated Use User entity's addDomainEvent method and let repository handle publishing
- */
-async function publishUserCreated(container, userId, email) {
-  logger.warn('DEPRECATED: Direct event publishing via publishUserCreated. Use entity-based event collection instead.');
-  try {
-    const repo = getRepo(container);
-    const entity = await repo.findById(userId);
-    if (entity) {
-      entity.addDomainEvent(EventTypes.USER_CREATED, { userId, email });
-      await repo.save(entity);
-    } else {
-      logger.warn(`[userEvents] Entity ${userId} not found for USER_CREATED. Direct publish.`);
-      await eventBus.publish({
-        type: EventTypes.USER_CREATED,
-        data: { entityId: userId, entityType: 'User', userId, email },
-        metadata: { timestamp: new Date().toISOString() }
-      });
-    }
-    logger.debug('Published user created event', { userId, email });
-  } catch (error) {
-    logger.error('Error publishing user created event', { error: error.message, userId, email });
-  }
-}
-
-/**
- * Publish an event when a user is updated
- * @param {DIContainer} container - The DI container instance.
- * @param {string} userId - ID of the user
- * @param {Object} changes - Changes made to the user
- * @returns {Promise<void>}
- * @deprecated Use User entity's addDomainEvent method and let repository handle publishing
- */
-async function publishUserUpdated(container, userId, changes) {
-  logger.warn('DEPRECATED: Direct event publishing via publishUserUpdated. Use entity-based event collection instead.');
-  try {
-    const repo = getRepo(container);
-    const entity = await repo.findById(userId);
-    if (entity) {
-      entity.addDomainEvent(EventTypes.USER_UPDATED, { userId, changes });
-      await repo.save(entity);
-    } else {
-        logger.warn(`[userEvents] Entity ${userId} not found for USER_UPDATED. Direct publish.`);
-        await eventBus.publish({
-            type: EventTypes.USER_UPDATED,
-            data: { entityId: userId, entityType: 'User', userId, changes },
-            metadata: { timestamp: new Date().toISOString() }
-        });
-    }
-    logger.debug('Published user updated event', { userId });
-  } catch (error) {
-    logger.error('Error publishing user updated event', { error: error.message, userId });
-  }
-}
-
-/**
- * Publish an event when a user profile is completed
- * @param {DIContainer} container - The DI container instance.
- * @param {string} userId - ID of the user
- * @param {string} email - Email of the user
- * @returns {Promise<void>}
- * @deprecated Use User entity's addDomainEvent method and let repository handle publishing
- */
-async function publishUserProfileCompleted(container, userId, email) {
-  logger.warn('DEPRECATED: Direct event publishing via publishUserProfileCompleted. Use entity-based event collection instead.');
-  try {
-    const repo = getRepo(container);
-    const entity = await repo.findById(userId);
-    if (entity) {
-      entity.addDomainEvent(EventTypes.USER_PROFILE_COMPLETED, { userId, email });
-      await repo.save(entity);
-    } else {
-        logger.warn(`[userEvents] Entity ${userId} not found for USER_PROFILE_COMPLETED. Direct publish.`);
-        await eventBus.publish({
-            type: EventTypes.USER_PROFILE_COMPLETED,
-            data: { entityId: userId, entityType: 'User', userId, email },
-            metadata: { timestamp: new Date().toISOString() }
-        });
-    }
-    logger.debug('Published user profile completed event', { userId, email });
-  } catch (error) {
-    logger.error('Error publishing user profile completed event', { error: error.message, userId, email });
-  }
-}
-
-/**
  * Set up user event subscriptions
  * @param {DIContainer} container - The DI container instance.
  */
@@ -160,8 +70,8 @@ export function registerUserEventHandlers(container) {
 }
 
 export default {
-  publishUserCreated,
-  publishUserUpdated,
-  publishUserProfileCompleted,
+  // publishUserCreated,
+  // publishUserUpdated,
+  // publishUserProfileCompleted,
   registerUserEventHandlers
 };
