@@ -4,7 +4,6 @@ import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import createApiTesterRoutes from "#app/core/infra/http/routes/apiTesterRoutes.js";
 import { infraLogger } from "#app/core/infra/logging/domainLogger.js";
 import { createAuthMiddleware } from "#app/core/infra/http/middleware/auth.js"; // Import the auth middleware factory
 // Import prometheus client if needed for /metrics
@@ -71,7 +70,8 @@ async function mountAppRoutes(app, config, container) {
     }
 
     // --- Static Files --- 
-    // Serve API Tester UI static files
+    // REMOVE API Tester UI static file serving logic
+    /*
     const testerUiPath = path.join(process.cwd(), 'admin');
     if (fs.existsSync(testerUiPath)) {
         app.use(config.api.testerPath, express.static(testerUiPath));
@@ -87,6 +87,7 @@ async function mountAppRoutes(app, config, container) {
             error: 'Path not found'
         });
     }
+    */
 
     // --- Specific Endpoints & Routers (before main API routes) --- 
     // Direct auth status endpoint
@@ -100,13 +101,15 @@ async function mountAppRoutes(app, config, container) {
     logger.debug(`[Setup] Mounted direct route: ${config.api.prefix}/auth/status`);
     startupLogger.logRouteInitialization(`${config.api.prefix}/auth/status`, 'get', 'success', { type: 'auth' });
 
-    // API Tester routes
+    // REMOVE API Tester routes mounting
+    /*
     const apiTesterPath = `${config.api.prefix}/api-tester`;
     app.use(apiTesterPath, createApiTesterRoutes(container));
     logger.info(`[Setup] API Tester routes mounted at ${apiTesterPath}`);
     startupLogger.logComponentInitialization('routes.apiTester', 'success', {
         path: apiTesterPath
     });
+    */
 
     // --- Main API Routes --- 
     // Use direct route mounting method

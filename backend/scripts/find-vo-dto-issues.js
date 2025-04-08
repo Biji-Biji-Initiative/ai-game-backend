@@ -64,7 +64,7 @@ const domainPatterns = {
     primitiveId: /['"]personality-\w+['"]/g,
     valueObjects: ['PersonalityId'],
     dtos: ['PersonalityDTO', 'PersonalityProfileDTO'],
-    mappers: ['PersonalityDTOMapper', 'PersonalityProfileDTOMapper'],
+    mappers: ['PersonalityDTOMapper'],
     repositories: ['PersonalityRepository']
   }
 };

@@ -68,19 +68,15 @@ const dtoMapperConfig = {
   },
   focusArea: {
     mappers: ['FocusAreaDTOMapper'],
-    importPaths: [
-      '../../../src/application/focusArea/mappers/FocusAreaDTOMapper.js'
-    ],
-    requestMethods: {
-      'POST /api/v1/focus-areas': 'FocusAreaDTOMapper.fromRequest',
-      'PUT /api/v1/focus-areas/{id}': 'FocusAreaDTOMapper.fromRequest',
-      'POST /api/v1/user/focus-area': 'FocusAreaDTOMapper.fromRequest'
+    vos: ['FocusArea'],
+    dtos: ['FocusAreaDTO'],
+    endpoints: {
+      'GET /api/v1/focus-areas': 'FocusAreaDTOMapper.toDTOCollection',
+      'POST /api/v1/focus-areas': 'FocusAreaDTOMapper.fromRequest'
     },
-    responseMethods: {
-      'GET /api/v1/focus-areas': 'FocusAreaDTOMapper.toDTO',
-      'GET /api/v1/focus-areas/{id}': 'FocusAreaDTOMapper.toDTO',
-      'GET /api/v1/focus-areas/recommend': 'FocusAreaDTOMapper.toDTO',
-      'POST /api/v1/focus-areas': 'FocusAreaDTOMapper.toDTO'
+    mapperFiles: {
+      fromRequest: '../../../src/application/focusArea/mappers/FocusAreaDTOMapper.js',
+      toDTO: '../../../src/application/focusArea/mappers/FocusAreaDTOMapper.js'
     }
   },
   evaluation: {
@@ -100,21 +96,19 @@ const dtoMapperConfig = {
     }
   },
   personality: {
-    mappers: ['PersonalityDTOMapper', 'PersonalityProfileDTOMapper'],
-    importPaths: [
-      '../../../src/application/personality/mappers/PersonalityDTOMapper.js',
-      '../../../src/application/personality/mappers/PersonalityProfileDTOMapper.js'
-    ],
-    requestMethods: {
-      'POST /api/v1/personality': 'PersonalityDTOMapper.fromRequest',
-      'PUT /api/v1/personality': 'PersonalityDTOMapper.fromRequest',
-      'POST /api/v1/personality/profile': 'PersonalityProfileDTOMapper.fromRequest'
+    mappers: ['PersonalityDTOMapper'],
+    vos: ['PersonalityProfile', 'PersonalityTrait', 'AIAttitude', 'Insight'],
+    dtos: ['PersonalityDTO', 'PersonalityTraitDTO', 'AIAttitudeDTO', 'InsightDTO'],
+    mapperFiles: {
+      fromRequest: '../../../src/application/personality/mappers/PersonalityDTOMapper.js',
+      toDTO: '../../../src/application/personality/mappers/PersonalityDTOMapper.js',
     },
-    responseMethods: {
-      'GET /api/v1/personality': 'PersonalityDTOMapper.toDTO',
-      'GET /api/v1/personality/profile': 'PersonalityProfileDTOMapper.toDTO',
-      'POST /api/v1/personality': 'PersonalityDTOMapper.toDTO',
-      'PUT /api/v1/personality': 'PersonalityDTOMapper.toDTO'
+    endpoints: {
+      'POST /api/v1/personality/profile': 'PersonalityDTOMapper.fromRequest',
+      'PUT /api/v1/personality/profile': 'PersonalityDTOMapper.fromRequest',
+      'GET /api/v1/personality/profile': 'PersonalityDTOMapper.toDTO',
+      'POST /api/v1/personality/insights': 'PersonalityDTOMapper.fromRequest',
+      'GET /api/v1/personality/insights': 'PersonalityDTOMapper.toDTOCollection'
     }
   }
 };

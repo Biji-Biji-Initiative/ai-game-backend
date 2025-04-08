@@ -73,6 +73,7 @@ class PersonalityDTOMapper {
     
     // Map API request format to domain model format
     return {
+      userId: requestData.userId,
       personalityTraits: requestData.personalityTraits,
       aiAttitudes: requestData.aiAttitudes,
     };

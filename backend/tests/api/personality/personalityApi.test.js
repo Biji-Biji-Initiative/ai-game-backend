@@ -2,7 +2,6 @@ import * as axios from "axios";
 import { expect } from "chai";
 import { setupTestUser, cleanupTestUser, getAuthToken } from "../../helpers/apiTestHelper.js";
 import PersonalityDTOMapper from "@/application/personality/mappers/PersonalityDTOMapper.js";
-import PersonalityProfileDTOMapper from "@/application/personality/mappers/PersonalityProfileDTOMapper.js";
 // Base URL for API requests
 const API_URL = process.env.API_URL || 'http://localhost:3000/api';
 describe('Personality API Endpoints (Real)', function () {

@@ -2,7 +2,8 @@
 
 // Import DTO mappers
 import PersonalityDTOMapper from "#app/application/personality/mappers/PersonalityDTOMapper.js";
-import PersonalityProfileDTOMapper from "#app/application/personality/mappers/PersonalityProfileDTOMapper.js";
+// Remove import for PersonalityProfileDTOMapper
+// import PersonalityProfileDTOMapper from "#app/application/personality/mappers/PersonalityProfileDTOMapper.js";
 import UserProfileDTOMapper from "#app/application/user/mappers/UserProfileDTOMapper.js";
 
 /**
@@ -26,8 +27,9 @@ function registerMapperComponents(container, logger) {
     mapperLogger.info('Registering personalityDTOMapper...');
     container.registerInstance('personalityDTOMapper', PersonalityDTOMapper);
 
-    mapperLogger.info('Registering personalityProfileDTOMapper...');
-    container.registerInstance('personalityProfileDTOMapper', PersonalityProfileDTOMapper);
+    // Remove registration for personalityProfileDTOMapper
+    // mapperLogger.info('Registering personalityProfileDTOMapper...');
+    // container.registerInstance('personalityProfileDTOMapper', PersonalityProfileDTOMapper);
     
     // User mappers
     mapperLogger.info('Registering userProfileDTOMapper...');
