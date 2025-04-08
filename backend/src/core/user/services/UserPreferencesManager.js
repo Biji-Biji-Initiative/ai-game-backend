@@ -4,15 +4,19 @@ import {
   getDefaultPreferences,
   isValidPreferenceCategory 
 } from "#app/core/user/schemas/preferencesSchema.js";
-import { UserNotFoundError, UserValidationError } from "#app/core/user/errors/UserErrors.js";
+import { UserNotFoundError, UserCreationError } from "#app/core/user/errors/UserErrors.js";
 import { withServiceErrorHandling, createErrorMapper } from "#app/core/infra/errors/errorStandardization.js";
 import { logger as appLogger } from "#app/core/infra/logging/logger.js";
+import { userLogger } from "#app/core/infra/logging/domainLogger.js";
+import { validateDependencies } from "#app/core/shared/utils/serviceUtils.js";
+
+const PREFERENCES_CACHE_TTL = 3600; // 1 hour
 
 // Create an error mapper for the preferences manager
 const preferenceErrorMapper = createErrorMapper({
   'UserNotFoundError': UserNotFoundError,
-  'ValidationError': UserValidationError,
-}, UserValidationError);
+  'ValidationError': UserCreationError,
+}, UserCreationError);
 
 /**
  * Manages user preferences with validation, defaults, and schema enforcement
@@ -99,7 +103,7 @@ export default class UserPreferencesManager {
    */
   async getUserPreferencesByCategory(userId, category) {
     if (!isValidPreferenceCategory(category)) {
-      throw new UserValidationError(`Invalid preference category: ${category}`);
+      throw new UserCreationError(`Invalid preference category: ${category}`);
     }
 
     const user = await this.userService.getUserById(userId);
@@ -143,7 +147,7 @@ export default class UserPreferencesManager {
         const formattedErrors = error.errors
           .map(err => `${err.path.join('.')}: ${err.message}`)
           .join('; ');
-        throw new UserValidationError(`Invalid preferences: ${formattedErrors}`);
+        throw new UserCreationError(`Invalid preferences: ${formattedErrors}`);
       }
       throw error;
     }
@@ -158,7 +162,7 @@ export default class UserPreferencesManager {
    */
   async updateUserPreferencesByCategory(userId, category, categoryPreferences) {
     if (!isValidPreferenceCategory(category)) {
-      throw new UserValidationError(`Invalid preference category: ${category}`);
+      throw new UserCreationError(`Invalid preference category: ${category}`);
     }
 
     const user = await this.userService.getUserById(userId);
@@ -186,7 +190,7 @@ export default class UserPreferencesManager {
         const formattedErrors = error.errors
           .map(err => `${err.path.join('.')}: ${err.message}`)
           .join('; ');
-        throw new UserValidationError(`Invalid ${category} preferences: ${formattedErrors}`);
+        throw new UserCreationError(`Invalid ${category} preferences: ${formattedErrors}`);
       }
       throw error;
     }
@@ -208,7 +212,7 @@ export default class UserPreferencesManager {
     // Parse key path
     const keyParts = key.split('.');
     if (keyParts.length < 1 || keyParts.length > 2) {
-      throw new UserValidationError('Invalid preference key. Use format "category.name" or "name"');
+      throw new UserCreationError('Invalid preference key. Use format "category.name" or "name"');
     }
 
     try {
@@ -222,7 +226,7 @@ export default class UserPreferencesManager {
         
         // Validate category
         if (!isValidPreferenceCategory(category)) {
-          throw new UserValidationError(`Invalid preference category: ${category}`);
+          throw new UserCreationError(`Invalid preference category: ${category}`);
         }
 
         // Initialize category if needed
@@ -258,7 +262,7 @@ export default class UserPreferencesManager {
         const formattedErrors = error.errors
           .map(err => `${err.path.join('.')}: ${err.message}`)
           .join('; ');
-        throw new UserValidationError(`Invalid preference value: ${formattedErrors}`);
+        throw new UserCreationError(`Invalid preference value: ${formattedErrors}`);
       }
       throw error;
     }
@@ -279,7 +283,7 @@ export default class UserPreferencesManager {
     // Parse key path
     const keyParts = key.split('.');
     if (keyParts.length < 1 || keyParts.length > 2) {
-      throw new UserValidationError('Invalid preference key. Use format "category.name" or "name"');
+      throw new UserCreationError('Invalid preference key. Use format "category.name" or "name"');
     }
 
     // Get default preferences
@@ -293,13 +297,13 @@ export default class UserPreferencesManager {
       
       // Validate category
       if (!isValidPreferenceCategory(category)) {
-        throw new UserValidationError(`Invalid preference category: ${category}`);
+        throw new UserCreationError(`Invalid preference category: ${category}`);
       }
 
       // Get default value
       const defaultValue = defaultPrefs[category]?.[prefName];
       if (defaultValue === undefined) {
-        throw new UserValidationError(`Unknown preference: ${key}`);
+        throw new UserCreationError(`Unknown preference: ${key}`);
       }
 
       // Initialize category if needed
@@ -320,7 +324,7 @@ export default class UserPreferencesManager {
       const topLevelKey = keyParts[0];
       const defaultValue = defaultPrefs[topLevelKey];
       if (defaultValue === undefined) {
-        throw new UserValidationError(`Unknown preference: ${key}`);
+        throw new UserCreationError(`Unknown preference: ${key}`);
       }
       
       updatedPrefs[topLevelKey] = defaultValue;

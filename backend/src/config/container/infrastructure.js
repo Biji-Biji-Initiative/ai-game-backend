@@ -75,11 +75,17 @@ function registerInfrastructureComponents(container, logger) {
     container.register('dbFactory', (c) => {
          const conf = c.get('config'); // Get config inside factory
          const log = c.get('logger');   // Get logger inside factory
-         if (!conf.supabase || !conf.supabase.url || !conf.supabase.key) {
-             log.error('Supabase URL or Key missing in configuration!', { hasUrl: !!conf.supabase?.url, hasKey: !!conf.supabase?.key });
-             throw new Error('Supabase URL or Key missing in configuration for dbFactory.');
+         // Check for the keys inside the nested supabase object
+         if (!conf.supabase?.url || !conf.supabase?.anonKey) { 
+             log.error('Supabase URL or Anon Key missing in configuration!', { hasUrl: !!conf.supabase?.url, hasAnonKey: !!conf.supabase?.anonKey });
+             throw new Error('Supabase URL or Anon Key missing in configuration for dbFactory.');
          }
-         return initializeSupabaseClient(conf, log);
+         // Construct the expected nested structure for initializeSupabaseClient
+         // (conf.supabase already has the correct structure now)
+         const supabaseConfig = {
+           supabase: conf.supabase
+         };
+         return initializeSupabaseClient(supabaseConfig, log); // Pass the nested config
     }, true); // Singleton factory
     registeredLogger.info('[DI Infra] dbFactory registered.');
 

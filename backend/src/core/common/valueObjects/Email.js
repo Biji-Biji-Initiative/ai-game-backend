@@ -8,7 +8,7 @@
 /**
  *
  */
-import { UserValidationError } from "#app/core/user/errors/UserErrors.js";
+import { UserCreationError } from "#app/core/user/errors/UserErrors.js";
 
 class Email {
     /**
@@ -21,10 +21,10 @@ class Email {
      */
     constructor(value) {
         if (!value) {
-            throw new UserValidationError('Email cannot be empty');
+            throw new UserCreationError('Email cannot be empty');
         }
         if (!Email.isValid(value)) {
-            throw new UserValidationError(`Invalid email format: ${value}`);
+            throw new UserCreationError(`Invalid email format: ${value}`);
         }
         this._value = value.toLowerCase().trim();
         Object.freeze(this);

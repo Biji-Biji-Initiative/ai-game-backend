@@ -3,18 +3,20 @@
 import User from "#app/core/user/models/User.js";
 import UserMapper from "#app/core/user/mappers/UserMapper.js";
 import { userDatabaseSchema } from "#app/core/user/schemas/userSchema.js";
-import { UserNotFoundError, UserValidationError, UserError } from "#app/core/user/errors/UserErrors.js";
+import { UserNotFoundError, UserCreationError, UserUpdateError } from "#app/core/user/errors/UserErrors.js";
 import { BaseRepository, EntityNotFoundError, ValidationError, DatabaseError } from "#app/core/infra/repositories/BaseRepository.js";
 import { withRepositoryErrorHandling, createErrorMapper, createErrorCollector } from "#app/core/infra/errors/errorStandardization.js";
 import { EventTypes } from "#app/core/common/events/eventTypes.js";
 import { v4 as uuidv4 } from 'uuid';
+import BaseSupabaseRepository from "../../shared/BaseSupabaseRepository.js";
+import logger from "#app/core/infra/logging/logger.js";
 
 // Create an error mapper for the user domain
 const userErrorMapper = createErrorMapper({
     EntityNotFoundError: UserNotFoundError,
-    ValidationError: UserValidationError,
-    DatabaseError: UserError,
-}, UserError);
+    ValidationError: UserCreationError,
+    DatabaseError: UserUpdateError,
+}, UserUpdateError);
 /**
  * Repository for user data access with standardized error handling
  * @extends BaseRepository
@@ -101,7 +103,7 @@ class UserRepository extends BaseRepository {
      * @param {boolean} throwIfNotFound - Whether to throw an error if user not found
      * @returns {Promise<User|null>} User object or null if not found
      * @throws {UserNotFoundError} If user not found and throwIfNotFound is true
-     * @throws {UserError} If database operation fails
+     * @throws {UserUpdateError} If database operation fails
      */
     findById(id, throwIfNotFound = false) {
         // Validate ID
@@ -152,7 +154,7 @@ class UserRepository extends BaseRepository {
      * 
      * @param {Array<string>} ids - Array of user IDs
      * @returns {Promise<Array<User>>} Array of user objects
-     * @throws {UserError} If database operation fails
+     * @throws {UserUpdateError} If database operation fails
      */
     async findByIds(ids) {
         try {
@@ -186,7 +188,7 @@ class UserRepository extends BaseRepository {
                 stack: error.stack
             });
             
-            throw new UserError(`Failed to fetch users by IDs: ${error.message}`, {
+            throw new UserUpdateError(`Failed to fetch users by IDs: ${error.message}`, {
                 cause: error,
                 metadata: { count: ids?.length || 0 }
             });
@@ -198,7 +200,7 @@ class UserRepository extends BaseRepository {
      * @param {boolean} throwIfNotFound - Whether to throw an error if user not found
      * @returns {Promise<User|null>} User object or null if not found
      * @throws {UserNotFoundError} If user not found and throwIfNotFound is true
-     * @throws {UserError} If database operation fails
+     * @throws {UserUpdateError} If database operation fails
      */
     findByEmail(email, throwIfNotFound = false) {
         // Validate email
@@ -346,7 +348,7 @@ class UserRepository extends BaseRepository {
      * @param {string} id - ID of the user to delete
      * @returns {Promise<Object>} Result of the deletion operation
      * @throws {UserNotFoundError} If user not found
-     * @throws {UserError} If database operation fails
+     * @throws {UserUpdateError} If database operation fails
      */
     delete(id) {
         // Validate ID
@@ -411,7 +413,7 @@ class UserRepository extends BaseRepository {
             if (!result) {
                 // This case might indicate the record was deleted between find and delete
                 this._log('warn', 'User record disappeared before delete completed', { id });
-                throw new UserError(`Failed to confirm deletion for user with ID ${id}`);
+                throw new UserUpdateError(`Failed to confirm deletion for user with ID ${id}`);
             }
             
             // Clear events from entity
@@ -432,7 +434,7 @@ class UserRepository extends BaseRepository {
      * Find all users matching criteria
      * @param {Object} _criteria - Search criteria
      * @param {Object} _options - Query options like pagination, sorting
-     * @throws {UserError} If database operation fails
+     * @throws {UserUpdateError} If database operation fails
      */
     findAll(_criteria = {}, _options = {}) {
         // FindAll method with standardized error handling is applied in constructor
@@ -552,12 +554,12 @@ class UserRepository extends BaseRepository {
             // Re-throw the error to be handled by the standardized error handler 
             // (applied via withRepositoryErrorHandling in the constructor)
             // If it's already a DatabaseError or ValidationError, throw it as is.
-            // Otherwise, wrap it in a generic UserError.
+            // Otherwise, wrap it in a generic UserUpdateError.
             if (error instanceof DatabaseError || error instanceof ValidationError) {
                 throw error;
             } else {
                 // Wrap unexpected errors
-                throw new UserError(`Unexpected error during minimal user creation: ${error.message}`, {
+                throw new UserUpdateError(`Unexpected error during minimal user creation: ${error.message}`, {
                     cause: error,
                     metadata: { email: userData?.email }
                 });

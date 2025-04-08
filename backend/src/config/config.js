@@ -96,8 +96,8 @@ const config = {
     // Supabase configuration
     supabase: {
         url: process.env.SUPABASE_URL,
-        // Use SUPABASE_KEY if available, fall back to SUPABASE_ANON_KEY
-        key: process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY,
+        anonKey: process.env.SUPABASE_ANON_KEY,
+        serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
         tables: {
             users: 'users',
             challenges: 'challenges',

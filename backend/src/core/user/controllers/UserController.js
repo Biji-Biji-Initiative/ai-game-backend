@@ -1,7 +1,7 @@
 'use strict';
 
 import { userLogger } from "#app/core/infra/logging/domainLogger.js";
-import { UserNotFoundError, UserUpdateError, UserValidationError, FocusAreaError, UserError } from "#app/core/user/errors/UserErrors.js";
+import { UserNotFoundError, UserUpdateError, UserCreationError, InvalidProfileError } from "#app/core/user/errors/UserErrors.js";
 import { withControllerErrorHandling } from "#app/core/infra/errors/errorStandardization.js";
 import { UserDTOMapper } from "#app/core/user/dtos/UserDTO.js";
 import { updateUserSchema } from "#app/core/user/schemas/userApiSchemas.js"; // Import validation schema
@@ -9,6 +9,9 @@ import { preferencesSchema, validatePreferenceCategory, isValidPreferenceCategor
 import { userSchema, difficultyLevelSchema } from "#app/core/user/schemas/userSchema.js"; // Import main user schema
 import User from "#app/core/user/models/User.js"; // Import User model
 import { v4 as uuidv4 } from 'uuid';
+import UserService from "../services/UserService.js";
+import UserMapper from "../mappers/UserMapper.js";
+import { formatSuccess } from "#app/core/infra/http/responseFormatter.js";
 /**
  * User Controller (Refactored with Standardized Error Handling)
  *
@@ -51,16 +54,16 @@ class UserController {
       errorClass: UserNotFoundError,
       statusCode: 404
     }, {
-      errorClass: UserValidationError,
+      errorClass: UserCreationError,
       statusCode: 400
     }, {
       errorClass: UserUpdateError,
       statusCode: 500
     }, {
-      errorClass: FocusAreaError,
+      errorClass: InvalidProfileError,
       statusCode: 400
     }, {
-      errorClass: UserError,
+      errorClass: UserUpdateError,
       statusCode: 500
     }];
     // Apply standardized error handling to methods
@@ -161,7 +164,7 @@ class UserController {
     // Validate request body (Assume a schema exists or add basic checks)
     const { email, password, firstName, lastName, fullName } = req.body;
     if (!email) {
-      throw new UserValidationError('Email is required');
+      throw new UserCreationError('Email is required');
     }
     // Password validation/hashing should happen in service/auth layer ideally
 
@@ -180,11 +183,7 @@ class UserController {
     if (existingUser) {
       this.logger.info('User already exists, returning existing user', { email });
       const userDto = UserDTOMapper.toDTO(existingUser);
-      return res.status(200).json({
-        status: 'success',
-        data: { user: userDto },
-        message: 'User already exists'
-      });
+      return res.status(200).json(formatSuccess(userDto, 'User already exists'));
     }
     
     // Call service to create
@@ -193,11 +192,7 @@ class UserController {
     // Convert domain entity to DTO
     const userDto = UserDTOMapper.toDTO(newUser);
     this.logger.info('Created new user via controller', { email });
-    return res.status(201).json({
-      status: 'success',
-      data: { user: userDto },
-      message: 'User created successfully'
-    });
+    return res.status(201).json(formatSuccess(userDto, 'User created successfully'));
   }
   /**
    * Get a user by email (testing purposes only)
@@ -205,22 +200,18 @@ class UserController {
   async getUserByEmail(req, res, _next) {
     const { email } = req.params;
     if (!email) {
-      throw new UserValidationError('Email is required');
+      throw new UserCreationError('Email is required');
     }
     this.logger.debug('Getting user by email via controller', { email });
     
     // Use UserService
     const user = await this.userService.getUserByEmail(email);
     if (!user) {
-      throw new UserNotFoundError(email);
+      throw new UserNotFoundError(`User with email ${email} not found`);
     }
     // Convert domain entity to DTO
     const userDto = UserDTOMapper.toDTO(user);
-    return res.status(200).json({
-      status: 'success',
-      data: { user: userDto },
-      message: 'User retrieved successfully'
-    });
+    return res.status(200).json(formatSuccess(userDto));
   }
   /**
    * Get the currently authenticated user
@@ -238,7 +229,7 @@ class UserController {
     }
     // Convert domain entity to DTO
     const userDto = UserDTOMapper.toDTO(user);
-    return res.success({ user: userDto }, 'User profile retrieved successfully');
+    return res.status(200).json(formatSuccess(userDto, 'User profile retrieved successfully'));
   }
   /**
    * Update the currently authenticated user
@@ -250,7 +241,7 @@ class UserController {
     const validationResult = updateUserSchema.safeParse(req.body);
     if (!validationResult.success) {
       const formattedErrors = validationResult.error.flatten().fieldErrors;
-      throw new UserValidationError('Invalid update data', { validationErrors: formattedErrors });
+      throw new UserCreationError('Invalid update data', { validationErrors: formattedErrors });
     }
     
     // Use validated data
@@ -266,7 +257,7 @@ class UserController {
     
     this.logger.info('User profile updated', { email });
     
-    return res.success({ user: userDto }, 'User profile updated successfully');
+    return res.status(200).json(formatSuccess(userDto, 'User profile updated successfully'));
   }
   /**
    * Set the focus area for the current user
@@ -279,7 +270,7 @@ class UserController {
       focusArea
     } = req.body;
     if (!focusArea) {
-      throw new UserValidationError('Focus area is required');
+      throw new UserCreationError('Focus area is required');
     }
     this.logger.debug('Setting user focus area', {
       email,
@@ -294,9 +285,7 @@ class UserController {
       email,
       focusArea
     });
-    return res.success({
-      user: userDto
-    }, 'Focus area updated successfully');
+    return res.status(200).json(formatSuccess(userDto, 'User focus area updated successfully'));
   }
   /**
    * Get a user by ID (admin only)
@@ -304,19 +293,19 @@ class UserController {
   async getUserById(req, res, _next) {
     const { id } = req.params;
     if (!id) {
-      throw new UserValidationError('User ID is required');
+      throw new UserCreationError('User ID is required');
     }
     this.logger.debug('Getting user by ID via controller', { userId: id });
     
     // Use UserService
-    const user = await this.userService.getUserById(id); // Assuming service throws if not found
-    if (!user) { // Double-check in case service returns null
-      throw new UserNotFoundError(id);
+    const user = await this.userService.getUserById(id);
+    if (!user) {
+      throw new UserNotFoundError(`User with ID ${id} not found`);
     }
     
     // Convert domain entity to DTO
     const userDto = UserDTOMapper.toDTO(user);
-    return res.success({ user: userDto }, 'User retrieved successfully');
+    return res.status(200).json(formatSuccess(userDto));
   }
   /**
    * List all users (admin only)
@@ -340,10 +329,10 @@ class UserController {
     // Convert domain entities to DTOs
     const userDtos = UserDTOMapper.toDTOCollection(users);
     this.logger.info(`Retrieved ${users.length} users (total: ${total})`);
-    return res.success({
+    return res.status(200).json(formatSuccess({
         users: userDtos,
         pagination: { total: total, limit: options.limit || users.length, offset: options.offset || 0 } 
-    }, `Retrieved ${users.length} users successfully`);
+    }, `Retrieved ${users.length} users successfully`));
   }
 
   /**
@@ -355,9 +344,7 @@ class UserController {
     this.logger.debug('Getting user preferences', { userId: id });
     const preferences = await this.userPreferencesManager.getUserPreferences(id);
     
-    return res.success({
-      preferences
-    }, 'User preferences retrieved successfully');
+    return res.status(200).json(formatSuccess(preferences, 'User preferences retrieved successfully'));
   }
 
   /**
@@ -370,9 +357,9 @@ class UserController {
     this.logger.debug('Getting user preferences by category', { userId: id, category });
     const preferences = await this.userPreferencesManager.getUserPreferencesByCategory(id, category);
     
-    return res.success({
+    return res.status(200).json(formatSuccess({
       [category]: preferences
-    }, `${category} preferences retrieved successfully`);
+    }, `${category} preferences retrieved successfully`));
   }
 
   /**
@@ -386,14 +373,14 @@ class UserController {
     const validationResult = preferencesSchema.safeParse(preferences);
     if (!validationResult.success) {
         const formattedErrors = validationResult.error.flatten().fieldErrors;
-        throw new UserValidationError('Invalid preferences data', { validationErrors: formattedErrors });
+        throw new UserCreationError('Invalid preferences data', { validationErrors: formattedErrors });
     }
     const validatedPreferences = validationResult.data;
     
     this.logger.debug('Updating user preferences', { userId: id });
     const updatedPreferences = await this.userPreferencesManager.updateUserPreferences(id, validatedPreferences);
     
-    return res.success({ preferences: updatedPreferences }, 'User preferences updated successfully');
+    return res.status(200).json(formatSuccess(updatedPreferences, 'Preferences updated successfully'));
   }
 
   /**
@@ -406,7 +393,7 @@ class UserController {
     
     // Validate category name first
     if (!isValidPreferenceCategory(category)) {
-      throw new UserValidationError(`Invalid preference category: ${category}`);
+      throw new UserCreationError(`Invalid preference category: ${category}`);
     }
     
     try {
@@ -418,12 +405,12 @@ class UserController {
             id, category, validatedCategoryPrefs // Use validated data
         );
         
-        return res.success({ [category]: updatedPreferences }, `${category} preferences updated successfully`);
+        return res.status(200).json(formatSuccess(updatedPreferences, `${category} preferences updated successfully`));
     } catch (error) {
         // Catch validation errors from validatePreferenceCategory
         if (error.errors) { // Assuming Zod error structure
             const formattedErrors = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
-            throw new UserValidationError(`Invalid ${category} preferences: ${formattedErrors}`);
+            throw new UserCreationError(`Invalid ${category} preferences: ${formattedErrors}`);
         } 
         throw error; // Re-throw other errors
     }
@@ -439,10 +426,10 @@ class UserController {
     
     // Basic validation (more complex validation happens in the service)
     if (!key || typeof key !== 'string') {
-        throw new UserValidationError('Preference key (param) is required and must be a string');
+        throw new UserCreationError('Preference key (param) is required and must be a string');
     }
     if (value === undefined) { // Allow null/false/0
-        throw new UserValidationError('Preference value is required in the request body');
+        throw new UserCreationError('Preference value is required in the request body');
     }
 
     this.logger.debug('Updating single user preference', { userId: id, key });
@@ -450,7 +437,7 @@ class UserController {
     // Delegate to the service which handles nested key validation and type checking
     const updatedPreferences = await this.userPreferencesManager.setUserPreference(id, key, value);
     
-    return res.success({ preferences: updatedPreferences }, `Preference ${key} updated successfully`);
+    return res.status(200).json(formatSuccess(updatedPreferences, `Preference '${key}' updated successfully`));
   }
 
   /**
@@ -463,9 +450,7 @@ class UserController {
     this.logger.debug('Resetting user preference', { userId: id, key });
     const updatedPreferences = await this.userPreferencesManager.resetUserPreference(id, key);
     
-    return res.success({
-      preferences: updatedPreferences
-    }, `Preference ${key} reset to default successfully`);
+    return res.status(200).json(formatSuccess(updatedPreferences, `Preference '${key}' reset successfully`));
   }
 
   /**
@@ -506,7 +491,7 @@ class UserController {
     this.logger.info('User profile retrieved successfully', { userId: id });
     
     // Return the profile data
-    return res.success({ profile: profileData }, 'User profile retrieved successfully');
+    return res.status(200).json(formatSuccess(profileData, 'User profile retrieved successfully'));
   }
 
   /**
@@ -519,7 +504,7 @@ class UserController {
     const validationResult = updateUserSchema.safeParse(req.body);
     if (!validationResult.success) {
       const formattedErrors = validationResult.error.flatten().fieldErrors;
-      throw new UserValidationError('Invalid update data', { validationErrors: formattedErrors });
+      throw new UserCreationError('Invalid update data', { validationErrors: formattedErrors });
     }
     
     // Use validated data
@@ -543,7 +528,7 @@ class UserController {
     
     this.logger.info('User updated by ID', { userId: id });
     
-    return res.success({ user: userDto }, 'User updated successfully');
+    return res.status(200).json(formatSuccess(userDto, 'User updated successfully'));
   }
 
   /**
@@ -552,7 +537,7 @@ class UserController {
   async deleteUser(req, res, _next) {
     const { id } = req.params;
     if (!id) {
-      throw new UserValidationError('User ID is required');
+      throw new UserCreationError('User ID is required');
     }
     this.logger.debug('Deleting user by ID via controller', { userId: id });
     
@@ -563,12 +548,12 @@ class UserController {
     if (!deleted) {
         // This might happen if the service's findById check fails just before delete,
         // or if repo.delete doesn't return the expected structure. Service logs warning.
-         throw new UserError('User deletion failed or could not be confirmed');
+         throw new UserUpdateError('User deletion failed or could not be confirmed');
     }
     
     this.logger.info('User deleted', { userId: id });
     
-    return res.success({ deleted: true, userId: id }, 'User deleted successfully');
+    return res.status(200).json(formatSuccess(null, 'User deleted successfully'));
   }
 
   /**
@@ -597,10 +582,7 @@ class UserController {
       if (existingUser) {
         this.logger.info('User interest registration attempt for existing email', { email });
         // Return 409 Conflict if user already exists
-        return res.status(409).json({
-          status: 'fail',
-          message: 'Email address is already registered. Please log in or reset your password.'
-        });
+        return res.status(409).json(formatSuccess(null, 'Email address is already registered. Please log in or reset your password.'));
       }
       
       // Ensure repository is available
@@ -636,11 +618,7 @@ class UserController {
       };
       
       // Return 201 Created
-      return res.status(201).json({
-        status: 'success',
-        data: { user: userDto },
-        message: 'User profile created successfully.'
-      });
+      return res.status(201).json(formatSuccess(userDto, 'User profile created successfully'));
       
     } catch (error) {
       // Catch errors from findByEmail (if not handled above) or createMinimalUser

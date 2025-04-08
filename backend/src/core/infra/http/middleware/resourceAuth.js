@@ -1,6 +1,6 @@
 import AuthorizationService from "#app/core/auth/services/AuthorizationService.js";
 import { logger } from "#app/core/infra/logging/logger.js";
-import { UserAuthorizationError } from "#app/core/user/errors/UserErrors.js";
+import { UserUpdateError } from "#app/core/user/errors/UserErrors.js";
 
 // Create a singleton instance of the authorization service
 const authService = new AuthorizationService();
@@ -30,15 +30,16 @@ export const authorizeResource = (options) => {
     try {
       // Must be authenticated first
       if (!req.user || !req.user.id) {
-        return next(new UserAuthorizationError('Authentication required'));
+        return next(new UserUpdateError('Authentication required', 401));
       }
 
       const userId = req.user.id;
       const resourceId = req.params[paramName];
       
       if (!resourceId) {
-        return next(new UserAuthorizationError(
-          `Resource ID not provided in parameter: ${paramName}`
+        return next(new UserUpdateError(
+          `Resource ID not provided in parameter: ${paramName}`,
+          400
         ));
       }
 
@@ -93,7 +94,7 @@ export const requirePermission = (permission) => {
   return (req, res, next) => {
     try {
       if (!req.user) {
-        return next(new UserAuthorizationError('Authentication required'));
+        return next(new UserUpdateError('Authentication required', 401));
       }
 
       authService.verifyPermission(req.user, permission);
@@ -117,7 +118,7 @@ export const authorizeUserSpecificResource = (paramName = 'userId') => {
   return (req, res, next) => {
     try {
       if (!req.user || !req.user.id) {
-        return next(new UserAuthorizationError('Authentication required'));
+        return next(new UserUpdateError('Authentication required', 401));
       }
 
       const paramValue = req.params[paramName];
@@ -131,9 +132,9 @@ export const authorizeUserSpecificResource = (paramName = 'userId') => {
 
       // Return error if user is accessing another user's resources (unless admin)
       if (paramValue !== req.user.id && !req.user.isAdmin) {
-        return next(new UserAuthorizationError(
+        return next(new UserUpdateError(
           `You don't have permission to access this resource`,
-          'read'
+          403
         ));
       }
 

@@ -1,8 +1,0 @@
-dist/
-node_modules/
-coverage/
-.vscode/
-js/vendor/
-js/lib/
-*.min.js
-*.min.css 

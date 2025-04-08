@@ -1,6 +1,6 @@
 import { userSchema, difficultyLevelSchema } from "#app/core/user/schemas/userSchema.js";
 import { Email, FocusArea } from "#app/core/common/valueObjects/index.js";
-import { UserValidationError, UserInvalidStateError } from "#app/core/user/errors/UserErrors.js";
+import { UserCreationError, InvalidProfileError } from "#app/core/user/errors/UserErrors.js";
 import Entity from "#app/core/common/models/Entity.js";
 import { v4 as uuidv4 } from 'uuid';
 'use strict';
@@ -61,7 +61,7 @@ class User extends Entity {
         else {
             // Throw validation error with details
             const errorMessage = `User data validation failed: ${result.error.message}`;
-            throw new UserValidationError(errorMessage, {
+            throw new UserCreationError(errorMessage, {
                 validationErrors: result.error.flatten(),
             });
         }
@@ -146,35 +146,35 @@ class User extends Entity {
     _enforceInvariants() {
         // Email is required and must be valid
         if (!this.email) {
-            throw new UserValidationError('User must have an email address');
+            throw new UserCreationError('User must have an email address');
         }
         if (!this._emailVO) {
             try {
                 this._emailVO = new Email(this.email);
             }
             catch (error) {
-                throw new UserValidationError(`Invalid email address: ${this.email}`);
+                throw new UserCreationError(`Invalid email address: ${this.email}`);
             }
         }
         // User must have a valid status
         const validStatuses = ['active', 'inactive', 'suspended', 'pending'];
         if (!validStatuses.includes(this.status)) {
-            throw new UserValidationError(`Invalid user status: ${this.status}`);
+            throw new UserCreationError(`Invalid user status: ${this.status}`);
         }
         // User must have valid roles array
         if (!Array.isArray(this.roles) || this.roles.length === 0) {
-            throw new UserValidationError('User must have at least one role');
+            throw new UserCreationError('User must have at least one role');
         }
         // If onboarding is completed, focus area must be set
         if (this.onboardingCompleted && !this.focusArea) {
-            throw new UserInvalidStateError('User with completed onboarding must have a focus area');
+            throw new UserCreationError('User with completed onboarding must have a focus area');
         }
         // User with inactive status should not have lastActive time in the future
         if (this.status === 'inactive' && this.lastActive) {
             const lastActiveDate = new Date(this.lastActive);
             const now = new Date();
             if (lastActiveDate > now) {
-                throw new UserInvalidStateError('Inactive user cannot have future lastActive timestamp');
+                throw new UserCreationError('Inactive user cannot have future lastActive timestamp');
             }
         }
     }
@@ -242,12 +242,12 @@ class User extends Entity {
     /**
      * Mark onboarding as completed
      * @returns {User} This user instance for chaining
-     * @throws {UserInvalidStateError} If user cannot complete onboarding
+     * @throws {UserCreationError} If user cannot complete onboarding
      */
     completeOnboarding() {
         // Check if we can set onboarding as completed
         if (!this.focusArea) {
-            throw new UserInvalidStateError('Cannot complete onboarding without a focus area');
+            throw new UserCreationError('Cannot complete onboarding without a focus area');
         }
         this.onboardingCompleted = true;
         this.updatedAt = new Date().toISOString();
@@ -272,11 +272,11 @@ class User extends Entity {
      * Add a role to the user
      * @param {string} role - Role to add
      * @returns {User} This user instance for chaining
-     * @throws {UserValidationError} If role is invalid
+     * @throws {UserCreationError} If role is invalid
      */
     addRole(role) {
         if (!role || typeof role !== 'string') {
-            throw new UserValidationError('Role must be a non-empty string');
+            throw new UserCreationError('Role must be a non-empty string');
         }
         if (!Array.isArray(this.roles)) {
             this.roles = [];
@@ -299,7 +299,7 @@ class User extends Entity {
      * Remove a role from the user
      * @param {string} role - Role to remove
      * @returns {User} This user instance for chaining
-     * @throws {UserInvalidStateError} If removing the role would leave the user with no roles
+     * @throws {UserCreationError} If removing the role would leave the user with no roles
      */
     removeRole(role) {
         if (!Array.isArray(this.roles)) {
@@ -307,7 +307,7 @@ class User extends Entity {
         }
         // Prevent removing the last role
         if (this.roles.length === 1 && this.roles.includes(role)) {
-            throw new UserInvalidStateError('Cannot remove the only role from a user');
+            throw new UserCreationError('Cannot remove the only role from a user');
         }
         if (this.roles.includes(role)) {
             this.roles = this.roles.filter(r => r !== role);
@@ -377,12 +377,12 @@ class User extends Entity {
     /**
      * Record a user login
      * @returns {User} This user instance for chaining
-     * @throws {UserInvalidStateError} If user is not active
+     * @throws {UserCreationError} If user is not active
      */
     recordLogin() {
         // Only active users can log in
         if (!this.isActive()) {
-            throw new UserInvalidStateError('Cannot record login for inactive user');
+            throw new UserCreationError('Cannot record login for inactive user');
         }
         this.lastLoginAt = new Date().toISOString();
         this.lastActive = this.lastLoginAt;
@@ -401,11 +401,11 @@ class User extends Entity {
      * @param {string} key - Preference key
      * @param {any} value - Preference value
      * @returns {User} This user instance for chaining
-     * @throws {UserValidationError} If preference key is invalid
+     * @throws {UserCreationError} If preference key is invalid
      */
     setPreference(key, value) {
         if (!key || typeof key !== 'string') {
-            throw new UserValidationError('Preference key must be a non-empty string');
+            throw new UserCreationError('Preference key must be a non-empty string');
         }
         if (!this.preferences) {
             this.preferences = {};
@@ -504,7 +504,7 @@ class User extends Entity {
             }
         }
         catch (error) {
-            throw new UserValidationError(`Invalid focus area: ${error.message}`);
+            throw new UserCreationError(`Invalid focus area: ${error.message}`);
         }
         return this;
     }
@@ -541,13 +541,13 @@ class User extends Entity {
      * Set the user's difficulty level
      * @param {string} level - The new difficulty level code (e.g., 'beginner', 'intermediate', 'advanced')
      * @returns {User} This user instance for chaining
-     * @throws {UserValidationError} If the level is invalid
+     * @throws {UserCreationError} If the level is invalid
      */
     setDifficultyLevel(level) {
         // Validate the level against the allowed schema
         const validationResult = difficultyLevelSchema.safeParse(level);
         if (!validationResult.success) {
-            throw new UserValidationError(`Invalid difficulty level: ${level}. Must be one of ${difficultyLevelSchema.options.join(', ')}`);
+            throw new UserCreationError(`Invalid difficulty level: ${level}. Must be one of ${difficultyLevelSchema.options.join(', ')}`);
         }
 
         const previousLevel = this.difficultyLevel;

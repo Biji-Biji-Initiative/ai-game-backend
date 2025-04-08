@@ -10,21 +10,23 @@ import UserRepository from "#app/core/user/repositories/UserRepository.js";
 import { EventTypes } from "#app/core/common/events/eventTypes.js";
 import { v4 as uuidv4 } from 'uuid';
 import { userLogger } from "#app/core/infra/logging/domainLogger.js";
-import { UserNotFoundError, UserValidationError, UserError } from "#app/core/user/errors/UserErrors.js";
+import { UserNotFoundError, UserCreationError, UserUpdateError } from "#app/core/user/errors/UserErrors.js";
 import { withServiceErrorHandling, createErrorMapper } from "#app/core/infra/errors/errorStandardization.js";
 import ConfigurationError from "#app/core/infra/errors/ConfigurationError.js";
 import { validateDependencies } from "#app/core/shared/utils/serviceUtils.js";
 // Import value objects
 import { Email, UserId, createEmail, createUserId } from "#app/core/common/valueObjects/index.js";
+import UserMapper from '../mappers/UserMapper.js';
+import logger from '#app/core/infra/logging/logger.js';
 // Only keep the cache TTL that is used
 const USER_CACHE_TTL = 300; // 5 minutes
 // Create an error mapper for the user service
 const userServiceErrorMapper = createErrorMapper({
     'UserNotFoundError': UserNotFoundError,
-    'UserValidationError': UserValidationError,
+    'UserValidationError': UserCreationError,
     'EntityNotFoundError': UserNotFoundError,
-    'ValidationError': UserValidationError
-}, UserError);
+    'ValidationError': UserCreationError
+}, UserUpdateError);
 /**
  * @class UserService
  * @description Service for user operations with standardized caching and error handling
@@ -143,7 +145,7 @@ export default class UserService {
         if (userData.email && !(userData.email instanceof Email)) {
             const emailVO = createEmail(userData.email);
             if (!emailVO) {
-                throw new UserValidationError(`Invalid email format: ${userData.email}`);
+                throw new UserCreationError(`Invalid email format: ${userData.email}`);
             }
             userData.email = emailVO.value;
         }
@@ -158,12 +160,12 @@ export default class UserService {
         // Validate user data
         const validation = user.validate();
         if (!validation.isValid) {
-            throw new UserValidationError(`Invalid user data: ${validation.errors.join(', ')}`);
+            throw new UserCreationError(`Invalid user data: ${validation.errors.join(', ')}`);
         }
         // Check if user with same email already exists
         const existingUser = await this.getUserByEmail(user.email);
         if (existingUser) {
-            throw new UserValidationError(`User with email ${user.email} already exists`);
+            throw new UserCreationError(`User with email ${user.email} already exists`);
         }
         // Save user to database
         const savedUser = await this.userRepository.save(user);
@@ -197,7 +199,7 @@ export default class UserService {
         // Convert to value object if needed
         const userIdVO = id instanceof UserId ? id : createUserId(id);
         if (!userIdVO) {
-            throw new UserValidationError(`Invalid user ID: ${id}`);
+            throw new UserCreationError(`Invalid user ID: ${id}`);
         }
         const cacheKey = `user:id:${userIdVO.value}`;
         // Using variable to hold promise and await it before returning to fix linter error
@@ -221,7 +223,7 @@ export default class UserService {
         // Convert to value object if needed
         const emailVO = email instanceof Email ? email : createEmail(email);
         if (!emailVO) {
-            throw new UserValidationError(`Invalid email format: ${email}`);
+            throw new UserCreationError(`Invalid email format: ${email}`);
         }
         const cacheKey = `user:email:${emailVO.value}`;
         // Using variable to hold promise and await it before returning to fix linter error
@@ -249,7 +251,7 @@ export default class UserService {
             // Treat as email
             const emailVO = idOrEmail instanceof Email ? idOrEmail : createEmail(idOrEmail);
             if (!emailVO) {
-                throw new UserValidationError(`Invalid email format: ${idOrEmail}`);
+                throw new UserCreationError(`Invalid email format: ${idOrEmail}`);
             }
             // Get user by email
             user = await this.userRepository.findByEmail(emailVO.value, true);
@@ -258,7 +260,7 @@ export default class UserService {
             // Treat as user ID
             const userIdVO = idOrEmail instanceof UserId ? idOrEmail : createUserId(idOrEmail);
             if (!userIdVO) {
-                throw new UserValidationError(`Invalid user ID: ${idOrEmail}`);
+                throw new UserCreationError(`Invalid user ID: ${idOrEmail}`);
             }
             // Get existing user directly from repository to ensure fresh data
             user = await this.userRepository.findById(userIdVO.value, true);
@@ -268,7 +270,7 @@ export default class UserService {
         // Validate updated user
         const validation = user.validate();
         if (!validation.isValid) {
-            throw new UserValidationError(`Invalid user data: ${validation.errors.join(', ')}`);
+            throw new UserCreationError(`Invalid user data: ${validation.errors.join(', ')}`);
         }
         // Save updated user
         const updatedUser = await this.userRepository.save(user);
@@ -290,7 +292,7 @@ export default class UserService {
         // Convert to value object if needed
         const userIdVO = id instanceof UserId ? id : createUserId(id);
         if (!userIdVO) {
-            throw new UserValidationError(`Invalid user ID: ${id}`);
+            throw new UserCreationError(`Invalid user ID: ${id}`);
         }
         // Get existing user
         const user = await this.userRepository.findById(userIdVO.value);
@@ -344,7 +346,7 @@ export default class UserService {
      */
     async getUserPreferences(userId) {
         if (!this.userPreferencesManager) {
-            throw new UserError('UserPreferencesManager not available for preference operations');
+            throw new UserUpdateError('UserPreferencesManager not available for preference operations');
         }
         return this.userPreferencesManager.getUserPreferences(userId);
     }
@@ -356,7 +358,7 @@ export default class UserService {
      */
     async getUserPreferencesByCategory(userId, category) {
         if (!this.userPreferencesManager) {
-            throw new UserError('UserPreferencesManager not available for preference operations');
+            throw new UserUpdateError('UserPreferencesManager not available for preference operations');
         }
         return this.userPreferencesManager.getUserPreferencesByCategory(userId, category);
     }
@@ -368,7 +370,7 @@ export default class UserService {
      */
     async updateUserPreferences(userId, preferences) {
         if (!this.userPreferencesManager) {
-            throw new UserError('UserPreferencesManager not available for preference operations');
+            throw new UserUpdateError('UserPreferencesManager not available for preference operations');
         }
         return this.userPreferencesManager.updateUserPreferences(userId, preferences);
     }
@@ -381,7 +383,7 @@ export default class UserService {
      */
     async updateUserPreferencesByCategory(userId, category, categoryPreferences) {
         if (!this.userPreferencesManager) {
-            throw new UserError('UserPreferencesManager not available for preference operations');
+            throw new UserUpdateError('UserPreferencesManager not available for preference operations');
         }
         return this.userPreferencesManager.updateUserPreferencesByCategory(userId, category, categoryPreferences);
     }
@@ -394,7 +396,7 @@ export default class UserService {
      */
     async setUserPreference(userId, key, value) {
         if (!this.userPreferencesManager) {
-            throw new UserError('UserPreferencesManager not available for preference operations');
+            throw new UserUpdateError('UserPreferencesManager not available for preference operations');
         }
         return this.userPreferencesManager.setUserPreference(userId, key, value);
     }
@@ -406,7 +408,7 @@ export default class UserService {
      */
     async resetUserPreference(userId, key) {
         if (!this.userPreferencesManager) {
-            throw new UserError('UserPreferencesManager not available for preference operations');
+            throw new UserUpdateError('UserPreferencesManager not available for preference operations');
         }
         return this.userPreferencesManager.resetUserPreference(userId, key);
     }
@@ -433,7 +435,7 @@ export default class UserService {
         // Convert to value object if needed
         const userIdVO = id instanceof UserId ? id : createUserId(id);
         if (!userIdVO) {
-            throw new UserValidationError(`Invalid user ID: ${id}`);
+            throw new UserCreationError(`Invalid user ID: ${id}`);
         }
         // Delete user from repository
         await this.userRepository.delete(userIdVO.value);
@@ -446,15 +448,15 @@ export default class UserService {
      * @param {string} difficultyLevel - The new difficulty level code (e.g., 'beginner')
      * @returns {Promise<User>} Updated user
      * @throws {UserNotFoundError} If user not found
-     * @throws {UserValidationError} If difficultyLevel is invalid
-     * @throws {UserError} If update fails
+     * @throws {UserCreationError} If difficultyLevel is invalid
+     * @throws {UserUpdateError} If update fails
      */
     async updateUserDifficulty(userId, difficultyLevel) {
         this.logger.info('Updating user difficulty', { userId, difficultyLevel });
         // Convert to value object if needed
         const userIdVO = userId instanceof UserId ? userId : createUserId(userId);
         if (!userIdVO) {
-            throw new UserValidationError(`Invalid user ID: ${userId}`);
+            throw new UserCreationError(`Invalid user ID: ${userId}`);
         }
 
         // Get existing user directly from repository to ensure fresh data and lock

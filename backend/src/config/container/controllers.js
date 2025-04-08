@@ -5,12 +5,12 @@ import AdaptiveController from "#app/core/adaptive/controllers/AdaptiveControlle
 import AuthController from "#app/core/auth/controllers/AuthController.js";
 import ChallengeController from "#app/core/challenge/controllers/ChallengeController.js";
 import EvaluationController from "#app/core/evaluation/controllers/EvaluationController.js";
-import FocusAreaController from "#app/core/focusArea/controllers/FocusAreaController.js";
 import UserJourneyController from "#app/core/userJourney/controllers/UserJourneyController.js";
 import HealthCheckController from "#app/core/infra/health/HealthCheckController.js";
 import SystemController from "#app/core/system/controllers/SystemController.js";
 import AdminController from "#app/core/admin/controllers/AdminController.js";
 import EventBusController from "#app/core/infra/events/EventBusController.js";
+import FocusAreaController from "#app/core/focusArea/controllers/FocusAreaController.js";
 // Note: AiChatController and AiAnalysisController are not yet implemented
 // These imports will be added once the controllers are created
 // import AiChatController from "../../controllers/ai/AiChatController.js";

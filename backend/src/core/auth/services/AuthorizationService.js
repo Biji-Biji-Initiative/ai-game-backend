@@ -1,4 +1,4 @@
-import { UserAuthorizationError } from "#app/core/user/errors/UserErrors.js";
+import { UserUpdateError } from "#app/core/user/errors/UserErrors.js";
 import { logger } from "#app/core/infra/logging/logger.js";
 
 /**
@@ -31,7 +31,7 @@ class AuthorizationService {
    */
   verifyResourceAccess(userId, resourceOwnerId, resourceType, action, options = {}) {
     if (!userId) {
-      throw new UserAuthorizationError('User ID is required for authorization');
+      throw new UserUpdateError('User ID is required for authorization');
     }
 
     // Admin users can access any resource
@@ -75,7 +75,7 @@ class AuthorizationService {
 
     // Default: deny access if no rules matched
     this.logger.warn('Access denied', { userId, resourceOwnerId, resourceType, action });
-    throw new UserAuthorizationError(
+    throw new UserUpdateError(
       `You don't have permission to ${action} this ${resourceType}`,
       action
     );
@@ -90,7 +90,7 @@ class AuthorizationService {
    */
   verifyPermission(user, permission) {
     if (!user) {
-      throw new UserAuthorizationError('User is required for permission check');
+      throw new UserUpdateError('User is required for permission check');
     }
 
     // Admin users have all permissions
@@ -104,7 +104,7 @@ class AuthorizationService {
     
     if (!hasPermission) {
       this.logger.warn('Permission denied', { userId: user.id, permission });
-      throw new UserAuthorizationError(
+      throw new UserUpdateError(
         `You don't have the required permission: ${permission}`,
         permission
       );
