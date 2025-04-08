@@ -28,14 +28,13 @@ class UserController {
    * Create a new UserController
    * @param {Object} dependencies - Dependencies for the controller
    * @param {Object} dependencies.userService - User service
-   * @param {Object} dependencies.userRepository - User repository (optional, prefer userService)
+   * @param {Object} dependencies.userRepository - User repository (REMOVED - Prefer userService)
    * @param {Object} dependencies.focusAreaCoordinator - Focus area coordinator
    * @param {Object} dependencies.userPreferencesManager - User preferences manager
    * @param {Object} dependencies.logger - Logger instance
    */
   constructor({
     userService,
-    userRepository,
     focusAreaCoordinator,
     userPreferencesManager,
     logger
@@ -45,7 +44,6 @@ class UserController {
       throw new Error('userService is required for UserController');
     }
     this.userService = userService;
-    this.userRepository = userRepository; // Optional, prefer using userService
     this.focusAreaCoordinator = focusAreaCoordinator;
     this.userPreferencesManager = userPreferencesManager;
     this.logger = logger || userLogger.child('controller');
@@ -513,7 +511,7 @@ class UserController {
     this.logger.debug('Updating user by ID', { userId: id });
     
     // Check if user exists first
-    const user = await this.userRepository.findById(id, true);
+    const user = await this.userService.findById(id, true);
     
     if (!user) {
       throw new UserNotFoundError(id);
@@ -570,7 +568,7 @@ class UserController {
       let existingUser = null;
       try {
         // Attempt to find the user, but don't fail the whole request if this errors
-        existingUser = await this.userRepository.findByEmail(email);
+        existingUser = await this.userService.getUserByEmail(email);
       } catch (lookupError) {
         this.logger.warn('Error checking for existing user during registration, proceeding...', { 
           email, 
@@ -586,14 +584,14 @@ class UserController {
       }
       
       // Ensure repository is available
-      if (!this.userRepository) {
+      if (!this.userService) {
           this.logger.error('User repository is not available for registration');
           // Use next to pass the error to the central handler
           return next(new Error('User repository is not available')); 
       }
       
       // Create minimal user using the repository method
-      const userData = await this.userRepository.createMinimalUser({
+      const userData = await this.userService.createMinimalUser({
         email,
         name
       });

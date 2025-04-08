@@ -120,6 +120,16 @@ class ChallengeService {
             }
         );
         
+        this.findById = withServiceErrorHandling(
+            this.getChallengeByIdOrVO.bind(this),
+            {
+                methodName: 'findById',
+                domainName: 'challenge',
+                logger: this.logger,
+                errorMapper: challengeServiceErrorMapper
+            }
+        );
+        
         this.getChallengesForUserOrVO = withServiceErrorHandling(
             this.getChallengesForUserOrVO.bind(this),
             {
@@ -238,7 +248,6 @@ class ChallengeService {
         this.updateChallenge = this.updateChallengeOrVO;
         this.deleteChallenge = this.deleteChallengeOrVO;
         this.getChallengesByFocusArea = this.getChallengesByFocusAreaOrVO;
-        this.findById = this.getChallengeByIdOrVO;
         this.findRecentByUserEmail = this.getRecentChallengesForUserOrVO;
         this.findByUserEmail = this.getChallengesForUserOrVO;
         this.getChallengesByUserId = this.getChallengesByUserIdOrVO;

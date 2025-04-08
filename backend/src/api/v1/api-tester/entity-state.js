@@ -69,28 +69,16 @@ export default function createEntityStateRoute(dependencies = {}) {
         }
 
         try {
-            // Call the appropriate method on the selected service
-            // Use existing methods like getChallengeByIdOrVO, getUserById, etc.
-            // We might need to ensure these services have a consistent `getById` or similar method.
-            // Assuming methods like `getUserById`, `getChallengeByIdOrVO` exist and return the domain object or null.
-            // Adjust method names as needed based on actual service interfaces.
-            if (typeof serviceToUse.findById === 'function') { // Prefer findById if available
-                 entity = await serviceToUse.findById(id);
-            } else if (type.toLowerCase() === 'user' && typeof serviceToUse.getUserById === 'function') {
-                 entity = await serviceToUse.getUserById(id);
-            } else if (type.toLowerCase() === 'challenge' && typeof serviceToUse.getChallengeByIdOrVO === 'function') {
-                 entity = await serviceToUse.getChallengeByIdOrVO(id);
-            } else if (type.toLowerCase() === 'evaluation' && typeof serviceToUse.getEvaluationById === 'function') {
-                 entity = await serviceToUse.getEvaluationById(id);
-            } else if (type.toLowerCase() === 'focusarea' && typeof serviceToUse.getFocusAreaById === 'function') {
-                 entity = await serviceToUse.getFocusAreaById(id);
-            } else {
-                logger.error('API Tester: No suitable get method found on service for type', { type, serviceName: serviceToUse.constructor?.name, correlationId });
-                return res.status(500).json({ success: false, error: `Internal configuration error - cannot find data for type: ${type}` });
+            // SIMPLIFIED: Call the standardized findById method on the selected service
+            if (typeof serviceToUse.findById !== 'function') {
+                logger.error('API Tester: Service does not implement findById method', { type, serviceName: serviceToUse.constructor?.name, correlationId });
+                return res.status(500).json({ success: false, error: `Internal configuration error - service for type ${type} does not support findById` });
             }
+            
+            entity = await serviceToUse.findById(id);
 
             if (!entity) {
-                logger.warn('API Tester: Entity not found via service', { type, id, correlationId });
+                logger.warn('API Tester: Entity not found via service findById', { type, id, correlationId });
                 return res.status(404).json({ success: false, error: `Entity not found: ${type} with ID ${id}` });
             }
 

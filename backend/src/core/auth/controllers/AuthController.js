@@ -23,7 +23,7 @@ class AuthController {
     /**
      * Create a new AuthController
      * @param {Object} dependencies - Injected dependencies
-     * @param {Object} dependencies.userRepository - Repository for user operations
+     * @param {Object} dependencies.userRepository - Repository for user operations (REMOVED)
      * @param {Object} dependencies.supabase - Supabase client
      * @param {Object} dependencies.logger - Logger instance
      * @param {Object} dependencies.emailService - Email service for sending emails
@@ -32,20 +32,12 @@ class AuthController {
     /**
      * Method constructor
      */
-    constructor({ userRepository, supabase, logger, emailService, authService }) {
+    constructor({ /* userRepository REMOVED */ supabase, logger, emailService, authService }) {
         // In production, fail fast if required dependencies are missing
         const isProd = process.env.NODE_ENV === 'production';
         
-        if (!userRepository) {
-            if (isProd) {
-                throw new ConfigurationError('userRepository is required for AuthController in production mode', {
-                    service: 'AuthController',
-                    dependency: 'userRepository'
-                });
-            } else {
-                throw new Error('userRepository is required for AuthController');
-            }
-        }
+        // REMOVE userRepository check
+        // if (!userRepository) { ... }
         
         if (!supabase) {
             if (isProd) {
@@ -69,7 +61,7 @@ class AuthController {
             }
         }
         
-        this.userRepository = userRepository;
+        // this.userRepository = userRepository; // REMOVE THIS LINE
         this.supabase = supabase;
         this.logger = logger;
         this.emailService = emailService;

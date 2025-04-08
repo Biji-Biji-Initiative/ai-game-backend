@@ -59,6 +59,32 @@ class FocusAreaService {
       logger: this.logger,
       errorMapper: focusAreaServiceErrorMapper
     });
+    
+    // Define and wrap findById
+    if (this.focusAreaRepository) { // Only define if repository exists
+         /**
+         * Standardized method to get a focus area by ID
+         * @param {string} id - Focus Area ID
+         * @returns {Promise<FocusArea|null>} Focus Area object or null if not found
+         */
+        this.findById = async (id) => {
+            return await this.focusAreaRepository.findById(id);
+        };
+        this.findById = withServiceErrorHandling(
+            this.findById.bind(this),
+            {
+                methodName: 'findById',
+                domainName: 'focusArea',
+                logger: this.logger,
+                errorMapper: focusAreaServiceErrorMapper
+            }
+        );
+    } else {
+        this.findById = () => {
+            this.logger.error('Cannot find focus area by ID - service not configured correctly.');
+            throw new FocusAreaError('FocusArea service is not configured correctly.');
+        };
+    }
   }
   /**
    * Get focus areas for a user

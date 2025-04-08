@@ -67,6 +67,22 @@ class EvaluationService {
         this.evaluationDomainService = evaluationDomainService;
         this.eventBus = eventBus;
         
+        // Define getEvaluationById method if it doesn't exist (assuming repository has findById)
+        if (typeof this.getEvaluationById !== 'function' && this.evaluationRepository) {
+             /**
+             * Get evaluation by ID (implementation if not already present)
+             * @param {string} id - Evaluation ID
+             * @returns {Promise<Evaluation|null>} Evaluation object or null if not found
+             */
+            this.getEvaluationById = async (id) => {
+                 if (!this.evaluationRepository) {
+                     this.logger.error('EvaluationRepository not available for getEvaluationById');
+                     throw new EvaluationProcessingError('Evaluation service is not configured correctly.');
+                 }
+                 return await this.evaluationRepository.findById(id);
+            };
+        }
+        
         // Apply standardized error handling to all public methods
         this.evaluateResponse = withServiceErrorHandling(
             this.evaluateResponse.bind(this),
@@ -88,7 +104,7 @@ class EvaluationService {
             }
         );
         
-        // Add error handling for other public methods that may exist
+        // Wrap getEvaluationById if it exists (either originally or added above)
         if (typeof this.getEvaluationById === 'function') {
             this.getEvaluationById = withServiceErrorHandling(
                 this.getEvaluationById.bind(this),
@@ -99,6 +115,35 @@ class EvaluationService {
                     errorMapper: evaluationServiceErrorMapper
                 }
             );
+        }
+        
+        // Define findById and wrap it, ensuring it calls the (potentially wrapped) getEvaluationById
+        if (typeof this.getEvaluationById === 'function') {
+             /**
+             * Standardized method to get an evaluation by ID
+             * @param {string} id - Evaluation ID
+             * @returns {Promise<Evaluation|null>} Evaluation object or null if not found
+             */
+            this.findById = async (id) => {
+                // Delegate to the potentially wrapped getEvaluationById
+                return await this.getEvaluationById(id); 
+            };
+            
+            this.findById = withServiceErrorHandling(
+                this.findById.bind(this), // Bind the newly defined findById
+                {
+                    methodName: 'findById', 
+                    domainName: 'evaluation',
+                    logger: this.logger,
+                    errorMapper: evaluationServiceErrorMapper
+                }
+            );
+        } else {
+             // Fallback if getEvaluationById could not be defined (e.g., no repository)
+             this.findById = () => { 
+                 this.logger.error('Cannot find evaluation by ID - service not configured correctly.');
+                 throw new EvaluationProcessingError('Evaluation service is not configured correctly.'); 
+             };        
         }
         
         if (typeof this.getEvaluationsForUser === 'function') {

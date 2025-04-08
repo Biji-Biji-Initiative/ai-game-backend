@@ -109,6 +109,12 @@ export default class UserService {
             logger: this.logger,
             errorMapper: userServiceErrorMapper
         });
+        this.findById = withServiceErrorHandling(this.findById.bind(this), {
+            methodName: 'findById',
+            domainName: 'user',
+            logger: this.logger,
+            errorMapper: userServiceErrorMapper
+        });
         this.getUserByEmail = withServiceErrorHandling(this.getUserByEmail.bind(this), {
             methodName: 'getUserByEmail',
             domainName: 'user',
@@ -213,6 +219,15 @@ export default class UserService {
         }, USER_CACHE_TTL);
         // await the promise before returning
         return userPromise;
+    }
+    /**
+     * Standardized method to get a user by ID
+     * @param {string|UserId} id - User ID or UserId value object
+     * @returns {Promise<User|null>} User object or null if not found
+     */
+    findById(id) {
+        // Delegate to the existing getUserById method
+        return this.getUserById(id);
     }
     /**
      * Get a user by email
